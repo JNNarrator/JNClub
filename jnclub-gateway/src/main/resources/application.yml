@@ -1,0 +1,39 @@
+server:
+  port: 19005
+
+spring:
+  application:
+    name: jnclub
+  datasource:
+    url: jdbc:mysql://localhost:3306/jnclub?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+    username: root
+    password: jiangnan123
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: Asia/Shanghai
+
+sa-token:
+  sso:
+    mode: client
+    server-url: http://localhost:8080
+    client-url: http://localhost:19005
+    client-id: app-jnclub
+    secret-key: jn-sso-secret-key-2026
+  token-name: jn-token
+
+jnclub:
+  frontend-url: http://localhost:5173
+  dufs:
+    base-url: http://localhost:8000
+    upload-path: /jnclub/images/
+
+mybatis-plus:
+  mapper-locations: classpath*:mapper/**/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+logging:
+  level:
+    com.jnclub: debug
