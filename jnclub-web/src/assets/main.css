@@ -6,10 +6,8 @@
   padding: 0;
 }
 
-html,
-body {
+html, body {
   height: 100%;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -18,31 +16,30 @@ body {
   height: 100%;
 }
 
-/* 卡片 hover 效果 */
-.n-card[hoverable] {
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.n-card[hoverable]:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-/* 滚动条样式 */
+/* 自定义滚动条 */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
-
 ::-webkit-scrollbar-track {
   background: transparent;
 }
-
 ::-webkit-scrollbar-thumb {
-  background: var(--border-color);
+  background: var(--border);
   border-radius: 3px;
 }
-
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--text-color-3);
+  background: var(--text-3);
+}
+
+/* 选中文本色 */
+::selection {
+  background: var(--brand-soft);
+  color: var(--text-1);
+}
+
+/* 聚焦 outline 全局统一 */
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
 }

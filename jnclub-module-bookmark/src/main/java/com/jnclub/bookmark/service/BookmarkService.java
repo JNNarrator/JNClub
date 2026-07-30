@@ -10,23 +10,19 @@ import com.jnclub.bookmark.mapper.BookmarkMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.net.URI;
 import java.net.URL;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/**
- * 网页收藏服务
- */
 @Slf4j
 @Service
 public class BookmarkService extends ServiceImpl<BookmarkMapper, Bookmark> {
 
-    /**
-     * 获取目录下的收藏列表
-     */
+    private static final String UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
+
     public List<Bookmark> getBookmarks(Long directoryId) {
         String userId = StpUtil.getLoginIdAsString();
         return list(new LambdaQueryWrapper<Bookmark>()
@@ -35,44 +31,80 @@ public class BookmarkService extends ServiceImpl<BookmarkMapper, Bookmark> {
                 .orderByAsc(Bookmark::getSortOrder));
     }
 
-    /**
-     * 添加收藏
-     */
     public Bookmark addBookmark(Bookmark bookmark) {
         String userId = StpUtil.getLoginIdAsString();
         bookmark.setUserId(userId);
-        
-        // 自动提取 Favicon
-        if (bookmark.getIcon() == null || bookmark.getIcon().isBlank()) {
-            bookmark.setIcon(extractFavicon(bookmark.getUrl()));
+
+        boolean needMeta = bookmark.getTitle() == null || bookmark.getTitle().isBlank()
+                || bookmark.getIcon() == null || bookmark.getIcon().isBlank();
+
+        if (needMeta) {
+            Map<String, String> meta = fetchPageMeta(bookmark.getUrl());
+            if (meta != null) {
+                if (bookmark.getTitle() == null || bookmark.getTitle().isBlank()) {
+                    bookmark.setTitle(meta.get("title"));
+                }
+                if (bookmark.getIcon() == null || bookmark.getIcon().isBlank()) {
+                    bookmark.setIcon(meta.get("icon"));
+                }
+            }
         }
-        
+
+        // 最终兜底
+        if (bookmark.getTitle() == null || bookmark.getTitle().isBlank()) {
+            bookmark.setTitle(fallbackTitle(bookmark.getUrl()));
+        }
+        if (bookmark.getIcon() == null || bookmark.getIcon().isBlank()) {
+            bookmark.setIcon(fallbackIcon(bookmark.getUrl()));
+        }
+
         save(bookmark);
         return bookmark;
     }
 
     /**
-     * 编辑收藏
+     * 预览网页元数据：标题 + favicon（失败返回 null，绝不抛异常）
      */
+    public Map<String, String> fetchPageMeta(String urlStr) {
+        try {
+            HttpResponse response = HttpRequest.get(urlStr)
+                    .setFollowRedirects(true)
+                    .timeout(10000)
+                    .header("User-Agent", UA)
+                    .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+                    .header("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8")
+                    .execute();
+
+            if (response.getStatus() != 200) {
+                log.debug("fetchPageMeta HTTP {} for {}", response.getStatus(), urlStr);
+                return null;
+            }
+
+            String html = response.body();
+            if (html == null || html.isBlank()) return null;
+
+            Map<String, String> result = new LinkedHashMap<>();
+            result.put("title", extractTitle(html, urlStr));
+            result.put("icon", extractFaviconFromHtml(html, urlStr));
+            return result;
+        } catch (Exception e) {
+            log.debug("fetchPageMeta error for {}: {}", urlStr, e.getMessage());
+            return null;
+        }
+    }
+
     public void updateBookmark(Long id, Bookmark bookmark) {
         String userId = StpUtil.getLoginIdAsString();
         Bookmark existing = getById(id);
         if (existing == null || !existing.getUserId().equals(userId)) {
             throw new RuntimeException("收藏不存在");
         }
-        
         existing.setTitle(bookmark.getTitle());
         existing.setUrl(bookmark.getUrl());
-        if (bookmark.getIcon() != null) {
-            existing.setIcon(bookmark.getIcon());
-        }
-        
+        if (bookmark.getIcon() != null) existing.setIcon(bookmark.getIcon());
         updateById(existing);
     }
 
-    /**
-     * 删除收藏
-     */
     public void deleteBookmark(Long id) {
         String userId = StpUtil.getLoginIdAsString();
         Bookmark bookmark = getById(id);
@@ -82,15 +114,11 @@ public class BookmarkService extends ServiceImpl<BookmarkMapper, Bookmark> {
         removeById(id);
     }
 
-    /**
-     * 批量更新排序
-     */
     public void updateSortOrder(List<Map<String, Object>> sortList) {
         String userId = StpUtil.getLoginIdAsString();
         for (Map<String, Object> item : sortList) {
             Long id = Long.parseLong(item.get("id").toString());
             Integer sortOrder = Integer.parseInt(item.get("sortOrder").toString());
-            
             Bookmark bookmark = getById(id);
             if (bookmark != null && bookmark.getUserId().equals(userId)) {
                 bookmark.setSortOrder(sortOrder);
@@ -99,88 +127,75 @@ public class BookmarkService extends ServiceImpl<BookmarkMapper, Bookmark> {
         }
     }
 
-    /**
-     * 提取 Favicon
-     */
-    private String extractFavicon(String urlStr) {
-        try {
-            URL url = new URL(urlStr);
-            String domain = url.getHost();
-            
-            // 策略1：尝试 /favicon.ico
-            String faviconUrl = "https://" + domain + "/favicon.ico";
-            if (checkUrl(faviconUrl)) {
-                return faviconUrl;
-            }
-            
-            // 策略2：解析 HTML 中的 link rel="icon"
-            String htmlFavicon = extractFaviconFromHtml(urlStr);
-            if (htmlFavicon != null) {
-                return htmlFavicon;
-            }
-            
-            // 策略3：使用 Google Favicon 服务
-            return "https://www.google.com/s2/favicons?domain=" + domain + "&sz=64";
-        } catch (Exception e) {
-            log.warn("提取 Favicon 失败: {}", urlStr, e);
-            return null;
-        }
+    // ======================== 提取 ========================
+
+    private String extractTitle(String html, String urlStr) {
+        // 优先 og:title（更友好）
+        Pattern og = Pattern.compile("<meta[^>]+property=[\"']og:title[\"'][^>]+content=[\"']([^\"']+)[\"']", Pattern.CASE_INSENSITIVE);
+        Matcher m = og.matcher(html);
+        if (m.find()) return cleanTitle(m.group(1));
+
+        // 其次 <title>
+        Pattern tp = Pattern.compile("<title[^>]*>([^<]+)</title>", Pattern.CASE_INSENSITIVE);
+        m = tp.matcher(html);
+        if (m.find()) return cleanTitle(m.group(1));
+
+        return fallbackTitle(urlStr);
     }
 
-    /**
-     * 检查 URL 是否可访问
-     */
-    private boolean checkUrl(String url) {
+    private String extractFaviconFromHtml(String html, String urlStr) {
         try {
-            HttpResponse response = HttpRequest.head(url)
-                    .timeout(3000)
-                    .execute();
-            return response.getStatus() == 200;
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
-    /**
-     * 从 HTML 中提取 Favicon
-     */
-    private String extractFaviconFromHtml(String urlStr) {
-        try {
-            HttpResponse response = HttpRequest.get(urlStr)
-                    .timeout(5000)
-                    .execute();
-            
-            if (response.getStatus() != 200) {
-                return null;
-            }
-            
-            String html = response.body();
-            
-            // 匹配 <link rel="icon" href="...">
-            Pattern pattern = Pattern.compile("<link[^>]*rel=[\"'](?:shortcut )?icon[\"'][^>]*href=[\"']([^\"']+)[\"']", Pattern.CASE_INSENSITIVE);
+            Pattern pattern = Pattern.compile(
+                    "<link[^>]+rel=[\"'](?:shortcut )?icon[\"'][^>]+href=[\"']([^\"']+)[\"']",
+                    Pattern.CASE_INSENSITIVE);
             Matcher matcher = pattern.matcher(html);
-            
             if (matcher.find()) {
                 String href = matcher.group(1);
-                
-                // 处理相对路径
-                if (href.startsWith("//")) {
-                    return "https:" + href;
-                } else if (href.startsWith("/")) {
-                    URL url = new URL(urlStr);
-                    return url.getProtocol() + "://" + url.getHost() + href;
-                } else if (!href.startsWith("http")) {
-                    URL url = new URL(urlStr);
-                    return url.getProtocol() + "://" + url.getHost() + "/" + href;
-                }
-                
-                return href;
+                return resolveUrl(href, urlStr);
             }
-            
-            return null;
-        } catch (Exception e) {
-            log.debug("解析 HTML Favicon 失败: {}", urlStr, e);
-            return null;
-        }
+        } catch (Exception ignored) {}
+        return null;
+    }
+
+    private String resolveUrl(String href, String baseUrl) {
+        try {
+            if (href.startsWith("//")) return "https:" + href;
+            if (href.startsWith("/")) {
+                URL u = new URL(baseUrl);
+                return u.getProtocol() + "://" + u.getHost() + href;
+            }
+            if (!href.startsWith("http")) {
+                URL u = new URL(baseUrl);
+                return u.getProtocol() + "://" + u.getHost() + "/" + href;
+            }
+            return href;
+        } catch (Exception e) { return href; }
+    }
+
+    // ======================== 兜底 ========================
+
+    private String fallbackTitle(String urlStr) {
+        try {
+            URL u = new URL(urlStr);
+            String host = u.getHost();
+            // bilibili.com → Bilibili
+            if (host.startsWith("www.")) host = host.substring(4);
+            int dot = host.lastIndexOf('.');
+            if (dot > 0) host = host.substring(0, dot);
+            return host.substring(0, 1).toUpperCase() + host.substring(1);
+        } catch (Exception e) { return urlStr; }
+    }
+
+    private String fallbackIcon(String urlStr) {
+        try {
+            URL u = new URL(urlStr);
+            String host = u.getHost();
+            if (host.startsWith("www.")) host = host.substring(4);
+            return "https://www.google.com/s2/favicons?domain=" + host + "&sz=64";
+        } catch (Exception e) { return null; }
+    }
+
+    private String cleanTitle(String title) {
+        return title == null ? null : title.replaceAll("\\s+", " ").trim();
     }
 }

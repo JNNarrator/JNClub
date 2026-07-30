@@ -20,6 +20,11 @@ public class Directory {
 
     private String name;
 
+    /**
+     * 目录类型：1=收藏夹目录  2=便签目录
+     */
+    private Integer type;
+
     private Integer sortOrder;
 
     private String userId;

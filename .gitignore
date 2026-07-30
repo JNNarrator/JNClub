@@ -29,3 +29,5 @@ logs/
 # Database
 *.db
 *.sqlite
+# 配置文件（含敏感信息）
+jnclub-gateway/src/main/resources/application.yml

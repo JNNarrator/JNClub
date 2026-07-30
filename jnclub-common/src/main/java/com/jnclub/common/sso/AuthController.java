@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 @Slf4j
@@ -24,19 +25,29 @@ public class AuthController {
     private String frontendUrl;
 
     @GetMapping("/userinfo")
-    public R<Object> getUserinfo() {
+    public R<Map<String, Object>> getUserinfo() {
         try {
             if (!StpUtil.isLogin()) {
                 return R.fail(401, "未登录");
             }
             String userId = StpUtil.getLoginIdAsString();
             JSONObject cached = SsoClientController.getUserInfoCache().get(userId);
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("id", userId);
+
             if (cached != null) {
-                return R.ok(cached);
+                // SSO 缓存中有完整信息
+                result.put("username", cached.getStr("username", cached.getStr("email", "")));
+                result.put("nickname", cached.getStr("nickname", "用户"));
+                result.put("avatar", cached.getStr("avatar", ""));
+                result.put("email", cached.getStr("email", ""));
+            } else {
+                result.put("username", userId);
+                result.put("nickname", "用户");
+                result.put("avatar", "");
+                result.put("email", "");
             }
-            JSONObject basicInfo = new JSONObject();
-            basicInfo.set("userId", userId);
-            return R.ok(basicInfo);
+            return R.ok(result);
         } catch (Exception e) {
             log.error("获取用户信息失败", e);
             return R.fail("获取用户信息失败");
@@ -45,7 +56,6 @@ public class AuthController {
 
     @PostMapping("/logout")
     public R<Map<String, String>> logout() {
-        // 清除 JNClub 本地 session
         if (StpUtil.isLogin()) {
             try {
                 String userId = StpUtil.getLoginIdAsString();
@@ -61,9 +71,8 @@ public class AuthController {
             }
         }
 
-        // 构造 SSO 退出 URL，back 参数必须 URL 编码
         String encodedBack = URLEncoder.encode(frontendUrl, StandardCharsets.UTF_8);
-        String ssoLogoutUrl = serverUrl + "/sso/signout?back=" + encodedBack;
+        String ssoLogoutUrl = serverUrl + "/sso/logout?redirect=" + encodedBack;
 
         Map<String, String> data = new HashMap<>();
         data.put("ssoLogoutUrl", ssoLogoutUrl);

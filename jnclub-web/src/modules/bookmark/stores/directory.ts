@@ -2,10 +2,11 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import axios from 'axios'
 
-interface Directory {
+export interface Directory {
   id: number
   parentId: number | null
   name: string
+  type?: number
   sortOrder: number
   userId: string
   createTime: string
@@ -17,10 +18,12 @@ export const useDirectoryStore = defineStore('directory', () => {
   const directories = ref<Directory[]>([])
   const loading = ref(false)
 
-  const fetchDirectories = async () => {
+  const fetchDirectories = async (type?: number) => {
     loading.value = true
     try {
-      const res = await axios.get('/api/directories')
+      const params: any = {}
+      if (type !== undefined) params.type = type
+      const res = await axios.get('/api/directories', { params })
       if (res.data.code === 200) {
         directories.value = res.data.data || []
       }

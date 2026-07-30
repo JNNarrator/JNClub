@@ -2,48 +2,55 @@ package com.jnclub.bookmark.service;
 
 import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
+import com.jnclub.bookmark.entity.Bookmark;
 import com.jnclub.bookmark.entity.Directory;
+import com.jnclub.bookmark.entity.Note;
+import com.jnclub.bookmark.mapper.BookmarkMapper;
 import com.jnclub.bookmark.mapper.DirectoryMapper;
+import com.jnclub.bookmark.mapper.NoteMapper;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * 目录服务
+ * 目录服务 — 支持收藏夹(type=1)与便签(type=2)共用
  */
 @Service
 public class DirectoryService extends ServiceImpl<DirectoryMapper, Directory> {
 
-    /**
-     * 获取当前用户的目录树
-     */
-    public List<Directory> getDirectoryTree() {
+    @Autowired
+    private BookmarkMapper bookmarkMapper;
+
+    @Autowired
+    private NoteMapper noteMapper;
+
+    public List<Directory> getDirectoryTree(Integer type) {
         String userId = StpUtil.getLoginIdAsString();
-        List<Directory> directories = list(new LambdaQueryWrapper<Directory>()
+        LambdaQueryWrapper<Directory> wrapper = new LambdaQueryWrapper<Directory>()
                 .eq(Directory::getUserId, userId)
-                .orderByAsc(Directory::getSortOrder));
-        
+                .orderByAsc(Directory::getSortOrder);
+        if (type != null) {
+            wrapper.eq(Directory::getType, type);
+        }
+        List<Directory> directories = list(wrapper);
         return buildTree(directories, null);
     }
 
-    /**
-     * 创建目录
-     */
     public Directory createDirectory(Directory directory) {
         String userId = StpUtil.getLoginIdAsString();
         directory.setUserId(userId);
+        if (directory.getType() == null) {
+            directory.setType(1);
+        }
         save(directory);
         return directory;
     }
 
-    /**
-     * 重命名目录
-     */
     public void renameDirectory(Long id, String name) {
         String userId = StpUtil.getLoginIdAsString();
         Directory directory = getById(id);
@@ -54,9 +61,33 @@ public class DirectoryService extends ServiceImpl<DirectoryMapper, Directory> {
         updateById(directory);
     }
 
-    /**
-     * 删除目录（级联删除子目录）
-     */
+    public Map<String, Long> getContentCount(Long id) {
+        String userId = StpUtil.getLoginIdAsString();
+        Directory directory = getById(id);
+        if (directory == null || !directory.getUserId().equals(userId)) {
+            throw new RuntimeException("目录不存在");
+        }
+
+        List<Long> allIds = new ArrayList<>();
+        collectDescendantIds(id, userId, allIds);
+        allIds.add(id);
+
+        Long bookmarkCount = bookmarkMapper.selectCount(
+                new LambdaQueryWrapper<Bookmark>()
+                        .in(Bookmark::getDirectoryId, allIds)
+                        .eq(Bookmark::getUserId, userId));
+
+        Long noteCount = noteMapper.selectCount(
+                new LambdaQueryWrapper<Note>()
+                        .in(Note::getDirectoryId, allIds)
+                        .eq(Note::getUserId, userId));
+
+        Map<String, Long> result = new HashMap<>();
+        result.put("bookmarkCount", bookmarkCount);
+        result.put("noteCount", noteCount);
+        return result;
+    }
+
     @Transactional
     public void deleteDirectory(Long id) {
         String userId = StpUtil.getLoginIdAsString();
@@ -64,23 +95,36 @@ public class DirectoryService extends ServiceImpl<DirectoryMapper, Directory> {
         if (directory == null || !directory.getUserId().equals(userId)) {
             throw new RuntimeException("目录不存在");
         }
-        
-        // 递归删除子目录
+
+        List<Long> descendantIds = new ArrayList<>();
+        collectDescendantIds(id, userId, descendantIds);
+        descendantIds.add(id);
+
+        Long parentId = directory.getParentId();
+        Long targetDirId = (parentId != null) ? parentId : null;
+
+        LambdaUpdateWrapper<Bookmark> bookmarkUpdate = new LambdaUpdateWrapper<Bookmark>()
+                .in(Bookmark::getDirectoryId, descendantIds)
+                .eq(Bookmark::getUserId, userId)
+                .set(Bookmark::getDirectoryId, targetDirId);
+        bookmarkMapper.update(null, bookmarkUpdate);
+
+        LambdaUpdateWrapper<Note> noteUpdate = new LambdaUpdateWrapper<Note>()
+                .in(Note::getDirectoryId, descendantIds)
+                .eq(Note::getUserId, userId)
+                .set(Note::getDirectoryId, targetDirId);
+        noteMapper.update(null, noteUpdate);
+
         deleteChildren(id, userId);
-        
-        // 删除自身
         removeById(id);
     }
 
-    /**
-     * 批量更新排序
-     */
+    @Transactional
     public void updateSortOrder(List<Map<String, Object>> sortList) {
         String userId = StpUtil.getLoginIdAsString();
         for (Map<String, Object> item : sortList) {
             Long id = Long.parseLong(item.get("id").toString());
             Integer sortOrder = Integer.parseInt(item.get("sortOrder").toString());
-            
             Directory directory = getById(id);
             if (directory != null && directory.getUserId().equals(userId)) {
                 directory.setSortOrder(sortOrder);
@@ -89,12 +133,9 @@ public class DirectoryService extends ServiceImpl<DirectoryMapper, Directory> {
         }
     }
 
-    /**
-     * 构建目录树
-     */
     private List<Directory> buildTree(List<Directory> directories, Long parentId) {
         return directories.stream()
-                .filter(d -> (parentId == null && d.getParentId() == null) || 
+                .filter(d -> (parentId == null && d.getParentId() == null) ||
                      (parentId != null && parentId.equals(d.getParentId())))
                 .map(d -> {
                     d.setChildren(buildTree(directories, d.getId()));
@@ -103,14 +144,20 @@ public class DirectoryService extends ServiceImpl<DirectoryMapper, Directory> {
                 .collect(Collectors.toList());
     }
 
-    /**
-     * 递归删除子目录
-     */
+    private void collectDescendantIds(Long parentId, String userId, List<Long> result) {
+        List<Directory> children = list(new LambdaQueryWrapper<Directory>()
+                .eq(Directory::getParentId, parentId)
+                .eq(Directory::getUserId, userId));
+        for (Directory child : children) {
+            result.add(child.getId());
+            collectDescendantIds(child.getId(), userId, result);
+        }
+    }
+
     private void deleteChildren(Long parentId, String userId) {
         List<Directory> children = list(new LambdaQueryWrapper<Directory>()
                 .eq(Directory::getParentId, parentId)
                 .eq(Directory::getUserId, userId));
-        
         for (Directory child : children) {
             deleteChildren(child.getId(), userId);
             removeById(child.getId());

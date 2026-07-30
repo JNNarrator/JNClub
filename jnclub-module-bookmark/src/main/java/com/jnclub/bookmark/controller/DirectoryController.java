@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 目录控制器
+ * 目录控制器 — 收藏夹/便签共用
  */
 @RestController
 @RequestMapping("/api/directories")
@@ -20,11 +20,11 @@ public class DirectoryController {
     private final DirectoryService directoryService;
 
     /**
-     * 获取目录树
+     * 获取目录树，type=1 收藏夹目录  type=2 便签目录  不传则获取全部
      */
     @GetMapping
-    public R<List<Directory>> getDirectoryTree() {
-        return R.ok(directoryService.getDirectoryTree());
+    public R<List<Directory>> getDirectoryTree(@RequestParam(required = false) Integer type) {
+        return R.ok(directoryService.getDirectoryTree(type));
     }
 
     /**
@@ -45,7 +45,15 @@ public class DirectoryController {
     }
 
     /**
-     * 删除目录
+     * 获取目录下内容数量（删除前二次确认用）
+     */
+    @GetMapping("/{id}/content-count")
+    public R<Map<String, Long>> getContentCount(@PathVariable Long id) {
+        return R.ok(directoryService.getContentCount(id));
+    }
+
+    /**
+     * 删除目录（级联删除子目录，内容迁移到父目录）
      */
     @DeleteMapping("/{id}")
     public R<Void> deleteDirectory(@PathVariable Long id) {
