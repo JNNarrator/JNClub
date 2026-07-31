@@ -391,6 +391,7 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
           <CollectionEmpty
             v-else-if="props.activeModule === 'bookmarks' && !loading"
             :message="emptyMessage"
+            @create="handleOpenCreate"
           />
 
           <!-- 便签卡片网格 -->
