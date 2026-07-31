@@ -45,6 +45,9 @@
                 <version>${project.version}</version>
             </dependency>
 
+            <!-- Jackson 2.x 全局排除：与 Spring Boot 4 的 Jackson 3.x 冲突 -->
+            <!-- Spring Boot 4 自带 tools.jackson (Jackson 3.x)，禁止任何 com.fasterxml.jackson 进入 classpath -->
+
             <dependency>
                 <groupId>com.baomidou</groupId>
                 <artifactId>mybatis-plus-spring-boot3-starter</artifactId>

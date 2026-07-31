@@ -1,5 +1,6 @@
 package com.jnclub.common.exception;
 
+import cn.dev33.satoken.exception.NotLoginException;
 import com.jnclub.common.model.R;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -13,6 +14,13 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler(NotLoginException.class)
+    @ResponseStatus(HttpStatus.UNAUTHORIZED)
+    public R<Void> handleNotLoginException(NotLoginException e) {
+        log.debug("未登录访问拦截: {}", e.getMessage());
+        return R.fail(401, "未登录或会话已过期");
+    }
 
     @ExceptionHandler(BizException.class)
     @ResponseStatus(HttpStatus.OK)

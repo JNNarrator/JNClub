@@ -9,6 +9,7 @@ import { h } from 'vue'
 import { NButton, NIcon, NDropdown, NEllipsis, useMessage } from 'naive-ui'
 import { CreateOutline, TrashOutline, EllipsisHorizontalOutline, TimeOutline, EyeOutline } from '@vicons/ionicons5'
 import axios from 'axios'
+import { formatRelativeTime } from '../composables/formatDate'
 
 export interface BookmarkItem {
   id: number
@@ -53,17 +54,6 @@ const dropdownOptions = [
 const handleDropdown = (key: string) => {
   if (key === 'open') handleOpen()
   else if (key === 'delete') handleDelete()
-}
-
-const formatRelativeTime = (dateStr: string) => {
-  const date = new Date(dateStr)
-  const now = new Date()
-  const diff = now.getTime() - date.getTime()
-  if (diff < 60 * 1000) return '刚刚'
-  if (diff < 60 * 60 * 1000) return `${Math.floor(diff / (60 * 1000))} 分钟前`
-  if (diff < 24 * 60 * 60 * 1000) return `${Math.floor(diff / (60 * 60 * 1000))} 小时前`
-  if (diff < 7 * 24 * 60 * 60 * 1000) return `${Math.floor(diff / (24 * 60 * 60 * 1000))} 天前`
-  return date.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' })
 }
 </script>
 

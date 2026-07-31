@@ -2,7 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { useUserStore } from '../stores/user'
 
 const router = createRouter({
-  history: createWebHistory(),
+  history: createWebHistory('/jnclub/'),
   routes: [
     {
       path: '/',
@@ -27,18 +27,16 @@ router.beforeEach(async (to, _from, next) => {
     return
   }
 
-  // SSO 登录失败，跳到回调页显示错误
+  // SSO 登录失败
   if (to.query.error) {
     next({ name: 'sso-callback', query: { error: to.query.error } })
     return
   }
 
-  // SSO 登录成功后，URL 带有 token 参数
-  // 先调用 initToken() 存入 localStorage 和 axios header，再继续
+  // SSO 登录成功后 URL 带有 token 参数
   if (to.query.token) {
     userStore.initToken()
-    // 清除 URL 中的 token，替换为干净 URL
-    next({ path: to.path, query: {}, replace: true })
+    next({ path: '/', query: {}, replace: true })
     return
   }
 
@@ -47,8 +45,8 @@ router.beforeEach(async (to, _from, next) => {
     try {
       await userStore.fetchUserinfo()
     } catch (e) {
-      // 未登录，跳转后端 SSO 入口
-      window.location.href = '/sso/login'
+      // 关键修复：跳 JNClub 后端的 SSO 入口，不是全局 /sso/login
+      window.location.href = import.meta.env.BASE_URL + 'sso/login'
       return
     }
   }

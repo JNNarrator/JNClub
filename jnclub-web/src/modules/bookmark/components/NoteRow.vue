@@ -11,6 +11,7 @@ import {
   EllipsisHorizontalOutline, DocumentTextOutline,
   TimeOutline,
 } from '@vicons/ionicons5'
+import { formatRelativeTime } from '../composables/formatDate'
 import type { Note } from '../stores/note'
 
 const props = defineProps<{
@@ -29,17 +30,6 @@ const getSummary = (content: string | null) => {
   if (!content) return '暂无内容'
   const plain = content.replace(/[#*`\[\]()!>_~\-\n]/g, ' ').replace(/\s+/g, ' ').trim()
   return plain.length > 80 ? plain.substring(0, 80) + '…' : plain
-}
-
-const formatRelativeTime = (dateStr: string) => {
-  const date = new Date(dateStr)
-  const now = new Date()
-  const diff = now.getTime() - date.getTime()
-  if (diff < 60 * 1000) return '刚刚'
-  if (diff < 60 * 60 * 1000) return `${Math.floor(diff / (60 * 1000))} 分钟前`
-  if (diff < 24 * 60 * 60 * 1000) return `${Math.floor(diff / (60 * 60 * 1000))} 小时前`
-  if (diff < 7 * 24 * 60 * 60 * 1000) return `${Math.floor(diff / (24 * 60 * 60 * 1000))} 天前`
-  return date.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' })
 }
 
 const dropdownOptions = [

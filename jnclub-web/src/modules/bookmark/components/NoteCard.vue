@@ -11,6 +11,7 @@ import {
   EllipsisVerticalOutline, DocumentTextOutline,
   TimeOutline,
 } from '@vicons/ionicons5'
+import { formatDate } from '../composables/formatDate'
 import type { Note } from '../stores/note'
 
 const props = defineProps<{
@@ -29,11 +30,6 @@ const getSummary = (content: string | null) => {
   if (!content) return '暂无内容'
   const plain = content.replace(/[#*`\[\]()!>_~\-\n]/g, ' ').replace(/\s+/g, ' ').trim()
   return plain.length > 100 ? plain.substring(0, 100) + '…' : plain
-}
-
-const formatDate = (dateStr: string) => {
-  const date = new Date(dateStr)
-  return date.toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' })
 }
 
 const dropdownOptions = [

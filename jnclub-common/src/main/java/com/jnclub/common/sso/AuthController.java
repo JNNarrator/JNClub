@@ -72,7 +72,7 @@ public class AuthController {
         }
 
         String encodedBack = URLEncoder.encode(frontendUrl, StandardCharsets.UTF_8);
-        String ssoLogoutUrl = serverUrl + "/sso/logout?redirect=" + encodedBack;
+        String ssoLogoutUrl = serverUrl + "/logout?redirect=" + encodedBack;
 
         Map<String, String> data = new HashMap<>();
         data.put("ssoLogoutUrl", ssoLogoutUrl);

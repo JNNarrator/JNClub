@@ -38,7 +38,7 @@ onMounted(async () => {
 })
 
 const handleRetry = () => {
-  window.location.href = '/sso/login'
+  window.location.href = import.meta.env.BASE_URL + 'sso/login'
 }
 </script>
 
@@ -71,7 +71,6 @@ const handleRetry = () => {
   height: 100vh;
   gap: 16px;
 }
-
 .loading-state {
   display: flex;
   flex-direction: column;

@@ -16,14 +16,14 @@ spring:
 sa-token:
   sso:
     mode: client
-    server-url: http://localhost:8080
+    server-url: http://localhost:8080/sso
     client-url: http://localhost:19005
     client-id: app-jnclub
     secret-key: jn-sso-secret-key-2026
   token-name: jn-token
 
 jnclub:
-  frontend-url: http://localhost:5173
+  frontend-url: http://localhost:5173/jnclub
   dufs:
     base-url: http://localhost:8000
     upload-path: /jnclub/images/
