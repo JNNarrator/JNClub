@@ -1,9 +1,8 @@
 <script setup lang="ts">
 /**
- * CollectionCard.vue — 卡片网格中的单张收藏卡
- * favicon + 标题 + 域名 + 操作入口
- * hover: 抬升阴影 + 边框转品牌色 + translateY(-2px)
- * 标题截断 <n-ellipsis>
+ * CollectionCard.vue — 卡片网格中的单张收藏卡（氛围升级版）
+ * 顶部渐变装饰条 + favicon 发光底盒 + 链接色粉系
+ * hover: 卡片抬升 + 品牌粉阴影
  */
 import { h, ref } from 'vue'
 import { NButton, NIcon, NDropdown, NEllipsis, useMessage } from 'naive-ui'
@@ -58,141 +57,179 @@ const handleDropdown = (key: string) => {
 </script>
 
 <template>
-  <div class="collection-card" @click="handleOpen">
-    <!-- 卡头 -->
-    <div class="card-top">
-      <div class="card-favicon">
-        <img
-          v-if="bookmark.icon && !imgError"
-          :src="bookmark.icon"
-          :alt="bookmark.title"
-          class="card-icon"
-          @error="imgError = true"
-        />
-        <div v-else class="card-icon-fallback">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" stroke-width="1.5">
-            <path d="M12 2L2 7l10 5 10-5-10-5z" />
-            <path d="M2 17l10 5 10-5" />
-            <path d="M2 12l10 5 10-5" />
-          </svg>
+  <div class="bookmark-card jnclub-bouncy" @click="handleOpen">
+    <!-- 顶部渐变装饰条 -->
+    <div class="card-top-bar"></div>
+
+    <div class="card-body">
+      <div class="card-head">
+        <!-- favicon 发光底盒 -->
+        <div class="favicon-box">
+          <img
+            v-if="bookmark.icon && !imgError"
+            :src="bookmark.icon"
+            :alt="bookmark.title"
+            class="favicon-img"
+            @error="imgError = true"
+          />
+          <div v-else class="favicon-fallback">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="1.5">
+              <path d="M12 2L2 7l10 5 10-5-10-5z" />
+              <path d="M2 17l10 5 10-5" />
+              <path d="M2 12l10 5 10-5" />
+            </svg>
+          </div>
+        </div>
+
+        <!-- 操作菜单 hover 出现 -->
+        <div class="card-actions" @click.stop>
+          <NDropdown :options="dropdownOptions" @select="handleDropdown" placement="bottom-end">
+            <NButton quaternary circle size="tiny" class="more-btn">
+              <template #icon>
+                <NIcon :component="EllipsisVerticalOutline" size="15" />
+              </template>
+            </NButton>
+          </NDropdown>
         </div>
       </div>
 
-      <!-- 标题 — 截断 + tooltip -->
+      <!-- 标题 -->
       <div class="card-title">
-        <NEllipsis :tooltip="{ width: 360 }" class="title-link">
-          {{ bookmark.title || bookmark.url }}
+        <NEllipsis :tooltip="{ width: 360 }">
+          <span class="title-text">{{ bookmark.title || bookmark.url }}</span>
         </NEllipsis>
       </div>
-    </div>
 
-    <!-- 域名 -->
-    <div class="card-domain">{{ getDomain(bookmark.url) }}</div>
+      <!-- 描述/域名 -->
+      <div class="card-domain">{{ getDomain(bookmark.url) }}</div>
 
-    <!-- 操作菜单 -->
-    <div class="card-actions" @click.stop>
-      <NDropdown :options="dropdownOptions" @select="handleDropdown" placement="bottom-end">
-        <NButton quaternary circle size="tiny" class="more-btn">
-          <template #icon>
-            <NIcon :component="EllipsisVerticalOutline" size="16" />
-          </template>
-        </NButton>
-      </NDropdown>
+      <!-- 链接 -->
+      <a :href="bookmark.url" target="_blank" class="card-link jnclub-bouncy" @click.stop>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+          <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+        </svg>
+        {{ getDomain(bookmark.url) }}
+      </a>
     </div>
   </div>
 </template>
 
 <style scoped>
-.collection-card {
+.bookmark-card {
   position: relative;
   display: flex;
   flex-direction: column;
-  padding: 16px;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   cursor: pointer;
-  transition: all var(--dur) var(--ease);
-  gap: 8px;
+  overflow: hidden;
+  box-shadow: var(--shadow-1);
 }
 
-/* hover 抬升阴影 + 边框转品牌色 + 微上移 */
-.collection-card:hover {
+.bookmark-card:hover {
   transform: translateY(-2px);
-  border-color: var(--brand);
-  box-shadow: 0 4px 12px rgba(236, 91, 142, 0.08), 0 8px 30px rgba(0,0,0,0.06);
+  border-color: var(--pink-peach);
+  box-shadow: var(--shadow-card-hover);
 }
 
-.collection-card:active {
+.bookmark-card:active {
   transform: translateY(0);
 }
 
-/* 卡头 */
-.card-top {
+/* === 卡片主体 === */
+.card-body {
+  padding: 14px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+
+/* === 头部 === */
+.card-head {
   display: flex;
   align-items: flex-start;
+  justify-content: space-between;
   gap: 10px;
 }
 
-.card-favicon {
-  flex-shrink: 0;
-  width: 24px;
-  height: 24px;
+/* favicon 底盒 */
+.favicon-box {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  background: var(--pink-cherry);
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: var(--glow-icon);
+  flex-shrink: 0;
 }
 
-.card-icon {
-  width: 20px;
-  height: 20px;
+.favicon-img {
+  width: 22px;
+  height: 22px;
   border-radius: 4px;
 }
 
-.card-icon-fallback {
+.favicon-fallback {
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
+/* === 标题 === */
 .card-title {
-  flex: 1;
   min-width: 0;
 }
 
-.title-link {
-  color: var(--link) !important;
+.title-text {
   font-size: 14px;
   font-weight: 600;
+  color: var(--text-1);
   line-height: 1.4;
 }
 
-/* 域名 */
+/* === 域名 === */
 .card-domain {
   font-size: 12px;
   color: var(--text-3);
-  padding-left: 34px; /* 与标题缩进对齐 */
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* 操作按钮 — hover 才显示 */
+/* === 链接 === */
+.card-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--pink-adzuki);
+  text-decoration: none;
+  margin-top: auto;
+  width: fit-content;
+}
+
+.card-link:hover {
+  color: var(--brand-hover);
+  text-decoration: underline;
+}
+
+/* === 操作按钮 hover 显示 === */
 .card-actions {
-  position: absolute;
-  top: 10px;
-  right: 10px;
   opacity: 0;
   transition: opacity var(--dur) var(--ease);
 }
 
-.collection-card:hover .card-actions {
+.bookmark-card:hover .card-actions {
   opacity: 1;
 }
 
 .more-btn {
   color: var(--text-3);
-  transition: color var(--dur) var(--ease);
 }
 
 .more-btn:hover {

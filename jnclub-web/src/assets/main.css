@@ -10,13 +10,68 @@ html, body {
   height: 100%;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  font-family: var(--font-sans);
 }
 
 #app {
   height: 100%;
 }
 
-/* 自定义滚动条 */
+/* ---- 点阵背景纹理 ---- */
+.ambient-texture {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.03;
+  background-image: radial-gradient(circle at 1px 1px, var(--brand) 1px, transparent 0);
+  background-size: 20px 20px;
+}
+
+/* ---- 弹性缓动 ---- */
+.jnclub-bouncy {
+  transition-property: background-color, color, border-color, box-shadow, transform, opacity;
+  transition-duration: 250ms;
+  transition-timing-function: var(--ease-bouncy);
+}
+
+.jnclub-bouncy-slow {
+  transition-property: background-color, color, border-color, box-shadow, transform;
+  transition-duration: 320ms;
+  transition-timing-function: var(--ease-bouncy);
+}
+
+/* ---- 动画 ---- */
+@keyframes jnclub-fadeInUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes jnclub-breathe {
+  0%, 100% { box-shadow: var(--shadow-fab); }
+  50%      { box-shadow: var(--shadow-fab-hover); }
+}
+
+@keyframes jnclub-float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50%      { transform: translateY(-12px) rotate(14deg); }
+}
+
+.fade-in-up {
+  animation: jnclub-fadeInUp 520ms var(--ease-bouncy) both;
+}
+
+.fade-in-up-stagger > * {
+  animation: jnclub-fadeInUp 480ms var(--ease-bouncy) both;
+}
+.fade-in-up-stagger > *:nth-child(1) { animation-delay: 40ms; }
+.fade-in-up-stagger > *:nth-child(2) { animation-delay: 90ms; }
+.fade-in-up-stagger > *:nth-child(3) { animation-delay: 140ms; }
+.fade-in-up-stagger > *:nth-child(4) { animation-delay: 190ms; }
+.fade-in-up-stagger > *:nth-child(5) { animation-delay: 240ms; }
+.fade-in-up-stagger > *:nth-child(6) { animation-delay: 290ms; }
+
+/* ---- 自定义滚动条 ---- */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -38,8 +93,160 @@ html, body {
   color: var(--text-1);
 }
 
-/* 聚焦 outline 全局统一 */
+/* 聚焦 outline */
 :focus-visible {
   outline: 2px solid var(--brand);
   outline-offset: 2px;
+}
+
+/* ---- 卡片顶条 ---- */
+.card-top-bar {
+  height: 3px;
+  width: 100%;
+  background: var(--gradient-top-bar);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+}
+
+/* ---- 目录 chip ---- */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-2);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--dur) var(--ease-bouncy);
+  white-space: nowrap;
+}
+.chip:hover {
+  background: var(--hover-bg);
+  color: var(--text-1);
+  border-color: var(--pink-peach);
+}
+.chip-active {
+  background: var(--brand) !important;
+  color: #fff !important;
+  border-color: var(--brand) !important;
+  font-weight: 600;
+  box-shadow: var(--shadow-1);
+}
+.chip-dashed {
+  border-style: dashed !important;
+  color: var(--text-3);
+}
+.chip-dashed:hover {
+  border-color: var(--pink-peach) !important;
+  color: var(--brand) !important;
+  background: var(--pink-cherry) !important;
+}
+
+/* ---- 新建按钮渐变 ---- */
+.btn-new {
+  background: var(--gradient-btn);
+  color: #fff;
+  border: none;
+  box-shadow: var(--shadow-1);
+}
+.btn-new:hover {
+  box-shadow: var(--shadow-card-hover);
+  transform: scale(1.03);
+}
+.btn-new:active {
+  transform: scale(0.97);
+}
+
+/* ---- empty state 飘浮花瓣 ---- */
+.petal {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: var(--pink-peach);
+  border-radius: 50% 0 50% 0;
+  opacity: 0.55;
+  animation: jnclub-float 6s ease-in-out infinite;
+  pointer-events: none;
+}
+.petal-1 { top: 18%; left: 16%; animation-delay: 0s; }
+.petal-2 { top: 26%; right: 18%; animation-delay: 1.2s; background: var(--pink-rose); }
+.petal-3 { bottom: 22%; left: 22%; animation-delay: 2.1s; }
+.petal-4 { bottom: 18%; right: 24%; animation-delay: 0.6s; background: var(--pink-adzuki); }
+
+/* ---- FAB 呼吸动画 + 光晕 ---- */
+.fab-wrap {
+  position: fixed;
+  right: 24px;
+  bottom: 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 100;
+}
+.fab-wrap .fab-primary {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--brand) !important;
+  color: #fff !important;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  animation: jnclub-breathe 2.6s ease-in-out infinite;
+  transition: transform var(--dur) var(--ease-bouncy);
+}
+.fab-wrap .fab-primary:hover {
+  animation-play-state: paused;
+  transform: rotate(5deg) scale(1.05);
+  box-shadow: var(--shadow-fab-hover);
+}
+.fab-wrap .fab-primary:active {
+  transform: scale(0.96);
+}
+.fab-glow {
+  width: 44px;
+  height: 20px;
+  margin-top: -6px;
+  background: var(--gradient-fab-glow);
+  border-radius: var(--radius-pill);
+  pointer-events: none;
+}
+
+/* ---- 侧边栏底边渐变 ---- */
+.sidebar-glow::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 140px;
+  background: radial-gradient(ellipse at bottom, var(--pink-cherry) 0%, transparent 72%);
+  opacity: 0.55;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ---- 毛玻璃顶栏 ---- */
+.glass-header {
+  background: color-mix(in srgb, var(--bg-card) 80%, transparent) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* ---- Reduced motion ---- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .fab-wrap .fab-primary {
+    animation: none !important;
+  }
 }

@@ -1,8 +1,7 @@
 <script setup lang="ts">
 /**
- * NoteEmpty.vue — 便签空态
- * flex column 居中，线性大图标(品牌浅底圆) + 主标题 + 副文案 + 品牌粉主按钮
- * 与收藏夹 CollectionEmpty 同范式
+ * NoteEmpty.vue — 便签空状态（氛围升级版）
+ * 飘浮花瓣 + 渐变卡片底 + 品牌色环形图标 + CTA 按钮渐变
  */
 defineProps<{
   message?: string
@@ -15,91 +14,109 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <div class="note-empty">
-    <!-- 空态居中区域 -->
-    <div class="empty-visual">
-      <!-- 品牌浅底圆大图标 -->
-      <div class="empty-icon-circle">
-        <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <!-- 文档/便签线性图标 -->
+  <div class="empty-state-card">
+    <!-- 飘浮花瓣 -->
+    <span class="petal petal-1"></span>
+    <span class="petal petal-2"></span>
+    <span class="petal petal-3"></span>
+    <span class="petal petal-4"></span>
+
+    <div class="empty-content">
+      <!-- 品牌色环形图标 -->
+      <div class="empty-icon-ring">
+        <svg width="42" height="42" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
           <rect x="10" y="6" width="28" height="36" rx="3" stroke="var(--brand)" stroke-width="2" />
           <line x1="16" y1="16" x2="32" y2="16" stroke="var(--brand)" stroke-width="1.5" stroke-linecap="round" />
-          <line x1="16" y1="22" x2="28" y2="22" stroke="var(--text-4)" stroke-width="1.5" stroke-linecap="round" />
-          <line x1="16" y1="28" x2="24" y2="28" stroke="var(--text-4)" stroke-width="1.5" stroke-linecap="round" />
-          <line x1="16" y1="34" x2="20" y2="34" stroke="var(--text-4)" stroke-width="1.5" stroke-linecap="round" />
-          <!-- 装饰小圆 — 像素级小彩蛋 -->
+          <line x1="16" y1="22" x2="28" y2="22" stroke="var(--pink-adzuki)" stroke-width="1.5" stroke-linecap="round" />
+          <line x1="16" y1="28" x2="24" y2="28" stroke="var(--pink-adzuki)" stroke-width="1.5" stroke-linecap="round" />
+          <line x1="16" y1="34" x2="20" y2="34" stroke="var(--pink-adzuki)" stroke-width="1.5" stroke-linecap="round" />
           <circle cx="34" cy="12" r="2" fill="var(--brand)" opacity="0.5" />
         </svg>
       </div>
+
+      <h3 class="empty-title">{{ message || '还没有便签' }}</h3>
+      <p class="empty-sub">{{ hint || '点击按钮创建你的第一篇便签，随时记录灵感。' }}</p>
+
+      <button class="empty-cta jnclub-bouncy-slow" @click="emit('create')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <line x1="12" y1="5" x2="12" y2="19" />
+          <line x1="5" y1="12" x2="19" y2="12" />
+        </svg>
+        新建便签
+      </button>
     </div>
-
-    <p class="empty-title">{{ message || '这个目录还没有便签' }}</p>
-    <p class="empty-hint">{{ hint || '点击右下角 + 创建你的第一篇便签' }}</p>
-
-    <button class="empty-cta" @click="emit('create')">
-      新建便签
-    </button>
   </div>
 </template>
 
 <style scoped>
-.note-empty {
+.empty-state-card {
+  position: relative;
+  overflow: hidden;
+  background: radial-gradient(circle at 50% 34%, var(--pink-cherry) 0%, transparent 70%), var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 60px 20px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: 80px 20px;
   text-align: center;
-  min-height: 400px;
-  /* 空态居中占满主区 */
+  box-shadow: var(--shadow-1);
 }
 
-/* 品牌浅底圆 */
-.empty-icon-circle {
-  width: 80px;
-  height: 80px;
+.empty-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  z-index: 1;
+}
+
+.empty-icon-ring {
+  width: 72px;
+  height: 72px;
   border-radius: 50%;
-  background: var(--brand-soft);
+  background: var(--pink-cherry);
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 24px;
-  transition: transform var(--dur) var(--ease);
+  box-shadow: var(--glow-icon);
+  margin-bottom: 20px;
 }
-.empty-icon-circle:hover { transform: scale(1.05); }
 
-/* 文案 */
 .empty-title {
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 600;
-  color: var(--text-2);
-  margin: 0 0 8px;
+  color: var(--brand);
+  margin: 0 0 6px;
 }
-.empty-hint {
+
+.empty-sub {
   font-size: 13px;
   color: var(--text-3);
+  max-width: 260px;
+  line-height: 1.6;
   margin: 0 0 24px;
 }
 
-/* 品牌粉主按钮 */
 .empty-cta {
-  border: none;
-  background: var(--brand);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--gradient-btn);
   color: #fff;
   font-size: 14px;
   font-weight: 600;
   padding: 10px 24px;
+  border: none;
   border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: all var(--dur) var(--ease);
+  box-shadow: var(--shadow-1);
 }
 .empty-cta:hover {
-  background: var(--brand-hover);
-  box-shadow: 0 4px 12px rgba(236, 91, 142, 0.3);
+  box-shadow: var(--shadow-card-hover);
   transform: scale(1.03);
 }
 .empty-cta:active {
-  background: var(--brand-press);
   transform: scale(0.97);
 }
 </style>

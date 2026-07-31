@@ -6,9 +6,9 @@ import {
   useMessage, useDialog,
 } from 'naive-ui'
 import {
-  AddOutline, FolderOutline, LinkOutline,
-  DocumentTextOutline, GlobeOutline,
-  RefreshOutline,
+  AddOutline, FolderOpenOutline, LinkOutline,
+  GlobeOutline,
+  RefreshOutline, FolderOutline,
 } from '@vicons/ionicons5'
 import { useDirectoryStore } from '../stores/directory'
 import { useBookmarkStore } from '../stores/bookmark'
@@ -45,6 +45,11 @@ const selectedDirectoryId = ref<number | null>(null)
 const loading = ref(false)
 const viewMode = ref<ViewMode>('grid')
 
+// 目录创建
+const showCreateDirModal = ref(false)
+const creatingDir = ref(false)
+const createDirName = ref('')
+
 // 收藏创建表单
 const showCreateModal = ref(false)
 const creating = ref(false)
@@ -64,6 +69,7 @@ const directoryOptions = computed(() =>
   directoryStore.directories.map(d => ({ label: d.name, value: d.id }))
 )
 
+// 当前目录对象
 const currentDirectory = computed(() => {
   if (!selectedDirectoryId.value) return null
   const findDir = (dirs: any[]): any => {
@@ -78,6 +84,17 @@ const currentDirectory = computed(() => {
   }
   return findDir(directoryStore.directories)
 })
+
+// 目录名
+const currentDirName = computed(() => {
+  if (!currentDirectory.value) return '全部'
+  return currentDirectory.value.name
+})
+
+// 同级目录（顶层 chips）
+const topLevelDirs = computed(() =>
+  directoryStore.directories.filter((d: any) => !d.parentId || d.parentId === null)
+)
 
 // ========== 目录加载 ==========
 
@@ -133,6 +150,27 @@ const handleRefresh = async () => {
   await loadData()
 }
 
+// ========== 目录创建 ==========
+
+const handleOpenCreateDir = () => {
+  createDirName.value = ''
+  showCreateDirModal.value = true
+}
+
+const handleCreateDirSubmit = async () => {
+  if (!createDirName.value.trim()) { message.warning('请输入名称'); return }
+  creatingDir.value = true
+  try {
+    await axios.post('/api/directories', { name: createDirName.value.trim(), parentId: null, type: directoryType.value })
+    message.success('目录创建成功')
+    showCreateDirModal.value = false
+    createDirName.value = ''
+    await handleRefresh()
+  } catch (e: any) {
+    message.error(e.response?.data?.message || '创建失败')
+  } finally { creatingDir.value = false }
+}
+
 // ========== URL 预览与收藏创建 ==========
 
 const isValidUrl = (url: string) => {
@@ -158,81 +196,80 @@ const onUrlInput = () => {
 }
 
 const handleOpenCreate = () => {
-  if (props.activeModule === 'bookmarks') {
-    createBookmarkForm.value = { title: '', url: '', directoryId: selectedDirectoryId.value }
-    previewIcon.value = ''; previewTitle.value = ''
-    showCreateModal.value = true
-  } else {
-    // 便签：直接在当前目录创建空便签并进入编辑态
-    handleCreateNoteAndEdit()
-  }
+  createBookmarkForm.value = { title: '', url: '', directoryId: selectedDirectoryId.value }
+  previewIcon.value = ''
+  previewTitle.value = ''
+  showCreateModal.value = true
 }
 
 const handleCreate = async () => {
+  if (!createBookmarkForm.value.url.trim()) { message.warning('请输入网址'); return }
+  if (!isValidUrl(createBookmarkForm.value.url.trim())) { message.warning('请输入正确的网址'); return }
+  if (!createBookmarkForm.value.title.trim()) { message.warning('请输入标题'); return }
+  if (!createBookmarkForm.value.directoryId && selectedDirectoryId.value) {
+    createBookmarkForm.value.directoryId = selectedDirectoryId.value
+  }
+  if (!createBookmarkForm.value.directoryId) { message.warning('请选择目录'); return }
+
   creating.value = true
   try {
-    if (props.activeModule === 'bookmarks') {
-      await axios.post('/api/bookmarks', {
-        title: createBookmarkForm.value.title || '',
-        url: createBookmarkForm.value.url,
-        directoryId: createBookmarkForm.value.directoryId || selectedDirectoryId.value,
-      })
-      message.success('收藏成功')
-      showCreateModal.value = false
-      await loadData()
-    }
+    await axios.post('/api/bookmarks', {
+      title: createBookmarkForm.value.title.trim(),
+      url: createBookmarkForm.value.url.trim(),
+      directoryId: createBookmarkForm.value.directoryId,
+    })
+    message.success('收藏成功')
+    showCreateModal.value = false
+    await loadData()
   } catch (e: any) {
-    message.error(e.response?.data?.message || '添加失败')
+    message.error(e.response?.data?.message || '收藏失败')
   } finally { creating.value = false }
 }
 
-// ========== 便签操作 ==========
+// ========== 便签 ==========
 
-/** 新建便签并直接进入编辑态 */
-const handleCreateNoteAndEdit = async () => {
-  if (!selectedDirectoryId.value) {
-    message.warning('请先选择一个目录')
-    return
-  }
-  try {
-    const note = await noteStore.createNote({
-      title: '',
-      directoryId: selectedDirectoryId.value,
-    })
-    editingNote.value = note
-    await loadData()
-  } catch (e: any) {
-    message.error(e.response?.data?.message || '创建失败')
-  }
+const noteEditorRef = ref<InstanceType<typeof NoteEditor> | null>(null)
+
+const handleCreateNote = () => {
+  if (!selectedDirectoryId.value) return
+  // 本地草稿，不立即入库 — 等用户真正写了内容才保存
+  editingNote.value = {
+    id: 0, // 新建标记，首次保存时 POST 创建
+    title: '',
+    content: '',
+    directoryId: selectedDirectoryId.value,
+    sortOrder: 0,
+    createTime: '',
+    updateTime: '',
+  } as Note
 }
 
-/** 空态"新建便签"按钮 */
-const handleEmptyCreate = () => {
-  handleCreateNoteAndEdit()
+const handleEditNote = (note: Note) => {
+  editingNote.value = { ...note }
 }
 
-/** 进入编辑 */
-const handleEditNote = async (note: Note) => {
-  try {
-    await noteStore.fetchNoteDetail(note.id)
-    editingNote.value = noteStore.currentNote
-  } catch (e: any) {
-    message.error(e.message || '获取便签失败')
+const handlePreviewNote = (note: Note) => {
+  previewingNote.value = { ...note }
+}
+
+const handlePreviewToEdit = () => {
+  if (previewingNote.value) {
+    editingNote.value = { ...previewingNote.value }
+    previewingNote.value = null
   }
 }
 
-/** 进入预览 */
-const handlePreviewNote = async (note: Note) => {
-  try {
-    await noteStore.fetchNoteDetail(note.id)
-    previewingNote.value = noteStore.currentNote
-  } catch (e: any) {
-    message.error(e.message || '获取便签失败')
-  }
+const handleCloseEditor = () => {
+  editingNote.value = null
 }
 
-/** 删除便签 */
-const handleDeleteNote = (note: Note) => {
+const handleNoteSaved = (updated: Note) => {
+  // 更新引用（新建便签需要拿到后端返回的 id），但不关闭编辑器
+  editingNote.value = { ...updated }
+  loadData()
+}
+
+const handleDeleteNote = async (note: Note) => {
   dialog.warning({
     title: '确认删除',
     content: `确定要删除便签"${note.title}"吗？`,
@@ -240,9 +277,9 @@ const handleDeleteNote = (note: Note) => {
     negativeText: '取消',
     onPositiveClick: async () => {
       try {
-        await noteStore.deleteNote(note.id)
+        await axios.delete(`/api/notes/${note.id}`)
         message.success('删除成功')
-        await loadData()
+        loadData()
       } catch (e: any) {
         message.error(e.response?.data?.message || '删除失败')
       }
@@ -250,133 +287,162 @@ const handleDeleteNote = (note: Note) => {
   })
 }
 
-/** 编辑保存回调 */
-const handleNoteSaved = () => {
-  loadData()
-}
+// ========== FAB 标签 ==========
 
-/** 预览中→编辑 */
-const handlePreviewToEdit = () => {
-  if (previewingNote.value) {
-    editingNote.value = previewingNote.value
-    previewingNote.value = null
-  }
-}
-
-const noteEditorRef = ref<InstanceType<typeof NoteEditor> | null>(null)
-
-/** 关闭编辑器/预览，刷新列表 */
-const handleCloseEditor = () => {
-  // NoteEditor 内部已处理未保存对话框，这里直接关闭
-  editingNote.value = null
-  previewingNote.value = null
-  loadData()
-}
-
-// ========== 辅助 ==========
-
-const handleHelp = () => {
-  if (props.activeModule === 'bookmarks') {
-    message.info('收藏夹使用说明：点击右下角 + 添加网址收藏')
-  } else {
-    message.info('便签使用说明：支持 Markdown，可粘贴/拖拽/上传图片，Ctrl+S 保存')
-  }
-}
-
-/** 是否为便签模式的空态 */
-const isNotesEmpty = computed(() =>
-  props.activeModule === 'notes' && !loading.value && noteStore.notes.length === 0
-)
-
-/** 是否为收藏模式的空态 */
 const fabLabel = computed(() => props.activeModule === 'bookmarks' ? '添加收藏' : '新建便签')
 
-const isBookmarkEmpty = computed(() =>
-  props.activeModule === 'bookmarks' && !loading.value && bookmarkStore.bookmarks.length === 0
-)
+const handleHelp = () => {
+  window.open('https://github.com/your-repo/jnclub', '_blank')
+}
+
+// ========== 空状态文案 ==========
+
+const emptyMessage = computed(() => props.activeModule === 'bookmarks' ? '这个目录还没有收藏' : '这个目录还没有便签')
+const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶部按钮添加第一个收藏' : '点击右下角 + 创建你的第一篇便签')
 </script>
 
 <template>
   <div class="home">
-    <!-- 点纹背景 -->
-    <div class="ambient-texture" />
+    <!-- 点阵背景 -->
+    <div class="ambient-texture"></div>
 
-    <!-- 顶栏 -->
-    <div class="top-bar">
-      <div class="bar-left">
-        <NBreadcrumb>
-          <NBreadcrumbItem>JNClub</NBreadcrumbItem>
-          <NBreadcrumbItem>
-            <NIcon :component="props.activeModule === 'bookmarks' ? FolderOutline : DocumentTextOutline" size="16" />
+    <!-- 毛玻璃顶栏 -->
+    <header class="home-header glass-header">
+      <div class="header-left">
+        <NBreadcrumb class="jnclub-breadcrumb">
+          <NBreadcrumbItem @click="selectedDirectoryId = null">JNClub</NBreadcrumbItem>
+          <NBreadcrumbItem @click="selectedDirectoryId = null">
             {{ props.activeModule === 'bookmarks' ? '收藏夹' : '便签' }}
           </NBreadcrumbItem>
-          <NBreadcrumbItem v-if="currentDirectory">{{ currentDirectory.name }}</NBreadcrumbItem>
+          <NBreadcrumbItem v-if="currentDirName !== '全部'" class="breadcrumb-current">
+            {{ currentDirName }}
+          </NBreadcrumbItem>
         </NBreadcrumb>
       </div>
-      <div class="bar-center">
+
+      <div class="header-right">
         <ViewSwitcher v-model="viewMode" />
-      </div>
-      <div class="bar-right">
-        <NButton type="primary" size="small" @click="handleOpenCreate">
-          <template #icon><NIcon :component="AddOutline" size="16" /></template>
+        <NButton
+          v-if="props.activeModule === 'bookmarks'"
+          class="btn-new jnclub-bouncy-slow"
+          @click="handleOpenCreate"
+        >
+          <template #icon><NIcon :component="AddOutline" /></template>
           新建
         </NButton>
-        <NButton size="small" quaternary @click="handleRefresh">
+        <NButton
+          v-else
+          class="btn-new jnclub-bouncy-slow"
+          @click="handleCreateNote"
+        >
+          <template #icon><NIcon :component="AddOutline" /></template>
+          新建便签
+        </NButton>
+        <NButton quaternary circle size="small" @click="handleRefresh" class="refresh-btn jnclub-bouncy">
           <template #icon><NIcon :component="RefreshOutline" size="16" /></template>
         </NButton>
       </div>
-    </div>
+    </header>
 
-    <!-- 内容区 -->
+    <!-- 主体 -->
     <div class="content-area">
-      <aside class="folder-column">
-        <FolderPanel :key="directoryType"
+      <!-- 左侧目录树 -->
+      <aside v-if="topLevelDirs.length > 0" class="folder-column">
+        <FolderPanel
           :directories="directoryStore.directories"
           :selected-id="selectedDirectoryId"
           :type="directoryType"
           @select="handleDirectorySelect"
-         
+          @refresh="handleRefresh"
         />
       </aside>
 
-      <main class="collection-column">
-        <NSpin :show="loading">
-          <!-- 收藏空态 -->
-          <CollectionEmpty v-if="isBookmarkEmpty" />
-          <!-- 便签空态 -->
-          <NoteEmpty
-            v-else-if="isNotesEmpty"
-            message="这个目录还没有便签"
-            hint="点击右下角 + 创建你的第一篇便签"
-            @create="handleEmptyCreate"
+      <div class="collection-column">
+        <!-- 目录 Chip 快速切换 -->
+        <div v-if="topLevelDirs.length > 0" class="chip-bar fade-in-up">
+          <!-- 新建目录 chip -->
+          <button type="button" class="chip chip-dashed jnclub-bouncy" @click="handleOpenCreateDir">
+            <NIcon :component="FolderOutline" size="16" />
+            新建目录
+          </button>
+
+          <!-- 目录 chips -->
+          <button
+            v-for="dir in topLevelDirs"
+            :key="dir.id"
+            :class="['chip', 'jnclub-bouncy', { 'chip-active': dir.id === selectedDirectoryId }]"
+            @click="handleDirectorySelect(dir.id)"
+          >
+            <NIcon :component="FolderOpenOutline" size="16" />
+            {{ dir.name }}
+          </button>
+        </div>
+
+        <NSpin :show="loading" class="spin-area">
+          <!-- 收藏卡片网格 -->
+          <CollectionGrid
+            v-if="props.activeModule === 'bookmarks' && viewMode === 'grid' && bookmarkStore.bookmarks.length > 0"
+            :bookmarks="bookmarkStore.bookmarks"
+            @refresh="loadData"
           />
-          <!-- 收藏网格 -->
-          <CollectionGrid v-else-if="props.activeModule === 'bookmarks' && viewMode === 'grid'"
-            :bookmarks="bookmarkStore.bookmarks" :loading="false" @refresh="loadData" />
           <!-- 收藏列表 -->
-          <CollectionList v-else-if="props.activeModule === 'bookmarks' && viewMode === 'list'"
-            :bookmarks="bookmarkStore.bookmarks" :loading="false" @refresh="loadData" />
-          <!-- 便签网格 -->
-          <NoteGrid v-else-if="props.activeModule === 'notes' && viewMode === 'grid'"
+          <CollectionList
+            v-else-if="props.activeModule === 'bookmarks' && viewMode === 'list' && bookmarkStore.bookmarks.length > 0"
+            :bookmarks="bookmarkStore.bookmarks"
+            @refresh="loadData"
+          />
+          <!-- 收藏空状态 -->
+          <CollectionEmpty
+            v-else-if="props.activeModule === 'bookmarks' && !loading"
+            :message="emptyMessage"
+          />
+
+          <!-- 便签卡片网格 -->
+          <NoteGrid
+            v-else-if="props.activeModule === 'notes' && viewMode === 'grid' && noteStore.notes.length > 0"
             :notes="noteStore.notes" :loading="false"
             @preview="handlePreviewNote" @edit="handleEditNote" @delete="handleDeleteNote"
-            @refresh="loadData" />
+            @refresh="loadData"
+          />
           <!-- 便签列表 -->
-          <NoteList v-else-if="props.activeModule === 'notes' && viewMode === 'list'"
+          <NoteList
+            v-else-if="props.activeModule === 'notes' && viewMode === 'list' && noteStore.notes.length > 0"
             :notes="noteStore.notes" :loading="false"
             @preview="handlePreviewNote" @edit="handleEditNote" @delete="handleDeleteNote"
-            @refresh="loadData" />
+            @refresh="loadData"
+          />
+          <!-- 便签空状态 -->
+          <NoteEmpty
+            v-else-if="props.activeModule === 'notes' && !loading"
+            :message="emptyMessage"
+            :hint="emptyHint"
+            @create="handleCreateNote"
+          />
         </NSpin>
-      </main>
+      </div>
     </div>
 
-    <!-- 悬浮操作 -->
+    <!-- 悬浮 FAB -->
     <FloatingActions
       :add-label="fabLabel"
-      @add="handleOpenCreate"
-     
+      @add="props.activeModule === 'bookmarks' ? handleOpenCreate() : handleCreateNote()"
       @help="handleHelp"
     />
+
+    <!-- 目录创建弹窗 -->
+    <NModal v-model:show="showCreateDirModal" preset="dialog" title="新建目录">
+      <NForm style="margin-top: 12px;">
+        <NFormItem label="名称">
+          <NInput v-model:value="createDirName" placeholder="请输入目录名称" clearable @keyup.enter="handleCreateDirSubmit" />
+        </NFormItem>
+      </NForm>
+      <template #action>
+        <NSpace>
+          <NButton @click="showCreateDirModal = false">取消</NButton>
+          <NButton type="primary" :loading="creatingDir" @click="handleCreateDirSubmit">确定</NButton>
+        </NSpace>
+      </template>
+    </NModal>
 
     <!-- 收藏创建弹窗 -->
     <NModal v-model:show="showCreateModal" preset="dialog" title="添加收藏">
@@ -449,43 +515,109 @@ const isBookmarkEmpty = computed(() =>
           <NButton size="small" quaternary @click="previewingNote = null">关闭</NButton>
         </NSpace>
       </template>
-      <NotePreview
-        :note="previewingNote"
-        :is-dark="props.isDark"
-      />
+      <NotePreview :note="previewingNote" :is-dark="props.isDark" />
     </NModal>
   </div>
 </template>
 
 <style scoped>
-.ambient-texture {
-  position: fixed; inset: 0; pointer-events: none; z-index: 0; opacity: 0.03;
-  background-image: radial-gradient(circle at 1px 1px, var(--brand) 1px, transparent 0);
-  background-size: 20px 20px;
-}
 .home {
-  position: relative; height: 100%; display: flex; flex-direction: column;
-  padding: 24px 28px; z-index: 1;
+  position: relative;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  z-index: 1;
 }
-.top-bar {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 20px; padding-bottom: 16px;
-  border-bottom: 1px solid var(--border); gap: 16px;
+
+/* === 顶栏：毛玻璃 === */
+.home-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  height: 60px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+  gap: 16px;
 }
-.bar-left { flex: 1; min-width: 0; }
-.bar-center { flex-shrink: 0; }
-.bar-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-.content-area { flex: 1; display: flex; gap: 24px; min-height: 0; }
-.folder-column { width: 260px; flex-shrink: 0; }
-.collection-column { flex: 1; min-width: 0; overflow-y: auto; }
+.header-left {
+  flex: 1;
+  min-width: 0;
+}
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.jnclub-breadcrumb :deep(.n-breadcrumb-item__link) {
+  cursor: pointer;
+  font-size: 13px;
+}
+.breadcrumb-current :deep(.n-breadcrumb-item__link) {
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+.refresh-btn {
+  color: var(--text-2);
+}
+.refresh-btn:hover {
+  color: var(--text-1);
+  background: var(--hover-bg);
+}
+
+/* === 主体 === */
+.content-area {
+  flex: 1;
+  display: flex;
+  gap: 20px;
+  min-height: 0;
+  padding: 20px 24px;
+}
+
+.folder-column {
+  width: 220px;
+  flex-shrink: 0;
+}
+
+.collection-column {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+}
+
+/* === Chip 标签栏 === */
+.chip-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+/* === Spin === */
+.spin-area {
+  min-height: 200px;
+}
+
+/* === 预览条 === */
 .preview-bar {
-  display: flex; align-items: center; gap: 10px; padding: 10px 14px;
-  margin-bottom: 16px; background: var(--hover-bg); border-radius: var(--radius-sm);
-  font-size: 13px; color: var(--text-2);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  background: var(--hover-bg);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  color: var(--text-2);
 }
 .preview-avatar { flex-shrink: 0; }
-.preview-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-:deep(.n-breadcrumb-item--active .n-breadcrumb-item__link) {
-  font-weight: 600; color: var(--text-1);
+.preview-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>

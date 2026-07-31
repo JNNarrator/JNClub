@@ -1,8 +1,7 @@
 <script setup lang="ts">
 /**
- * FloatingActions.vue — 右侧悬浮操作按钮
- * 品牌粉圆 FAB + 次级圆钮列
- * fixed + right 安全边距，z-index 防遮挡
+ * FloatingActions.vue — 右侧悬浮操作按钮（氛围升级版）
+ * 品牌粉圆 FAB + 呼吸动画 + 底部光晕
  */
 import { NButton, NIcon, NTooltip } from 'naive-ui'
 import { AddOutline, OpenOutline } from '@vicons/ionicons5'
@@ -18,11 +17,11 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <div class="floating-actions">
+  <div class="fab-wrap">
     <div class="secondary-actions">
       <NTooltip placement="left">
         <template #trigger>
-          <NButton circle size="small" class="secondary-btn" @click="emit('help')">
+          <NButton circle size="small" class="secondary-btn jnclub-bouncy" @click="emit('help')">
             <template #icon>
               <NIcon :component="OpenOutline" size="16" />
             </template>
@@ -34,61 +33,79 @@ const emit = defineEmits<{
 
     <NTooltip placement="left">
       <template #trigger>
-        <NButton circle class="fab-primary" @click="emit('add')">
-          <template #icon>
-            <NIcon :component="AddOutline" size="22" />
-          </template>
-        </NButton>
+        <button class="fab-primary" @click="emit('add')" :aria-label="addLabel || '添加'">
+          <NIcon :component="AddOutline" size="22" color="#fff" />
+        </button>
       </template>
       {{ addLabel || '添加收藏' }}
     </NTooltip>
+
+    <div class="fab-glow" aria-hidden="true"></div>
   </div>
 </template>
 
 <style scoped>
-.floating-actions {
+.fab-wrap {
   position: fixed;
   right: 24px;
   bottom: 32px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   z-index: 100;
   max-width: calc(100vw - 32px);
 }
+
 .secondary-actions {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
+
 .secondary-btn {
   background: var(--bg-card) !important;
   border: 1px solid var(--border) !important;
   color: var(--text-2) !important;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-  transition: all var(--dur) var(--ease);
+  box-shadow: var(--shadow-1);
 }
+
 .secondary-btn:hover {
   color: var(--text-1) !important;
-  border-color: var(--brand) !important;
-  box-shadow: 0 4px 12px rgba(236, 91, 142, 0.12);
+  border-color: var(--pink-peach) !important;
+  box-shadow: var(--shadow-2);
 }
+
 .fab-primary {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
   background: var(--brand) !important;
-  color: #fff !important;
-  width: 48px !important;
-  height: 48px !important;
-  box-shadow: 0 4px 16px rgba(236, 91, 142, 0.3);
-  transition: all var(--dur) var(--ease);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  animation: jnclub-breathe 2.6s ease-in-out infinite;
+  transition: transform var(--dur) var(--ease-bouncy);
 }
+
 .fab-primary:hover {
-  background: var(--brand-hover) !important;
-  box-shadow: 0 6px 24px rgba(236, 91, 142, 0.4);
-  transform: scale(1.05);
+  animation-play-state: paused;
+  transform: rotate(5deg) scale(1.05);
+  box-shadow: var(--shadow-fab-hover) !important;
 }
+
 .fab-primary:active {
-  background: var(--brand-press) !important;
-  transform: scale(0.95);
+  transform: scale(0.96);
+}
+
+.fab-glow {
+  width: 44px;
+  height: 20px;
+  margin-top: -6px;
+  background: var(--gradient-fab-glow);
+  border-radius: var(--radius-pill);
+  pointer-events: none;
 }
 </style>

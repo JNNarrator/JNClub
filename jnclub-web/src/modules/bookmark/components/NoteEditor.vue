@@ -46,24 +46,54 @@ const handleChange = (v: string) => {
   content.value = v
   hasUnsavedChanges.value = true
   if (autoSaveTimer.value) clearTimeout(autoSaveTimer.value)
+  // 内容为空时不做自动保存 — 等用户真正输入了再入库
+  if (!v.trim()) return
   autoSaveTimer.value = setTimeout(() => handleSave(true), 3000)
 }
 
-const handleTitleChange = () => { hasUnsavedChanges.value = true }
+const handleTitleChange = () => {
+  hasUnsavedChanges.value = true
+  // 标题变化时也触发自动保存（需配合内容门槛）
+  if (autoSaveTimer.value) clearTimeout(autoSaveTimer.value)
+  if (!title.value.trim() && !content.value.trim()) return
+  autoSaveTimer.value = setTimeout(() => handleSave(true), 3000)
+}
 
 /** 保存 */
 const handleSave = async (silent = false) => {
   if (!props.note || saving.value) return
   if (!hasUnsavedChanges.value && silent) return
+
+  // 内容门槛：标题和内容都为空时，不保存
+  if (!title.value.trim() && !content.value.trim()) return
+
   saving.value = true
   try {
-    await axios.put(`/api/notes/${props.note.id}`, {
-      title: title.value || '',
-      content: content.value,
-    })
-    hasUnsavedChanges.value = false
-    if (!silent) message.success('已保存')
-    emit('saved', { ...props.note, title: title.value, content: content.value } as Note)
+    const isNew = props.note.id === 0
+    if (isNew) {
+      // 新建便签 — POST 创建
+      const res = await axios.post('/api/notes', {
+        title: title.value || '',
+        content: content.value,
+        directoryId: props.note.directoryId,
+      })
+      if (res.data.code === 200 && res.data.data) {
+        hasUnsavedChanges.value = false
+        if (!silent) message.success('已保存')
+        emit('saved', res.data.data as Note)
+      } else {
+        message.error(res.data.message || '创建失败')
+      }
+    } else {
+      // 已有便签 — PUT 更新
+      await axios.put(`/api/notes/${props.note.id}`, {
+        title: title.value || '',
+        content: content.value,
+      })
+      hasUnsavedChanges.value = false
+      if (!silent) message.success('已保存')
+      emit('saved', { ...props.note, title: title.value, content: content.value } as Note)
+    }
   } catch (e: any) {
     message.error(e.response?.data?.message || '保存失败')
   } finally { saving.value = false }

@@ -1,8 +1,7 @@
 <script setup lang="ts">
 /**
- * ViewSwitcher.vue — 多视图分段控件（R 精髓 0.6）
- * 卡片 / 极简 两态可切换，选中态=品牌粉实底白字
- * 切换有过渡
+ * ViewSwitcher.vue — 多视图分段控件（氛围升级版）
+ * 激活态：渐变品牌底 + 白字 + bouncy 过渡
  */
 export type ViewMode = 'grid' | 'list'
 
@@ -25,7 +24,7 @@ const modes: { key: ViewMode; label: string }[] = [
     <button
       v-for="m in modes"
       :key="m.key"
-      :class="['switcher-btn', { active: props.modelValue === m.key }]"
+      :class="['switcher-btn', 'jnclub-bouncy', { active: props.modelValue === m.key }]"
       role="radio"
       :aria-checked="props.modelValue === m.key"
       @click="emit('update:modelValue', m.key)"
@@ -38,35 +37,36 @@ const modes: { key: ViewMode; label: string }[] = [
 <style scoped>
 .view-switcher {
   display: inline-flex;
-  background: var(--bg-card);
+  background: var(--hover-bg);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   overflow: hidden;
   gap: 2px;
-  padding: 2px;
+  padding: 3px;
 }
 
 .switcher-btn {
   border: none;
   background: transparent;
-  padding: 6px 16px;
+  padding: 5px 15px;
   font-size: 13px;
   font-weight: 500;
   color: var(--text-2);
   cursor: pointer;
   border-radius: 6px;
-  transition: all var(--dur) var(--ease);
   white-space: nowrap;
 }
 
 .switcher-btn:hover:not(.active) {
   color: var(--text-1);
-  background: var(--hover-bg);
+  background: var(--bg-card);
+  box-shadow: var(--shadow-1);
 }
 
 .switcher-btn.active {
-  background: var(--brand);
+  background: var(--gradient-btn);
   color: #fff;
   font-weight: 600;
+  box-shadow: var(--shadow-1);
 }
 </style>
