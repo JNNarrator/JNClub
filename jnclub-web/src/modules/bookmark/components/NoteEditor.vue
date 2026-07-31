@@ -122,8 +122,7 @@ const toolbars: any[] = [
   'bold', 'underline', 'italic', '-',
   'strikeThrough', 'title', 'sub', 'sup', 'quote', 'unorderedList', 'orderedList',
   'task', '-', 'codeRow', 'code', 'link', 'image', 'table',
-  '-', 'revoke', 'next', 'save', '=', 'pageFullscreen', 'fullscreen', 'preview',
-  'previewOnly', 'htmlPreview', 'catalog',
+  '-', 'revoke', 'next', '=', 'fullscreen', 'preview', 'catalog',
 ]
 
 onBeforeUnmount(() => { if (autoSaveTimer.value) clearTimeout(autoSaveTimer.value) })
@@ -230,4 +229,9 @@ defineExpose({ hasUnsavedChanges })
 :deep(.md-editor-preview code) { background: var(--hover-bg) !important; color: var(--brand) !important; }
 :deep(.md-editor-preview pre) { background: var(--hover-bg) !important; }
 :deep(.md-editor-footer) { background: var(--bg-card) !important; border-color: var(--border) !important; color: var(--text-3) !important; }
+/* 工具栏重心：两边均衡分布 */
+:deep(.md-editor-toolbar) { justify-content: space-between; }
+:deep(.md-editor-toolbar-left) { flex: 0 1 auto; }
+:deep(.md-editor-toolbar-right) { margin-left: auto; }
+
 </style>
