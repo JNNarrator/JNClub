@@ -314,7 +314,7 @@ const isBookmarkEmpty = computed(() =>
         <ViewSwitcher v-model="viewMode" />
       </div>
       <div class="bar-right">
-        <NButton :type="props.activeModule === 'notes' ? 'primary' : 'default'" size="small" @click="handleOpenCreate">
+        <NButton type="primary" size="small" @click="handleOpenCreate">
           <template #icon><NIcon :component="AddOutline" size="16" /></template>
           新建
         </NButton>
@@ -332,7 +332,7 @@ const isBookmarkEmpty = computed(() =>
           :selected-id="selectedDirectoryId"
           :type="directoryType"
           @select="handleDirectorySelect"
-          @refresh="handleRefresh"
+         
         />
       </aside>
 
@@ -371,7 +371,7 @@ const isBookmarkEmpty = computed(() =>
     <FloatingActions
       :add-label="fabLabel"
       @add="handleOpenCreate"
-      @refresh="handleRefresh"
+     
       @help="handleHelp"
     />
 

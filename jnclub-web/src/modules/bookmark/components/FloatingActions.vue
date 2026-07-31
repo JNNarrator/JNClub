@@ -5,7 +5,7 @@
  * fixed + right 安全边距，z-index 防遮挡
  */
 import { NButton, NIcon, NTooltip } from 'naive-ui'
-import { AddOutline, RefreshOutline, OpenOutline } from '@vicons/ionicons5'
+import { AddOutline, OpenOutline } from '@vicons/ionicons5'
 
 defineProps<{
   addLabel?: string
@@ -13,7 +13,6 @@ defineProps<{
 
 const emit = defineEmits<{
   add: []
-  refresh: []
   help: []
 }>()
 </script>
@@ -21,17 +20,6 @@ const emit = defineEmits<{
 <template>
   <div class="floating-actions">
     <div class="secondary-actions">
-      <NTooltip placement="left">
-        <template #trigger>
-          <NButton circle size="small" class="secondary-btn" @click="emit('refresh')">
-            <template #icon>
-              <NIcon :component="RefreshOutline" size="16" />
-            </template>
-          </NButton>
-        </template>
-        刷新
-      </NTooltip>
-
       <NTooltip placement="left">
         <template #trigger>
           <NButton circle size="small" class="secondary-btn" @click="emit('help')">

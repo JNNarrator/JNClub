@@ -74,14 +74,14 @@ const handleUserDropdown = (key: string) => {
       <span v-if="collapsed" class="logo-mark">J</span>
       <template v-else>
         <span class="logo-brand-text">JNClub</span>
-        <span class="logo-sub">收藏夹</span>
+        <span class="logo-sub">{{ activeModule === 'bookmarks' ? '收藏夹' : '便签' }}</span>
       </template>
     </div>
 
     <nav class="nav-list">
       <NavItem v-for="item in navItems" :key="item.key"
         :icon="item.icon" :label="item.label"
-        :active="props.activeModule === item.key" :collapsed="collapsed"
+        :active="activeModule === item.key" :collapsed="collapsed"
         @click="emit('module-change', item.key)"
       />
     </nav>
