@@ -12,6 +12,7 @@ import {
   TimeOutline,
 } from '@vicons/ionicons5'
 import { formatDate } from '../composables/formatDate'
+import { stripMarkdown } from '../composables/stripMarkdown'
 import type { Note } from '../stores/note'
 
 const props = defineProps<{
@@ -28,7 +29,8 @@ const emit = defineEmits<{
 
 const getSummary = (content: string | null) => {
   if (!content) return '暂无内容'
-  const plain = content.replace(/[#*`\[\]()!>_~\-\n]/g, ' ').replace(/\s+/g, ' ').trim()
+  const plain = stripMarkdown(content)
+  if (!plain) return '暂无内容'
   return plain.length > 100 ? plain.substring(0, 100) + '…' : plain
 }
 
