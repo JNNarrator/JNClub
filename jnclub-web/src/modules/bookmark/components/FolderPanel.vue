@@ -23,7 +23,7 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <div class="folder-panel-card">
+  <div class="folder-panel">
     <FolderTree
       :directories="directories"
       :selected-id="selectedId"
@@ -35,13 +35,9 @@ const emit = defineEmits<{
 </template>
 
 <style scoped>
-.folder-panel-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 16px;
+.folder-panel {
+  padding: 0 4px;
   max-height: calc(100vh - 120px);
   overflow-y: auto;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
 }
 </style>
