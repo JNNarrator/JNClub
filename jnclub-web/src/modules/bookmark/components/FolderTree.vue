@@ -35,10 +35,14 @@ const dialog = useDialog()
 
 const showCreateModal = ref(false)
 const createName = ref('')
+const creating = ref(false)
 
 const showRenameModal = ref(false)
 const renameId = ref<number | null>(null)
 const renameName = ref('')
+const renaming = ref(false)
+
+const deleting = ref(false)
 
 const contextMenuDirId = ref<number | null>(null)
 const showContextMenu = ref(false)
@@ -108,13 +112,15 @@ const handleContextMenuAction = (key: string) => {
       positiveText: '确定',
       negativeText: '取消',
       onPositiveClick: async () => {
+        if (deleting.value) return
+        deleting.value = true
         try {
           await axios.delete(`/api/directories/${id}`)
           message.success('删除成功')
           emit('refresh')
         } catch (e: any) {
           message.error(e.response?.data?.message || '删除失败')
-        }
+        } finally { deleting.value = false }
       },
     })
   }
@@ -153,6 +159,8 @@ const renderLabel = ({ option }: { option: TreeOption }) => {
 
 const handleCreateSubmit = async () => {
   if (!createName.value.trim()) { message.warning('请输入名称'); return }
+  if (creating.value) return
+  creating.value = true
   try {
     await axios.post('/api/directories', { name: createName.value.trim(), parentId: null, type: props.type || 1 })
     message.success('创建成功')
@@ -161,11 +169,13 @@ const handleCreateSubmit = async () => {
     emit('refresh')
   } catch (e: any) {
     message.error(e.response?.data?.message || '创建失败')
-  }
+  } finally { creating.value = false }
 }
 
 const handleRenameSubmit = async () => {
   if (!renameName.value.trim() || renameId.value === null) { message.warning('请输入名称'); return }
+  if (renaming.value) return
+  renaming.value = true
   try {
     await axios.put(`/api/directories/${renameId.value}`, { name: renameName.value.trim() })
     message.success('重命名成功')
@@ -173,7 +183,7 @@ const handleRenameSubmit = async () => {
     emit('refresh')
   } catch (e: any) {
     message.error(e.response?.data?.message || '重命名失败')
-  }
+  } finally { renaming.value = false }
 }
 </script>
 
@@ -213,7 +223,7 @@ const handleRenameSubmit = async () => {
         </NFormItem>
       </NForm>
       <template #action>
-        <NSpace><NButton @click="showCreateModal = false">取消</NButton><NButton type="primary" @click="handleCreateSubmit">确定</NButton></NSpace>
+        <NSpace><NButton @click="showCreateModal = false">取消</NButton><NButton type="primary" :loading="creating" @click="handleCreateSubmit">确定</NButton></NSpace>
       </template>
     </NModal>
 
@@ -224,7 +234,7 @@ const handleRenameSubmit = async () => {
         </NFormItem>
       </NForm>
       <template #action>
-        <NSpace><NButton @click="showRenameModal = false">取消</NButton><NButton type="primary" @click="handleRenameSubmit">确定</NButton></NSpace>
+        <NSpace><NButton @click="showRenameModal = false">取消</NButton><NButton type="primary" :loading="renaming" @click="handleRenameSubmit">确定</NButton></NSpace>
       </template>
     </NModal>
   </div>

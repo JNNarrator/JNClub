@@ -101,7 +101,15 @@ public class DirectoryService extends ServiceImpl<DirectoryMapper, Directory> {
         descendantIds.add(id);
 
         Long parentId = directory.getParentId();
-        Long targetDirId = (parentId != null) ? parentId : null;
+        Long targetDirId;
+
+        if (parentId != null) {
+            // 非根目录：子元素移入祖父目录
+            targetDirId = parentId;
+        } else {
+            // 根目录：创建/找到「未分类」兜底目录
+            targetDirId = ensureUncategorizedDir(userId, directory.getType());
+        }
 
         LambdaUpdateWrapper<Bookmark> bookmarkUpdate = new LambdaUpdateWrapper<Bookmark>()
                 .in(Bookmark::getDirectoryId, descendantIds)
@@ -117,6 +125,29 @@ public class DirectoryService extends ServiceImpl<DirectoryMapper, Directory> {
 
         deleteChildren(id, userId);
         removeById(id);
+    }
+
+    /**
+     * 确保存在「未分类」目录，返回其 ID
+     */
+    private Long ensureUncategorizedDir(String userId, Integer type) {
+        Directory exist = getOne(new LambdaQueryWrapper<Directory>()
+                .eq(Directory::getUserId, userId)
+                .eq(Directory::getType, type)
+                .eq(Directory::getName, "未分类")
+                .isNull(Directory::getParentId)
+                .last("LIMIT 1"));
+        if (exist != null) {
+            return exist.getId();
+        }
+        Directory dir = new Directory();
+        dir.setUserId(userId);
+        dir.setName("未分类");
+        dir.setType(type);
+        dir.setParentId(null);
+        dir.setSortOrder(9999);
+        save(dir);
+        return dir.getId();
     }
 
     @Transactional
