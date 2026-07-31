@@ -23,10 +23,15 @@ sa-token:
   token-name: jn-token
 
 jnclub:
-  frontend-url: http://localhost:5173/jnclub
+  frontend-url: http://localhost:5173/jnclub/
   dufs:
     base-url: http://localhost:8000
+    public-url: /api/files/jnclub/images/
     upload-path: /jnclub/images/
+    username:
+    password:
+  upload:
+    max-size-mb: 10
 
 mybatis-plus:
   mapper-locations: classpath*:mapper/**/*.xml
