@@ -343,7 +343,7 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
     <!-- 主体 -->
     <div class="content-area">
       <!-- 左侧目录树 -->
-      <aside v-if="topLevelDirs.length > 0" class="folder-column">
+      <aside class="folder-column">
         <FolderPanel
           :directories="directoryStore.directories"
           :selected-id="selectedDirectoryId"
@@ -355,7 +355,7 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
 
       <div class="collection-column">
         <!-- 目录 Chip 快速切换 -->
-        <div v-if="topLevelDirs.length > 0" class="chip-bar fade-in-up">
+        <div class="chip-bar fade-in-up">
           <!-- 新建目录 chip -->
           <button type="button" class="chip chip-dashed jnclub-bouncy" @click="handleOpenCreateDir">
             <NIcon :component="Folder" size="16" />
