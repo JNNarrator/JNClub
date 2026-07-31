@@ -4,9 +4,9 @@
  * 三态切换（编辑/预览/全屏）+ 图片上传 + 自动保存 + 离开提示
  */
 import { ref, watch, onBeforeUnmount } from 'vue'
-import { NButton, NIcon, useMessage } from 'naive-ui'
+import { NButton, NIcon, NInput, useMessage, useDialog } from 'naive-ui'
 import {
-  ArrowBackOutline, SaveOutline, CloseOutline,
+  CloseOutline, SaveOutline,
 } from '@vicons/ionicons5'
 import { MdEditor } from 'md-editor-v3'
 import 'md-editor-v3/lib/style.css'
@@ -25,6 +25,7 @@ const emit = defineEmits<{
 }>()
 
 const message = useMessage()
+const dialog = useDialog()
 
 const content = ref('')
 const title = ref('')
@@ -66,6 +67,24 @@ const handleSave = async (silent = false) => {
   } catch (e: any) {
     message.error(e.response?.data?.message || '保存失败')
   } finally { saving.value = false }
+}
+
+/** 关闭前检查未保存 */
+const handleRequestClose = () => {
+  if (hasUnsavedChanges.value) {
+    dialog.warning({
+      title: '未保存的修改',
+      content: '有未保存的修改，确定放弃吗？',
+      positiveText: '放弃',
+      negativeText: '继续编辑',
+      onPositiveClick: () => {
+        hasUnsavedChanges.value = false
+        emit('close')
+      },
+    })
+  } else {
+    emit('close')
+  }
 }
 
 /** 图片上传：粘贴/拖拽/工具栏统一走此钩子 */
@@ -120,24 +139,30 @@ onBeforeUnmount(() => {
   window.removeEventListener('beforeunload', handleBeforeUnload)
   window.removeEventListener('keydown', handleKeydown)
 })
+
+defineExpose({ hasUnsavedChanges })
 </script>
 
 <template>
   <div class="note-editor">
     <div class="editor-topbar">
-      <NButton quaternary size="small" @click="emit('close')">
-        <template #icon><NIcon :component="ArrowBackOutline" size="18" /></template>
-        返回
+      <NButton quaternary size="small" @click="handleRequestClose">
+        <template #icon><NIcon :component="CloseOutline" size="18" /></template>
+        取消
       </NButton>
       <div class="editor-title-wrap">
-        <input v-model="title" class="editor-title-input" placeholder="无标题" @input="handleTitleChange" />
+        <NInput
+          v-model:value="title"
+          :bordered="false"
+          placeholder="输入标题"
+          class="editor-title-input"
+          @keyup.enter.prevent
+          @input="handleTitleChange"
+        />
       </div>
       <NButton type="primary" size="small" :loading="saving" @click="handleSave()">
         <template #icon><NIcon :component="SaveOutline" size="16" /></template>
         保存
-      </NButton>
-      <NButton quaternary size="small" @click="emit('close')">
-        <template #icon><NIcon :component="CloseOutline" size="16" /></template>
       </NButton>
     </div>
 
@@ -149,6 +174,7 @@ onBeforeUnmount(() => {
         :preview-theme="props.isDark ? 'github' : 'github'"
         :toolbars="toolbars"
         language="zh-CN"
+        placeholder="在此输入 Markdown…"
         style="height: 100%;"
         :on-change="handleChange"
         :on-save="() => { handleSave() }"
@@ -176,15 +202,17 @@ onBeforeUnmount(() => {
 .editor-title-wrap { flex: 1; min-width: 0; }
 .editor-title-input {
   width: 100%;
-  border: none;
-  background: transparent;
+  font-size: 16px;
+  font-weight: 600;
+}
+:deep(.editor-title-input .n-input__input-el) {
   font-size: 16px;
   font-weight: 600;
   color: var(--text-1);
-  outline: none;
-  padding: 4px 0;
 }
-.editor-title-input::placeholder { color: var(--text-4); }
+:deep(.editor-title-input .n-input__placeholder) {
+  color: var(--text-4);
+}
 .editor-body { flex: 1; min-height: 0; overflow: hidden; }
 
 /* md-editor-v3 亮/暗主题覆盖 */

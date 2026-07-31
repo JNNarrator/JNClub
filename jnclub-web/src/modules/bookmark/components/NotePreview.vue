@@ -3,19 +3,27 @@
  * NotePreview.vue — Markdown 只读预览
  * 复刻 md-editor-v3 的预览渲染效果
  */
+import { computed } from 'vue'
+import { NEmpty } from 'naive-ui'
 import { MdPreview } from 'md-editor-v3'
 import 'md-editor-v3/lib/style.css'
 import type { Note } from '../stores/note'
 
-defineProps<{
+const props = defineProps<{
   note: Note
   isDark: boolean
 }>()
+
+const isEmpty = computed(() => !props.note.content || props.note.content.trim() === '')
 </script>
 
 <template>
   <div class="note-preview">
+    <div v-if="isEmpty" class="preview-empty">
+      <NEmpty description="预览将在此显示" />
+    </div>
     <MdPreview
+      v-else
       :model-value="note.content || ''"
       :theme="isDark ? 'dark' : 'light'"
       :preview-theme="isDark ? 'github' : 'github'"
@@ -29,6 +37,13 @@ defineProps<{
   padding: 32px;
   max-width: 860px;
   margin: 0 auto;
+}
+
+.preview-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
 }
 
 /* md-editor-v3 预览主题覆盖 */

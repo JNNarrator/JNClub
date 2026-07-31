@@ -263,8 +263,11 @@ const handlePreviewToEdit = () => {
   }
 }
 
+const noteEditorRef = ref<InstanceType<typeof NoteEditor> | null>(null)
+
 /** 关闭编辑器/预览，刷新列表 */
 const handleCloseEditor = () => {
+  // NoteEditor 内部已处理未保存对话框，这里直接关闭
   editingNote.value = null
   previewingNote.value = null
   loadData()
@@ -417,6 +420,7 @@ const isBookmarkEmpty = computed(() =>
       @update:show="(v: boolean) => { if (!v) handleCloseEditor() }"
     >
       <NoteEditor
+        ref="noteEditorRef"
         :note="editingNote"
         :is-dark="props.isDark"
         @close="handleCloseEditor"
