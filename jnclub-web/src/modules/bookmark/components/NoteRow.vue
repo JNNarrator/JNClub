@@ -6,11 +6,7 @@
  */
 import { h } from 'vue'
 import { NButton, NIcon, NDropdown, NEllipsis } from 'naive-ui'
-import {
-  CreateOutline, TrashOutline, EyeOutline,
-  EllipsisHorizontalOutline, DocumentTextOutline,
-  TimeOutline,
-} from '@vicons/ionicons5'
+import { Pencil, Trash2, Eye, Ellipsis, StickyNote, Clock } from 'lucide-vue-next'
 import { formatRelativeTime } from '../composables/formatDate'
 import { stripMarkdown } from '../composables/stripMarkdown'
 import type { Note } from '../stores/note'
@@ -35,9 +31,9 @@ const getSummary = (content: string | null) => {
 }
 
 const dropdownOptions = [
-  { label: '预览', key: 'preview', icon: () => h(NIcon, null, { default: () => h(EyeOutline) }) },
-  { label: '编辑', key: 'edit', icon: () => h(NIcon, null, { default: () => h(CreateOutline) }) },
-  { label: '删除', key: 'delete', icon: () => h(NIcon, null, { default: () => h(TrashOutline) }) },
+  { label: '预览', key: 'preview', icon: () => h(NIcon, null, { default: () => h(Eye) }) },
+  { label: '编辑', key: 'edit', icon: () => h(NIcon, null, { default: () => h(Pencil) }) },
+  { label: '删除', key: 'delete', icon: () => h(NIcon, null, { default: () => h(Trash2) }) },
 ]
 
 const handleDropdown = (key: string) => {
@@ -55,7 +51,7 @@ const handleClick = () => {
   <div class="note-row" @click="handleClick">
     <!-- 文档图标 -->
     <div class="row-icon">
-      <NIcon :component="DocumentTextOutline" size="18" color="var(--text-3)" />
+      <NIcon :component="StickyNote" size="18" color="var(--text-3)" />
     </div>
 
     <!-- 标题 + 摘要 -->
@@ -71,7 +67,7 @@ const handleClick = () => {
     <!-- 右端信息 -->
     <div class="row-meta">
       <span class="meta-time">
-        <NIcon :component="TimeOutline" size="12" />
+        <NIcon :component="Clock" size="12" />
         {{ formatRelativeTime(note.updateTime || note.createTime) }}
       </span>
     </div>
@@ -81,7 +77,7 @@ const handleClick = () => {
       <NDropdown :options="dropdownOptions" @select="handleDropdown" placement="bottom-end">
         <NButton quaternary circle size="tiny" class="more-btn">
           <template #icon>
-            <NIcon :component="EllipsisHorizontalOutline" size="16" />
+            <NIcon :component="Ellipsis" size="16" />
           </template>
         </NButton>
       </NDropdown>

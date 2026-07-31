@@ -14,10 +14,11 @@ const lightThemeOverrides: GlobalThemeOverrides = {
     borderColor: lightTokens.border,
     dividerColor: lightTokens.border,
     borderRadius: lightTokens.radiusSm,
+    fontFamily: lightTokens.fontSans,
   },
   Layout: {
     siderColor: lightTokens.bgCard,
-    headerColor: 'rgba(255,255,255,0.8)',
+    headerColor: lightTokens.bgCard,
   },
   Breadcrumb: {
     itemTextColor: lightTokens.text3,

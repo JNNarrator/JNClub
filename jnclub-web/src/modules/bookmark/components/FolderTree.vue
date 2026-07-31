@@ -6,7 +6,7 @@
  */
 import { ref, computed, h } from 'vue'
 import { NTree, NButton, NIcon, NDropdown, NModal, NForm, NFormItem, NInput, NSpace, useMessage, useDialog } from 'naive-ui'
-import { AddOutline, FolderOpenOutline, CreateOutline, TrashOutline, EllipsisHorizontalOutline } from '@vicons/ionicons5'
+import { Plus, FolderOpen, Pencil, Trash2, Ellipsis } from 'lucide-vue-next'
 import axios from 'axios'
 import type { TreeOption } from 'naive-ui'
 
@@ -56,7 +56,7 @@ const treeData = computed((): TreeOption[] => {
       name: dir.name,
       label: dir.name,
       isLeaf: !dir.children || dir.children.length === 0,
-      prefix: () => h(NIcon, { component: FolderOpenOutline, size: 16, style: { color: 'var(--brand)' } }),
+      prefix: () => h(NIcon, { component: FolderOpen, size: 16, style: { color: 'var(--brand)' } }),
       children: dir.children && dir.children.length > 0 ? [] as TreeOption[] : undefined,
     })
   })
@@ -86,8 +86,8 @@ const handleSelect = (keys: Array<string | number>) => {
 }
 
 const contextMenuOptions = [
-  { label: '重命名', key: 'rename', icon: () => h(NIcon, null, { default: () => h(CreateOutline) }) },
-  { label: '删除', key: 'delete', icon: () => h(NIcon, null, { default: () => h(TrashOutline) }) },
+  { label: '重命名', key: 'rename', icon: () => h(NIcon, null, { default: () => h(Pencil) }) },
+  { label: '删除', key: 'delete', icon: () => h(NIcon, null, { default: () => h(Trash2) }) },
 ]
 
 const handleContextMenuAction = (key: string) => {
@@ -147,7 +147,7 @@ const renderLabel = ({ option }: { option: TreeOption }) => {
         contextMenuX.value = e.clientX
         contextMenuY.value = e.clientY
       },
-    }, { default: () => h(NIcon, { component: EllipsisHorizontalOutline, size: 14 }) }),
+    }, { default: () => h(NIcon, { component: Ellipsis, size: 14 }) }),
   ])
 }
 
@@ -181,7 +181,7 @@ const handleRenameSubmit = async () => {
   <div class="folder-tree">
     <div class="tree-toolbar">
       <NButton size="small" ghost @click="showCreateModal = true" class="add-btn">
-        <template #icon><NIcon :component="AddOutline" size="16" /></template>
+        <template #icon><NIcon :component="Plus" size="16" /></template>
         新建目录
       </NButton>
     </div>

@@ -5,9 +5,7 @@
  */
 import { ref, watch, onBeforeUnmount } from 'vue'
 import { NButton, NIcon, NInput, useMessage, useDialog } from 'naive-ui'
-import {
-  CloseOutline, SaveOutline,
-} from '@vicons/ionicons5'
+import { X, Save } from 'lucide-vue-next'
 import { MdEditor } from 'md-editor-v3'
 import 'md-editor-v3/lib/style.css'
 import axios from 'axios'
@@ -176,7 +174,7 @@ defineExpose({ hasUnsavedChanges })
   <div class="note-editor">
     <div class="editor-topbar">
       <NButton quaternary size="small" @click="handleRequestClose">
-        <template #icon><NIcon :component="CloseOutline" size="18" /></template>
+        <template #icon><NIcon :component="X" size="18" /></template>
         取消
       </NButton>
       <div class="editor-title-wrap">
@@ -190,7 +188,7 @@ defineExpose({ hasUnsavedChanges })
         />
       </div>
       <NButton type="primary" size="small" :loading="saving" @click="handleSave()">
-        <template #icon><NIcon :component="SaveOutline" size="16" /></template>
+        <template #icon><NIcon :component="Save" size="16" /></template>
         保存
       </NButton>
     </div>

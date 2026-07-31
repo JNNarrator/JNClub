@@ -7,7 +7,7 @@
  */
 import { h } from 'vue'
 import { NButton, NIcon, NDropdown, NEllipsis, useMessage } from 'naive-ui'
-import { CreateOutline, TrashOutline, EllipsisHorizontalOutline, TimeOutline, EyeOutline } from '@vicons/ionicons5'
+import { Pencil, Trash2, Ellipsis, Clock, Eye } from 'lucide-vue-next'
 import axios from 'axios'
 import { formatRelativeTime } from '../composables/formatDate'
 
@@ -46,9 +46,9 @@ const handleDelete = async () => {
 }
 
 const dropdownOptions = [
-  { label: '打开', key: 'open', icon: () => h(NIcon, null, { default: () => h(EllipsisHorizontalOutline) }) },
-  { label: '编辑', key: 'edit', icon: () => h(NIcon, null, { default: () => h(CreateOutline) }) },
-  { label: '删除', key: 'delete', icon: () => h(NIcon, null, { default: () => h(TrashOutline) }) },
+  { label: '打开', key: 'open', icon: () => h(NIcon, null, { default: () => h(Ellipsis) }) },
+  { label: '编辑', key: 'edit', icon: () => h(NIcon, null, { default: () => h(Pencil) }) },
+  { label: '删除', key: 'delete', icon: () => h(NIcon, null, { default: () => h(Trash2) }) },
 ]
 
 const handleDropdown = (key: string) => {
@@ -87,11 +87,11 @@ const handleDropdown = (key: string) => {
     <!-- 右端信息 -->
     <div class="row-meta">
       <span class="meta-time">
-        <NIcon :component="TimeOutline" size="12" />
+        <NIcon :component="Clock" size="12" />
         {{ formatRelativeTime(bookmark.createTime) }}
       </span>
       <span class="meta-views">
-        <NIcon :component="EyeOutline" size="12" />
+        <NIcon :component="Eye" size="12" />
         0
       </span>
     </div>
@@ -101,7 +101,7 @@ const handleDropdown = (key: string) => {
       <NDropdown :options="dropdownOptions" @select="handleDropdown" placement="bottom-end">
         <NButton quaternary circle size="tiny" class="more-btn">
           <template #icon>
-            <NIcon :component="EllipsisHorizontalOutline" size="16" />
+            <NIcon :component="Ellipsis" size="16" />
           </template>
         </NButton>
       </NDropdown>

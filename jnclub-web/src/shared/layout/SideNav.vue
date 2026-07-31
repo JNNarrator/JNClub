@@ -1,15 +1,7 @@
 <script setup lang="ts">
 import { ref, h } from 'vue'
 import { NLayoutSider, NIcon, NAvatar, NDropdown, NModal, NButton, useDialog } from 'naive-ui'
-import {
-  BookmarkOutline,
-  DocumentTextOutline,
-  MoonOutline,
-  SunnyOutline,
-  LogOutOutline,
-  PersonCircleOutline,
-  HeartOutline,
-} from '@vicons/ionicons5'
+import { Bookmark, StickyNote, Moon, Sun, LogOut, CircleUser, Heart } from 'lucide-vue-next'
 import { useUserStore } from '../stores/user'
 import NavItem from '../../modules/bookmark/components/NavItem.vue'
 import axios from 'axios'
@@ -29,13 +21,13 @@ const dialog = useDialog()
 const collapsed = ref(false)
 
 const navItems = [
-  { key: 'bookmarks' as const, icon: BookmarkOutline, label: '收藏夹' },
-  { key: 'notes' as const, icon: DocumentTextOutline, label: '便签' },
+  { key: 'bookmarks' as const, icon: Bookmark, label: '收藏夹' },
+  { key: 'notes' as const, icon: StickyNote, label: '便签' },
 ]
 
 const userDropdownOptions = [
-  { label: '用户信息', key: 'profile', icon: () => h(NIcon, null, { default: () => h(PersonCircleOutline) }) },
-  { label: '退出登录', key: 'logout', icon: () => h(NIcon, null, { default: () => h(LogOutOutline) }) },
+  { label: '用户信息', key: 'profile', icon: () => h(NIcon, null, { default: () => h(CircleUser) }) },
+  { label: '退出登录', key: 'logout', icon: () => h(NIcon, null, { default: () => h(LogOut) }) },
 ]
 
 const showProfileModal = ref(false)
@@ -74,7 +66,7 @@ const handleUserDropdown = (key: string) => {
     <!-- Logo 区：渐变粉底 + heart -->
     <div :class="['logo-bar', { collapsed }]">
       <div :class="['logo-icon-wrap', { collapsed }]">
-        <NIcon :component="HeartOutline" :size="collapsed ? 20 : 18" color="#fff" />
+        <NIcon :component="Heart" :size="collapsed ? 20 : 18" color="#fff" />
       </div>
       <template v-if="!collapsed">
         <span class="logo-text">JNClub</span>
@@ -96,7 +88,7 @@ const handleUserDropdown = (key: string) => {
         <!-- 暗色模式 pill toggle -->
         <button type="button" class="theme-toggle-btn jnclub-bouncy" @click="emit('toggle-theme')">
           <span class="theme-toggle-label">
-            <NIcon :component="props.isDark ? MoonOutline : SunnyOutline" size="16" />
+            <NIcon :component="props.isDark ? Moon : Sun" size="16" />
             暗色模式
           </span>
           <span :class="['theme-pill', { on: props.isDark }]">
@@ -120,7 +112,7 @@ const handleUserDropdown = (key: string) => {
       <template v-else>
         <div class="footer-compact">
           <button class="compact-btn" @click="emit('toggle-theme')">
-            <NIcon :component="props.isDark ? MoonOutline : SunnyOutline" size="18" />
+            <NIcon :component="props.isDark ? Moon : Sun" size="18" />
           </button>
           <NDropdown :options="userDropdownOptions" @select="handleUserDropdown" placement="right" trigger="click">
             <NAvatar round size="small" :src="userStore.userinfo?.avatar"
@@ -149,7 +141,7 @@ const handleUserDropdown = (key: string) => {
     </div>
     <template #action>
       <NButton type="error" @click="handleUserDropdown('logout')">
-        <template #icon><NIcon :component="LogOutOutline" /></template>
+        <template #icon><NIcon :component="LogOut" /></template>
         退出登录
       </NButton>
     </template>
@@ -171,7 +163,7 @@ const handleUserDropdown = (key: string) => {
   align-items: center;
   gap: 12px;
   padding: 20px 20px;
-  background: var(--gradient-cherry);
+  background: var(--bg-card);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
   transition: padding var(--dur) var(--ease), justify-content var(--dur) var(--ease);

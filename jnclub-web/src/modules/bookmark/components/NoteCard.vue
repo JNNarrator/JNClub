@@ -6,11 +6,7 @@
  */
 import { h } from 'vue'
 import { NButton, NIcon, NDropdown, NEllipsis } from 'naive-ui'
-import {
-  CreateOutline, TrashOutline, EyeOutline,
-  EllipsisVerticalOutline, DocumentTextOutline,
-  TimeOutline,
-} from '@vicons/ionicons5'
+import { Pencil, Trash2, Eye, EllipsisVertical, StickyNote, Clock } from 'lucide-vue-next'
 import { formatDate } from '../composables/formatDate'
 import { stripMarkdown } from '../composables/stripMarkdown'
 import type { Note } from '../stores/note'
@@ -34,9 +30,9 @@ const getSummary = (content: string | null) => {
 }
 
 const dropdownOptions = [
-  { label: '预览', key: 'preview', icon: () => h(NIcon, null, { default: () => h(EyeOutline) }) },
-  { label: '编辑', key: 'edit', icon: () => h(NIcon, null, { default: () => h(CreateOutline) }) },
-  { label: '删除', key: 'delete', icon: () => h(NIcon, null, { default: () => h(TrashOutline) }) },
+  { label: '预览', key: 'preview', icon: () => h(NIcon, null, { default: () => h(Eye) }) },
+  { label: '编辑', key: 'edit', icon: () => h(NIcon, null, { default: () => h(Pencil) }) },
+  { label: '删除', key: 'delete', icon: () => h(NIcon, null, { default: () => h(Trash2) }) },
 ]
 
 const handleDropdown = (key: string) => {
@@ -59,7 +55,7 @@ const handleClick = () => {
       <div class="card-head">
         <!-- 图标底盒 -->
         <div class="icon-box">
-          <NIcon :component="DocumentTextOutline" size="20" color="var(--brand)" />
+          <NIcon :component="StickyNote" size="20" color="var(--brand)" />
         </div>
 
         <!-- 操作菜单 hover 出现 -->
@@ -67,7 +63,7 @@ const handleClick = () => {
           <NDropdown :options="dropdownOptions" @select="handleDropdown" placement="bottom-end">
             <NButton quaternary circle size="tiny" class="more-btn">
               <template #icon>
-                <NIcon :component="EllipsisVerticalOutline" size="15" />
+                <NIcon :component="EllipsisVertical" size="15" />
               </template>
             </NButton>
           </NDropdown>
@@ -87,7 +83,7 @@ const handleClick = () => {
       <!-- 底部：时间 -->
       <div class="card-footer">
         <span class="card-time">
-          <NIcon :component="TimeOutline" size="13" />
+          <NIcon :component="Clock" size="13" />
           {{ formatDate(note.updateTime || note.createTime) }}
         </span>
       </div>

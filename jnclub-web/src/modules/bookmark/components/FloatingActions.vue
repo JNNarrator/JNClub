@@ -4,7 +4,7 @@
  * 品牌粉圆 FAB + 呼吸动画 + 底部光晕
  */
 import { NButton, NIcon, NTooltip } from 'naive-ui'
-import { AddOutline, OpenOutline } from '@vicons/ionicons5'
+import { Plus, ExternalLink } from 'lucide-vue-next'
 
 defineProps<{
   addLabel?: string
@@ -23,7 +23,7 @@ const emit = defineEmits<{
         <template #trigger>
           <NButton circle size="small" class="secondary-btn jnclub-bouncy" @click="emit('help')">
             <template #icon>
-              <NIcon :component="OpenOutline" size="16" />
+              <NIcon :component="ExternalLink" size="16" />
             </template>
           </NButton>
         </template>
@@ -34,7 +34,7 @@ const emit = defineEmits<{
     <NTooltip placement="left">
       <template #trigger>
         <button class="fab-primary" @click="emit('add')" :aria-label="addLabel || '添加'">
-          <NIcon :component="AddOutline" size="22" color="#fff" />
+          <NIcon :component="Plus" size="22" color="#fff" />
         </button>
       </template>
       {{ addLabel || '添加收藏' }}

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * NavItem.vue — 侧栏导航单项
- * 激活态：渐变光条背景 + 左侧品牌色 border
+ * 激活态：品牌浅底 pill + 品牌色图标/文字
  * 折叠态：图标居中 + 品牌浅底圆角块
  */
 import { NIcon } from 'naive-ui'
@@ -24,7 +24,7 @@ defineEmits<{
     :class="['nav-item', 'jnclub-bouncy', { active, collapsed }]"
     @click="$emit('click')"
   >
-    <NIcon :size="20" :class="['nav-icon', { active }]">
+    <NIcon :size="collapsed ? 22 : 20" :class="['nav-icon', { active }]">
       <component :is="icon" />
     </NIcon>
     <span v-if="!collapsed" :class="['nav-label', { active }]">
@@ -42,11 +42,10 @@ defineEmits<{
   padding: 10px 16px;
   margin: 2px 0;
   border: none;
-  border-left: 3px solid transparent;
   background: transparent;
   cursor: pointer;
-  border-radius: var(--radius-sm);
-  color: var(--text-2);
+  border-radius: var(--radius-pill);
+  color: var(--text-3);
   text-align: left;
   font-size: 14px;
   line-height: 1.4;
@@ -57,26 +56,22 @@ defineEmits<{
   color: var(--text-1);
 }
 
-/* 展开激活态：渐变光条 + 左侧品牌色 border */
+/* 展开激活态：pill 形状 + 品牌浅底 */
 .nav-item.active:not(.collapsed) {
-  background: var(--gradient-nav-active);
-  border-left-color: var(--brand);
+  background: var(--brand-soft);
   color: var(--text-1);
+  font-weight: 600;
 }
 .nav-item.active:not(.collapsed) .nav-icon {
   color: var(--brand);
 }
-.nav-item.active:not(.collapsed) .nav-label {
-  color: var(--text-1);
-  font-weight: 600;
-}
 
-/* 折叠激活态 */
+/* 折叠激活态：品牌浅底圆角块 */
 .nav-item.active.collapsed {
   justify-content: center;
   padding: 10px 0;
   background: var(--brand-soft);
-  border-left-color: transparent;
+  border-radius: var(--radius-sm);
 }
 .nav-item.active.collapsed .nav-icon {
   color: var(--brand);
@@ -95,5 +90,9 @@ defineEmits<{
   font-size: 14px;
   font-weight: 500;
   transition: color var(--dur) var(--ease);
+}
+.nav-label.active {
+  font-weight: 600;
+  color: var(--text-1);
 }
 </style>

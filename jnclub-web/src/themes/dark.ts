@@ -14,6 +14,7 @@ const darkThemeOverrides: GlobalThemeOverrides = {
     borderColor: darkTokens.border,
     dividerColor: darkTokens.border,
     borderRadius: darkTokens.radiusSm,
+    fontFamily: darkTokens.fontSans,
   },
   Layout: {
     siderColor: darkTokens.bgCard,

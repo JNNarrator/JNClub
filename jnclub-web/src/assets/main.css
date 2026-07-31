@@ -17,18 +17,18 @@ html, body {
   height: 100%;
 }
 
-/* ---- 点阵背景纹理 ---- */
+/* ---- 点阵背景纹理（Apple 克制：极轻） ---- */
 .ambient-texture {
   position: fixed;
   inset: 0;
   pointer-events: none;
   z-index: 0;
-  opacity: 0.03;
+  opacity: 0.015;
   background-image: radial-gradient(circle at 1px 1px, var(--brand) 1px, transparent 0);
   background-size: 20px 20px;
 }
 
-/* ---- 弹性缓动 ---- */
+/* ---- Apple 弹性缓动 ---- */
 .jnclub-bouncy {
   transition-property: background-color, color, border-color, box-shadow, transform, opacity;
   transition-duration: 250ms;
@@ -39,6 +39,19 @@ html, body {
   transition-property: background-color, color, border-color, box-shadow, transform;
   transition-duration: 320ms;
   transition-timing-function: var(--ease-bouncy);
+}
+
+/* ---- Apple 标准缓动 ---- */
+.jnclub-ease {
+  transition-property: background-color, color, border-color, box-shadow, opacity;
+  transition-duration: 200ms;
+  transition-timing-function: var(--ease);
+}
+
+.jnclub-ease-fast {
+  transition-property: background-color, color, border-color, box-shadow, opacity;
+  transition-duration: 120ms;
+  transition-timing-function: var(--ease);
 }
 
 /* ---- 动画 ---- */
@@ -150,7 +163,9 @@ html, body {
   background: var(--gradient-btn);
   color: #fff;
   border: none;
+  border-radius: var(--radius-pill);
   box-shadow: var(--shadow-1);
+  transition: var(--dur) var(--ease-bouncy);
 }
 .btn-new:hover {
   box-shadow: var(--shadow-card-hover);

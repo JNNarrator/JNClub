@@ -57,8 +57,10 @@ CREATE TABLE IF NOT EXISTS t_note_asset (
   url VARCHAR(2048) COMMENT '完整公网 URL',
   size BIGINT DEFAULT 0 COMMENT '文件大小(字节)',
   mime VARCHAR(100) COMMENT 'MIME 类型',
+  note_id BIGINT DEFAULT NULL COMMENT '关联便签ID，保存时认领，NULL=上传未保存',
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-  INDEX idx_user_id (user_id)
+  INDEX idx_user_id (user_id),
+  INDEX idx_note_id (note_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='图片资源审计表';
 
 -- ==========================================
@@ -67,3 +69,5 @@ CREATE TABLE IF NOT EXISTS t_note_asset (
 -- ALTER TABLE t_directory ADD COLUMN IF NOT EXISTS type INT DEFAULT 1 COMMENT '目录类型：1=收藏夹  2=便签' AFTER name;
 -- ALTER TABLE t_note MODIFY COLUMN title VARCHAR(200) DEFAULT '' COMMENT '标题（可为空，由内容派生）';
 -- ALTER TABLE t_note MODIFY COLUMN content MEDIUMTEXT COMMENT 'Markdown原文';
+-- ALTER TABLE t_note_asset ADD COLUMN IF NOT EXISTS note_id BIGINT DEFAULT NULL COMMENT '关联便签ID' AFTER mime;
+-- ALTER TABLE t_note_asset ADD INDEX IF NOT EXISTS idx_note_id (note_id);

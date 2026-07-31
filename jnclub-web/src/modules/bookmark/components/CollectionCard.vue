@@ -6,12 +6,7 @@
  */
 import { h, ref } from 'vue'
 import { NButton, NIcon, NDropdown, NEllipsis, useMessage } from 'naive-ui'
-import {
-  CreateOutline,
-  TrashOutline,
-  EllipsisVerticalOutline,
-  OpenOutline,
-} from '@vicons/ionicons5'
+import { Pencil, Trash2, EllipsisVertical, ExternalLink } from 'lucide-vue-next'
 import axios from 'axios'
 import type { BookmarkItem } from './CollectionRow.vue'
 
@@ -45,9 +40,9 @@ const handleDelete = async () => {
 }
 
 const dropdownOptions = [
-  { label: '打开', key: 'open', icon: () => h(NIcon, null, { default: () => h(OpenOutline) }) },
-  { label: '编辑', key: 'edit', icon: () => h(NIcon, null, { default: () => h(CreateOutline) }) },
-  { label: '删除', key: 'delete', icon: () => h(NIcon, null, { default: () => h(TrashOutline) }) },
+  { label: '打开', key: 'open', icon: () => h(NIcon, null, { default: () => h(ExternalLink) }) },
+  { label: '编辑', key: 'edit', icon: () => h(NIcon, null, { default: () => h(Pencil) }) },
+  { label: '删除', key: 'delete', icon: () => h(NIcon, null, { default: () => h(Trash2) }) },
 ]
 
 const handleDropdown = (key: string) => {
@@ -86,7 +81,7 @@ const handleDropdown = (key: string) => {
           <NDropdown :options="dropdownOptions" @select="handleDropdown" placement="bottom-end">
             <NButton quaternary circle size="tiny" class="more-btn">
               <template #icon>
-                <NIcon :component="EllipsisVerticalOutline" size="15" />
+                <NIcon :component="EllipsisVertical" size="15" />
               </template>
             </NButton>
           </NDropdown>

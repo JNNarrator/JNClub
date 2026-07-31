@@ -27,6 +27,11 @@ public class NoteAsset {
 
     private String mime;
 
+    /**
+     * 关联便签 ID — 保存时认领，null 表示上传后尚未保存
+     */
+    private Long noteId;
+
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
 }

@@ -5,11 +5,7 @@ import {
   NModal, NForm, NFormItem, NInput, NSpace, NSelect, NAvatar,
   useMessage, useDialog,
 } from 'naive-ui'
-import {
-  AddOutline, FolderOpenOutline, LinkOutline,
-  GlobeOutline,
-  RefreshOutline, FolderOutline,
-} from '@vicons/ionicons5'
+import { Plus, FolderOpen, Link, Globe, RefreshCw, Folder } from 'lucide-vue-next'
 import { useDirectoryStore } from '../stores/directory'
 import { useBookmarkStore } from '../stores/bookmark'
 import { useNoteStore } from '../stores/note'
@@ -327,7 +323,7 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
           class="btn-new jnclub-bouncy-slow"
           @click="handleOpenCreate"
         >
-          <template #icon><NIcon :component="AddOutline" /></template>
+          <template #icon><NIcon :component="Plus" /></template>
           新建
         </NButton>
         <NButton
@@ -335,11 +331,11 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
           class="btn-new jnclub-bouncy-slow"
           @click="handleCreateNote"
         >
-          <template #icon><NIcon :component="AddOutline" /></template>
+          <template #icon><NIcon :component="Plus" /></template>
           新建便签
         </NButton>
         <NButton quaternary circle size="small" @click="handleRefresh" class="refresh-btn jnclub-bouncy">
-          <template #icon><NIcon :component="RefreshOutline" size="16" /></template>
+          <template #icon><NIcon :component="RefreshCw" size="16" /></template>
         </NButton>
       </div>
     </header>
@@ -362,7 +358,7 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
         <div v-if="topLevelDirs.length > 0" class="chip-bar fade-in-up">
           <!-- 新建目录 chip -->
           <button type="button" class="chip chip-dashed jnclub-bouncy" @click="handleOpenCreateDir">
-            <NIcon :component="FolderOutline" size="16" />
+            <NIcon :component="Folder" size="16" />
             新建目录
           </button>
 
@@ -373,7 +369,7 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
             :class="['chip', 'jnclub-bouncy', { 'chip-active': dir.id === selectedDirectoryId }]"
             @click="handleDirectorySelect(dir.id)"
           >
-            <NIcon :component="FolderOpenOutline" size="16" />
+            <NIcon :component="FolderOpen" size="16" />
             {{ dir.name }}
           </button>
         </div>
@@ -449,13 +445,13 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
       <NForm :model="createBookmarkForm" style="margin-top: 12px;">
         <NFormItem label="网址" path="url">
           <NInput v-model:value="createBookmarkForm.url" placeholder="https://example.com" clearable @input="onUrlInput">
-            <template #prefix><NIcon :component="LinkOutline" /></template>
+            <template #prefix><NIcon :component="Link" /></template>
           </NInput>
         </NFormItem>
         <div v-if="previewTitle || previewLoading" class="preview-bar">
           <NSpin :show="previewLoading" size="small">
             <NAvatar v-if="previewIcon" :src="previewIcon" size="small" round class="preview-avatar" />
-            <NIcon v-else :component="GlobeOutline" size="20" style="color: var(--text-3); flex-shrink: 0;" />
+            <NIcon v-else :component="Globe" size="20" style="color: var(--text-3); flex-shrink: 0;" />
           </NSpin>
           <span class="preview-title">{{ previewTitle || '正在获取网页信息…' }}</span>
         </div>
@@ -509,7 +505,7 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
       <template #header-extra>
         <NSpace>
           <NButton size="small" type="primary" @click="handlePreviewToEdit">
-            <template #icon><NIcon :component="AddOutline" size="14" /></template>
+            <template #icon><NIcon :component="Plus" size="14" /></template>
             编辑
           </NButton>
           <NButton size="small" quaternary @click="previewingNote = null">关闭</NButton>
