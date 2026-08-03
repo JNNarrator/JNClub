@@ -100,7 +100,9 @@ const handleUserDropdown = (key: string) => {
           <div class="user-row jnclub-bouncy">
             <NAvatar round size="small" :src="userStore.userinfo?.avatar"
               class="user-avatar">
-              {{ userStore.userinfo?.nickname?.charAt(0) || 'U' }}
+              <template v-if="!userStore.userinfo?.avatar">
+                {{ userStore.userinfo?.nickname?.charAt(0) || 'U' }}
+              </template>
             </NAvatar>
             <div class="user-info">
               <span class="user-name">{{ userStore.userinfo?.nickname || '用户' }}</span>
@@ -117,7 +119,9 @@ const handleUserDropdown = (key: string) => {
           <NDropdown :options="userDropdownOptions" @select="handleUserDropdown" placement="right" trigger="click">
             <NAvatar round size="small" :src="userStore.userinfo?.avatar"
               class="user-avatar-compact">
-              {{ userStore.userinfo?.nickname?.charAt(0) || 'U' }}
+              <template v-if="!userStore.userinfo?.avatar">
+                {{ userStore.userinfo?.nickname?.charAt(0) || 'U' }}
+              </template>
             </NAvatar>
           </NDropdown>
         </div>
@@ -131,7 +135,9 @@ const handleUserDropdown = (key: string) => {
       <div class="profile-avatar">
         <NAvatar round :size="64" :src="userStore.userinfo?.avatar"
           class="profile-avatar-large">
-          {{ userStore.userinfo?.nickname?.charAt(0) || 'U' }}
+          <template v-if="!userStore.userinfo?.avatar">
+            {{ userStore.userinfo?.nickname?.charAt(0) || 'U' }}
+          </template>
         </NAvatar>
         <div class="profile-name">{{ userStore.userinfo?.nickname || '用户' }}</div>
       </div>

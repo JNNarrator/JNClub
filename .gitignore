@@ -1,33 +1,39 @@
-# Maven
+node_modules/
+dist/
 target/
 *.jar
-*.war
 *.class
 
 # IDE
 .idea/
 *.iml
 .vscode/
-.settings/
-.project
-.classpath
-
-# Node
-node_modules/
-dist/
-.env.local
-.env.*.local
+.vscode-server/
 
 # OS
 .DS_Store
 Thumbs.db
 
+# Claude / Harness
+.claude/reviews/
+.claude/loops/
+.claude/.upgrade-backups/
+.claude/.upgrade-tmp/
+.claude/hooks/
+.claude/skills/
+.claude/.harness-state
+.claude/.harness-version
+.claude/settings.json
+CLAUDE.md
+.lsp.json
+.codegraph/
+.scripts/
+scripts/
+*.local.json
+
 # Logs
 *.log
 logs/
 
-# Database
-*.db
-*.sqlite
-# 配置文件（含敏感信息）
+# 本地配置（含敏感信息）——生产配置在服务器外部文件，不提交
 jnclub-gateway/src/main/resources/application.yml

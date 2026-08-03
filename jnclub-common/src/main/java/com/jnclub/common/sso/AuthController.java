@@ -37,7 +37,8 @@ public class AuthController {
 
             if (cached != null) {
                 // SSO 缓存中有完整信息
-                result.put("username", cached.getStr("username", cached.getStr("email", "")));
+                // SSO 登录账号即邮箱，username 直接映射 email（SSO 不返回 username 字段）
+                result.put("username", cached.getStr("email", ""));
                 result.put("nickname", cached.getStr("nickname", "用户"));
                 result.put("avatar", cached.getStr("avatar", ""));
                 result.put("email", cached.getStr("email", ""));
