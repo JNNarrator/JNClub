@@ -15,15 +15,7 @@ target/
 Thumbs.db
 
 # Claude / Harness
-.claude/reviews/
-.claude/loops/
-.claude/.upgrade-backups/
-.claude/.upgrade-tmp/
-.claude/hooks/
-.claude/skills/
-.claude/.harness-state
-.claude/.harness-version
-.claude/settings.json
+.claude/
 CLAUDE.md
 .lsp.json
 .codegraph/

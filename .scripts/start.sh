@@ -2,8 +2,8 @@
 # JNClub 全套启动脚本
 # 三服务各自独立 Terminal 窗口，Ctrl+C 关单个窗口即可
 set -e
-REPO_DIR="/Users/jiangnan/Documents/JNClub"
-SSO_DIR="/Users/jiangnan/Documents/JN_SSO"
+REPO_DIR="/Users/jiangnan/Documents/Workspace/JNClub"
+SSO_DIR="/Users/jiangnan/Documents/Workspace/JN_SSO"
 
 echo "=== 构建（跳过测试）==="
 cd "$SSO_DIR" && mvn clean package -DskipTests -q && echo "  SSO 构建完成"
