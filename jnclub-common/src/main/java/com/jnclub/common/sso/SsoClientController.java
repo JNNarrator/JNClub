@@ -134,7 +134,7 @@ public class SsoClientController {
         if (ssoToken != null && !ssoToken.isBlank()) {
             try {
                 HttpResponse res = HttpRequest.post(serverUrl + "/api/user/logout")
-                    .header("jn-token", ssoToken)
+                    .header("jn-sso-token", ssoToken)
                     .execute();
                 log.info("SSO 服务器退出响应: {}", res.body());
             } catch (Exception e) {

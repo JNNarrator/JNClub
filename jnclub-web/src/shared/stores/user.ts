@@ -8,6 +8,7 @@ export interface UserInfo {
   nickname: string
   avatar: string
   email?: string
+  ssoProfileUrl?: string
 }
 
 export const useUserStore = defineStore('user', () => {

@@ -46,9 +46,10 @@ const showCreateDirModal = ref(false)
 const creatingDir = ref(false)
 const createDirName = ref('')
 
-// 收藏创建表单
+// 收藏创建/编辑表单
 const showCreateModal = ref(false)
 const creating = ref(false)
+const editingBookmarkId = ref<number | null>(null)
 const createBookmarkForm = ref({ title: '', url: '', directoryId: null as number | null })
 
 // URL 预览
@@ -192,7 +193,20 @@ const onUrlInput = () => {
 }
 
 const handleOpenCreate = () => {
+  editingBookmarkId.value = null
   createBookmarkForm.value = { title: '', url: '', directoryId: selectedDirectoryId.value }
+  previewIcon.value = ''
+  previewTitle.value = ''
+  showCreateModal.value = true
+}
+
+const handleEditBookmark = (bookmark: any) => {
+  editingBookmarkId.value = bookmark.id
+  createBookmarkForm.value = {
+    title: bookmark.title || '',
+    url: bookmark.url || '',
+    directoryId: bookmark.directoryId ?? selectedDirectoryId.value,
+  }
   previewIcon.value = ''
   previewTitle.value = ''
   showCreateModal.value = true
@@ -209,16 +223,25 @@ const handleCreate = async () => {
 
   creating.value = true
   try {
-    await axios.post('/api/bookmarks', {
-      title: createBookmarkForm.value.title.trim(),
-      url: createBookmarkForm.value.url.trim(),
-      directoryId: createBookmarkForm.value.directoryId,
-    })
-    message.success('收藏成功')
+    if (editingBookmarkId.value !== null) {
+      await axios.put(`/api/bookmarks/${editingBookmarkId.value}`, {
+        title: createBookmarkForm.value.title.trim(),
+        url: createBookmarkForm.value.url.trim(),
+        directoryId: createBookmarkForm.value.directoryId,
+      })
+      message.success('保存成功')
+    } else {
+      await axios.post('/api/bookmarks', {
+        title: createBookmarkForm.value.title.trim(),
+        url: createBookmarkForm.value.url.trim(),
+        directoryId: createBookmarkForm.value.directoryId,
+      })
+      message.success('收藏成功')
+    }
     showCreateModal.value = false
     await loadData()
   } catch (e: any) {
-    message.error(e.response?.data?.message || '收藏失败')
+    message.error(e.response?.data?.message || '保存失败')
   } finally { creating.value = false }
 }
 
@@ -379,13 +402,13 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
           <CollectionGrid
             v-if="props.activeModule === 'bookmarks' && viewMode === 'grid' && bookmarkStore.bookmarks.length > 0"
             :bookmarks="bookmarkStore.bookmarks"
-            @refresh="loadData"
+            @refresh="loadData" @edit="handleEditBookmark"
           />
           <!-- 收藏列表 -->
           <CollectionList
             v-else-if="props.activeModule === 'bookmarks' && viewMode === 'list' && bookmarkStore.bookmarks.length > 0"
             :bookmarks="bookmarkStore.bookmarks"
-            @refresh="loadData"
+            @refresh="loadData" @edit="handleEditBookmark"
           />
           <!-- 收藏空状态 -->
           <CollectionEmpty
@@ -441,8 +464,8 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
       </template>
     </NModal>
 
-    <!-- 收藏创建弹窗 -->
-    <NModal v-model:show="showCreateModal" preset="dialog" title="添加收藏">
+    <!-- 收藏创建/编辑弹窗 -->
+    <NModal v-model:show="showCreateModal" preset="dialog" :title="editingBookmarkId !== null ? '编辑收藏' : '添加收藏'">
       <NForm :model="createBookmarkForm" style="margin-top: 12px;">
         <NFormItem label="网址" path="url">
           <NInput v-model:value="createBookmarkForm.url" placeholder="https://example.com" clearable @input="onUrlInput">
@@ -480,6 +503,7 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
       style="width: 95vw; height: 92vh; max-width: 1400px;"
       :bordered="false"
       :mask-closable="false"
+      class="note-editor-modal"
       @update:show="(v: boolean) => { if (!v) handleCloseEditor() }"
     >
       <NoteEditor
@@ -501,6 +525,7 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
       title="预览便签"
       style="width: 90vw; max-width: 1000px; height: 85vh;"
       :bordered="false"
+      class="note-preview-modal"
       @update:show="(v: boolean) => { if (!v) { previewingNote = null } }"
     >
       <template #header-extra>
@@ -512,7 +537,9 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
           <NButton size="small" quaternary @click="previewingNote = null">关闭</NButton>
         </NSpace>
       </template>
-      <NotePreview :note="previewingNote" :is-dark="props.isDark" />
+      <div class="note-preview-body">
+        <NotePreview :note="previewingNote" :is-dark="props.isDark" />
+      </div>
     </NModal>
   </div>
 </template>
@@ -616,5 +643,34 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+</style>
+
+<style>
+/* 便签预览弹框（NModal teleport 到 body，需全局样式）：
+   内容区固定高度 + 内部滚动，长内容不溢出弹框边缘 */
+.note-preview-modal {
+  display: flex;
+  flex-direction: column;
+}
+.note-preview-modal .n-card-content {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.note-preview-modal .note-preview-body {
+  height: 100%;
+  overflow-y: auto;
+}
+
+/* 便签编辑器弹框：同样约束，确保 .note-editor 100% 撑满且内部滚动 */
+.note-editor-modal {
+  display: flex;
+  flex-direction: column;
+}
+.note-editor-modal .n-card-content {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 </style>

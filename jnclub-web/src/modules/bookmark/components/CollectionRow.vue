@@ -27,6 +27,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   refresh: []
+  edit: [bookmark: BookmarkItem]
 }>()
 
 const message = useMessage()
@@ -53,6 +54,7 @@ const dropdownOptions = [
 
 const handleDropdown = (key: string) => {
   if (key === 'open') handleOpen()
+  else if (key === 'edit') emit('edit', props.bookmark)
   else if (key === 'delete') handleDelete()
 }
 </script>

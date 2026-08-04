@@ -37,6 +37,8 @@ const isEmpty = computed(() => !props.note.content || props.note.content.trim() 
   padding: 32px;
   max-width: 860px;
   margin: 0 auto;
+  height: 100%;
+  overflow-y: auto;
 }
 
 .preview-empty {

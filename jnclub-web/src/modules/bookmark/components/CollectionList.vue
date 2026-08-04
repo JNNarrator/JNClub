@@ -15,6 +15,7 @@ defineProps<{
 
 const emit = defineEmits<{
   refresh: []
+  edit: [bookmark: BookmarkItem]
 }>()
 
 /* Stagger 渐入：每项延迟递增 */
@@ -36,7 +37,7 @@ onMounted(() => {
           class="list-item-wrap"
           :style="{ '--i': i }"
         >
-          <CollectionRow :bookmark="bk" @refresh="emit('refresh')" />
+          <CollectionRow :bookmark="bk" @refresh="emit('refresh')" @edit="emit('edit', $event)" />
         </div>
       </div>
     </NSpin>

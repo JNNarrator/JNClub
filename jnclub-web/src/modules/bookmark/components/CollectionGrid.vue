@@ -16,6 +16,7 @@ defineProps<{
 
 const emit = defineEmits<{
   refresh: []
+  edit: [bookmark: BookmarkItem]
 }>()
 
 const visible = ref(false)
@@ -36,7 +37,7 @@ onMounted(() => {
           class="grid-item-wrap"
           :style="{ '--i': i }"
         >
-          <CollectionCard :bookmark="bk" @refresh="emit('refresh')" />
+          <CollectionCard :bookmark="bk" @refresh="emit('refresh')" @edit="emit('edit', $event)" />
         </div>
       </div>
     </NSpin>

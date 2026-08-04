@@ -34,6 +34,8 @@ public class AuthController {
             JSONObject cached = SsoClientController.getUserInfoCache().get(userId);
             Map<String, Object> result = new LinkedHashMap<>();
             result.put("id", userId);
+            // SSO 个人中心地址(本地/生产由 sa-token.sso.server-url 自动区分)
+            result.put("ssoProfileUrl", serverUrl + "/profile");
 
             if (cached != null) {
                 // SSO 缓存中有完整信息

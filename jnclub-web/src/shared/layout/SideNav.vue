@@ -54,6 +54,14 @@ const handleUserDropdown = (key: string) => {
     showProfileModal.value = true
   }
 }
+
+/** 新标签页打开 SSO 个人中心,修改资料 */
+const goSsoProfile = () => {
+  const url = userStore.userinfo?.ssoProfileUrl
+  if (url) {
+    window.open(url, '_blank', 'noopener,noreferrer')
+  }
+}
 </script>
 
 <template>
@@ -143,6 +151,12 @@ const handleUserDropdown = (key: string) => {
       </div>
       <div class="profile-detail">
         <div class="detail-row">邮箱：{{ userStore.userinfo?.email || userStore.userinfo?.username || '--' }}</div>
+        <div class="detail-row" v-if="userStore.userinfo?.ssoProfileUrl">
+          <NButton type="primary" block @click="goSsoProfile">
+            <template #icon><NIcon :component="CircleUser" /></template>
+            前往 SSO 修改资料
+          </NButton>
+        </div>
       </div>
     </div>
     <template #action>
