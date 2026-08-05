@@ -7,8 +7,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
 
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -74,11 +72,12 @@ public class AuthController {
             }
         }
 
-        String encodedBack = URLEncoder.encode(frontendUrl, StandardCharsets.UTF_8);
-        String ssoLogoutUrl = serverUrl + "/logout?redirect=" + encodedBack;
+        String ssoLogoutUrl = serverUrl + "/logout";   // SSO 登出端点（POST，防 CSRF），redirect 由前端作为参数携带
+        String redirectUrl = frontendUrl;              // SSO 登出成功后的跳转目标
 
         Map<String, String> data = new HashMap<>();
         data.put("ssoLogoutUrl", ssoLogoutUrl);
+        data.put("redirectUrl", redirectUrl);
         return R.ok(data);
     }
 }

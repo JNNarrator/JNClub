@@ -56,10 +56,12 @@ export const useUserStore = defineStore('user', () => {
 
   const logout = async () => {
     let ssoLogoutUrl: string | null = null
+    let redirectUrl: string | null = null
     try {
       const res = await axios.post('/api/auth/logout')
       if (res.data.code === 200 && res.data.data?.ssoLogoutUrl) {
         ssoLogoutUrl = res.data.data.ssoLogoutUrl
+        redirectUrl = res.data.data.redirectUrl
       }
     } catch { /* 忽略 */ }
 
@@ -70,8 +72,14 @@ export const useUserStore = defineStore('user', () => {
     delete axios.defaults.headers.common['jn-token']
 
     if (ssoLogoutUrl) {
-      window.location.href = ssoLogoutUrl
+      // SSO 登出为 POST（防 CSRF），随后跳回前端首页
+      try {
+        await axios.post(ssoLogoutUrl, null, { params: { redirect: redirectUrl ?? '' }, timeout: 5000 })
+      } catch { /* 忽略 */ }
+      window.location.href = redirectUrl || '/sso/login'
+      return
     }
+    window.location.href = '/sso/login'
   }
 
   return { userinfo, isLoggedIn, token, initToken, fetchUserinfo, logout }

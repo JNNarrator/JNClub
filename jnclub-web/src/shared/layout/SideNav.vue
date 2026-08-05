@@ -43,7 +43,15 @@ const handleUserDropdown = (key: string) => {
         try {
           const res = await axios.post('/api/auth/logout')
           const ssoLogoutUrl = res.data?.data?.ssoLogoutUrl
-          if (ssoLogoutUrl) { window.location.href = ssoLogoutUrl; return }
+          const redirectUrl = res.data?.data?.redirectUrl
+          if (ssoLogoutUrl) {
+            // SSO 登出为 POST（防 CSRF），随后跳回前端首页
+            try {
+              await axios.post(ssoLogoutUrl, null, { params: { redirect: redirectUrl ?? '' }, timeout: 5000 })
+            } catch { /* 忽略 */ }
+            window.location.href = redirectUrl || '/sso/login'
+            return
+          }
         } catch { /* 忽略 */ }
         delete axios.defaults.headers.common['jn-token']
         localStorage.removeItem('jn-token')
