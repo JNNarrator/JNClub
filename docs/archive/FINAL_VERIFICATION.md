@@ -1,3 +1,5 @@
+> 【历史归档】本文是一份早期 UI/UX 优化交付时的验收/交付快照，所引用的旧组件名（BookmarkGrid / DirectoryTree / NoteList 等）与行号在重构后已失效。当前结构与现状以 `README.md`、`CLAUDE.md` 为准，本文仅存档保留。
+
 # JNClub UI/UX 优化最终验证清单
 
 ## 交付要求（来自原始需求）

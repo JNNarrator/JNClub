@@ -92,8 +92,9 @@ spring:
 sa-token:
   sso:
     mode: client
-    server-url: https://jiangnan.88933.vip
+    server-url: http://localhost:8080/sso   # 本地联调；生产环境为 https://jiangnan.88933.vip
     client-url: http://localhost:19005
+    client-id: app-jnclub
     secret-key: jn-sso-secret-key-2026
   token-name: jn-token
 
