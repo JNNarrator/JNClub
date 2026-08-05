@@ -21,6 +21,8 @@ sa-token:
     client-id: app-jnclub
     secret-key: jn-sso-secret-key-2026
   token-name: jn-token
+  # 会话超时与 SSO 服务端保持一致(604800 = 7 天),避免两端登出/过期不同步
+  timeout: 604800
 
 jnclub:
   frontend-url: http://localhost:5173/jnclub/
