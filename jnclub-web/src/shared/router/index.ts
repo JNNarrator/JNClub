@@ -10,9 +10,25 @@ const router = createRouter({
       component: () => import('../views/AppWrapper.vue'),
     },
     {
+      path: '/welcome',
+      name: 'welcome',
+      component: () => import('../views/Welcome.vue'),
+    },
+    {
       path: '/sso/login',
       name: 'sso-callback',
       component: () => import('../views/SsoCallback.vue'),
+    },
+    // 便签独立页面（新标签页打开）：新建 / 查看（编辑+预览一体，页内切换）
+    {
+      path: '/notes/new',
+      name: 'note-create',
+      component: () => import('../../modules/bookmark/views/NoteEditorPage.vue'),
+    },
+    {
+      path: '/notes/:id',
+      name: 'note-view',
+      component: () => import('../../modules/bookmark/views/NoteEditorPage.vue'),
     },
   ],
 })
@@ -21,9 +37,24 @@ const router = createRouter({
 router.beforeEach(async (to, _from, next) => {
   const userStore = useUserStore()
 
-  // SSO 回调页面不需要登录
+  // SSO 回调页不需要登录
   if (to.name === 'sso-callback') {
     next()
+    return
+  }
+
+  // 欢迎页：已登录直达首页；未登录可停留（引导去登录）
+  if (to.name === 'welcome') {
+    if (userStore.isLoggedIn) {
+      next({ path: '/' })
+      return
+    }
+    try {
+      await userStore.fetchUserinfo()
+      next({ path: '/' })
+    } catch {
+      next()
+    }
     return
   }
 
@@ -40,13 +71,12 @@ router.beforeEach(async (to, _from, next) => {
     return
   }
 
-  // 检查登录状态
+  // 检查登录状态：未登录先到欢迎页，其他操作引导去登录
   if (!userStore.isLoggedIn) {
     try {
       await userStore.fetchUserinfo()
     } catch (e) {
-      // 关键修复：跳 JNClub 后端的 SSO 入口，不是全局 /sso/login
-      window.location.href = import.meta.env.BASE_URL + 'sso/login'
+      next({ name: 'welcome' })
       return
     }
   }

@@ -47,9 +47,17 @@ public class SsoClientController {
         return ssoTokenCache.get(userId);
     }
 
+    /**
+     * 注册页：转发到 SSO 服务器注册页（注册成功后回跳 JNClub 登录）
+     */
+    @GetMapping("/register")
+    public void ssoRegister(HttpServletResponse response) throws IOException {
+        String callbackUrl = clientUrl + "/sso/login";
+        response.sendRedirect(serverUrl + "/register?redirect=" + URLEncoder.encode(callbackUrl, StandardCharsets.UTF_8));
+    }
+
     @GetMapping("/login")
-    public void ssoLogin(String ticket, HttpServletResponse response) throws IOException {
-        if (ticket == null || ticket.isBlank()) {
+    public void ssoLogin(String ticket, HttpServletResponse response) throws IOException {        if (ticket == null || ticket.isBlank()) {
             String callbackUrl = clientUrl + "/sso/login";
             response.sendRedirect(serverUrl + "/auth"
                 + "?client=" + URLEncoder.encode("app-jnclub", StandardCharsets.UTF_8)
