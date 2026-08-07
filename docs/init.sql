@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS t_directory (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   parent_id BIGINT DEFAULT NULL COMMENT '父目录ID，NULL为一级目录',
   name VARCHAR(100) NOT NULL COMMENT '目录名称',
+  icon VARCHAR(50) DEFAULT NULL COMMENT '目录图标（预设 key，未选默认文件夹）',
   type INT DEFAULT 1 COMMENT '目录类型：1=收藏夹  2=便签',
   sort_order INT DEFAULT 0 COMMENT '排序序号',
   user_id VARCHAR(64) NOT NULL COMMENT 'SSO用户标识',
@@ -63,6 +64,18 @@ CREATE TABLE IF NOT EXISTS t_note_asset (
   INDEX idx_note_id (note_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='图片资源审计表';
 
+-- 用户偏好表（通用 KV，JSON 值；模块/视图/目录记忆等复用）
+CREATE TABLE IF NOT EXISTS t_user_preference (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  user_id VARCHAR(64) NOT NULL COMMENT 'SSO用户标识',
+  pref_key VARCHAR(100) NOT NULL COMMENT '偏好键（模块.场景，如 module.activeModule、dir.notes）',
+  pref_value TEXT NOT NULL COMMENT '偏好值（JSON 字符串）',
+  create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  UNIQUE KEY uk_user_pref (user_id, pref_key),
+  INDEX idx_user_id (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户偏好表（通用KV）';
+
 -- ==========================================
 -- 迁移脚本：已有数据库增量变更
 -- ==========================================
@@ -71,3 +84,14 @@ CREATE TABLE IF NOT EXISTS t_note_asset (
 -- ALTER TABLE t_note MODIFY COLUMN content MEDIUMTEXT COMMENT 'Markdown原文';
 -- ALTER TABLE t_note_asset ADD COLUMN IF NOT EXISTS note_id BIGINT DEFAULT NULL COMMENT '关联便签ID' AFTER mime;
 -- ALTER TABLE t_note_asset ADD INDEX IF NOT EXISTS idx_note_id (note_id);
+-- ALTER TABLE t_directory ADD COLUMN IF NOT EXISTS icon VARCHAR(50) DEFAULT NULL COMMENT '目录图标（预设 key）' AFTER name;
+-- CREATE TABLE IF NOT EXISTS t_user_preference (
+--   id BIGINT PRIMARY KEY AUTO_INCREMENT,
+--   user_id VARCHAR(64) NOT NULL COMMENT 'SSO用户标识',
+--   pref_key VARCHAR(100) NOT NULL COMMENT '偏好键（模块.场景）',
+--   pref_value TEXT NOT NULL COMMENT '偏好值（JSON 字符串）',
+--   create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+--   update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+--   UNIQUE KEY uk_user_pref (user_id, pref_key),
+--   INDEX idx_user_id (user_id)
+-- ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户偏好表';
