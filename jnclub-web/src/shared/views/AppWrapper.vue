@@ -1,13 +1,13 @@
 <script setup lang="ts">
 /**
  * AppWrapper.vue — 应用外壳
- * 嵌入 MainLayout（含 SideNav），管理 activeModule
+ * 嵌入 MainLayout（含 SideNav），管理 activeModule（后端偏好记忆 + localStorage 首屏兜底）
  * 将 isDark 透传至 Home
- * 刷新后记住上次访问的功能页
  */
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import MainLayout from '../layout/MainLayout.vue'
 import Home from '../../modules/bookmark/views/Home.vue'
+import { useUserPreferences } from '../composables/useUserPreferences'
 
 defineProps<{
   isDark: boolean
@@ -17,19 +17,19 @@ const emit = defineEmits<{
   'toggle-theme': []
 }>()
 
-const STORAGE_KEY = 'jnclub-active-module'
+const prefs = useUserPreferences()
+/** 初始化：localStorage 兜底避免首屏闪烁，load 完成后以后端偏好为准 */
+const activeModule = ref<'bookmarks' | 'notes'>(prefs.get('module.activeModule', 'bookmarks'))
 
-function getStoredModule(): 'bookmarks' | 'notes' {
-  const stored = localStorage.getItem(STORAGE_KEY)
-  if (stored === 'bookmarks' || stored === 'notes') return stored
-  return 'bookmarks'
-}
-
-const activeModule = ref<'bookmarks' | 'notes'>(getStoredModule())
+onMounted(() => {
+  prefs.load().then(() => {
+    activeModule.value = prefs.get('module.activeModule', 'bookmarks')
+  })
+})
 
 const handleModuleChange = (module: 'bookmarks' | 'notes') => {
   activeModule.value = module
-  localStorage.setItem(STORAGE_KEY, module)
+  prefs.set('module.activeModule', module)
 }
 </script>
 

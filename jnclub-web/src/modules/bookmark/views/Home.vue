@@ -5,7 +5,8 @@ import {
   NModal, NForm, NFormItem, NInput, NSpace, NSelect, NAvatar,
   useMessage, useDialog,
 } from 'naive-ui'
-import { Plus, FolderOpen, Link, Globe, RefreshCw, Folder } from 'lucide-vue-next'
+import { Plus, FolderOpen, Link, Globe, RefreshCw } from 'lucide-vue-next'
+import { useRouter, type RouteLocationRaw } from 'vue-router'
 import { useDirectoryStore } from '../stores/directory'
 import { useBookmarkStore } from '../stores/bookmark'
 import { useNoteStore } from '../stores/note'
@@ -17,13 +18,14 @@ import CollectionEmpty from '../components/CollectionEmpty.vue'
 import NoteGrid from '../components/NoteGrid.vue'
 import NoteList from '../components/NoteList.vue'
 import NoteEmpty from '../components/NoteEmpty.vue'
-import NoteEditor from '../components/NoteEditor.vue'
-import NotePreview from '../components/NotePreview.vue'
 import ViewSwitcher from '../components/ViewSwitcher.vue'
 import FloatingActions from '../components/FloatingActions.vue'
 import type { ViewMode } from '../components/ViewSwitcher.vue'
 import axios from 'axios'
+import { useUserPreferences } from '../../../shared/composables/useUserPreferences'
 
+const router = useRouter()
+const prefs = useUserPreferences()
 const directoryStore = useDirectoryStore()
 const bookmarkStore = useBookmarkStore()
 const noteStore = useNoteStore()
@@ -39,12 +41,10 @@ const directoryType = computed(() => props.activeModule === 'bookmarks' ? 1 : 2)
 
 const selectedDirectoryId = ref<number | null>(null)
 const loading = ref(false)
-const viewMode = ref<ViewMode>('grid')
+/** 视图模式：按模块记忆（后端偏好），便签默认极简 list、收藏夹默认卡片 grid */
+const viewMode = ref<ViewMode>(prefs.get(`view.${props.activeModule}`, props.activeModule === 'notes' ? 'list' : 'grid'))
 
 // 目录创建
-const showCreateDirModal = ref(false)
-const creatingDir = ref(false)
-const createDirName = ref('')
 
 // 收藏创建/编辑表单
 const showCreateModal = ref(false)
@@ -57,10 +57,6 @@ const previewIcon = ref('')
 const previewTitle = ref('')
 const previewLoading = ref(false)
 let previewTimer: ReturnType<typeof setTimeout> | null = null
-
-// 便签编辑/预览态
-const editingNote = ref<Note | null>(null)
-const previewingNote = ref<Note | null>(null)
 
 const directoryOptions = computed(() =>
   directoryStore.directories.map(d => ({ label: d.name, value: d.id }))
@@ -99,34 +95,60 @@ const loadDirectories = async () => {
   await directoryStore.fetchDirectories(directoryType.value)
 }
 
+/** 选中目录按模块记忆：key dir.bookmarks / dir.notes */
+const dirPrefKey = () => `dir.${props.activeModule}`
+
+/** 目录加载后恢复上次选中的目录（偏好值无效或已删除则回退第一个） */
+const applyRememberedDir = () => {
+  const dirs = directoryStore.directories
+  if (!dirs.length) return
+  const remembered = prefs.get<any>(dirPrefKey(), null)
+  // 兼容数字与字符串数字（后端基本类型存为字符串）
+  let id: number | null = null
+  if (typeof remembered === 'number') id = remembered
+  else if (typeof remembered === 'string' && remembered !== '' && !Number.isNaN(Number(remembered))) id = Number(remembered)
+  const validId = id !== null && findInTree(dirs, id)
+  selectedDirectoryId.value = validId ? (id as number) : dirs[0].id
+}
+
+/** 递归查找目录 */
+const findInTree = (dirs: any[], id: number | null): boolean => {
+  for (const d of dirs) {
+    if (d.id === id) return true
+    if (d.children && findInTree(d.children, id)) return true
+  }
+  return false
+}
+
 onMounted(async () => {
   loading.value = true
   try {
     await loadDirectories()
-    if (directoryStore.directories.length > 0) {
-      selectedDirectoryId.value = directoryStore.directories[0].id
-      await loadData()
-    }
+    applyRememberedDir()
+    if (selectedDirectoryId.value) await loadData()
   } finally { loading.value = false }
 })
 
 watch(() => props.activeModule, async () => {
   selectedDirectoryId.value = null
-  editingNote.value = null
-  previewingNote.value = null
   await loadDirectories()
-  if (directoryStore.directories.length > 0) {
-    selectedDirectoryId.value = directoryStore.directories[0].id
-    await loadData()
-  }
+  applyRememberedDir()
+  if (selectedDirectoryId.value) await loadData()
 })
 
-watch(directoryType, () => { viewMode.value = 'grid' })
+watch(directoryType, () => {
+  // 模块切换时读取该模块的视图偏好（默认：便签极简 / 收藏卡片）
+  viewMode.value = prefs.get(`view.${props.activeModule}`, props.activeModule === 'notes' ? 'list' : 'grid')
+})
+
+// 视图切换即持久化到后端偏好
+watch(viewMode, (mode) => {
+  if (mode) prefs.set(`view.${props.activeModule}`, mode)
+})
 
 const handleDirectorySelect = async (id: number) => {
   selectedDirectoryId.value = id
-  editingNote.value = null
-  previewingNote.value = null
+  prefs.set(dirPrefKey(), id)
   await loadData()
 }
 
@@ -145,27 +167,6 @@ const loadData = async () => {
 const handleRefresh = async () => {
   await loadDirectories()
   await loadData()
-}
-
-// ========== 目录创建 ==========
-
-const handleOpenCreateDir = () => {
-  createDirName.value = ''
-  showCreateDirModal.value = true
-}
-
-const handleCreateDirSubmit = async () => {
-  if (!createDirName.value.trim()) { message.warning('请输入名称'); return }
-  creatingDir.value = true
-  try {
-    await axios.post('/api/directories', { name: createDirName.value.trim(), parentId: null, type: directoryType.value })
-    message.success('目录创建成功')
-    showCreateDirModal.value = false
-    createDirName.value = ''
-    await handleRefresh()
-  } catch (e: any) {
-    message.error(e.response?.data?.message || '创建失败')
-  } finally { creatingDir.value = false }
 }
 
 // ========== URL 预览与收藏创建 ==========
@@ -247,45 +248,28 @@ const handleCreate = async () => {
 
 // ========== 便签 ==========
 
-const noteEditorRef = ref<InstanceType<typeof NoteEditor> | null>(null)
+/** 在新标签页打开便签页面（新建/编辑/预览） */
+const openNoteInNewTab = (location: RouteLocationRaw) => {
+  window.open(router.resolve(location).href, '_blank')
+}
 
 const handleCreateNote = () => {
-  if (!selectedDirectoryId.value) return
-  // 本地草稿，不立即入库 — 等用户真正写了内容才保存
-  editingNote.value = {
-    id: 0, // 新建标记，首次保存时 POST 创建
-    title: '',
-    content: '',
-    directoryId: selectedDirectoryId.value,
-    sortOrder: 0,
-    createTime: '',
-    updateTime: '',
-  } as Note
+  if (!selectedDirectoryId.value) {
+    message.warning('请先选择一个目录')
+    return
+  }
+  openNoteInNewTab({
+    name: 'note-create',
+    query: { directoryId: String(selectedDirectoryId.value) },
+  })
 }
 
 const handleEditNote = (note: Note) => {
-  editingNote.value = { ...note }
+  openNoteInNewTab({ name: 'note-view', params: { id: note.id } })
 }
 
 const handlePreviewNote = (note: Note) => {
-  previewingNote.value = { ...note }
-}
-
-const handlePreviewToEdit = () => {
-  if (previewingNote.value) {
-    editingNote.value = { ...previewingNote.value }
-    previewingNote.value = null
-  }
-}
-
-const handleCloseEditor = () => {
-  editingNote.value = null
-}
-
-const handleNoteSaved = (updated: Note) => {
-  // 更新引用（新建便签需要拿到后端返回的 id），但不关闭编辑器
-  editingNote.value = { ...updated }
-  loadData()
+  openNoteInNewTab({ name: 'note-view', params: { id: note.id } })
 }
 
 const handleDeleteNote = async (note: Note) => {
@@ -379,11 +363,7 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
       <div class="collection-column">
         <!-- 目录 Chip 快速切换 -->
         <div class="chip-bar fade-in-up">
-          <!-- 新建目录 chip -->
-          <button type="button" class="chip chip-dashed jnclub-bouncy" @click="handleOpenCreateDir">
-            <NIcon :component="Folder" size="16" />
-            新建目录
-          </button>
+          <!-- 目录 chips（创建入口在左侧目录树） -->
 
           <!-- 目录 chips -->
           <button
@@ -449,21 +429,6 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
       @help="handleHelp"
     />
 
-    <!-- 目录创建弹窗 -->
-    <NModal v-model:show="showCreateDirModal" preset="dialog" title="新建目录">
-      <NForm style="margin-top: 12px;">
-        <NFormItem label="名称">
-          <NInput v-model:value="createDirName" placeholder="请输入目录名称" clearable @keyup.enter="handleCreateDirSubmit" />
-        </NFormItem>
-      </NForm>
-      <template #action>
-        <NSpace>
-          <NButton @click="showCreateDirModal = false">取消</NButton>
-          <NButton type="primary" :loading="creatingDir" @click="handleCreateDirSubmit">确定</NButton>
-        </NSpace>
-      </template>
-    </NModal>
-
     <!-- 收藏创建/编辑弹窗 -->
     <NModal v-model:show="showCreateModal" preset="dialog" :title="editingBookmarkId !== null ? '编辑收藏' : '添加收藏'">
       <NForm :model="createBookmarkForm" style="margin-top: 12px;">
@@ -494,53 +459,6 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
       </template>
     </NModal>
 
-    <!-- 便签编辑器（全屏覆盖） -->
-    <NModal
-      v-if="editingNote"
-      :show="editingNote !== null"
-      preset="card"
-      to="body"
-      style="width: 95vw; height: 92vh; max-width: 1400px;"
-      :bordered="false"
-      :mask-closable="false"
-      class="note-editor-modal"
-      @update:show="(v: boolean) => { if (!v) handleCloseEditor() }"
-    >
-      <NoteEditor
-        ref="noteEditorRef"
-        :note="editingNote"
-        :is-dark="props.isDark"
-        @close="handleCloseEditor"
-        @saved="handleNoteSaved"
-        @deleted="(n: Note) => handleDeleteNote(n)"
-      />
-    </NModal>
-
-    <!-- 便签预览 -->
-    <NModal
-      v-if="previewingNote"
-      :show="previewingNote !== null"
-      preset="card"
-      to="body"
-      title="预览便签"
-      style="width: 90vw; max-width: 1000px; height: 85vh;"
-      :bordered="false"
-      class="note-preview-modal"
-      @update:show="(v: boolean) => { if (!v) { previewingNote = null } }"
-    >
-      <template #header-extra>
-        <NSpace>
-          <NButton size="small" type="primary" @click="handlePreviewToEdit">
-            <template #icon><NIcon :component="Plus" size="14" /></template>
-            编辑
-          </NButton>
-          <NButton size="small" quaternary @click="previewingNote = null">关闭</NButton>
-        </NSpace>
-      </template>
-      <div class="note-preview-body">
-        <NotePreview :note="previewingNote" :is-dark="props.isDark" />
-      </div>
-    </NModal>
   </div>
 </template>
 
@@ -643,34 +561,5 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-</style>
-
-<style>
-/* 便签预览弹框（NModal teleport 到 body，需全局样式）：
-   内容区固定高度 + 内部滚动，长内容不溢出弹框边缘 */
-.note-preview-modal {
-  display: flex;
-  flex-direction: column;
-}
-.note-preview-modal .n-card-content {
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-}
-.note-preview-modal .note-preview-body {
-  height: 100%;
-  overflow-y: auto;
-}
-
-/* 便签编辑器弹框：同样约束，确保 .note-editor 100% 撑满且内部滚动 */
-.note-editor-modal {
-  display: flex;
-  flex-direction: column;
-}
-.note-editor-modal .n-card-content {
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
 }
 </style>

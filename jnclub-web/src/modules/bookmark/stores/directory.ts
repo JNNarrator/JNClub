@@ -6,6 +6,7 @@ export interface Directory {
   id: number
   parentId: number | null
   name: string
+  icon?: string | null
   type?: number
   sortOrder: number
   userId: string
