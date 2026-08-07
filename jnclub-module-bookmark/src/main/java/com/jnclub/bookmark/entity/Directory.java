@@ -21,6 +21,11 @@ public class Directory {
     private String name;
 
     /**
+     * 目录图标（预设 key，如 folder/bookmark/star 等；未选默认文件夹）
+     */
+    private String icon;
+
+    /**
      * 目录类型：1=收藏夹目录  2=便签目录
      */
     private Integer type;

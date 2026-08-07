@@ -1,23 +1,37 @@
 <script setup lang="ts">
 /**
  * FolderTree.vue — 目录树组件
- * 叶子无三角 | hover 显示 ... 菜单（重命名+删除）
- * 创建时带 type 参数
+ * 同级拖拽排序（HTML5 DnD） | 预设 icon 选择与展示 | hover ... 菜单（重命名+删除）
+ * 删除前 content-count 预检（有内容禁止删除）；创建带 type 参数
  */
 import { ref, computed, h } from 'vue'
 import { NTree, NButton, NIcon, NDropdown, NModal, NForm, NFormItem, NInput, NSpace, useMessage, useDialog } from 'naive-ui'
-import { Plus, FolderOpen, Pencil, Trash2, Ellipsis } from 'lucide-vue-next'
+import type { TreeOption, TreeDropInfo } from 'naive-ui'
+import { Plus, FolderOpen, Folder, Bookmark, Star, Heart, BookOpen, Tag, Archive, Pencil, Trash2, Ellipsis } from 'lucide-vue-next'
 import axios from 'axios'
-import type { TreeOption } from 'naive-ui'
 
 interface Directory {
   id: number
   parentId: number | null
   name: string
+  icon?: string | null
   type?: number
   sortOrder: number
   children?: Directory[]
 }
+
+/** 预设目录图标 */
+const ICON_OPTIONS = [
+  { key: 'folder', icon: Folder, label: '文件夹' },
+  { key: 'folderOpen', icon: FolderOpen, label: '打开' },
+  { key: 'bookmark', icon: Bookmark, label: '收藏' },
+  { key: 'star', icon: Star, label: '星标' },
+  { key: 'heart', icon: Heart, label: '爱心' },
+  { key: 'book', icon: BookOpen, label: '书籍' },
+  { key: 'tag', icon: Tag, label: '标签' },
+  { key: 'archive', icon: Archive, label: '归档' },
+]
+const iconMap: Record<string, any> = Object.fromEntries(ICON_OPTIONS.map(o => [o.key, o.icon]))
 
 const props = defineProps<{
   directories: Directory[]
@@ -35,14 +49,17 @@ const dialog = useDialog()
 
 const showCreateModal = ref(false)
 const createName = ref('')
+const createIcon = ref('')
 const creating = ref(false)
 
 const showRenameModal = ref(false)
 const renameId = ref<number | null>(null)
 const renameName = ref('')
+const renameIcon = ref('')
 const renaming = ref(false)
 
 const deleting = ref(false)
+const reordering = ref(false)
 
 const contextMenuDirId = ref<number | null>(null)
 const showContextMenu = ref(false)
@@ -60,7 +77,7 @@ const treeData = computed((): TreeOption[] => {
       name: dir.name,
       label: dir.name,
       isLeaf: !dir.children || dir.children.length === 0,
-      prefix: () => h(NIcon, { component: FolderOpen, size: 16, style: { color: 'var(--brand)' } }),
+      prefix: () => h(NIcon, { component: iconMap[dir.icon || 'folder'] || FolderOpen, size: 16, style: { color: 'var(--brand)' } }),
       children: dir.children && dir.children.length > 0 ? [] as TreeOption[] : undefined,
     })
   })
@@ -102,6 +119,7 @@ const handleContextMenuAction = (key: string) => {
     if (dir) {
       renameId.value = id
       renameName.value = dir.name
+      renameIcon.value = dir.icon || ''
       showRenameModal.value = true
     }
   } else if (key === 'delete') {
@@ -115,6 +133,13 @@ const handleContextMenuAction = (key: string) => {
         if (deleting.value) return
         deleting.value = true
         try {
+          // 删除保护预检：有内容（含子目录）禁止删除
+          const res = await axios.get(`/api/directories/${id}/content-count`)
+          const { bookmarkCount, noteCount } = res.data.data || {}
+          if ((bookmarkCount || 0) > 0 || (noteCount || 0) > 0) {
+            message.warning('目录下存在条目，请先清空或移动后再删除')
+            return
+          }
           await axios.delete(`/api/directories/${id}`)
           message.success('删除成功')
           emit('refresh')
@@ -131,6 +156,50 @@ const findDir = (dirs: Directory[], id: number): Directory | null => {
     if (d.id === id) return d
     if (d.children) {
       const found = findDir(d.children, id)
+      if (found) return found
+    }
+  }
+  return null
+}
+
+/** 同级拖拽排序：drop 后重新计算同级 sortOrder 并提交 */
+const handleDrop = async ({ node, dragNode, dropPosition }: TreeDropInfo) => {
+  if (!node || !dragNode) return
+  const dragId = dragNode.key as number
+  const targetId = node.key as number
+  if (dragId === targetId) return
+  if (dropPosition === 'inside') {
+    message.info('暂不支持移动到目录内，仅支持同级调整顺序')
+    return
+  }
+  if (reordering.value) return
+  reordering.value = true
+  try {
+    const siblings = findSiblings(props.directories, dragId, targetId)
+    if (!siblings || siblings.length < 2) return
+    const keys = siblings.map(s => s.id)
+    const from = keys.indexOf(dragId)
+    const to = keys.indexOf(targetId)
+    if (from === -1 || to === -1) return
+    keys.splice(from, 1)
+    // 删除后若 from < to，目标索引需回退 1（off-by-one 修复）
+    const adjustedTo = from < to ? to - 1 : to
+    const insertAt = dropPosition === 'before' ? adjustedTo : adjustedTo + 1
+    keys.splice(Math.min(insertAt, keys.length), 0, dragId)
+    const sortList = keys.map((id, idx) => ({ id, sortOrder: idx }))
+    await axios.put('/api/directories/sort', sortList)
+    emit('refresh')
+  } catch (e: any) {
+    message.error(e.response?.data?.message || '排序失败')
+  } finally { reordering.value = false }
+}
+
+/** 递归查找同时包含两个节点的兄弟层级 */
+const findSiblings = (dirs: Directory[], a: number, b: number): Directory[] | null => {
+  if (dirs.some(d => d.id === a) && dirs.some(d => d.id === b)) return dirs
+  for (const d of dirs) {
+    if (d.children?.length) {
+      const found = findSiblings(d.children, a, b)
       if (found) return found
     }
   }
@@ -162,10 +231,11 @@ const handleCreateSubmit = async () => {
   if (creating.value) return
   creating.value = true
   try {
-    await axios.post('/api/directories', { name: createName.value.trim(), parentId: null, type: props.type || 1 })
+    await axios.post('/api/directories', { name: createName.value.trim(), parentId: null, type: props.type || 1, icon: createIcon.value || null })
     message.success('创建成功')
     showCreateModal.value = false
     createName.value = ''
+    createIcon.value = ''
     emit('refresh')
   } catch (e: any) {
     message.error(e.response?.data?.message || '创建失败')
@@ -177,7 +247,7 @@ const handleRenameSubmit = async () => {
   if (renaming.value) return
   renaming.value = true
   try {
-    await axios.put(`/api/directories/${renameId.value}`, { name: renameName.value.trim() })
+    await axios.put(`/api/directories/${renameId.value}`, { name: renameName.value.trim(), icon: renameIcon.value })
     message.success('重命名成功')
     showRenameModal.value = false
     emit('refresh')
@@ -190,19 +260,20 @@ const handleRenameSubmit = async () => {
 <template>
   <div class="folder-tree">
     <div class="tree-toolbar">
-      <NButton size="small" ghost @click="showCreateModal = true" class="add-btn">
-        <template #icon><NIcon :component="Plus" size="16" /></template>
-        新建目录
-      </NButton>
+      <button type="button" class="add-dir-btn" @click="showCreateModal = true">
+        <NIcon :component="Plus" size="16" />
+        <span>新建目录</span>
+      </button>
     </div>
 
     <NTree
       :data="treeData"
       :selected-keys="selectedId ? [selectedId] : []"
-      selectable default-expand-all block-line
+      selectable default-expand-all block-line draggable
       :render-switcher-icon="renderSwitcherIcon"
       :render-label="renderLabel"
       @update:selected-keys="handleSelect"
+      @drop="handleDrop"
       class="folder-n-tree"
     />
 
@@ -216,10 +287,28 @@ const handleRenameSubmit = async () => {
       @select="handleContextMenuAction"
     />
 
+    <!-- 新建目录 -->
     <NModal v-model:show="showCreateModal" preset="dialog" title="新建目录">
       <NForm style="margin-top: 16px;">
         <NFormItem label="名称">
           <NInput v-model:value="createName" placeholder="请输入目录名称" clearable @keyup.enter="handleCreateSubmit" />
+        </NFormItem>
+        <NFormItem label="图标">
+          <div class="icon-picker">
+            <button
+              v-for="opt in ICON_OPTIONS"
+              :key="opt.key"
+              type="button"
+              :class="['icon-opt', { active: createIcon === opt.key }]"
+              :title="opt.label"
+              @click="createIcon = opt.key"
+            >
+              <NIcon :component="opt.icon" size="18" />
+            </button>
+            <button type="button" :class="['icon-opt', { active: createIcon === '' }]" title="默认" @click="createIcon = ''">
+              <NIcon :component="FolderOpen" size="18" />
+            </button>
+          </div>
         </NFormItem>
       </NForm>
       <template #action>
@@ -227,10 +316,28 @@ const handleRenameSubmit = async () => {
       </template>
     </NModal>
 
+    <!-- 重命名目录 -->
     <NModal v-model:show="showRenameModal" preset="dialog" title="重命名目录">
       <NForm style="margin-top: 16px;">
         <NFormItem label="名称">
           <NInput v-model:value="renameName" placeholder="请输入新名称" clearable @keyup.enter="handleRenameSubmit" />
+        </NFormItem>
+        <NFormItem label="图标">
+          <div class="icon-picker">
+            <button
+              v-for="opt in ICON_OPTIONS"
+              :key="opt.key"
+              type="button"
+              :class="['icon-opt', { active: renameIcon === opt.key }]"
+              :title="opt.label"
+              @click="renameIcon = opt.key"
+            >
+              <NIcon :component="opt.icon" size="18" />
+            </button>
+            <button type="button" :class="['icon-opt', { active: renameIcon === '' }]" title="默认" @click="renameIcon = ''">
+              <NIcon :component="FolderOpen" size="18" />
+            </button>
+          </div>
         </NFormItem>
       </NForm>
       <template #action>
@@ -242,8 +349,59 @@ const handleRenameSubmit = async () => {
 
 <style scoped>
 .folder-tree { display: flex; flex-direction: column; height: 100%; }
-.tree-toolbar { flex-shrink: 0; padding: 0 0 8px; }
-.add-btn { width: 100%; justify-content: flex-start; }
+
+/* 统一的新建目录入口（通栏虚线卡片） */
+.tree-toolbar { flex-shrink: 0; padding: 0 0 10px; }
+.add-dir-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-2);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all .18s ease;
+}
+.add-dir-btn:hover {
+  color: var(--brand);
+  border-color: var(--brand);
+  background: var(--brand-soft);
+}
+
+/* 图标选择器 */
+.icon-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.icon-opt {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+  transition: all .15s ease;
+}
+.icon-opt:hover {
+  color: var(--brand);
+  border-color: var(--brand);
+}
+.icon-opt.active {
+  color: var(--brand);
+  border-color: var(--brand);
+  background: var(--brand-soft);
+}
+
 :deep(.n-tree-node--selected) { background: var(--brand-soft) !important; border-radius: var(--radius-sm); }
 :deep(.n-tree-node) { border-radius: var(--radius-sm); transition: background var(--dur) var(--ease); }
 :deep(.n-tree-node:hover) { background: var(--hover-bg); }

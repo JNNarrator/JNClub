@@ -40,7 +40,7 @@ public class DirectoryController {
      */
     @PutMapping("/{id}")
     public R<Void> renameDirectory(@PathVariable Long id, @RequestBody Map<String, String> body) {
-        directoryService.renameDirectory(id, body.get("name"));
+        directoryService.renameDirectory(id, body.get("name"), body.get("icon"));
         return R.ok();
     }
 

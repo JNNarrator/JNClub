@@ -51,13 +51,16 @@ public class DirectoryService extends ServiceImpl<DirectoryMapper, Directory> {
         return directory;
     }
 
-    public void renameDirectory(Long id, String name) {
+    public void renameDirectory(Long id, String name, String icon) {
         String userId = StpUtil.getLoginIdAsString();
         Directory directory = getById(id);
         if (directory == null || !directory.getUserId().equals(userId)) {
             throw new RuntimeException("目录不存在");
         }
         directory.setName(name);
+        if (icon != null) {
+            directory.setIcon(icon);
+        }
         updateById(directory);
     }
 
@@ -100,54 +103,22 @@ public class DirectoryService extends ServiceImpl<DirectoryMapper, Directory> {
         collectDescendantIds(id, userId, descendantIds);
         descendantIds.add(id);
 
-        Long parentId = directory.getParentId();
-        Long targetDirId;
-
-        if (parentId != null) {
-            // 非根目录：子元素移入祖父目录
-            targetDirId = parentId;
-        } else {
-            // 根目录：创建/找到「未分类」兜底目录
-            targetDirId = ensureUncategorizedDir(userId, directory.getType());
+        // 删除保护：自身+所有后代目录存在便签/收藏时禁止删除
+        Long bookmarkCount = bookmarkMapper.selectCount(
+                new LambdaQueryWrapper<Bookmark>()
+                        .in(Bookmark::getDirectoryId, descendantIds)
+                        .eq(Bookmark::getUserId, userId));
+        Long noteCount = noteMapper.selectCount(
+                new LambdaQueryWrapper<Note>()
+                        .in(Note::getDirectoryId, descendantIds)
+                        .eq(Note::getUserId, userId));
+        if (bookmarkCount > 0 || noteCount > 0) {
+            throw new com.jnclub.common.exception.BizException("目录下存在条目，请先清空或移动后再删除");
         }
 
-        LambdaUpdateWrapper<Bookmark> bookmarkUpdate = new LambdaUpdateWrapper<Bookmark>()
-                .in(Bookmark::getDirectoryId, descendantIds)
-                .eq(Bookmark::getUserId, userId)
-                .set(Bookmark::getDirectoryId, targetDirId);
-        bookmarkMapper.update(null, bookmarkUpdate);
-
-        LambdaUpdateWrapper<Note> noteUpdate = new LambdaUpdateWrapper<Note>()
-                .in(Note::getDirectoryId, descendantIds)
-                .eq(Note::getUserId, userId)
-                .set(Note::getDirectoryId, targetDirId);
-        noteMapper.update(null, noteUpdate);
 
         deleteChildren(id, userId);
         removeById(id);
-    }
-
-    /**
-     * 确保存在「未分类」目录，返回其 ID
-     */
-    private Long ensureUncategorizedDir(String userId, Integer type) {
-        Directory exist = getOne(new LambdaQueryWrapper<Directory>()
-                .eq(Directory::getUserId, userId)
-                .eq(Directory::getType, type)
-                .eq(Directory::getName, "未分类")
-                .isNull(Directory::getParentId)
-                .last("LIMIT 1"));
-        if (exist != null) {
-            return exist.getId();
-        }
-        Directory dir = new Directory();
-        dir.setUserId(userId);
-        dir.setName("未分类");
-        dir.setType(type);
-        dir.setParentId(null);
-        dir.setSortOrder(9999);
-        save(dir);
-        return dir.getId();
     }
 
     @Transactional
