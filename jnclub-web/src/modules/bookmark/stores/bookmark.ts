@@ -30,9 +30,16 @@ export const useBookmarkStore = defineStore('bookmark', () => {
     }
   }
 
+  const updateSortOrder = async (sortList: { id: number; sortOrder: number }[]) => {
+    const res = await axios.put('/api/bookmarks/sort', sortList)
+    if (res.data.code === 200) return
+    throw new Error(res.data.message || '排序失败')
+  }
+
   return {
     bookmarks,
     loading,
     fetchBookmarks,
+    updateSortOrder,
   }
 })

@@ -7,6 +7,7 @@ import { ref, onMounted } from 'vue'
 import { NSpin } from 'naive-ui'
 import CollectionRow from './CollectionRow.vue'
 import type { BookmarkItem } from './CollectionRow.vue'
+import { useDraggableSort } from '../composables/useDraggableSort'
 
 defineProps<{
   bookmarks: BookmarkItem[]
@@ -16,24 +17,32 @@ defineProps<{
 const emit = defineEmits<{
   refresh: []
   edit: [bookmark: BookmarkItem]
+  sort: [orderedIds: number[]]
 }>()
 
 /* Stagger 渐入：每项延迟递增 */
 const visible = ref(false)
+const listRef = ref<HTMLElement | null>(null)
 onMounted(() => {
   requestAnimationFrame(() => {
     visible.value = true
   })
 })
+
+const { init: initSort } = useDraggableSort(listRef, (ids) => {
+  emit('sort', ids)
+})
+onMounted(() => { initSort() })
 </script>
 
 <template>
   <div class="collection-list">
     <NSpin :show="loading">
-      <div :class="['list-items', { visible }]">
+      <div ref="listRef" :class="['list-items', { visible }]">
         <div
           v-for="(bk, i) in bookmarks"
           :key="bk.id"
+          :data-id="bk.id"
           class="list-item-wrap"
           :style="{ '--i': i }"
         >
@@ -65,6 +74,25 @@ onMounted(() => {
 
 .list-items.visible .list-item-wrap {
   animation-name: fadeSlideIn;
+}
+
+/* 拖拽排序时抑制 stagger 渐入动画重播 */
+.list-items.sorting .list-item-wrap {
+  animation: none !important;
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+/* SortableJS 拖拽视觉 */
+.list-items :deep(.sortable-ghost) {
+  opacity: 0.4;
+  background: var(--brand-soft) !important;
+  border-radius: var(--radius-sm);
+  outline: 2px dashed var(--brand);
+  outline-offset: -2px;
+}
+.list-items :deep(.sortable-chosen) {
+  cursor: grabbing;
 }
 
 @keyframes fadeSlideIn {

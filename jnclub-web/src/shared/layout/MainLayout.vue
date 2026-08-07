@@ -13,12 +13,12 @@ defineProps<{
 
 const emit = defineEmits<{
   'toggle-theme': []
-  'module-change': [module: 'bookmarks' | 'notes']
+  'module-change': [module: 'bookmarks' | 'notes' | 'files']
 }>()
 
-const activeModule = ref<'bookmarks' | 'notes'>('bookmarks')
+const activeModule = ref<'bookmarks' | 'notes' | 'files'>('bookmarks')
 
-const handleModuleChange = (module: 'bookmarks' | 'notes') => {
+const handleModuleChange = (module: 'bookmarks' | 'notes' | 'files') => {
   activeModule.value = module
   emit('module-change', module)
 }

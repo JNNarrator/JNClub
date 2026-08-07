@@ -5,11 +5,12 @@ import {
   NModal, NForm, NFormItem, NInput, NSpace, NSelect, NAvatar,
   useMessage, useDialog,
 } from 'naive-ui'
-import { Plus, FolderOpen, Link, Globe, RefreshCw } from 'lucide-vue-next'
+import { Plus, FolderOpen, Link, Globe, RefreshCw, UploadCloud } from 'lucide-vue-next'
 import { useRouter, type RouteLocationRaw } from 'vue-router'
 import { useDirectoryStore } from '../stores/directory'
 import { useBookmarkStore } from '../stores/bookmark'
 import { useNoteStore } from '../stores/note'
+import { useCloudDiskStore } from '../stores/clouddisk'
 import type { Note } from '../stores/note'
 import FolderPanel from '../components/FolderPanel.vue'
 import CollectionGrid from '../components/CollectionGrid.vue'
@@ -18,6 +19,7 @@ import CollectionEmpty from '../components/CollectionEmpty.vue'
 import NoteGrid from '../components/NoteGrid.vue'
 import NoteList from '../components/NoteList.vue'
 import NoteEmpty from '../components/NoteEmpty.vue'
+import DiskView from '../components/DiskView.vue'
 import ViewSwitcher from '../components/ViewSwitcher.vue'
 import FloatingActions from '../components/FloatingActions.vue'
 import type { ViewMode } from '../components/ViewSwitcher.vue'
@@ -29,15 +31,16 @@ const prefs = useUserPreferences()
 const directoryStore = useDirectoryStore()
 const bookmarkStore = useBookmarkStore()
 const noteStore = useNoteStore()
+const cloudDiskStore = useCloudDiskStore()
 const message = useMessage()
 const dialog = useDialog()
 
 const props = defineProps<{
-  activeModule: 'bookmarks' | 'notes'
+  activeModule: 'bookmarks' | 'notes' | 'files'
   isDark: boolean
 }>()
 
-const directoryType = computed(() => props.activeModule === 'bookmarks' ? 1 : 2)
+const directoryType = computed(() => props.activeModule === 'bookmarks' ? 1 : props.activeModule === 'notes' ? 2 : 3)
 
 const selectedDirectoryId = ref<number | null>(null)
 const loading = ref(false)
@@ -158,8 +161,10 @@ const loadData = async () => {
   try {
     if (props.activeModule === 'bookmarks') {
       await bookmarkStore.fetchBookmarks(selectedDirectoryId.value)
-    } else {
+    } else if (props.activeModule === 'notes') {
       await noteStore.fetchNotes(selectedDirectoryId.value)
+    } else {
+      await cloudDiskStore.fetchFiles(selectedDirectoryId.value)
     }
   } finally { loading.value = false }
 }
@@ -167,6 +172,26 @@ const loadData = async () => {
 const handleRefresh = async () => {
   await loadDirectories()
   await loadData()
+}
+
+/** 拖拽排序：按新 id 顺序生成 sortList → 调后端 → 刷新 */
+const handleSort = async (orderedIds: number[]) => {
+  if (!orderedIds.length) return
+  // 云盘暂不支持手动排序，跳过
+  if (props.activeModule === 'files') return
+  const sortList = orderedIds.map((id, idx) => ({ id, sortOrder: idx }))
+  try {
+    if (props.activeModule === 'bookmarks') {
+      await bookmarkStore.updateSortOrder(sortList)
+    } else {
+      await noteStore.updateSortOrder(sortList)
+    }
+    message.success('排序已保存')
+    await loadData()
+  } catch (e: any) {
+    message.error(e.response?.data?.message || '排序失败')
+    await loadData() // 失败时恢复原顺序
+  }
 }
 
 // ========== URL 预览与收藏创建 ==========
@@ -290,9 +315,24 @@ const handleDeleteNote = async (note: Note) => {
   })
 }
 
+// ========== 云盘 ==========
+
+/** 触发 DiskView 的文件选择（顶栏/右下角上传按钮） */
+const diskUploadTriggered = ref(0)
+const handleFilesUpload = () => {
+  if (!selectedDirectoryId.value) {
+    message.warning('请先选择一个云盘目录')
+    return
+  }
+  diskUploadTriggered.value++
+}
+const handleFilesRefresh = () => {
+  loadData()
+}
+
 // ========== FAB 标签 ==========
 
-const fabLabel = computed(() => props.activeModule === 'bookmarks' ? '添加收藏' : '新建便签')
+const fabLabel = computed(() => props.activeModule === 'bookmarks' ? '添加收藏' : props.activeModule === 'notes' ? '新建便签' : '上传文件')
 
 const handleHelp = () => {
   window.open('https://github.com/your-repo/jnclub', '_blank')
@@ -300,8 +340,8 @@ const handleHelp = () => {
 
 // ========== 空状态文案 ==========
 
-const emptyMessage = computed(() => props.activeModule === 'bookmarks' ? '这个目录还没有收藏' : '这个目录还没有便签')
-const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶部按钮添加第一个收藏' : '点击右下角 + 创建你的第一篇便签')
+const emptyMessage = computed(() => props.activeModule === 'bookmarks' ? '这个目录还没有收藏' : props.activeModule === 'notes' ? '这个目录还没有便签' : '这个目录还没有文件')
+const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶部按钮添加第一个收藏' : props.activeModule === 'notes' ? '点击右下角 + 创建你的第一篇便签' : '点击上传按钮上传第一个文件')
 </script>
 
 <template>
@@ -315,7 +355,7 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
         <NBreadcrumb class="jnclub-breadcrumb">
           <NBreadcrumbItem @click="selectedDirectoryId = null">JNClub</NBreadcrumbItem>
           <NBreadcrumbItem @click="selectedDirectoryId = null">
-            {{ props.activeModule === 'bookmarks' ? '收藏夹' : '便签' }}
+            {{ props.activeModule === 'bookmarks' ? '收藏夹' : props.activeModule === 'notes' ? '便签' : '云盘' }}
           </NBreadcrumbItem>
           <NBreadcrumbItem v-if="currentDirName !== '全部'" class="breadcrumb-current">
             {{ currentDirName }}
@@ -324,7 +364,7 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
       </div>
 
       <div class="header-right">
-        <ViewSwitcher v-model="viewMode" />
+        <ViewSwitcher v-if="props.activeModule !== 'files'" v-model="viewMode" />
         <NButton
           v-if="props.activeModule === 'bookmarks'"
           class="btn-new jnclub-bouncy-slow"
@@ -334,12 +374,21 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
           新建
         </NButton>
         <NButton
-          v-else
+          v-else-if="props.activeModule === 'notes'"
           class="btn-new jnclub-bouncy-slow"
           @click="handleCreateNote"
         >
           <template #icon><NIcon :component="Plus" /></template>
           新建便签
+        </NButton>
+        <NButton
+          v-else
+          class="btn-new jnclub-bouncy-slow"
+          :disabled="!selectedDirectoryId"
+          @click="handleFilesUpload"
+        >
+          <template #icon><NIcon :component="UploadCloud" /></template>
+          上传文件
         </NButton>
         <NButton quaternary circle size="small" @click="handleRefresh" class="refresh-btn jnclub-bouncy">
           <template #icon><NIcon :component="RefreshCw" size="16" /></template>
@@ -382,13 +431,13 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
           <CollectionGrid
             v-if="props.activeModule === 'bookmarks' && viewMode === 'grid' && bookmarkStore.bookmarks.length > 0"
             :bookmarks="bookmarkStore.bookmarks"
-            @refresh="loadData" @edit="handleEditBookmark"
+            @refresh="loadData" @edit="handleEditBookmark" @sort="handleSort"
           />
           <!-- 收藏列表 -->
           <CollectionList
             v-else-if="props.activeModule === 'bookmarks' && viewMode === 'list' && bookmarkStore.bookmarks.length > 0"
             :bookmarks="bookmarkStore.bookmarks"
-            @refresh="loadData" @edit="handleEditBookmark"
+            @refresh="loadData" @edit="handleEditBookmark" @sort="handleSort"
           />
           <!-- 收藏空状态 -->
           <CollectionEmpty
@@ -402,14 +451,14 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
             v-else-if="props.activeModule === 'notes' && viewMode === 'grid' && noteStore.notes.length > 0"
             :notes="noteStore.notes" :loading="false"
             @preview="handlePreviewNote" @edit="handleEditNote" @delete="handleDeleteNote"
-            @refresh="loadData"
+            @refresh="loadData" @sort="handleSort"
           />
           <!-- 便签列表 -->
           <NoteList
             v-else-if="props.activeModule === 'notes' && viewMode === 'list' && noteStore.notes.length > 0"
             :notes="noteStore.notes" :loading="false"
             @preview="handlePreviewNote" @edit="handleEditNote" @delete="handleDeleteNote"
-            @refresh="loadData"
+            @refresh="loadData" @sort="handleSort"
           />
           <!-- 便签空状态 -->
           <NoteEmpty
@@ -418,6 +467,14 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
             :hint="emptyHint"
             @create="handleCreateNote"
           />
+
+          <!-- 云盘 -->
+          <DiskView
+            v-else-if="props.activeModule === 'files'"
+            :directory-id="selectedDirectoryId"
+            :trigger="diskUploadTriggered"
+            @refresh="handleFilesRefresh"
+          />
         </NSpin>
       </div>
     </div>
@@ -425,7 +482,7 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
     <!-- 悬浮 FAB -->
     <FloatingActions
       :add-label="fabLabel"
-      @add="props.activeModule === 'bookmarks' ? handleOpenCreate() : handleCreateNote()"
+      @add="props.activeModule === 'bookmarks' ? handleOpenCreate() : props.activeModule === 'notes' ? handleCreateNote() : handleFilesUpload()"
       @help="handleHelp"
     />
 

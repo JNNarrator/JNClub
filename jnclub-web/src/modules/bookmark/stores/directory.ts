@@ -33,9 +33,16 @@ export const useDirectoryStore = defineStore('directory', () => {
     }
   }
 
+  const updateSortOrder = async (sortList: { id: number; sortOrder: number }[]) => {
+    const res = await axios.put('/api/directories/sort', sortList)
+    if (res.data.code === 200) return
+    throw new Error(res.data.message || '排序失败')
+  }
+
   return {
     directories,
     loading,
     fetchDirectories,
+    updateSortOrder,
   }
 })

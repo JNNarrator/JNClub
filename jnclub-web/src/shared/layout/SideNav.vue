@@ -1,19 +1,19 @@
 <script setup lang="ts">
-import { ref, h } from 'vue'
+import { ref, h, computed } from 'vue'
 import { NLayoutSider, NIcon, NAvatar, NDropdown, NModal, NButton, useDialog } from 'naive-ui'
-import { Bookmark, StickyNote, Moon, Sun, LogOut, CircleUser, Heart } from 'lucide-vue-next'
+import { Bookmark, StickyNote, Cloud, Moon, Sun, LogOut, CircleUser, Heart } from 'lucide-vue-next'
 import { useUserStore } from '../stores/user'
 import NavItem from '../../modules/bookmark/components/NavItem.vue'
 import axios from 'axios'
 
 const props = defineProps<{
   isDark: boolean
-  activeModule: 'bookmarks' | 'notes'
+  activeModule: 'bookmarks' | 'notes' | 'files'
 }>()
 
 const emit = defineEmits<{
   'toggle-theme': []
-  'module-change': [module: 'bookmarks' | 'notes']
+  'module-change': [module: 'bookmarks' | 'notes' | 'files']
 }>()
 
 const userStore = useUserStore()
@@ -23,6 +23,7 @@ const collapsed = ref(false)
 const navItems = [
   { key: 'bookmarks' as const, icon: Bookmark, label: '收藏夹' },
   { key: 'notes' as const, icon: StickyNote, label: '便签' },
+  { key: 'files' as const, icon: Cloud, label: '云盘' },
 ]
 
 const userDropdownOptions = [
@@ -31,6 +32,9 @@ const userDropdownOptions = [
 ]
 
 const showProfileModal = ref(false)
+
+// 根据 SSO 角色显示对应角色标签：admin=管理员，其余=用户
+const roleLabel = computed(() => userStore.userinfo?.role === 'admin' ? '管理员' : '用户')
 
 const handleUserDropdown = (key: string) => {
   if (key === 'logout') {
@@ -86,7 +90,7 @@ const goSsoProfile = () => {
       </div>
       <template v-if="!collapsed">
         <span class="logo-text">JNClub</span>
-        <span class="logo-sub">{{ activeModule === 'bookmarks' ? '收藏夹' : '便签' }}</span>
+        <span class="logo-sub">{{ activeModule === 'bookmarks' ? '收藏夹' : activeModule === 'notes' ? '便签' : '云盘' }}</span>
       </template>
     </div>
 
@@ -122,7 +126,7 @@ const goSsoProfile = () => {
             </NAvatar>
             <div class="user-info">
               <span class="user-name">{{ userStore.userinfo?.nickname || '用户' }}</span>
-              <span class="user-role">管理员</span>
+              <span class="user-role">{{ roleLabel }}</span>
             </div>
           </div>
         </NDropdown>

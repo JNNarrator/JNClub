@@ -19,7 +19,7 @@ const emit = defineEmits<{
 
 const prefs = useUserPreferences()
 /** 初始化：localStorage 兜底避免首屏闪烁，load 完成后以后端偏好为准 */
-const activeModule = ref<'bookmarks' | 'notes'>(prefs.get('module.activeModule', 'bookmarks'))
+const activeModule = ref<'bookmarks' | 'notes' | 'files'>(prefs.get('module.activeModule', 'bookmarks'))
 
 onMounted(() => {
   prefs.load().then(() => {
@@ -27,7 +27,7 @@ onMounted(() => {
   })
 })
 
-const handleModuleChange = (module: 'bookmarks' | 'notes') => {
+const handleModuleChange = (module: 'bookmarks' | 'notes' | 'files') => {
   activeModule.value = module
   prefs.set('module.activeModule', module)
 }

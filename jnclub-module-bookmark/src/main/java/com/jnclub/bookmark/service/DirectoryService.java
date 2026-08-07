@@ -6,9 +6,11 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.jnclub.bookmark.entity.Bookmark;
 import com.jnclub.bookmark.entity.Directory;
+import com.jnclub.bookmark.entity.FileRecord;
 import com.jnclub.bookmark.entity.Note;
 import com.jnclub.bookmark.mapper.BookmarkMapper;
 import com.jnclub.bookmark.mapper.DirectoryMapper;
+import com.jnclub.bookmark.mapper.FileMapper;
 import com.jnclub.bookmark.mapper.NoteMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -28,6 +30,9 @@ public class DirectoryService extends ServiceImpl<DirectoryMapper, Directory> {
 
     @Autowired
     private NoteMapper noteMapper;
+
+    @Autowired
+    private FileMapper fileMapper;
 
     public List<Directory> getDirectoryTree(Integer type) {
         String userId = StpUtil.getLoginIdAsString();
@@ -85,9 +90,15 @@ public class DirectoryService extends ServiceImpl<DirectoryMapper, Directory> {
                         .in(Note::getDirectoryId, allIds)
                         .eq(Note::getUserId, userId));
 
+        Long fileCount = fileMapper.selectCount(
+                new LambdaQueryWrapper<FileRecord>()
+                        .in(FileRecord::getDirectoryId, allIds)
+                        .eq(FileRecord::getUserId, userId));
+
         Map<String, Long> result = new HashMap<>();
         result.put("bookmarkCount", bookmarkCount);
         result.put("noteCount", noteCount);
+        result.put("fileCount", fileCount);
         return result;
     }
 
@@ -112,7 +123,11 @@ public class DirectoryService extends ServiceImpl<DirectoryMapper, Directory> {
                 new LambdaQueryWrapper<Note>()
                         .in(Note::getDirectoryId, descendantIds)
                         .eq(Note::getUserId, userId));
-        if (bookmarkCount > 0 || noteCount > 0) {
+        Long fileCount = fileMapper.selectCount(
+                new LambdaQueryWrapper<FileRecord>()
+                        .in(FileRecord::getDirectoryId, descendantIds)
+                        .eq(FileRecord::getUserId, userId));
+        if (bookmarkCount > 0 || noteCount > 0 || fileCount > 0) {
             throw new com.jnclub.common.exception.BizException("目录下存在条目，请先清空或移动后再删除");
         }
 

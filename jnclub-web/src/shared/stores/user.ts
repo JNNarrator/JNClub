@@ -8,6 +8,7 @@ export interface UserInfo {
   nickname: string
   avatar: string
   email?: string
+  role?: string
   ssoProfileUrl?: string
 }
 

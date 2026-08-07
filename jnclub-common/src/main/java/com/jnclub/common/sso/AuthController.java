@@ -42,11 +42,14 @@ public class AuthController {
                 result.put("nickname", cached.getStr("nickname", "用户"));
                 result.put("avatar", cached.getStr("avatar", ""));
                 result.put("email", cached.getStr("email", ""));
+                result.put("role", cached.getStr("role", "user"));
             } else {
                 result.put("username", userId);
                 result.put("nickname", "用户");
                 result.put("avatar", "");
                 result.put("email", "");
+                // 无缓存兜底：SSO 注册的普通用户默认非管理员
+                result.put("role", "user");
             }
             return R.ok(result);
         } catch (Exception e) {

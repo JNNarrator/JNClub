@@ -8,6 +8,7 @@ import { ref, computed, h } from 'vue'
 import { NTree, NButton, NIcon, NDropdown, NModal, NForm, NFormItem, NInput, NSpace, useMessage, useDialog } from 'naive-ui'
 import type { TreeOption, TreeDropInfo } from 'naive-ui'
 import { Plus, FolderOpen, Folder, Bookmark, Star, Heart, BookOpen, Tag, Archive, Pencil, Trash2, Ellipsis } from 'lucide-vue-next'
+import { useDirectoryStore } from '../stores/directory'
 import axios from 'axios'
 
 interface Directory {
@@ -46,6 +47,7 @@ const emit = defineEmits<{
 
 const message = useMessage()
 const dialog = useDialog()
+const directoryStore = useDirectoryStore()
 
 const showCreateModal = ref(false)
 const createName = ref('')
@@ -187,7 +189,7 @@ const handleDrop = async ({ node, dragNode, dropPosition }: TreeDropInfo) => {
     const insertAt = dropPosition === 'before' ? adjustedTo : adjustedTo + 1
     keys.splice(Math.min(insertAt, keys.length), 0, dragId)
     const sortList = keys.map((id, idx) => ({ id, sortOrder: idx }))
-    await axios.put('/api/directories/sort', sortList)
+    await directoryStore.updateSortOrder(sortList)
     emit('refresh')
   } catch (e: any) {
     message.error(e.response?.data?.message || '排序失败')
@@ -407,4 +409,16 @@ const handleRenameSubmit = async () => {
 :deep(.n-tree-node:hover) { background: var(--hover-bg); }
 :deep(.n-tree-node:hover .node-menu-btn) { opacity: 1 !important; }
 :deep(.n-tree-node--selected .node-menu-btn) { opacity: 1 !important; }
+
+/* 拖拽排序视觉优化 */
+:deep(.n-tree-node-content--drag-over) {
+  background: var(--brand-soft) !important;
+  box-shadow: inset 0 0 0 2px var(--brand);
+  border-radius: var(--radius-sm);
+}
+:deep(.n-tree-node-content--dragging) {
+  opacity: 0.5;
+}
+:deep(.n-tree-switcher--dragging) { opacity: 0.5; }
+:deep(.n-tree-node--dragging) { opacity: 0.5; }
 </style>

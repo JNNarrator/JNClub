@@ -12,6 +12,12 @@ spring:
   jackson:
     date-format: yyyy-MM-dd HH:mm:ss
     time-zone: Asia/Shanghai
+  # 分片上传：单分片大小由 jnclub.disk.chunk-size-mb 控制（默认 2MB），
+  # max-file-size/max-request-size 需大于单个分片，按上限 10MB 预留余量
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 12MB
 
 sa-token:
   sso:
@@ -30,10 +36,17 @@ jnclub:
     base-url: http://localhost:8000
     public-url: /api/files/jnclub/images/
     upload-path: /jnclub/images/
+    disk-path: /jnclub/disk/
     username:
     password:
   upload:
     max-size-mb: 10
+  disk:
+    # 单文件大小上限与分片大小（小带宽/不稳定网络下取较小分片，失败重传成本低）
+    max-size-mb: 500
+    chunk-size-mb: 2
+    # 分片暂存的本地临时目录，默认 <系统临时目录>/jnclub-upload，可覆盖
+    # temp-dir: /path/to/jnclub-upload
 
 mybatis-plus:
   mapper-locations: classpath*:mapper/**/*.xml

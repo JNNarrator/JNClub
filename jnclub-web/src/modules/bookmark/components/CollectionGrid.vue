@@ -8,6 +8,7 @@ import { ref, onMounted } from 'vue'
 import { NSpin } from 'naive-ui'
 import CollectionCard from './CollectionCard.vue'
 import type { BookmarkItem } from './CollectionRow.vue'
+import { useDraggableSort } from '../composables/useDraggableSort'
 
 defineProps<{
   bookmarks: BookmarkItem[]
@@ -17,23 +18,31 @@ defineProps<{
 const emit = defineEmits<{
   refresh: []
   edit: [bookmark: BookmarkItem]
+  sort: [orderedIds: number[]]
 }>()
 
 const visible = ref(false)
+const gridRef = ref<HTMLElement | null>(null)
 onMounted(() => {
   requestAnimationFrame(() => {
     visible.value = true
   })
 })
+
+const { init: initSort } = useDraggableSort(gridRef, (ids) => {
+  emit('sort', ids)
+})
+onMounted(() => { initSort() })
 </script>
 
 <template>
   <div class="collection-grid">
     <NSpin :show="loading">
-      <div :class="['grid-cards', { visible }]">
+      <div ref="gridRef" :class="['grid-cards', { visible }]">
         <div
           v-for="(bk, i) in bookmarks"
           :key="bk.id"
+          :data-id="bk.id"
           class="grid-item-wrap"
           :style="{ '--i': i }"
         >
@@ -65,6 +74,25 @@ onMounted(() => {
 
 .grid-cards.visible .grid-item-wrap {
   animation-name: fadeSlideIn;
+}
+
+/* 拖拽排序时抑制 stagger 渐入动画重播 */
+.grid-cards.sorting .grid-item-wrap {
+  animation: none !important;
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+/* SortableJS 拖拽视觉 */
+.grid-cards :deep(.sortable-ghost) {
+  opacity: 0.4;
+  background: var(--brand-soft) !important;
+  border-radius: var(--radius-md);
+  outline: 2px dashed var(--brand);
+  outline-offset: -2px;
+}
+.grid-cards :deep(.sortable-chosen) {
+  cursor: grabbing;
 }
 
 @keyframes fadeSlideIn {
