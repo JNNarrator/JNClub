@@ -2,7 +2,7 @@
 /**
  * NoteEditorPage.vue — 便签独立查看/编辑页（新标签页打开）
  * 路由：/notes/new（新建，query.directoryId 指定目录）与 /notes/:id（查看，页内编辑/分栏/预览切换）
- * 复用 NoteEditor.vue（vditor markdown 编辑器：ir 即时渲染/自动保存/图片上传/快捷键帮助）
+ * 复用 NoteEditor.vue（md-editor-v3 markdown 编辑器：分屏编辑预览/自动保存/图片上传/快捷键帮助）
  */
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -109,7 +109,7 @@ const handleDeleted = () => {
   flex: 1;
   min-height: 0;
 }
-/* NSpin 容器链撑满，保证 vditor 高度 100% 生效 */
+/* NSpin 容器链撑满，保证 md-editor-v3 高度 100% 生效 */
 .page-spin :deep(.n-spin-container),
 .page-spin :deep(.n-spin-content) {
   height: 100%;

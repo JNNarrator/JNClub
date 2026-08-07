@@ -12,11 +12,6 @@ dist
 dist-ssr
 *.local
 
-# 保留 vditor 自托管静态资源（public/vendor/vditor/dist 不被 dist 规则忽略）
-!public/vendor/
-!public/vendor/vditor/
-!public/vendor/vditor/dist/
-
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

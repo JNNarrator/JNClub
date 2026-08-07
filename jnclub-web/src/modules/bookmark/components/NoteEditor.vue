@@ -1,17 +1,22 @@
 <script setup lang="ts">
 /**
- * NoteEditor.vue — vditor Markdown 编辑器封装
- * 默认 ir 即时渲染模式（Typora 风格），toolbar 内置 edit-mode / both / preview 页内切换
+ * NoteEditor.vue — md-editor-v3 Markdown 编辑器封装
+ * 编辑态：MdEditor 左右分栏（左源码 + 右实时预览，同步滚动可拖拽）+ 内置右侧悬浮目录
+ * 只读态：MdPreview 纯渲染阅读
  * 能力：自动保存（3s）+ Ctrl/⌘+S + 保存状态指示 + 空态引导 + 快捷键帮助 + 图片上传
- * 自托管 cdn（public/vendor/vditor），不依赖 unpkg 外网
+ * 扩展（highlight.js 等）走 unpkg CDN 按需加载
  */
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { NButton, NIcon, NInput, NModal, NSwitch, useMessage, useDialog } from 'naive-ui'
 import { Keyboard, ArrowLeft, CheckCircle2, CloudOff, LoaderCircle } from 'lucide-vue-next'
-import Vditor from 'vditor'
-import 'vditor/dist/index.css'
+import { MdEditor, MdPreview, type ExposeParam, type ToolbarNames, type HeadList } from 'md-editor-v3'
+import 'md-editor-v3/lib/style.css'
+import 'md-editor-v3/lib/preview.css'
 import axios from 'axios'
 import type { Note } from '../stores/note'
+
+/** md-editor-v3 实例 id（MdEditor 与 MdCatalog 通过它联动） */
+const EDITOR_ID = 'jnclub-note-editor'
 
 const props = defineProps<{
   note: Note | null
@@ -27,10 +32,7 @@ const emit = defineEmits<{
 const message = useMessage()
 const dialog = useDialog()
 
-const vditorEl = ref<HTMLDivElement | null>(null)
-let vditor: Vditor | null = null
-/** 保存成功后父组件回写 note 触发的 id 变化，无需重建编辑器（内容已在 vditor 内） */
-let skipNextSync = false
+const mdEditor = ref<ExposeParam | null>(null)
 /** 只读模式：查看已有便签默认只读，新建默认可编辑 */
 const readonlyMode = ref(props.note ? props.note.id !== 0 : true)
 const isViewNote = computed(() => !!props.note && props.note.id !== 0)
@@ -40,6 +42,97 @@ const title = ref('')
 const saving = ref(false)
 const autoSaveTimer = ref<ReturnType<typeof setTimeout> | null>(null)
 const hasUnsavedChanges = ref(false)
+
+/** 目录大纲数据（来自 MdEditor / MdPreview 的 onGetCatalog 回调） */
+const catalogList = ref<HeadList[]>([])
+const handleCatalog = (headings: HeadList[]) => { catalogList.value = headings || [] }
+
+/** 悬浮大纲：收起/展开 + 可拖拽位置（记忆到 localStorage） */
+const outlineVisible = ref(true)
+const OUTLINE_POS_KEY = 'jnclub-outline-pos'
+const outlinePos = ref({ x: 0, y: 0 })
+const outlineBox = ref<HTMLDivElement | null>(null)
+const outlineToggle = ref<HTMLButtonElement | null>(null)
+let dragging = false
+let dragOffset = { x: 0, y: 0 }
+
+const initOutlinePos = () => {
+  // 默认位置：视口右侧、垂直居中（首屏尽早计算，避免 initial 0,0 挡编辑区）
+  const vw = typeof window !== 'undefined' ? window.innerWidth : 1200
+  const outlineW = 200
+  if (typeof window !== 'undefined') {
+    outlinePos.value = { x: vw - outlineW - 24, y: 120 }
+  }
+  try {
+    const saved = localStorage.getItem(OUTLINE_POS_KEY)
+    if (saved) {
+      const { x, y } = JSON.parse(saved)
+      if (typeof x === 'number' && typeof y === 'number') outlinePos.value = { x, y }
+    }
+  } catch { /* 忽略损坏数据 */ }
+}
+initOutlinePos()
+
+const saveOutlinePos = () => {
+  try { localStorage.setItem(OUTLINE_POS_KEY, JSON.stringify(outlinePos.value)) } catch { /* 忽略 */ }
+}
+
+/** 开始拖拽（大纲框或展开按钮通用） */
+const onOutlineDragStart = (e: MouseEvent) => {
+  const movingEl = outlineVisible.value ? outlineBox.value : outlineToggle.value
+  if (!movingEl) return
+  const rect = movingEl.getBoundingClientRect()
+  dragging = true
+  dragOffset = { x: e.clientX - rect.left, y: e.clientY - rect.top }
+  dragStart = { x: e.clientX, y: e.clientY }
+  didDrag = false
+  movingEl.style.transition = 'none'
+  document.addEventListener('mousemove', onOutlineDragMove)
+  document.addEventListener('mouseup', onOutlineDragEnd)
+}
+let dragStart = { x: 0, y: 0 }
+let didDrag = false
+const onOutlineDragMove = (e: MouseEvent) => {
+  if (!dragging) return
+  // 超过阈值才算真正拖拽（避免与 click 展开冲突）
+  if (!didDrag && Math.abs(e.clientX - dragStart.x) + Math.abs(e.clientY - dragStart.y) > 4) {
+    didDrag = true
+    e.preventDefault()
+  }
+  if (didDrag) outlinePos.value = { x: e.clientX - dragOffset.x, y: e.clientY - dragOffset.y }
+}
+const onOutlineDragEnd = () => {
+  if (!dragging) return
+  dragging = false
+  if (didDrag) saveOutlinePos()
+  const movingEl = outlineVisible.value ? outlineBox.value : outlineToggle.value
+  if (movingEl) movingEl.style.transition = ''
+  document.removeEventListener('mousemove', onOutlineDragMove)
+  document.removeEventListener('mouseup', onOutlineDragEnd)
+}
+
+/** 展开按钮点击：若刚拖拽过则不触发展开 */
+const onOutlineToggleClick = () => {
+  if (didDrag) { didDrag = false; return }
+  outlineVisible.value = true
+}
+
+/** 点击目录项 → 滚动到对应标题 */
+const scrollToHeading = (h: HeadList) => {
+  const id = mdHeadingId(h)
+  const target = document.getElementById(id)
+  if (target) {
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    // 高亮当前项
+    catalogList.value.forEach(i => { i.active = (i.text === h.text && i.level === h.level) })
+  }
+}
+
+/** 标题 id 生成（与 md-editor-v3 默认一致：mdHeadingId 默认返回 text） */
+const mdHeadingId = (h: { text: string; level: number; index?: number }) => h.text
+
+/** 目录项缩进宽度（按标题层级） */
+const headingPadding = (level: number) => `${(level - 1) * 12}px`
 
 /** 保存状态：未保存 / 保存中 / 已保存（含自动保存） */
 const saveState = ref<'idle' | 'dirty' | 'saving' | 'saved'>('idle')
@@ -88,28 +181,28 @@ const shortcutRows = [
   { keys: 'Ctrl + Z / Ctrl + Shift + Z', desc: '撤销 / 重做' },
 ]
 
-/** 外部 note 变化（切换便签/加载）→ 同步内容；保存回写（同 id 或 skipNextSync）不重建编辑器 */
-watch(() => props.note?.id, (newId, oldId) => {
+/** md-editor-v3 工具栏（对齐原 vditor 精简工具栏） */
+const toolbars: ToolbarNames[] = [
+  'revoke', 'next', '-',
+  'title', 'bold', 'italic', 'strikeThrough', 'link', '-',
+  'unorderedList', 'orderedList', 'task', '-',
+  'quote', 'code', 'codeRow', 'table', '-',
+  'image', '-', 'fullscreen', 'pageFullscreen', 'preview', 'previewOnly', '-', 'save',
+]
+
+/** 外部 note 变化（切换便签/加载）→ 同步内容（v-model 双向绑定，直接赋值即可） */
+watch(() => props.note?.id, () => {
   if (!props.note) return
   content.value = props.note.content || ''
   title.value = props.note.title || ''
   hasUnsavedChanges.value = false
   saveState.value = 'idle'
   lastSavedAt.value = ''
-  if (vditor && newId !== oldId && !skipNextSync) {
-    vditor.setValue(content.value, true)
-  }
-  skipNextSync = false
 }, { immediate: true })
 
-/** 暗色主题切换 */
-watch(() => props.isDark, (dark) => {
-  if (vditor) vditor.setTheme(dark ? 'dark' : 'classic')
-})
-
-/** 图片上传：vditor handler 语义——返回 null 表示成功、字符串视为错误提示；图片由 handler 内部插入编辑器 */
-const handleUploadImg = async (files: File[]): Promise<string | null> => {
-  if (!files.length) return null
+/** 图片上传：md-editor-v3 回调式——上传成功回调 urls，由编辑器自动插入 */
+const handleUploadImg = async (files: File[], callback: (urls: string[]) => void) => {
+  if (!files.length) return
   try {
     const formData = new FormData()
     formData.append('file', files[0])
@@ -117,22 +210,16 @@ const handleUploadImg = async (files: File[]): Promise<string | null> => {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
     if (res.data.code === 200) {
-      const url = res.data.data.url
-      vditor?.insertMD(`![${files[0].name}](${url})`)
-      // insertMD 不触发 vditor input 回调：手动同步内容并触发自动保存
-      if (vditor) {
-        const md = vditor.getValue()
-        handleEditorInput(md)
-      }
-      return null
+      callback([res.data.data.url])
+      return
     }
-    return res.data.message || '上传失败'
+    message.error(res.data.message || '上传失败')
   } catch (e: any) {
-    return e.response?.status === 401 ? '请先登录' : (e.response?.data?.message || '图片上传失败')
+    message.error(e.response?.status === 401 ? '请先登录' : (e.response?.data?.message || '图片上传失败'))
   }
 }
 
-/** vditor 输入 → 触发自动保存 */
+/** 编辑器输入 → 触发自动保存 */
 const handleEditorInput = (value: string) => {
   content.value = value
   hasUnsavedChanges.value = true
@@ -152,7 +239,7 @@ const handleTitleChange = () => {
   autoSaveTimer.value = setTimeout(() => handleSave(true), 3000)
 }
 
-/** 保存 */
+/** 保存（Ctrl/⌘+S 或自动保存触发；md-editor-v3 onSave 第二参为 html Promise，忽略） */
 const handleSave = async (silent = false) => {
   if (readonlyMode.value) return
   if (!props.note || saving.value) return
@@ -176,7 +263,6 @@ const handleSave = async (silent = false) => {
         hasUnsavedChanges.value = false
         saveState.value = 'saved'
         lastSavedAt.value = formatTime(new Date())
-        skipNextSync = true // 本次保存回写不再重建编辑器
         if (!silent) message.success('已保存')
         emit('saved', res.data.data as Note)
       } else {
@@ -192,7 +278,6 @@ const handleSave = async (silent = false) => {
       hasUnsavedChanges.value = false
       saveState.value = 'saved'
       lastSavedAt.value = formatTime(new Date())
-      skipNextSync = true // 本次保存回写不再重建编辑器
       if (!silent) message.success('已保存')
       emit('saved', { ...props.note, title: title.value, content: content.value } as Note)
     }
@@ -202,16 +287,13 @@ const handleSave = async (silent = false) => {
   } finally { saving.value = false }
 }
 
-/** 关闭前检查未保存（主动对比 vditor 内容，防 input 回调防抖延迟漏判） */
+/** md-editor-v3 onSave 适配：签名 (v, h) => void，转发到 handleSave() */
+const handleEditorSave = () => {
+  handleSave()
+}
+
+/** 关闭前检查未保存 */
 const handleRequestClose = () => {
-  if (vditor) {
-    const current = vditor.getValue()
-    if (current !== content.value) {
-      content.value = current
-      hasUnsavedChanges.value = true
-      saveState.value = 'dirty'
-    }
-  }
   if (hasUnsavedChanges.value) {
     dialog.warning({
       title: '未保存的修改',
@@ -228,95 +310,34 @@ const handleRequestClose = () => {
   }
 }
 
-/** 编辑类工具栏按钮（只读时禁用，与 vditor 内置 EDIT_TOOLBARS 一致） */
-const EDIT_TOOLBAR_KEYS = ['emoji', 'headings', 'bold', 'italic', 'strike', 'link', 'list',
-  'ordered-list', 'outdent', 'indent', 'check', 'line', 'quote', 'code', 'inline-code',
-  'insert-after', 'insert-before', 'upload', 'record', 'table']
-
-/** 只读/可编辑切换：只读时隐藏编辑区、显示 vditor 预览面板（排版渲染），并禁用编辑类工具栏 */
-const applyReadonly = () => {
-  if (!vditor) return
-  const v = vditor.vditor
-  const modeKey = v.currentMode
-  const editWrap = (v as any)[modeKey]?.element?.parentElement as HTMLElement | undefined
-  const previewEl = v.preview?.element as HTMLElement | undefined
-  if (!editWrap || !previewEl) return
-  if (readonlyMode.value) {
-    editWrap.style.display = 'none'
-    previewEl.style.display = 'block'
-    v.preview?.render(v) // getMarkdown → lute 渲染排版（正常文档样式）
-  } else {
-    editWrap.style.display = 'block'
-    previewEl.style.display = 'none'
-  }
-  // 只读（纯预览）时隐藏预览操作栏与工具栏（CSS 层兜底）
-  const els = v.toolbar?.elements
-  if (els) {
-    EDIT_TOOLBAR_KEYS.forEach((k) => {
-      els[k]?.firstElementChild?.classList.toggle('vditor-menu--disabled', readonlyMode.value)
-    })
-  }
-}
 const toggleReadonly = () => {
   readonlyMode.value = !readonlyMode.value
-  applyReadonly()
   // 进入编辑模式时触发一次编辑框高亮动画
   if (!readonlyMode.value) {
     editorFlash.value = false
     requestAnimationFrame(() => { editorFlash.value = true })
   }
-  if (!readonlyMode.value && vditor) {
-    const el = (vditor.vditor as any)?.[vditor.vditor.currentMode]?.element as HTMLElement | undefined
-    el?.focus()
+  if (!readonlyMode.value) {
+    mdEditor.value?.focus()
   }
 }
 
-/** Ctrl/Cmd+S 快捷保存 */
+/** Ctrl/Cmd+S 快捷保存（md-editor-v3 内置 onSave 已绑定，此为页面级兜底） */
 const handleKeydown = (e: KeyboardEvent) => {
   if ((e.metaKey || e.ctrlKey) && e.key === 's') { e.preventDefault(); handleSave() }
 }
 
-const vditorToolbar: Array<string> = [
-  'undo', 'redo', '|',
-  'headings', 'bold', 'italic', 'strike', 'link', '|',
-  'list', 'ordered-list', 'check', '|',
-  'quote', 'code', 'inline-code', 'table', '|',
-  'upload', '|', 'fullscreen', 'edit-mode', 'both', 'preview', '|', 'outline',
-]
-
 onMounted(() => {
-  if (!vditorEl.value) return
-  vditor = new Vditor(vditorEl.value, {
-    mode: 'ir',
-    theme: props.isDark ? 'dark' : 'classic',
-    icon: 'ant',
-    lang: 'zh_CN',
-    cdn: `${import.meta.env.BASE_URL}vendor/vditor`,
-    placeholder: '支持 Markdown 语法，试试输入 # 标题，或 ** 加粗',
-    cache: { enable: false },
-    height: '100%',
-    outline: { enable: true, position: 'left' },
-    // 预览操作栏：编辑模式可用；只读（纯预览）时在 applyReadonly 中隐藏
-    preview: { actions: ['desktop', 'tablet', 'mobile', 'mp-wechat', 'zhihu'] },
-    value: content.value,
-    toolbar: vditorToolbar,
-    input: handleEditorInput,
-    upload: {
-      handler: handleUploadImg as (files: File[]) => string | null | Promise<string> | Promise<null>,
-    },
-    keydown: (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 's') { e.preventDefault(); handleSave() }
-    },
-    after: () => { applyReadonly() },
-  })
+  // MdEditor 挂载完成后触发一次 onGetCatalog，确保目录初始有数据
+  setTimeout(() => {
+    if (!readonlyMode.value) mdEditor.value?.rerender?.()
+  }, 0)
 })
 
 onBeforeUnmount(() => {
   if (autoSaveTimer.value) clearTimeout(autoSaveTimer.value)
-  if (vditor) {
-    try { vditor.destroy() } catch { /* 忽略 */ }
-    vditor = null
-  }
+  document.removeEventListener('mousemove', onOutlineDragMove)
+  document.removeEventListener('mouseup', onOutlineDragEnd)
 })
 
 const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -374,8 +395,75 @@ defineExpose({ hasUnsavedChanges })
     </div>
 
     <div class="editor-body" :class="{ flash: editorFlash }">
-      <!-- vditor 挂载点 -->
-      <div ref="vditorEl" class="vditor-wrap"></div>
+      <!-- md-editor-v3 编辑器（编辑态：左右分栏实时预览） / 渲染预览（只读态）
+           两态都通过 onGetCatalog 输出目录数据给统一的悬浮大纲 -->
+      <MdEditor
+        v-if="!readonlyMode"
+        ref="mdEditor"
+        :id="EDITOR_ID"
+        v-model="content"
+        :theme="isDark ? 'dark' : 'light'"
+        language="zh-CN"
+        :toolbars="toolbars"
+        :placeholder="'支持 Markdown 语法，试试输入 # 标题，或 ** 加粗'"
+        :no-upload-img="false"
+        :auto-detect-code="true"
+        :on-upload-img="handleUploadImg"
+        :on-save="handleEditorSave"
+        :on-change="handleEditorInput"
+        :on-get-catalog="handleCatalog"
+        :preview="true"
+        class="md-editor-wrap"
+      />
+      <MdPreview
+        v-else
+        :id="EDITOR_ID + '-preview'"
+        :model-value="content"
+        :theme="isDark ? 'dark' : 'light'"
+        :on-get-catalog="handleCatalog"
+        class="md-preview-wrap"
+      />
+
+      <!-- 统一可拖拽、可收起的悬浮大纲 -->
+      <div
+        v-show="outlineVisible && catalogList.length"
+        ref="outlineBox"
+        class="outline-float"
+        :style="{ left: outlinePos.x + 'px', top: outlinePos.y + 'px' }"
+      >
+        <div class="outline-float__head" @mousedown="onOutlineDragStart" title="拖动调整位置">
+          <span class="outline-float__title">大纲</span>
+          <div class="outline-float__actions">
+            <button class="outline-float__btn" title="收起" @click="outlineVisible = false">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="outline-float__body">
+          <button
+            v-for="(h, i) in catalogList"
+            :key="i"
+            class="outline-float__item"
+            :class="{ 'outline-float__item--active': h.active }"
+            :style="{ paddingLeft: headingPadding(h.level) }"
+            @click="scrollToHeading(h)"
+          >{{ h.text }}</button>
+        </div>
+      </div>
+
+      <!-- 悬浮大纲展开按钮（收起后显示，可拖动调整位置） -->
+      <button
+        v-if="catalogList.length && !outlineVisible"
+        ref="outlineToggle"
+        class="outline-float__reopen"
+        title="点击展开大纲 · 拖动调整位置"
+        @mousedown="onOutlineDragStart"
+        @click="onOutlineToggleClick"
+        :style="{ left: outlinePos.x + 'px', top: outlinePos.y + 'px' }"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+        <span>大纲</span>
+      </button>
 
       <!-- 空态引导：首次打开不是白板 -->
       <div v-if="showGuide" class="editor-guide">
@@ -484,7 +572,7 @@ defineExpose({ hasUnsavedChanges })
   to { transform: rotate(360deg); }
 }
 
-/* 编辑区：vditor 撑满 */
+/* 编辑区：md-editor-v3 撑满 */
 .editor-body {
   flex: 1;
   min-height: 0;
@@ -499,70 +587,145 @@ defineExpose({ hasUnsavedChanges })
   0% { box-shadow: inset 0 0 0 2px var(--brand), 0 0 0 1px var(--brand-soft); }
   100% { box-shadow: inset 0 0 0 0 transparent; }
 }
-.vditor-wrap { height: 100%; }
-:deep(.vditor) { height: 100% !important; border-radius: 0 !important; border: none !important; }
-:deep(.vditor-toolbar) {
-  background: var(--bg-card) !important;
-  border-bottom: 1px solid var(--border) !important;
-  padding: 4px 8px !important;
-}
-:deep(.vditor-toolbar__item button) { color: var(--text-2) !important; }
-:deep(.vditor-toolbar__item button:hover) { color: var(--brand) !important; background: var(--hover-bg) !important; }
-:deep(.vditor-toolbar__item button.vditor-menu--current) { color: var(--brand) !important; }
-:deep(.vditor-ir) { background: var(--bg-card) !important; }
-:deep(.vditor-ir__editor) { background: var(--bg-card) !important; }
-:deep(.vditor-ir__editor .vditor-reset) { color: var(--text-1) !important; }
-:deep(.vditor-preview) { background: var(--bg-card) !important; }
-:deep(.vditor-preview .vditor-reset) { color: var(--text-1) !important; padding: 16px 22px 40px; }
-:deep(.vditor-content) { background: var(--bg-card) !important; }
 
-/* 只读（纯预览）时隐藏预览操作栏（CSS 层兜底，action 生成即隐藏） */
-.readonly-mode :deep(.vditor-preview__action) { display: none !important; }
-/* 只读（纯预览）时隐藏 vditor 工具栏 */
-.readonly-mode :deep(.vditor-toolbar) { display: none !important; }
-
-/* 大纲栏（左侧，参考 ld246 风格） */
-:deep(.vditor-outline) {
-  background: var(--bg-card) !important;
-  border-right: 1px solid var(--border) !important;
-  width: 220px !important;
-  padding: 14px 10px !important;
-  overflow-y: auto !important;
-}
-:deep(.vditor-outline__title) {
-  font-size: 11px;
-  color: var(--text-3);
-  font-weight: 600;
-  letter-spacing: 1px;
-  padding: 0 10px 8px;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 10px;
-}
-:deep(.vditor-outline__content) { padding: 4px 2px; }
-:deep(.vditor-outline__content a) {
-  display: block;
-  color: var(--text-2);
-  font-size: 13px;
-  line-height: 1.5;
-  padding: 4px 10px;
-  margin: 1px 0;
-  border-radius: 8px;
-  text-decoration: none;
+/* ==== 统一可拖拽、可收起的悬浮大纲 ==== */
+.outline-float {
+  position: fixed;
+  z-index: 10200;
+  width: 200px;
+  max-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, .12);
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  transition: all .15s ease;
+  font-size: 13px;
 }
-:deep(.vditor-outline__content a:hover) {
-  color: var(--brand);
+.outline-float__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  cursor: grab;
+  user-select: none;
   background: var(--hover-bg);
 }
-:deep(.vditor-outline__content a.vditor-outline__item--current),
-:deep(.vditor-outline__content .vditor-outline__item--current) {
+.outline-float__head:active { cursor: grabbing; }
+.outline-float__title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: var(--text-3);
+}
+.outline-float__actions { display: flex; align-items: center; }
+.outline-float__btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: transparent;
+  color: var(--text-3);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.outline-float__btn:hover { background: var(--brand-soft); color: var(--brand); }
+.outline-float__body {
+  overflow-y: auto;
+  padding: 6px 8px;
+  max-height: calc(60vh - 37px);
+}
+.outline-float__item {
+  display: block;
+  width: 100%;
+  border: none;
+  background: transparent;
+  text-align: left;
+  color: var(--text-2);
+  font-size: 13px;
+  line-height: 1.6;
+  padding: 3px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: all .15s ease;
+}
+.outline-float__item:hover { color: var(--brand); background: var(--hover-bg); }
+.outline-float__item--active {
   color: var(--brand) !important;
   background: var(--brand-soft) !important;
   font-weight: 600;
 }
+/* 展开按钮：精致胶囊 + 图标，可拖动 */
+.outline-float__reopen {
+  position: fixed;
+  z-index: 10200;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--brand);
+  background: var(--bg-card);
+  border: 1.5px solid var(--brand-soft);
+  border-radius: 999px;
+  cursor: grab;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, .12);
+  transition: all .18s ease;
+  user-select: none;
+}
+.outline-float__reopen:hover { background: var(--brand-soft); border-color: var(--brand); }
+.outline-float__reopen:active { cursor: grabbing; }
+
+/* md-editor 主体 */
+.md-editor-wrap { height: 100%; }
+/* 只读态预览：纯阅读背景（不被编辑态 hover-bg 覆盖） */
+.md-preview-wrap { height: 100%; overflow-y: auto; background: var(--bg-card); }
+.md-preview-wrap :deep(.md-editor-preview) { padding: 16px 22px 40px; height: 100%; background: var(--bg-card) !important; }
+:deep(.md-editor) { height: 100% !important; }
+:deep(.md-editor-toolbar) {
+  background: var(--bg-card) !important;
+  border-bottom: 1px solid var(--border) !important;
+  padding: 4px 8px !important;
+  height: 44px;
+}
+:deep(.md-editor-toolbar-item) { color: var(--text-2) !important; }
+:deep(.md-editor-toolbar-item:hover) { color: var(--brand) !important; background: var(--hover-bg) !important; }
+:deep(.md-editor-toolbar-item.active) { color: var(--brand) !important; }
+:deep(.md-editor-content) { background: var(--bg-card) !important; }
+:deep(.md-editor-input) { background: var(--bg-card) !important; }
+/* 预览区与编辑区同色，用一条更明显的分割线（有道云风格，全屏下也清晰） */
+:deep(.md-editor-preview-wrapper) {
+  background: var(--bg-card) !important;
+  border-left: 2px solid var(--split) !important;
+}
+:deep(.md-editor-preview) {
+  background: transparent !important;
+  padding: 16px 22px 40px !important;
+  min-height: 100%;
+}
+
+/* 预览区为空时的占位提示 */
+:deep(.md-editor-preview:empty::before) {
+  content: '📄 预览区域';
+  color: var(--text-4);
+  font-size: 14px;
+  letter-spacing: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 160px;
+}
+
+/* 只读（MdPreview）模式下不显示工具栏 */
+.readonly-mode :deep(.md-editor-toolbar) { display: none !important; }
 
 /* 底部状态条 */
 .editor-statusbar {
@@ -738,39 +901,35 @@ defineExpose({ hasUnsavedChanges })
   font-size: 11px;
 }
 
-/* ==== Markdown 排版（.vditor-reset 覆盖，编辑态与预览态一致）==== */
-:deep(.vditor-reset) {
+/* ==== Markdown 排版覆盖（.md-editor-preview 容器内，编辑与预览共用）==== */
+:deep(.md-editor-preview) {
   font-size: 15px;
   line-height: 1.85;
   word-break: break-word;
 }
-
-/* 标题：大号粗体 + 明显下边距 */
-:deep(.vditor-reset h1),
-:deep(.vditor-reset h2),
-:deep(.vditor-reset h3),
-:deep(.vditor-reset h4),
-:deep(.vditor-reset h5),
-:deep(.vditor-reset h6) {
+:deep(.md-editor-preview h1),
+:deep(.md-editor-preview h2),
+:deep(.md-editor-preview h3),
+:deep(.md-editor-preview h4),
+:deep(.md-editor-preview h5),
+:deep(.md-editor-preview h6) {
   color: var(--text-1) !important;
   font-weight: 700;
   margin: 1.6em 0 .6em;
   line-height: 1.3;
 }
-:deep(.vditor-reset h1) { font-size: 2em; padding-bottom: .4em; border-bottom: 1px solid var(--border); }
-:deep(.vditor-reset h2) { font-size: 1.6em; padding-bottom: .3em; border-bottom: 1px solid var(--border); }
-:deep(.vditor-reset h3) { font-size: 1.3em; }
-:deep(.vditor-reset h4) { font-size: 1.15em; }
-:deep(.vditor-reset h5) { font-size: 1em; }
-:deep(.vditor-reset h6) { font-size: .9em; color: var(--text-2) !important; }
+:deep(.md-editor-preview h1) { font-size: 2em; padding-bottom: .4em; border-bottom: 1px solid var(--border); }
+:deep(.md-editor-preview h2) { font-size: 1.6em; padding-bottom: .3em; border-bottom: 1px solid var(--border); }
+:deep(.md-editor-preview h3) { font-size: 1.3em; }
+:deep(.md-editor-preview h4) { font-size: 1.15em; }
+:deep(.md-editor-preview h5) { font-size: 1em; }
+:deep(.md-editor-preview h6) { font-size: .9em; color: var(--text-2) !important; }
 
-/* 段落与加粗/斜体 */
-:deep(.vditor-reset p) { margin: .6em 0; }
-:deep(.vditor-reset strong) { font-weight: 700; color: var(--text-1); }
-:deep(.vditor-reset em) { font-style: italic; }
+:deep(.md-editor-preview p) { margin: .6em 0; }
+:deep(.md-editor-preview strong) { font-weight: 700; color: var(--text-1); }
+:deep(.md-editor-preview em) { font-style: italic; }
 
-/* 引用：左侧灰色竖边框 */
-:deep(.vditor-reset blockquote) {
+:deep(.md-editor-preview blockquote) {
   margin: 1em 0;
   padding: .5em 1em;
   border-left: 4px solid var(--border);
@@ -778,12 +937,10 @@ defineExpose({ hasUnsavedChanges })
   color: var(--text-2) !important;
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
 }
-:deep(.vditor-reset blockquote p) { margin: .4em 0; }
+:deep(.md-editor-preview blockquote p) { margin: .4em 0; }
 
-/* 代码：行内浅底 + 代码块深灰底等宽字体
-   预览态代码块：.vditor-reset 容器内 pre
-   ir 编辑态代码块：源码层 .vditor-ir__marker--pre + 渲染层 .vditor-ir__preview（两层流式排布，不重叠） */
-:deep(.vditor-reset code) {
+/* 代码：行内浅底 + 代码块深灰底等宽字体 */
+:deep(.md-editor-preview code) {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Courier New', monospace;
   font-size: .88em;
   background: var(--hover-bg) !important;
@@ -791,125 +948,52 @@ defineExpose({ hasUnsavedChanges })
   padding: .15em .4em;
   border-radius: 6px;
 }
-/* 预览态代码块 */
-:deep(.vditor-reset pre) {
+:deep(.md-editor-preview pre) {
   background: var(--hover-bg) !important;
   border: 1px solid var(--border) !important;
-  border-radius: var(--radius-md);
+  border-radius: 6px;
   padding: 14px 16px !important;
   overflow-x: auto;
   line-height: 1.6;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Courier New', monospace !important;
 }
-:deep(.vditor-reset pre code) {
+:deep(.md-editor-preview pre code) {
   background: transparent !important;
   color: var(--text-1) !important;
   padding: 0;
   font-size: .9em;
   font-family: inherit !important;
 }
-/* ir 编辑态代码块：源码编辑层 */
-:deep(.vditor-ir__marker--pre) {
-  background: var(--hover-bg) !important;
-  border: 1px solid var(--border) !important;
-  border-radius: var(--radius-md);
-  padding: 12px 16px !important;
-  margin: 6px 0 4px !important;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Courier New', monospace !important;
-  color: var(--text-1) !important;
-}
-/* ir 编辑态代码块：聚焦编辑（--expand）时隐藏渲染预览层，只显示源码编辑框；
-   失焦（非 expand）时隐藏源码层，只显示渲染层（避免源码折叠窄条与渲染层叠加遮挡）；
-   隐藏代码块节点两端的 ``` 伪元素装饰（半椭圆 pill，不美观）+ 清除语言标签多余样式 */
-:deep(.vditor-ir__node--expand pre.vditor-ir__preview),
-:deep(.vditor-ir__node--expand pre.vditor-ir__preview code) {
-  display: none !important;
-}
-:deep(.vditor-ir__node:not(.vditor-ir__node--expand) .vditor-ir__marker--pre) {
-  display: none !important;
-}
-/* 隐藏代码块 ::before/::after 的 ``` 标记与半椭圆装饰 */
-:deep(.vditor-ir__node::before),
-:deep(.vditor-ir__node::after) {
-  display: none !important;
-}
-/* 清除语言标签 marker--info 的多余 outline/装饰，保持纯文本 */
-:deep(.vditor-ir__marker--info) {
-  outline: none !important;
-  background: transparent !important;
-  border-radius: 0 !important;
-  padding: 0 !important;
-}
-:deep(.vditor-reset pre code.hljs) { color: var(--text-1) !important; }
 
 /* 列表：圆点 / 数字缩进 */
-:deep(.vditor-reset ul) { list-style: disc; }
-:deep(.vditor-reset ul ul) { list-style: circle; }
-:deep(.vditor-reset ul ul ul) { list-style: square; }
-:deep(.vditor-reset ol) { list-style: decimal; }
-:deep(.vditor-reset ul),
-:deep(.vditor-reset ol) { margin: .6em 0; padding-left: 1.7em; }
-:deep(.vditor-reset li) { margin: .3em 0; }
-:deep(.vditor-reset li > ul),
-:deep(.vditor-reset li > ol) { margin: .2em 0; }
-:deep(.vditor-reset li > p) { margin: .2em 0; }
-:deep(.vditor-reset input[type='checkbox']) { margin-right: .4em; }
+:deep(.md-editor-preview ul) { list-style: disc; }
+:deep(.md-editor-preview ul ul) { list-style: circle; }
+:deep(.md-editor-preview ul ul ul) { list-style: square; }
+:deep(.md-editor-preview ol) { list-style: decimal; }
+:deep(.md-editor-preview ul),
+:deep(.md-editor-preview ol) { margin: .6em 0; padding-left: 1.7em; }
+:deep(.md-editor-preview li) { margin: .3em 0; }
+:deep(.md-editor-preview li > ul),
+:deep(.md-editor-preview li > ol) { margin: .2em 0; }
+:deep(.md-editor-preview li > p) { margin: .2em 0; }
+:deep(.md-editor-preview input[type='checkbox']) { margin-right: .4em; }
 
 /* 分割线与链接 */
-:deep(.vditor-reset hr) {
+:deep(.md-editor-preview hr) {
   border: none;
   border-top: 1px solid var(--border);
   margin: 1.6em 0;
 }
-:deep(.vditor-reset a) { color: var(--link) !important; text-decoration: none; }
-:deep(.vditor-reset a:hover) { text-decoration: underline; }
+:deep(.md-editor-preview a) { color: var(--link) !important; text-decoration: none; }
+:deep(.md-editor-preview a:hover) { text-decoration: underline; }
 
 /* 表格 */
-:deep(.vditor-reset table) { border-collapse: collapse; margin: 1em 0; }
-:deep(.vditor-reset th),
-:deep(.vditor-reset td) {
+:deep(.md-editor-preview table) { border-collapse: collapse; margin: 1em 0; }
+:deep(.md-editor-preview th),
+:deep(.md-editor-preview td) {
   border: 1px solid var(--border);
   padding: 8px 12px;
 }
-:deep(.vditor-reset th) { background: var(--hover-bg); font-weight: 600; }
-:deep(.vditor-reset img) { max-width: 100%; border-radius: var(--radius-sm); }
-</style>
-
-<!-- 全局样式：强制隐藏 vditor 代码块节点的 ::before/::after 伪元素（半椭圆 pill 装饰）
-     不用 scoped :deep() 以确保最高优先级覆盖 vditor 默认 CSS -->
-<style>
-/* 全局样式：消除 vditor 代码块的多余装饰（半椭圆 pill、tooltip 伪元素）
-   不用 scoped :deep() 以确保最高优先级覆盖 vditor 默认 CSS */
-/* 隐藏代码块节点 ::before/::after 的 ``` 标记装饰 */
-.vditor-ir__node::before,
-.vditor-ir__node::after {
-  display: none !important;
-  content: none !important;
-  background: transparent !important;
-  border-radius: 0 !important;
-  border: none !important;
-  padding: 0 !important;
-  box-shadow: none !important;
-  outline: none !important;
-}
-/* 清除语言标签 marker--info 的多余 outline/背景，保持纯文本 */
-.vditor-ir__marker--info {
-  outline: none !important;
-  background: transparent !important;
-  border-radius: 0 !important;
-  padding: 0 !important;
-  border: none !important;
-}
-/* 隐藏 vditor-tooltipped tooltip 的 ::before/::after（灰色 pill + 三角箭头） */
-.vditor-tooltipped::before,
-.vditor-tooltipped::after,
-.vditor-tooltipped:hover::before,
-.vditor-tooltipped:hover::after,
-.vditor-tooltipped:focus::before,
-.vditor-tooltipped:focus::after,
-.vditor-tooltipped:active::before,
-.vditor-tooltipped:active::after {
-  display: none !important;
-  opacity: 0 !important;
-}
+:deep(.md-editor-preview th) { background: var(--hover-bg); font-weight: 600; }
+:deep(.md-editor-preview img) { max-width: 100%; border-radius: var(--radius-sm); }
 </style>

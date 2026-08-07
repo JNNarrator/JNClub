@@ -18,6 +18,7 @@ export interface DesignTokens {
   bgPage: string
   bgCard: string
   border: string
+  split: string
   hoverBg: string
   // 粉色阶
   pinkCherry: string
@@ -76,6 +77,7 @@ export const lightTokens: DesignTokens = {
   bgPage: '#F5F5F7',
   bgCard: '#FFFFFF',
   border: '#D1D1D6',
+  split: '#B8B8BD',
   hoverBg: '#F2F2F7',
   // 粉色阶
   pinkCherry: '#FFE4EF',
@@ -134,6 +136,7 @@ export const darkTokens: DesignTokens = {
   bgPage: '#000000',
   bgCard: '#1C1C1E',
   border: '#38383A',
+  split: '#4A4A4D',
   hoverBg: '#2C2C2E',
   // 粉色阶（暗色）
   pinkCherry: '#3D2A30',
@@ -193,6 +196,7 @@ export function tokensToCSSVars(tokens: DesignTokens): Record<string, string> {
     '--bg-page': tokens.bgPage,
     '--bg-card': tokens.bgCard,
     '--border': tokens.border,
+    '--split': tokens.split,
     '--hover-bg': tokens.hoverBg,
     '--pink-cherry': tokens.pinkCherry,
     '--pink-peach': tokens.pinkPeach,
