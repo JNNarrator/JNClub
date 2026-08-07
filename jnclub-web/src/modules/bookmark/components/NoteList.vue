@@ -24,7 +24,7 @@ const emit = defineEmits<{
 
 const listRef = ref<HTMLElement | null>(null)
 const { init: initSort } = useDraggableSort(listRef, (ids) => {
-  emit('sort', ids)
+  emit('sort', ids.map(Number))
 })
 onMounted(() => { initSort() })
 </script>

@@ -281,7 +281,32 @@ public class CloudDiskService {
         return fileMapper.selectList(new LambdaQueryWrapper<FileRecord>()
                 .eq(FileRecord::getDirectoryId, directoryId)
                 .eq(FileRecord::getUserId, userId)
+                .orderByAsc(FileRecord::getSortOrder)
                 .orderByDesc(FileRecord::getCreateTime));
+    }
+
+    /**
+     * 云盘文件排序：批量更新同一目录下文件的 sortOrder
+     *
+     * @param sortList [{id, sortOrder}, ...]
+     */
+    public void updateSortOrder(List<Map<String, Object>> sortList) {
+        String userId = userId();
+        for (Map<String, Object> item : sortList) {
+            Long fileId = item.get("id") == null
+                    ? null : Long.parseLong(String.valueOf(item.get("id")));
+            Integer sortOrder = item.get("sortOrder") == null
+                    ? 0 : Integer.parseInt(String.valueOf(item.get("sortOrder")));
+            if (fileId == null) continue;
+            FileRecord record = fileMapper.selectById(fileId);
+            if (record == null || !record.getUserId().equals(userId)) {
+                throw new BizException("文件不存在");
+            }
+            FileRecord update = new FileRecord();
+            update.setId(fileId);
+            update.setSortOrder(sortOrder);
+            fileMapper.updateById(update);
+        }
     }
 
     public void deleteFile(Long id) {

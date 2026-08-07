@@ -177,14 +177,14 @@ const handleRefresh = async () => {
 /** 拖拽排序：按新 id 顺序生成 sortList → 调后端 → 刷新 */
 const handleSort = async (orderedIds: number[]) => {
   if (!orderedIds.length) return
-  // 云盘暂不支持手动排序，跳过
-  if (props.activeModule === 'files') return
   const sortList = orderedIds.map((id, idx) => ({ id, sortOrder: idx }))
   try {
     if (props.activeModule === 'bookmarks') {
       await bookmarkStore.updateSortOrder(sortList)
-    } else {
+    } else if (props.activeModule === 'notes') {
       await noteStore.updateSortOrder(sortList)
+    } else {
+      await cloudDiskStore.updateSortOrder(sortList)
     }
     message.success('排序已保存')
     await loadData()
@@ -474,6 +474,7 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
             :directory-id="selectedDirectoryId"
             :trigger="diskUploadTriggered"
             @refresh="handleFilesRefresh"
+            @sort="handleSort"
           />
         </NSpin>
       </div>

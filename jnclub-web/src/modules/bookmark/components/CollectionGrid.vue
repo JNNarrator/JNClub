@@ -30,7 +30,7 @@ onMounted(() => {
 })
 
 const { init: initSort } = useDraggableSort(gridRef, (ids) => {
-  emit('sort', ids)
+  emit('sort', ids.map(Number))
 })
 onMounted(() => { initSort() })
 </script>

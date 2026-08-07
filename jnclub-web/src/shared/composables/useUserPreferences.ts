@@ -8,6 +8,7 @@ import axios from 'axios'
  */
 const cache = ref<Record<string, any>>({})
 let loaded = false
+const ready = ref(false)
 
 export function useUserPreferences() {
   const load = async () => {
@@ -19,6 +20,8 @@ export function useUserPreferences() {
       }
     } catch {
       /* 静默：未加载时由 localStorage 兜底 */
+    } finally {
+      ready.value = true
     }
   }
 
@@ -41,5 +44,5 @@ export function useUserPreferences() {
     }
   }
 
-  return { load, get, set }
+  return { load, get, set, ready }
 }

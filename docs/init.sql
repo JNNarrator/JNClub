@@ -74,9 +74,11 @@ CREATE TABLE IF NOT EXISTS t_file (
   url VARCHAR(2048) NOT NULL COMMENT '公网访问路径，如 /api/files/...',
   size BIGINT DEFAULT 0 COMMENT '文件大小(字节)',
   mime VARCHAR(100) COMMENT 'MIME 类型',
+  sort_order INT DEFAULT 0 COMMENT '排序序号（同一目录内拖拽排序）',
   create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   INDEX idx_directory (directory_id),
-  INDEX idx_user_id (user_id)
+  INDEX idx_user_id (user_id),
+  INDEX idx_file_sort (directory_id, sort_order)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='云盘文件表';
 
 -- 用户偏好表（通用 KV，JSON 值；模块/视图/目录记忆等复用）

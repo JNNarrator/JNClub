@@ -93,6 +93,13 @@ public class CloudDiskController {
         return R.ok(cloudDiskService.listFiles(directoryId));
     }
 
+    /** 云盘文件排序（拖拽排序，同一目录内） */
+    @PutMapping("/files/sort")
+    public R<Void> updateSortOrder(@RequestBody List<Map<String, Object>> sortList) {
+        cloudDiskService.updateSortOrder(sortList);
+        return R.ok();
+    }
+
     /** 删除文件（dufs 对象 + t_file 记录） */
     @DeleteMapping("/files/{id}")
     public R<Void> deleteFile(@PathVariable Long id) {

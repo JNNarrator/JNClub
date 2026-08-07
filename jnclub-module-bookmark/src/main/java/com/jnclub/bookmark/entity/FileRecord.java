@@ -29,6 +29,9 @@ public class FileRecord {
 
     private String mime;
 
+    /** 排序序号（同一目录内拖拽排序） */
+    private Integer sortOrder;
+
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
 }

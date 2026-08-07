@@ -10,6 +10,7 @@ export interface DiskFile {
   url: string
   size: number
   mime: string
+  sortOrder: number
   createTime: string
 }
 
@@ -27,6 +28,12 @@ export const useCloudDiskStore = defineStore('clouddisk', () => {
     } finally {
       loading.value = false
     }
+  }
+
+  const updateSortOrder = async (sortList: { id: number; sortOrder: number }[]) => {
+    const res = await axios.put('/api/clouddisk/files/sort', sortList)
+    if (res.data.code === 200) return
+    throw new Error(res.data.message || '排序失败')
   }
 
   const deleteFile = async (id: number) => {
@@ -52,6 +59,7 @@ export const useCloudDiskStore = defineStore('clouddisk', () => {
     files,
     loading,
     fetchFiles,
+    updateSortOrder,
     deleteFile,
     formatSize,
   }

@@ -3,13 +3,14 @@
  * 单文件分片上传（断点续传）+ 文件列表 + 下载 / 删除
  */
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import {
   NButton, NIcon, NSpin, NEmpty, NProgress, NTag, useMessage, useDialog,
 } from 'naive-ui'
 import { Pause, Play, Download, Trash2, FileText } from 'lucide-vue-next'
 import { useCloudDiskStore, type DiskFile } from '../stores/clouddisk'
 import { useChunkedUpload } from '../composables/useChunkedUpload'
+import { useDraggableSort } from '../composables/useDraggableSort'
 
 const props = defineProps<{
   directoryId: number | null
@@ -19,6 +20,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   refresh: []
+  sort: [orderedIds: number[]]
 }>()
 
 const message = useMessage()
@@ -102,6 +104,13 @@ const handleDelete = (file: DiskFile) => {
 }
 
 const st = uploader.state
+
+/** 文件列表拖拽排序 */
+const fileListRef = ref<HTMLElement | null>(null)
+const { init: initSort } = useDraggableSort(fileListRef, (ids) => {
+  emit('sort', ids.map(Number))
+})
+onMounted(() => { initSort() })
 </script>
 
 <template>
@@ -156,8 +165,8 @@ const st = uploader.state
     <div class="file-area">
       <NSpin :show="diskStore.loading">
         <NEmpty v-if="!diskStore.loading && !diskStore.files.length" description="这个目录还没有文件" class="disk-empty" />
-        <div v-else class="file-list">
-          <div v-for="file in diskStore.files" :key="file.id" class="file-item jnclub-bouncy">
+        <div v-else ref="fileListRef" class="file-list">
+          <div v-for="file in diskStore.files" :key="file.id" :data-id="file.id" class="file-item jnclub-bouncy">
             <div class="file-icon"><NIcon :component="FileText" size="20" /></div>
             <div class="file-main">
               <div class="file-name" :title="file.originalName">{{ file.originalName }}</div>
@@ -224,6 +233,15 @@ const st = uploader.state
   flex-direction: column;
   gap: 8px;
 }
+/* 云盘文件拖拽视觉 */
+.file-list :deep(.sortable-ghost) {
+  opacity: 0.4;
+  background: var(--brand-soft) !important;
+  border-radius: var(--radius-sm);
+  outline: 2px dashed var(--brand);
+  outline-offset: -2px;
+}
+.file-list :deep(.sortable-chosen) { cursor: grabbing; }
 .file-item {
   display: flex;
   align-items: center;

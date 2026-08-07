@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { ref, h, computed } from 'vue'
+import { ref, h, computed, onMounted, watch } from 'vue'
 import { NLayoutSider, NIcon, NAvatar, NDropdown, NModal, NButton, useDialog } from 'naive-ui'
 import { Bookmark, StickyNote, Cloud, Moon, Sun, LogOut, CircleUser, Heart } from 'lucide-vue-next'
 import { useUserStore } from '../stores/user'
+import { useUserPreferences } from '../composables/useUserPreferences'
 import NavItem from '../../modules/bookmark/components/NavItem.vue'
+import { useDraggableSort } from '../../modules/bookmark/composables/useDraggableSort'
 import axios from 'axios'
 
 const props = defineProps<{
@@ -20,11 +22,53 @@ const userStore = useUserStore()
 const dialog = useDialog()
 const collapsed = ref(false)
 
-const navItems = [
-  { key: 'bookmarks' as const, icon: Bookmark, label: '收藏夹' },
-  { key: 'notes' as const, icon: StickyNote, label: '便签' },
-  { key: 'files' as const, icon: Cloud, label: '云盘' },
-]
+const prefs = useUserPreferences()
+
+/** 导航项（支持拖拽排序，顺序持久化到后端偏好 nav.order，带用户记忆） */
+type NavKey = 'bookmarks' | 'notes' | 'files'
+interface NavDef { key: NavKey; icon: any; label: string }
+const NAV_META: Record<NavKey, Omit<NavDef, 'key'>> = {
+  bookmarks: { icon: Bookmark, label: '收藏夹' },
+  notes: { icon: StickyNote, label: '便签' },
+  files: { icon: Cloud, label: '云盘' },
+}
+const DEFAULT_ORDER: NavKey[] = ['bookmarks', 'notes', 'files']
+
+const navItems = ref<NavDef[]>(DEFAULT_ORDER.map(k => ({ key: k, ...NAV_META[k] })))
+
+/** 从偏好恢复拖拽排序（localStorage 即时兜底 + 后端记忆） */
+const loadNavOrder = () => {
+  try {
+    const order = prefs.get<NavKey[]>('nav.order', DEFAULT_ORDER)
+    if (Array.isArray(order) && order.length) {
+      const valid = order.filter(k => NAV_META[k])
+      if (valid.length) {
+        navItems.value = valid.map(k => ({ key: k, ...NAV_META[k] }))
+      }
+    }
+  } catch { /* 保持默认 */ }
+}
+loadNavOrder()
+
+/** 偏好加载完成后以后端记忆为准（用户记忆） */
+watch(() => prefs.ready, (r) => {
+  if (r) loadNavOrder()
+})
+
+/** 拖拽排序提交：更新顺序 + 持久化 */
+const navListRef = ref<HTMLElement | null>(null)
+let navSortTimer: ReturnType<typeof setTimeout> | null = null
+const { init: initNavSort } = useDraggableSort(navListRef, (orderedKeys) => {
+  // 防抖提交，避免频繁写后端
+  const valid = orderedKeys.filter((k): k is NavKey => typeof k === 'string' && !!NAV_META[k as NavKey])
+  if (!valid.length) return
+  navItems.value = valid.map(k => ({ key: k, ...NAV_META[k] }))
+  if (navSortTimer) clearTimeout(navSortTimer)
+  navSortTimer = setTimeout(() => {
+    prefs.set('nav.order', valid)
+  }, 300)
+})
+onMounted(() => { initNavSort() })
 
 const userDropdownOptions = [
   { label: '用户信息', key: 'profile', icon: () => h(NIcon, null, { default: () => h(CircleUser) }) },
@@ -94,12 +138,19 @@ const goSsoProfile = () => {
       </template>
     </div>
 
-    <nav class="nav-list">
-      <NavItem v-for="item in navItems" :key="item.key"
-        :icon="item.icon" :label="item.label"
-        :active="activeModule === item.key" :collapsed="collapsed"
-        @click="emit('module-change', item.key)"
-      />
+    <nav ref="navListRef" class="nav-list">
+      <div
+        v-for="item in navItems"
+        :key="item.key"
+        :data-id="item.key"
+        class="nav-item-wrap"
+      >
+        <NavItem
+          :icon="item.icon" :label="item.label"
+          :active="activeModule === item.key" :collapsed="collapsed"
+          @click="emit('module-change', item.key)"
+        />
+      </div>
     </nav>
 
     <!-- 底部 -->
@@ -237,6 +288,18 @@ const goSsoProfile = () => {
   padding: 12px 12px;
   flex-shrink: 0;
 }
+.nav-item-wrap { position: relative; }
+
+/* 侧栏拖拽视觉 */
+.nav-list :deep(.sortable-ghost) {
+  opacity: 0.5;
+  background: var(--brand-soft) !important;
+  border-radius: var(--radius-pill);
+  outline: 2px dashed var(--brand);
+  outline-offset: -2px;
+}
+.nav-list :deep(.sortable-chosen) { cursor: grabbing; }
+.nav-list :deep(.sortable-chosen .nav-item) { background: var(--hover-bg); }
 
 /* === 底部 === */
 .sider-footer {
