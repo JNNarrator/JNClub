@@ -1,38 +1,43 @@
 <script setup lang="ts">
 import { ref, h, computed, onMounted, watch } from 'vue'
 import { NLayoutSider, NIcon, NAvatar, NDropdown, NModal, NButton, useDialog } from 'naive-ui'
-import { Bookmark, StickyNote, Cloud, Moon, Sun, LogOut, CircleUser, Heart } from 'lucide-vue-next'
+import { Bookmark, StickyNote, Cloud, Moon, Sun, LogOut, CircleUser, Heart, Trash2, KeyRound } from 'lucide-vue-next'
 import { useUserStore } from '../stores/user'
 import { useUserPreferences } from '../composables/useUserPreferences'
 import NavItem from '../../modules/bookmark/components/NavItem.vue'
 import { useDraggableSort } from '../../modules/bookmark/composables/useDraggableSort'
+import { useRouter } from 'vue-router'
 import axios from 'axios'
 
 const props = defineProps<{
   isDark: boolean
-  activeModule: 'bookmarks' | 'notes' | 'files'
+  activeModule: 'bookmarks' | 'notes' | 'files' | 'vault'
+  /** 折叠状态（可外部控制，用于移动端自动折叠） */
+  collapsed?: boolean
 }>()
 
 const emit = defineEmits<{
   'toggle-theme': []
-  'module-change': [module: 'bookmarks' | 'notes' | 'files']
+  'module-change': [module: 'bookmarks' | 'notes' | 'files' | 'vault']
+  'update:collapsed': [value: boolean]
 }>()
 
 const userStore = useUserStore()
 const dialog = useDialog()
-const collapsed = ref(false)
+const router = useRouter()
 
 const prefs = useUserPreferences()
 
 /** 导航项（支持拖拽排序，顺序持久化到后端偏好 nav.order，带用户记忆） */
-type NavKey = 'bookmarks' | 'notes' | 'files'
+type NavKey = 'bookmarks' | 'notes' | 'files' | 'vault'
 interface NavDef { key: NavKey; icon: any; label: string }
 const NAV_META: Record<NavKey, Omit<NavDef, 'key'>> = {
   bookmarks: { icon: Bookmark, label: '收藏夹' },
   notes: { icon: StickyNote, label: '便签' },
   files: { icon: Cloud, label: '云盘' },
+  vault: { icon: KeyRound, label: '密码库' },
 }
-const DEFAULT_ORDER: NavKey[] = ['bookmarks', 'notes', 'files']
+const DEFAULT_ORDER: NavKey[] = ['bookmarks', 'notes', 'files', 'vault']
 
 const navItems = ref<NavDef[]>(DEFAULT_ORDER.map(k => ({ key: k, ...NAV_META[k] })))
 
@@ -123,16 +128,16 @@ const goSsoProfile = () => {
 <template>
   <NLayoutSider
     bordered collapse-mode="width" :collapsed-width="64" :width="240"
-    :collapsed="collapsed" show-trigger="bar"
-    :on-update:collapsed="(v: boolean) => collapsed = v"
+    :collapsed="props.collapsed ?? false" show-trigger="bar"
+    :on-update:collapsed="(v: boolean) => emit('update:collapsed', v)"
     class="side-nav sidebar-glow"
   >
     <!-- Logo 区：渐变粉底 + heart -->
-    <div :class="['logo-bar', { collapsed }]">
-      <div :class="['logo-icon-wrap', { collapsed }]">
-        <NIcon :component="Heart" :size="collapsed ? 20 : 18" color="#fff" />
+    <div :class="['logo-bar', { collapsed: props.collapsed }]">
+      <div :class="['logo-icon-wrap', { collapsed: props.collapsed }]">
+        <NIcon :component="Heart" :size="props.collapsed ? 20 : 18" color="#fff" />
       </div>
-      <template v-if="!collapsed">
+      <template v-if="!props.collapsed">
         <span class="logo-text">JNClub</span>
         <span class="logo-sub">{{ activeModule === 'bookmarks' ? '收藏夹' : activeModule === 'notes' ? '便签' : '云盘' }}</span>
       </template>
@@ -147,15 +152,23 @@ const goSsoProfile = () => {
       >
         <NavItem
           :icon="item.icon" :label="item.label"
-          :active="activeModule === item.key" :collapsed="collapsed"
+          :active="activeModule === item.key" :collapsed="props.collapsed ?? false"
           @click="emit('module-change', item.key)"
+        />
+      </div>
+      <!-- 回收站入口（固定，不参与拖拽） -->
+      <div class="nav-item-wrap">
+        <NavItem
+          :icon="Trash2" label="回收站"
+          :active="false" :collapsed="props.collapsed ?? false"
+          @click="router.push('/recycle')"
         />
       </div>
     </nav>
 
     <!-- 底部 -->
-    <div :class="['sider-footer', { collapsed }]">
-      <template v-if="!collapsed">
+    <div :class="['sider-footer', { collapsed: props.collapsed }]">
+      <template v-if="!props.collapsed">
         <!-- 暗色模式 pill toggle -->
         <button type="button" class="theme-toggle-btn jnclub-bouncy" @click="emit('toggle-theme')">
           <span class="theme-toggle-label">

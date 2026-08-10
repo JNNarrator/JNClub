@@ -5,7 +5,7 @@
  * hover: 卡片抬升 + 品牌粉阴影
  */
 import { h } from 'vue'
-import { NButton, NIcon, NDropdown, NEllipsis } from 'naive-ui'
+import { NButton, NIcon, NDropdown, NEllipsis, NTag } from 'naive-ui'
 import { Pencil, Trash2, Eye, EllipsisVertical, StickyNote, Clock } from 'lucide-vue-next'
 import { formatDate } from '../composables/formatDate'
 import { stripMarkdown } from '../composables/stripMarkdown'
@@ -79,6 +79,13 @@ const handleClick = () => {
 
       <!-- 摘要 -->
       <div class="card-summary">{{ getSummary(note.content) }}</div>
+
+      <!-- 标签 -->
+      <div v-if="note.tags?.length" class="card-tags">
+        <NTag v-for="t in note.tags" :key="t" size="tiny" round :bordered="false" class="card-tag">
+          {{ t }}
+        </NTag>
+      </div>
 
       <!-- 底部：时间 -->
       <div class="card-footer">
@@ -165,6 +172,17 @@ const handleClick = () => {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+/* === 标签 === */
+.card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.card-tag {
+  background: var(--brand-soft) !important;
+  color: var(--brand) !important;
 }
 
 /* === 底部 === */

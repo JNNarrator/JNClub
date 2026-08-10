@@ -6,7 +6,7 @@
  * 提供操作入口 <n-dropdown>
  */
 import { h } from 'vue'
-import { NButton, NIcon, NDropdown, NEllipsis, useMessage } from 'naive-ui'
+import { NButton, NIcon, NDropdown, NEllipsis, NTag, useMessage } from 'naive-ui'
 import { Pencil, Trash2, Ellipsis, Clock, Eye } from 'lucide-vue-next'
 import axios from 'axios'
 import { formatRelativeTime } from '../composables/formatDate'
@@ -19,6 +19,7 @@ export interface BookmarkItem {
   directoryId: number
   sortOrder: number
   createTime: string
+  tags?: string[]
 }
 
 const props = defineProps<{
@@ -84,6 +85,11 @@ const handleDropdown = (key: string) => {
       <NEllipsis :tooltip="{ width: 400 }" class="title-link">
         {{ bookmark.title || bookmark.url }}
       </NEllipsis>
+      <div v-if="bookmark.tags?.length" class="row-tags">
+        <NTag v-for="t in bookmark.tags" :key="t" size="tiny" round :bordered="false" class="row-tag">
+          {{ t }}
+        </NTag>
+      </div>
     </div>
 
     <!-- 右端信息 -->
@@ -163,6 +169,18 @@ const handleDropdown = (key: string) => {
   color: var(--link) !important;
   font-size: 14px;
   font-weight: 500;
+}
+
+/* 行内标签 */
+.row-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+.row-tag {
+  background: var(--brand-soft) !important;
+  color: var(--brand) !important;
 }
 
 /* 元信息 */

@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import axios from 'axios'
+import { fetchRefTags } from '../composables/tags'
 
 export interface Note {
   id: number
@@ -11,6 +12,7 @@ export interface Note {
   sortOrder: number
   createTime: string
   updateTime: string
+  tags?: string[]
 }
 
 export const useNoteStore = defineStore('note', () => {
@@ -18,12 +20,18 @@ export const useNoteStore = defineStore('note', () => {
   const loading = ref(false)
   const currentNote = ref<Note | null>(null)
 
-  const fetchNotes = async (directoryId: number) => {
+  const fetchNotes = async (directoryId: number, tagId?: number | null) => {
     loading.value = true
     try {
-      const res = await axios.get('/api/notes', { params: { directoryId } })
+      const res = await axios.get('/api/notes', {
+        params: tagId ? { directoryId, tagId } : { directoryId }
+      })
       if (res.data.code === 200) {
         notes.value = res.data.data || []
+        notes.value = await Promise.all(notes.value.map(async (n) => {
+          const tags = await fetchRefTags('note', n.id)
+          return { ...n, tags: tags.map(t => t.name) }
+        }))
       }
     } finally {
       loading.value = false

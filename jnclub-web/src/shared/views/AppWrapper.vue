@@ -19,7 +19,7 @@ const emit = defineEmits<{
 
 const prefs = useUserPreferences()
 /** 初始化：localStorage 兜底避免首屏闪烁，load 完成后以后端偏好为准 */
-const activeModule = ref<'bookmarks' | 'notes' | 'files'>(prefs.get('module.activeModule', 'bookmarks'))
+const activeModule = ref<'bookmarks' | 'notes' | 'files' | 'vault'>(prefs.get('module.activeModule', 'bookmarks'))
 
 onMounted(() => {
   prefs.load().then(() => {
@@ -27,7 +27,7 @@ onMounted(() => {
   })
 })
 
-const handleModuleChange = (module: 'bookmarks' | 'notes' | 'files') => {
+const handleModuleChange = (module: 'bookmarks' | 'notes' | 'files' | 'vault') => {
   activeModule.value = module
   prefs.set('module.activeModule', module)
 }
@@ -39,6 +39,6 @@ const handleModuleChange = (module: 'bookmarks' | 'notes' | 'files') => {
     @toggle-theme="emit('toggle-theme')"
     @module-change="handleModuleChange"
   >
-    <Home :active-module="activeModule" :is-dark="isDark" />
+    <Home :active-module="activeModule" :is-dark="isDark" @module-change="handleModuleChange" />
   </MainLayout>
 </template>

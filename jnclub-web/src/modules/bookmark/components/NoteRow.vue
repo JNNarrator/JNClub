@@ -5,7 +5,7 @@
  * hover 浅底，整行可点=进入预览
  */
 import { h } from 'vue'
-import { NButton, NIcon, NDropdown, NEllipsis } from 'naive-ui'
+import { NButton, NIcon, NDropdown, NEllipsis, NTag } from 'naive-ui'
 import { Pencil, Trash2, Eye, Ellipsis, StickyNote, Clock } from 'lucide-vue-next'
 import { formatRelativeTime } from '../composables/formatDate'
 import { stripMarkdown } from '../composables/stripMarkdown'
@@ -62,6 +62,11 @@ const handleClick = () => {
         </NEllipsis>
       </div>
       <div class="row-summary">{{ getSummary(note.content) }}</div>
+      <div v-if="note.tags?.length" class="row-tags">
+        <NTag v-for="t in note.tags" :key="t" size="tiny" round :bordered="false" class="row-tag">
+          {{ t }}
+        </NTag>
+      </div>
     </div>
 
     <!-- 右端信息 -->
@@ -126,6 +131,17 @@ const handleClick = () => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* 行内标签 */
+.row-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.row-tag {
+  background: var(--brand-soft) !important;
+  color: var(--brand) !important;
 }
 
 /* 元信息 */

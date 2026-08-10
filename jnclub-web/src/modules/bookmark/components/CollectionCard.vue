@@ -5,7 +5,7 @@
  * hover: 卡片抬升 + 品牌粉阴影
  */
 import { h, ref } from 'vue'
-import { NButton, NIcon, NDropdown, NEllipsis, useMessage } from 'naive-ui'
+import { NButton, NIcon, NDropdown, NEllipsis, NTag, useMessage } from 'naive-ui'
 import { Pencil, Trash2, EllipsisVertical, ExternalLink } from 'lucide-vue-next'
 import axios from 'axios'
 import type { BookmarkItem } from './CollectionRow.vue'
@@ -99,6 +99,13 @@ const handleDropdown = (key: string) => {
 
       <!-- 描述/域名 -->
       <div class="card-domain">{{ getDomain(bookmark.url) }}</div>
+
+      <!-- 标签 -->
+      <div v-if="bookmark.tags?.length" class="card-tags">
+        <NTag v-for="t in bookmark.tags" :key="t" size="tiny" round :bordered="false" class="card-tag">
+          {{ t }}
+        </NTag>
+      </div>
 
       <!-- 链接 -->
       <a :href="bookmark.url" target="_blank" class="card-link jnclub-bouncy" @click.stop>
@@ -196,6 +203,17 @@ const handleDropdown = (key: string) => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* === 标签 === */
+.card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.card-tag {
+  background: var(--brand-soft) !important;
+  color: var(--brand) !important;
 }
 
 /* === 链接 === */

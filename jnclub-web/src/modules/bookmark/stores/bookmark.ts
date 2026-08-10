@@ -1,8 +1,9 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import axios from 'axios'
+import { fetchRefTags } from '../composables/tags'
 
-interface Bookmark {
+export interface Bookmark {
   id: number
   title: string
   url: string
@@ -10,20 +11,26 @@ interface Bookmark {
   directoryId: number
   sortOrder: number
   createTime: string
+  tags?: string[]
 }
 
 export const useBookmarkStore = defineStore('bookmark', () => {
   const bookmarks = ref<Bookmark[]>([])
   const loading = ref(false)
 
-  const fetchBookmarks = async (directoryId: number) => {
+  const fetchBookmarks = async (directoryId: number, tagId?: number | null) => {
     loading.value = true
     try {
       const res = await axios.get('/api/bookmarks', {
-        params: { directoryId }
+        params: tagId ? { directoryId, tagId } : { directoryId }
       })
       if (res.data.code === 200) {
         bookmarks.value = res.data.data || []
+        // 并行拉取每条收藏的标签（轻量展示）
+        bookmarks.value = await Promise.all(bookmarks.value.map(async (b) => {
+          const tags = await fetchRefTags('bookmark', b.id)
+          return { ...b, tags: tags.map(t => t.name) }
+        }))
       }
     } finally {
       loading.value = false

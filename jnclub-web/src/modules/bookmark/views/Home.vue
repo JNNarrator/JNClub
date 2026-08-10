@@ -1,16 +1,17 @@
 <script setup lang="ts">
-import { ref, onMounted, watch, computed } from 'vue'
+import { ref, onMounted, watch, computed, nextTick, onBeforeUnmount } from 'vue'
 import {
   NButton, NIcon, NSpin, NBreadcrumb, NBreadcrumbItem,
   NModal, NForm, NFormItem, NInput, NSpace, NSelect, NAvatar,
   useMessage, useDialog,
 } from 'naive-ui'
-import { Plus, FolderOpen, Link, Globe, RefreshCw, UploadCloud } from 'lucide-vue-next'
+import { Plus, FolderOpen, Link, Globe, RefreshCw, UploadCloud, Tag, Search, KeyRound } from 'lucide-vue-next'
 import { useRouter, type RouteLocationRaw } from 'vue-router'
 import { useDirectoryStore } from '../stores/directory'
 import { useBookmarkStore } from '../stores/bookmark'
 import { useNoteStore } from '../stores/note'
 import { useCloudDiskStore } from '../stores/clouddisk'
+import { useVaultStore } from '../stores/vault'
 import type { Note } from '../stores/note'
 import FolderPanel from '../components/FolderPanel.vue'
 import CollectionGrid from '../components/CollectionGrid.vue'
@@ -20,11 +21,15 @@ import NoteGrid from '../components/NoteGrid.vue'
 import NoteList from '../components/NoteList.vue'
 import NoteEmpty from '../components/NoteEmpty.vue'
 import DiskView from '../components/DiskView.vue'
+import VaultView from '../components/VaultView.vue'
 import ViewSwitcher from '../components/ViewSwitcher.vue'
 import FloatingActions from '../components/FloatingActions.vue'
+import TagPicker from '../components/TagPicker.vue'
+import SearchDrawer from '../components/SearchDrawer.vue'
 import type { ViewMode } from '../components/ViewSwitcher.vue'
 import axios from 'axios'
 import { useUserPreferences } from '../../../shared/composables/useUserPreferences'
+import { fetchTags, type TagItem } from '../composables/tags'
 
 const router = useRouter()
 const prefs = useUserPreferences()
@@ -32,15 +37,40 @@ const directoryStore = useDirectoryStore()
 const bookmarkStore = useBookmarkStore()
 const noteStore = useNoteStore()
 const cloudDiskStore = useCloudDiskStore()
+const vaultStore = useVaultStore()
 const message = useMessage()
 const dialog = useDialog()
 
 const props = defineProps<{
-  activeModule: 'bookmarks' | 'notes' | 'files'
+  activeModule: 'bookmarks' | 'notes' | 'files' | 'vault'
   isDark: boolean
 }>()
 
-const directoryType = computed(() => props.activeModule === 'bookmarks' ? 1 : props.activeModule === 'notes' ? 2 : 3)
+const emit = defineEmits<{
+  'module-change': [module: 'bookmarks' | 'notes' | 'files' | 'vault']
+}>()
+
+const directoryType = computed(() => props.activeModule === 'bookmarks' ? 1 : props.activeModule === 'notes' ? 2 : props.activeModule === 'files' ? 3 : 5)
+
+// ========== 全局搜索 ==========
+
+const showSearch = ref(false)
+/** 搜索结果跳转：切模块后待选中的目录 */
+const pendingDirId = ref<number | null>(null)
+
+const onSearchKeydown = (e: KeyboardEvent) => {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+    e.preventDefault()
+    showSearch.value = true
+  }
+}
+onMounted(() => window.addEventListener('keydown', onSearchKeydown))
+onBeforeUnmount(() => window.removeEventListener('keydown', onSearchKeydown))
+
+const handleSearchJump = (module: 'bookmarks' | 'notes' | 'files', directoryId: number | null) => {
+  pendingDirId.value = directoryId
+  emit('module-change', module)
+}
 
 const selectedDirectoryId = ref<number | null>(null)
 const loading = ref(false)
@@ -54,6 +84,7 @@ const showCreateModal = ref(false)
 const creating = ref(false)
 const editingBookmarkId = ref<number | null>(null)
 const createBookmarkForm = ref({ title: '', url: '', directoryId: null as number | null })
+const editTagPickerRef = ref<InstanceType<typeof TagPicker> | null>(null)
 
 // URL 预览
 const previewIcon = ref('')
@@ -92,6 +123,24 @@ const topLevelDirs = computed(() =>
   directoryStore.directories.filter((d: any) => !d.parentId || d.parentId === null)
 )
 
+// ========== 标签筛选 ==========
+
+/** 当前模块可用标签（bookmark/note） */
+const availableTags = ref<TagItem[]>([])
+/** 当前选中标签 id（null=全部） */
+const activeTagId = ref<number | null>(null)
+/** TagPicker 保存触发计数 */
+const tagSaveTrigger = ref(0)
+
+const loadTags = async () => {
+  if (props.activeModule === 'files' || props.activeModule === 'vault') {
+    availableTags.value = []
+    return
+  }
+  const type = props.activeModule === 'bookmarks' ? 'bookmark' : 'note'
+  availableTags.value = await fetchTags(type)
+}
+
 // ========== 目录加载 ==========
 
 const loadDirectories = async () => {
@@ -127,6 +176,7 @@ onMounted(async () => {
   loading.value = true
   try {
     await loadDirectories()
+    await loadTags()
     applyRememberedDir()
     if (selectedDirectoryId.value) await loadData()
   } finally { loading.value = false }
@@ -134,8 +184,17 @@ onMounted(async () => {
 
 watch(() => props.activeModule, async () => {
   selectedDirectoryId.value = null
+  activeTagId.value = null
   await loadDirectories()
-  applyRememberedDir()
+  await loadTags()
+  // 搜索跳转：优先选中目标目录；否则恢复记忆
+  if (pendingDirId.value != null && findInTree(directoryStore.directories, pendingDirId.value)) {
+    selectedDirectoryId.value = pendingDirId.value
+    pendingDirId.value = null
+  } else {
+    pendingDirId.value = null
+    applyRememberedDir()
+  }
   if (selectedDirectoryId.value) await loadData()
 })
 
@@ -160,13 +219,20 @@ const loadData = async () => {
   loading.value = true
   try {
     if (props.activeModule === 'bookmarks') {
-      await bookmarkStore.fetchBookmarks(selectedDirectoryId.value)
+      await bookmarkStore.fetchBookmarks(selectedDirectoryId.value, activeTagId.value)
     } else if (props.activeModule === 'notes') {
-      await noteStore.fetchNotes(selectedDirectoryId.value)
-    } else {
+      await noteStore.fetchNotes(selectedDirectoryId.value, activeTagId.value)
+    } else if (props.activeModule === 'files') {
       await cloudDiskStore.fetchFiles(selectedDirectoryId.value)
+    } else {
+      await vaultStore.fetchItems(selectedDirectoryId.value)
     }
   } finally { loading.value = false }
+}
+
+const handleTagFilter = (tagId: number | null) => {
+  activeTagId.value = tagId
+  loadData()
 }
 
 const handleRefresh = async () => {
@@ -183,8 +249,10 @@ const handleSort = async (orderedIds: number[]) => {
       await bookmarkStore.updateSortOrder(sortList)
     } else if (props.activeModule === 'notes') {
       await noteStore.updateSortOrder(sortList)
-    } else {
+    } else if (props.activeModule === 'files') {
       await cloudDiskStore.updateSortOrder(sortList)
+    } else {
+      await vaultStore.updateSortOrder(sortList)
     }
     message.success('排序已保存')
     await loadData()
@@ -264,6 +332,13 @@ const handleCreate = async () => {
       })
       message.success('收藏成功')
     }
+    // 编辑态保存标签
+    if (editingBookmarkId.value !== null) {
+      tagSaveTrigger.value++
+      await nextTick()
+      editTagPickerRef.value?.save()
+      await loadTags()
+    }
     showCreateModal.value = false
     await loadData()
   } catch (e: any) {
@@ -330,9 +405,19 @@ const handleFilesRefresh = () => {
   loadData()
 }
 
+/** 密码库新建（由 VaultView 内部弹窗承接） */
+const vaultViewRef = ref<InstanceType<typeof VaultView> | null>(null)
+const handleCreateVault = () => {
+  if (!selectedDirectoryId.value) {
+    message.warning('请先选择密码库目录')
+    return
+  }
+  vaultViewRef.value?.openCreate()
+}
+
 // ========== FAB 标签 ==========
 
-const fabLabel = computed(() => props.activeModule === 'bookmarks' ? '添加收藏' : props.activeModule === 'notes' ? '新建便签' : '上传文件')
+const fabLabel = computed(() => props.activeModule === 'bookmarks' ? '添加收藏' : props.activeModule === 'notes' ? '新建便签' : props.activeModule === 'files' ? '上传文件' : '新建密码')
 
 const handleHelp = () => {
   window.open('https://github.com/your-repo/jnclub', '_blank')
@@ -340,8 +425,8 @@ const handleHelp = () => {
 
 // ========== 空状态文案 ==========
 
-const emptyMessage = computed(() => props.activeModule === 'bookmarks' ? '这个目录还没有收藏' : props.activeModule === 'notes' ? '这个目录还没有便签' : '这个目录还没有文件')
-const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶部按钮添加第一个收藏' : props.activeModule === 'notes' ? '点击右下角 + 创建你的第一篇便签' : '点击上传按钮上传第一个文件')
+const emptyMessage = computed(() => props.activeModule === 'bookmarks' ? '这个目录还没有收藏' : props.activeModule === 'notes' ? '这个目录还没有便签' : props.activeModule === 'files' ? '这个目录还没有文件' : '这个目录还没有密码条目')
+const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶部按钮添加第一个收藏' : props.activeModule === 'notes' ? '点击右下角 + 创建你的第一篇便签' : props.activeModule === 'files' ? '点击上传按钮上传第一个文件' : '点击右下角 + 添加第一条密码')
 </script>
 
 <template>
@@ -355,7 +440,7 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
         <NBreadcrumb class="jnclub-breadcrumb">
           <NBreadcrumbItem @click="selectedDirectoryId = null">JNClub</NBreadcrumbItem>
           <NBreadcrumbItem @click="selectedDirectoryId = null">
-            {{ props.activeModule === 'bookmarks' ? '收藏夹' : props.activeModule === 'notes' ? '便签' : '云盘' }}
+            {{ props.activeModule === 'bookmarks' ? '收藏夹' : props.activeModule === 'notes' ? '便签' : props.activeModule === 'files' ? '云盘' : '密码库' }}
           </NBreadcrumbItem>
           <NBreadcrumbItem v-if="currentDirName !== '全部'" class="breadcrumb-current">
             {{ currentDirName }}
@@ -364,7 +449,10 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
       </div>
 
       <div class="header-right">
-        <ViewSwitcher v-if="props.activeModule !== 'files'" v-model="viewMode" />
+        <NButton quaternary circle size="small" class="refresh-btn" @click="showSearch = true" title="搜索 (Ctrl/⌘+K)">
+          <template #icon><NIcon :component="Search" size="16" /></template>
+        </NButton>
+        <ViewSwitcher v-if="props.activeModule === 'bookmarks' || props.activeModule === 'notes'" v-model="viewMode" />
         <NButton
           v-if="props.activeModule === 'bookmarks'"
           class="btn-new jnclub-bouncy-slow"
@@ -382,13 +470,22 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
           新建便签
         </NButton>
         <NButton
-          v-else
+          v-else-if="props.activeModule === 'files'"
           class="btn-new jnclub-bouncy-slow"
           :disabled="!selectedDirectoryId"
           @click="handleFilesUpload"
         >
           <template #icon><NIcon :component="UploadCloud" /></template>
           上传文件
+        </NButton>
+        <NButton
+          v-else
+          class="btn-new jnclub-bouncy-slow"
+          :disabled="!selectedDirectoryId"
+          @click="handleCreateVault"
+        >
+          <template #icon><NIcon :component="KeyRound" /></template>
+          新建密码
         </NButton>
         <NButton quaternary circle size="small" @click="handleRefresh" class="refresh-btn jnclub-bouncy">
           <template #icon><NIcon :component="RefreshCw" size="16" /></template>
@@ -423,6 +520,24 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
           >
             <NIcon :component="FolderOpen" size="16" />
             {{ dir.name }}
+          </button>
+        </div>
+
+        <!-- 标签筛选条（收藏/便签模块） -->
+        <div v-if="props.activeModule !== 'files' && availableTags.length" class="tag-bar">
+          <button
+            :class="['tag-chip', 'jnclub-bouncy', { 'tag-chip-active': activeTagId === null }]"
+            @click="handleTagFilter(null)"
+          >全部</button>
+          <button
+            v-for="t in availableTags"
+            :key="t.id"
+            :class="['tag-chip', 'jnclub-bouncy', { 'tag-chip-active': activeTagId === t.id }]"
+            @click="handleTagFilter(t.id)"
+          >
+            <NIcon :component="Tag" size="13" />
+            {{ t.name }}
+            <span v-if="t.count" class="tag-count">{{ t.count }}</span>
           </button>
         </div>
 
@@ -476,6 +591,15 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
             @refresh="handleFilesRefresh"
             @sort="handleSort"
           />
+
+          <!-- 密码库 -->
+          <VaultView
+            v-else-if="props.activeModule === 'vault'"
+            ref="vaultViewRef"
+            :directory-id="selectedDirectoryId"
+            @refresh="loadData"
+            @sort="handleSort"
+          />
         </NSpin>
       </div>
     </div>
@@ -483,9 +607,12 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
     <!-- 悬浮 FAB -->
     <FloatingActions
       :add-label="fabLabel"
-      @add="props.activeModule === 'bookmarks' ? handleOpenCreate() : props.activeModule === 'notes' ? handleCreateNote() : handleFilesUpload()"
+      @add="props.activeModule === 'bookmarks' ? handleOpenCreate() : props.activeModule === 'notes' ? handleCreateNote() : props.activeModule === 'files' ? handleFilesUpload() : handleCreateVault()"
       @help="handleHelp"
     />
+
+    <!-- 全局搜索抽屉 -->
+    <SearchDrawer :show="showSearch" @close="showSearch = false" @jump="handleSearchJump" />
 
     <!-- 收藏创建/编辑弹窗 -->
     <NModal v-model:show="showCreateModal" preset="dialog" :title="editingBookmarkId !== null ? '编辑收藏' : '添加收藏'">
@@ -507,6 +634,9 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
         </NFormItem>
         <NFormItem label="所属目录" path="directoryId">
           <NSelect v-model:value="createBookmarkForm.directoryId" :options="directoryOptions" placeholder="选择目录" clearable />
+        </NFormItem>
+        <NFormItem v-if="editingBookmarkId !== null" label="标签" path="tags">
+          <TagPicker ref="editTagPickerRef" ref-type="bookmark" :ref-id="editingBookmarkId" :save-trigger="tagSaveTrigger" />
         </NFormItem>
       </NForm>
       <template #action>
@@ -597,6 +727,44 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
   margin-bottom: 18px;
 }
 
+/* === 标签筛选条 === */
+.tag-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+  padding: 8px 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text-2);
+}
+.tag-chip:hover {
+  background: var(--hover-bg);
+  color: var(--text-1);
+}
+.tag-chip-active {
+  background: var(--brand-soft) !important;
+  color: var(--brand) !important;
+  font-weight: 600;
+}
+.tag-count {
+  font-size: 11px;
+  opacity: 0.7;
+}
+
 /* === Spin === */
 .spin-area {
   min-height: 200px;
@@ -619,5 +787,44 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* === 移动端适配（<768px） === */
+@media (max-width: 767px) {
+  .home-header {
+    padding: 0 12px;
+    gap: 8px;
+    height: 52px;
+  }
+  /* 侧栏目录树在窄屏隐藏，靠顶部 chips 切换 */
+  .folder-column {
+    display: none;
+  }
+  .content-area {
+    padding: 12px;
+    gap: 12px;
+  }
+  .header-right {
+    gap: 6px;
+  }
+  /* 顶栏新建按钮在窄屏只留图标（隐藏文字） */
+  .header-right :deep(.n-button) span {
+    display: none;
+  }
+  /* 面包屑收窄 */
+  .jnclub-breadcrumb :deep(.n-breadcrumb-item__link) {
+    font-size: 12px;
+    max-width: 90px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .chip-bar {
+    margin-bottom: 12px;
+  }
+  /* 收藏卡片网格：窄屏单列 */
+  .collection-grid {
+    grid-template-columns: 1fr !important;
+  }
 }
 </style>

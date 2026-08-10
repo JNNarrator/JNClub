@@ -30,6 +30,12 @@ const router = createRouter({
       name: 'note-view',
       component: () => import('../../modules/bookmark/views/NoteEditorPage.vue'),
     },
+    // 回收站独立页面
+    {
+      path: '/recycle',
+      name: 'recycle',
+      component: () => import('../../modules/bookmark/views/RecycleView.vue'),
+    },
   ],
 })
 
