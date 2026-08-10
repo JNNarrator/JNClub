@@ -6,7 +6,7 @@ import {
   useMessage, useDialog,
 } from 'naive-ui'
 import { Plus, FolderOpen, Link, Globe, RefreshCw, UploadCloud, Tag, Search, KeyRound } from 'lucide-vue-next'
-import { useRouter, type RouteLocationRaw } from 'vue-router'
+import { useRouter, useRoute, type RouteLocationRaw } from 'vue-router'
 import { useDirectoryStore } from '../stores/directory'
 import { useBookmarkStore } from '../stores/bookmark'
 import { useNoteStore } from '../stores/note'
@@ -31,6 +31,7 @@ import { useUserPreferences } from '../../../shared/composables/useUserPreferenc
 import { fetchTags, type TagItem } from '../composables/tags'
 
 const router = useRouter()
+const route = useRoute()
 const prefs = useUserPreferences()
 const directoryStore = useDirectoryStore()
 const bookmarkStore = useBookmarkStore()
@@ -149,17 +150,27 @@ const loadDirectories = async () => {
 /** 选中目录按模块记忆：key dir.bookmarks / dir.notes */
 const dirPrefKey = () => `dir.${props.activeModule}`
 
-/** 目录加载后恢复上次选中的目录（偏好值无效或已删除则回退第一个） */
+/** 目录加载后恢复选中目录：URL query.dir 优先（刷新定位），无效则回退偏好，再回退第一个 */
 const applyRememberedDir = () => {
   const dirs = directoryStore.directories
   if (!dirs.length) return
+  // 1) URL query.dir（刷新直接定位）
+  const urlDir = route.query.dir
+  if (urlDir && findInTree(dirs, Number(urlDir))) {
+    selectedDirectoryId.value = Number(urlDir)
+    return
+  }
+  // 2) 偏好记忆（向后兼容）
   const remembered = prefs.get<any>(dirPrefKey(), null)
-  // 兼容数字与字符串数字（后端基本类型存为字符串）
   let id: number | null = null
   if (typeof remembered === 'number') id = remembered
   else if (typeof remembered === 'string' && remembered !== '' && !Number.isNaN(Number(remembered))) id = Number(remembered)
   const validId = id !== null && findInTree(dirs, id)
   selectedDirectoryId.value = validId ? (id as number) : dirs[0].id
+  // 把恢复的目录同步到 URL，保证刷新可直接定位
+  if (selectedDirectoryId.value) {
+    router.replace({ query: { ...route.query, module: props.activeModule, dir: selectedDirectoryId.value } })
+  }
 }
 
 /** 递归查找目录 */
@@ -184,6 +195,8 @@ onMounted(async () => {
 watch(() => props.activeModule, async () => {
   selectedDirectoryId.value = null
   activeTagId.value = null
+  // 模块切换时清理旧目录并用当前模块重建 query，避免旧 module 覆盖新模块
+  router.replace({ query: { ...route.query, module: props.activeModule, dir: undefined } })
   await loadDirectories()
   await loadTags()
   // 搜索跳转：优先选中目标目录；否则恢复记忆
@@ -207,9 +220,22 @@ watch(viewMode, (mode) => {
   if (mode) prefs.set(`view.${props.activeModule}`, mode)
 })
 
+/** 监听 URL dir 变化（浏览器前进/后退/手动改 URL）→ 同步选中目录 */
+watch(() => route.query.dir, async (dir) => {
+  if (dir == null) return // 模块切换时主动清理，交给模块 watch 处理
+  const id = Number(dir)
+  if (Number.isNaN(id) || id === selectedDirectoryId.value) return
+  if (selectedDirectoryId.value !== null && findInTree(directoryStore.directories, id)) {
+    selectedDirectoryId.value = id
+    prefs.set(dirPrefKey(), id)
+    await loadData()
+  }
+})
+
 const handleDirectorySelect = async (id: number) => {
   selectedDirectoryId.value = id
   prefs.set(dirPrefKey(), id)
+  router.replace({ query: { ...route.query, module: props.activeModule, dir: id } }) // 目录同步到 URL，刷新可定位
   await loadData()
 }
 

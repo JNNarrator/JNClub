@@ -8,8 +8,10 @@ import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { NLayout, NLayoutContent } from 'naive-ui'
 import SideNav from './SideNav.vue'
 
-defineProps<{
+const props = defineProps<{
   isDark: boolean
+  /** 当前模块（由 AppWrapper 从 URL/偏好同步，用于侧边栏高亮） */
+  activeModule: 'bookmarks' | 'notes' | 'files' | 'vault'
 }>()
 
 const emit = defineEmits<{
@@ -17,10 +19,7 @@ const emit = defineEmits<{
   'module-change': [module: 'bookmarks' | 'notes' | 'files' | 'vault']
 }>()
 
-const activeModule = ref<'bookmarks' | 'notes' | 'files' | 'vault'>('bookmarks')
-
 const handleModuleChange = (module: 'bookmarks' | 'notes' | 'files' | 'vault') => {
-  activeModule.value = module
   emit('module-change', module)
 }
 
@@ -50,7 +49,7 @@ watch(isMobile, (m) => {
   <NLayout has-sider class="app-layout">
     <SideNav
       :is-dark="isDark"
-      :active-module="activeModule"
+      :active-module="props.activeModule"
       :collapsed="collapsed"
       @toggle-theme="emit('toggle-theme')"
       @module-change="handleModuleChange"
