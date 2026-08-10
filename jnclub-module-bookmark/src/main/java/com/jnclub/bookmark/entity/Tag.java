@@ -6,30 +6,23 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 /**
- * 网页收藏实体
+ * 标签实体（对应表 t_tag）
  */
 @Data
-@TableName("t_bookmark")
-public class Bookmark {
+@TableName("t_tag")
+public class Tag {
 
     @TableId(type = IdType.AUTO)
     private Long id;
 
-    private String title;
-
-    private String url;
-
-    private String icon;
-
-    private Long directoryId;
-
     private String userId;
 
-    private Integer sortOrder;
+    private String name;
 
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
 
-    /** 软删除标记：0正常 1回收站 */
-    private Integer deleted;
+    /** 标签下关联记录数（查询时统计，非表字段） */
+    @TableField(exist = false)
+    private Long count;
 }

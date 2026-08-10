@@ -20,11 +20,12 @@ public class NoteController {
     private final NoteService noteService;
 
     /**
-     * 获取目录下的便签列表
+     * 获取目录下的便签列表（tagId 可选：按标签筛选）
      */
     @GetMapping
-    public R<List<Note>> getNotes(@RequestParam Long directoryId) {
-        return R.ok(noteService.getNotes(directoryId));
+    public R<List<Note>> getNotes(@RequestParam Long directoryId,
+                                  @RequestParam(required = false) Long tagId) {
+        return R.ok(noteService.getNotes(directoryId, tagId));
     }
 
     /**

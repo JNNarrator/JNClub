@@ -34,6 +34,9 @@ public class DirectoryService extends ServiceImpl<DirectoryMapper, Directory> {
     @Autowired
     private FileMapper fileMapper;
 
+    @Autowired
+    private com.jnclub.bookmark.mapper.VaultMapper vaultMapper;
+
     public List<Directory> getDirectoryTree(Integer type) {
         String userId = StpUtil.getLoginIdAsString();
         LambdaQueryWrapper<Directory> wrapper = new LambdaQueryWrapper<Directory>()
@@ -83,22 +86,32 @@ public class DirectoryService extends ServiceImpl<DirectoryMapper, Directory> {
         Long bookmarkCount = bookmarkMapper.selectCount(
                 new LambdaQueryWrapper<Bookmark>()
                         .in(Bookmark::getDirectoryId, allIds)
-                        .eq(Bookmark::getUserId, userId));
+                        .eq(Bookmark::getUserId, userId)
+                        .eq(Bookmark::getDeleted, 0));
 
         Long noteCount = noteMapper.selectCount(
                 new LambdaQueryWrapper<Note>()
                         .in(Note::getDirectoryId, allIds)
-                        .eq(Note::getUserId, userId));
+                        .eq(Note::getUserId, userId)
+                        .eq(Note::getDeleted, 0));
 
         Long fileCount = fileMapper.selectCount(
                 new LambdaQueryWrapper<FileRecord>()
                         .in(FileRecord::getDirectoryId, allIds)
-                        .eq(FileRecord::getUserId, userId));
+                        .eq(FileRecord::getUserId, userId)
+                        .eq(FileRecord::getDeleted, 0));
+
+        Long vaultCount = vaultMapper.selectCount(
+                new LambdaQueryWrapper<com.jnclub.bookmark.entity.Vault>()
+                        .in(com.jnclub.bookmark.entity.Vault::getDirectoryId, allIds)
+                        .eq(com.jnclub.bookmark.entity.Vault::getUserId, userId)
+                        .eq(com.jnclub.bookmark.entity.Vault::getDeleted, 0));
 
         Map<String, Long> result = new HashMap<>();
         result.put("bookmarkCount", bookmarkCount);
         result.put("noteCount", noteCount);
         result.put("fileCount", fileCount);
+        result.put("vaultCount", vaultCount);
         return result;
     }
 
@@ -114,20 +127,28 @@ public class DirectoryService extends ServiceImpl<DirectoryMapper, Directory> {
         collectDescendantIds(id, userId, descendantIds);
         descendantIds.add(id);
 
-        // 删除保护：自身+所有后代目录存在便签/收藏时禁止删除
+        // 删除保护：自身+所有后代目录存在便签/收藏/文件时禁止删除（软删除条目不计入）
         Long bookmarkCount = bookmarkMapper.selectCount(
                 new LambdaQueryWrapper<Bookmark>()
                         .in(Bookmark::getDirectoryId, descendantIds)
-                        .eq(Bookmark::getUserId, userId));
+                        .eq(Bookmark::getUserId, userId)
+                        .eq(Bookmark::getDeleted, 0));
         Long noteCount = noteMapper.selectCount(
                 new LambdaQueryWrapper<Note>()
                         .in(Note::getDirectoryId, descendantIds)
-                        .eq(Note::getUserId, userId));
+                        .eq(Note::getUserId, userId)
+                        .eq(Note::getDeleted, 0));
         Long fileCount = fileMapper.selectCount(
                 new LambdaQueryWrapper<FileRecord>()
                         .in(FileRecord::getDirectoryId, descendantIds)
-                        .eq(FileRecord::getUserId, userId));
-        if (bookmarkCount > 0 || noteCount > 0 || fileCount > 0) {
+                        .eq(FileRecord::getUserId, userId)
+                        .eq(FileRecord::getDeleted, 0));
+        Long vaultCount = vaultMapper.selectCount(
+                new LambdaQueryWrapper<com.jnclub.bookmark.entity.Vault>()
+                        .in(com.jnclub.bookmark.entity.Vault::getDirectoryId, descendantIds)
+                        .eq(com.jnclub.bookmark.entity.Vault::getUserId, userId)
+                        .eq(com.jnclub.bookmark.entity.Vault::getDeleted, 0));
+        if (bookmarkCount > 0 || noteCount > 0 || fileCount > 0 || vaultCount > 0) {
             throw new com.jnclub.common.exception.BizException("目录下存在条目，请先清空或移动后再删除");
         }
 

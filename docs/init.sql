@@ -128,3 +128,50 @@ CREATE TABLE IF NOT EXISTS t_user_preference (
 --   INDEX idx_directory (directory_id),
 --   INDEX idx_user_id (user_id)
 -- ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='云盘文件表';
+
+-- ==========================================
+-- P0 迁移：回收站软删除 + 标签系统（2026-08-10）
+-- ⚠️ 生产库已有数据，需手工执行以下语句（MySQL 8.0 不支持 IF NOT EXISTS，执行前确认列/表不存在）：
+-- ALTER TABLE t_bookmark ADD COLUMN deleted TINYINT DEFAULT 0 NOT NULL COMMENT '软删除标记：0正常 1回收站' AFTER create_time;
+-- ALTER TABLE t_note ADD COLUMN deleted TINYINT DEFAULT 0 NOT NULL COMMENT '软删除标记：0正常 1回收站' AFTER update_time;
+-- ALTER TABLE t_file ADD COLUMN deleted TINYINT DEFAULT 0 NOT NULL COMMENT '软删除标记：0正常 1回收站' AFTER create_time;
+-- ALTER TABLE t_bookmark ADD INDEX idx_bookmark_deleted (user_id, deleted);
+-- ALTER TABLE t_note ADD INDEX idx_note_deleted (user_id, deleted);
+-- ALTER TABLE t_file ADD INDEX idx_file_deleted (user_id, deleted);
+-- CREATE TABLE IF NOT EXISTS t_tag (
+--   id BIGINT PRIMARY KEY AUTO_INCREMENT,
+--   user_id VARCHAR(64) NOT NULL COMMENT 'SSO用户标识',
+--   name VARCHAR(50) NOT NULL COMMENT '标签名',
+--   create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+--   UNIQUE KEY uk_tag_user_name (user_id, name),
+--   INDEX idx_tag_user (user_id)
+-- ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='标签表';
+-- CREATE TABLE IF NOT EXISTS t_tag_relation (
+--   id BIGINT PRIMARY KEY AUTO_INCREMENT,
+--   tag_id BIGINT NOT NULL COMMENT '标签ID',
+--   ref_type VARCHAR(20) NOT NULL COMMENT '关联类型：bookmark=收藏 note=便签',
+--   ref_id BIGINT NOT NULL COMMENT '关联记录ID（t_bookmark.id / t_note.id）',
+--   create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+--   INDEX idx_tag (tag_id),
+--   INDEX idx_ref (ref_type, ref_id)
+-- ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='标签关联表（多对多）';
+
+-- ==========================================
+-- P1 迁移：密码库（2026-08-10）
+-- ⚠️ 生产库已有数据，需手工执行（目录复用 t_directory type=5；密码字段 AES 密文存储）：
+-- CREATE TABLE IF NOT EXISTS t_vault (
+--   id BIGINT PRIMARY KEY AUTO_INCREMENT,
+--   directory_id BIGINT NOT NULL COMMENT '所属密码库目录ID（复用 t_directory，type=5）',
+--   user_id VARCHAR(64) NOT NULL COMMENT 'SSO用户标识',
+--   name VARCHAR(200) NOT NULL COMMENT '条目名称',
+--   username VARCHAR(200) DEFAULT '' COMMENT '账号',
+--   password TEXT COMMENT '密码（AES 密文）',
+--   url VARCHAR(2048) DEFAULT '' COMMENT '站点地址',
+--   notes TEXT COMMENT '备注',
+--   sort_order INT DEFAULT 0 COMMENT '排序序号（同一目录内拖拽排序）',
+--   deleted TINYINT DEFAULT 0 NOT NULL COMMENT '软删除标记：0正常 1回收站',
+--   create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+--   update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+--   INDEX idx_directory (directory_id),
+--   INDEX idx_user (user_id, deleted)
+-- ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='密码库表';

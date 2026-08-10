@@ -30,4 +30,7 @@ public class Note {
 
     @TableField(fill = FieldFill.INSERT_UPDATE)
     private LocalDateTime updateTime;
+
+    /** 软删除标记：0正常 1回收站 */
+    private Integer deleted;
 }

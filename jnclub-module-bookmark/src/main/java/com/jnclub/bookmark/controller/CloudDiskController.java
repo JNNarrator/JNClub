@@ -100,10 +100,48 @@ public class CloudDiskController {
         return R.ok();
     }
 
-    /** 删除文件（dufs 对象 + t_file 记录） */
+    /** 删除文件（软删除，进入回收站） */
     @DeleteMapping("/files/{id}")
     public R<Void> deleteFile(@PathVariable Long id) {
         cloudDiskService.deleteFile(id);
+        return R.ok();
+    }
+
+    /** 批量删除文件（软删除，进入回收站） */
+    @DeleteMapping("/files/batch")
+    public R<Void> deleteFilesBatch(@RequestBody Map<String, Object> body) {
+        @SuppressWarnings("unchecked")
+        List<Object> rawIds = (List<Object>) body.get("ids");
+        List<Long> ids = rawIds.stream().map(v -> Long.parseLong(String.valueOf(v))).toList();
+        cloudDiskService.deleteFilesBatch(ids);
+        return R.ok();
+    }
+
+    /** 重命名文件（仅改显示名，不动 dufs 物理路径） */
+    @PutMapping("/files/{id}/rename")
+    public R<Void> renameFile(@PathVariable Long id, @RequestBody Map<String, String> body) {
+        cloudDiskService.renameFile(id, body.get("name"));
+        return R.ok();
+    }
+
+    /** 移动文件到其他云盘目录 */
+    @PutMapping("/files/{id}/move")
+    public R<Void> moveFile(@PathVariable Long id, @RequestBody Map<String, Object> body) {
+        Long directoryId = body.get("directoryId") == null
+                ? null : Long.parseLong(String.valueOf(body.get("directoryId")));
+        cloudDiskService.moveFile(id, directoryId);
+        return R.ok();
+    }
+
+    /** 批量移动文件到其他云盘目录 */
+    @PutMapping("/files/move-batch")
+    public R<Void> moveFilesBatch(@RequestBody Map<String, Object> body) {
+        @SuppressWarnings("unchecked")
+        List<Object> rawIds = (List<Object>) body.get("ids");
+        List<Long> ids = rawIds.stream().map(v -> Long.parseLong(String.valueOf(v))).toList();
+        Long directoryId = body.get("directoryId") == null
+                ? null : Long.parseLong(String.valueOf(body.get("directoryId")));
+        cloudDiskService.moveFilesBatch(ids, directoryId);
         return R.ok();
     }
 

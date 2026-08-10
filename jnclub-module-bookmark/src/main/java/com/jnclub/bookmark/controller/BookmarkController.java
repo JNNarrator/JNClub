@@ -17,8 +17,9 @@ public class BookmarkController {
     private final BookmarkService bookmarkService;
 
     @GetMapping
-    public R<List<Bookmark>> getBookmarks(@RequestParam Long directoryId) {
-        return R.ok(bookmarkService.getBookmarks(directoryId));
+    public R<List<Bookmark>> getBookmarks(@RequestParam Long directoryId,
+                                          @RequestParam(required = false) Long tagId) {
+        return R.ok(bookmarkService.getBookmarks(directoryId, tagId));
     }
 
     @PostMapping

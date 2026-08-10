@@ -34,4 +34,7 @@ public class FileRecord {
 
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
+
+    /** 软删除标记：0正常 1回收站 */
+    private Integer deleted;
 }

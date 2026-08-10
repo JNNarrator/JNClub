@@ -8,6 +8,7 @@ import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.jnclub.bookmark.entity.Bookmark;
 import com.jnclub.bookmark.mapper.BookmarkMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.net.URL;
@@ -21,13 +22,28 @@ import java.util.regex.Pattern;
 @Service
 public class BookmarkService extends ServiceImpl<BookmarkMapper, Bookmark> {
 
+    @Autowired
+    private TagService tagService;
+
     private static final String UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
 
-    public List<Bookmark> getBookmarks(Long directoryId) {
+    public List<Bookmark> getBookmarks(Long directoryId, Long tagId) {
         String userId = StpUtil.getLoginIdAsString();
+        if (tagId != null) {
+            // 按标签筛选：先从关联表取 refId 集合
+            List<Long> refIds = tagService.listRefIdsByTag("bookmark", tagId, userId);
+            if (refIds.isEmpty()) return List.of();
+            return list(new LambdaQueryWrapper<Bookmark>()
+                    .eq(Bookmark::getDirectoryId, directoryId)
+                    .eq(Bookmark::getUserId, userId)
+                    .eq(Bookmark::getDeleted, 0)
+                    .in(Bookmark::getId, refIds)
+                    .orderByAsc(Bookmark::getSortOrder));
+        }
         return list(new LambdaQueryWrapper<Bookmark>()
                 .eq(Bookmark::getDirectoryId, directoryId)
                 .eq(Bookmark::getUserId, userId)
+                .eq(Bookmark::getDeleted, 0)
                 .orderByAsc(Bookmark::getSortOrder));
     }
 
@@ -111,7 +127,41 @@ public class BookmarkService extends ServiceImpl<BookmarkMapper, Bookmark> {
         if (bookmark == null || !bookmark.getUserId().equals(userId)) {
             throw new RuntimeException("收藏不存在");
         }
+        // 软删除：进入回收站（保留标签关联，恢复后仍可见）
+        bookmark.setDeleted(1);
+        updateById(bookmark);
+    }
+
+    /** 永久删除收藏（回收站清空/到期清理用）：物理删记录 + 级联删标签关联 */
+    public void permanentlyDeleteBookmark(Long id) {
+        String userId = StpUtil.getLoginIdAsString();
+        Bookmark bookmark = getById(id);
+        if (bookmark == null || !bookmark.getUserId().equals(userId)) {
+            throw new RuntimeException("收藏不存在");
+        }
         removeById(id);
+        tagService.deleteRelationsByRef("bookmark", id, userId);
+    }
+
+    /** 从回收站恢复收藏 */
+    public void restoreBookmark(Long id, String userId) {
+        Bookmark bookmark = getById(id);
+        if (bookmark == null || !bookmark.getUserId().equals(userId)) {
+            throw new RuntimeException("收藏不存在");
+        }
+        if (bookmark.getDeleted() == null || bookmark.getDeleted() != 1) {
+            throw new RuntimeException("收藏不在回收站中");
+        }
+        bookmark.setDeleted(0);
+        updateById(bookmark);
+    }
+
+    /** 无鉴权永久删除（回收站定时清理用，跳过登录态校验） */
+    public void purgeByIdNoAuth(Long id) {
+        Bookmark bookmark = getById(id);
+        if (bookmark == null) return;
+        removeById(id);
+        tagService.deleteRelationsByRef("bookmark", id, bookmark.getUserId());
     }
 
     public void updateSortOrder(List<Map<String, Object>> sortList) {

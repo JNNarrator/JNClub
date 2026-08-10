@@ -15,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -281,6 +282,7 @@ public class CloudDiskService {
         return fileMapper.selectList(new LambdaQueryWrapper<FileRecord>()
                 .eq(FileRecord::getDirectoryId, directoryId)
                 .eq(FileRecord::getUserId, userId)
+                .eq(FileRecord::getDeleted, 0)
                 .orderByAsc(FileRecord::getSortOrder)
                 .orderByDesc(FileRecord::getCreateTime));
     }
@@ -309,7 +311,35 @@ public class CloudDiskService {
         }
     }
 
+    /**
+     * 软删除文件：进入回收站（dufs 对象暂不删除，恢复后立即可用）
+     */
     public void deleteFile(Long id) {
+        String userId = userId();
+        FileRecord record = fileMapper.selectById(id);
+        if (record == null || !record.getUserId().equals(userId)) {
+            throw new BizException("文件不存在");
+        }
+        FileRecord update = new FileRecord();
+        update.setId(id);
+        update.setDeleted(1);
+        fileMapper.updateById(update);
+        log.info("云盘文件移入回收站: id={} name={}", id, record.getOriginalName());
+    }
+
+    /** 批量软删除文件 */
+    @Transactional
+    public void deleteFilesBatch(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) return;
+        for (Long id : ids) {
+            deleteFile(id);
+        }
+    }
+
+    /**
+     * 永久删除文件（回收站清空/到期清理用）：dufs 对象 + t_file 记录
+     */
+    public void permanentlyDeleteFile(Long id) {
         String userId = userId();
         FileRecord record = fileMapper.selectById(id);
         if (record == null || !record.getUserId().equals(userId)) {
@@ -320,7 +350,88 @@ public class CloudDiskService {
             log.warn("云盘删除 dufs 失败，key={}", record.getStoredKey());
         }
         fileMapper.deleteById(id);
-        log.info("云盘文件删除: id={} name={}", id, record.getOriginalName());
+        log.info("云盘文件永久删除: id={} name={}", id, record.getOriginalName());
+    }
+
+    /**
+     * 从回收站恢复文件
+     */
+    public void restoreFile(Long id) {
+        String userId = userId();
+        FileRecord record = fileMapper.selectById(id);
+        if (record == null || !record.getUserId().equals(userId)) {
+            throw new BizException("文件不存在");
+        }
+        if (record.getDeleted() == null || record.getDeleted() != 1) {
+            throw new BizException("文件不在回收站中");
+        }
+        // 校验原目录仍存在且为云盘目录（被删除则恢复失败）
+        checkDirOwnership(record.getDirectoryId(), userId);
+        FileRecord update = new FileRecord();
+        update.setId(id);
+        update.setDeleted(0);
+        fileMapper.updateById(update);
+    }
+
+    /** 回收站文件列表（deleted=1，倒序） */
+    public List<FileRecord> listRecycle(String userId) {
+        return fileMapper.selectList(new LambdaQueryWrapper<FileRecord>()
+                .eq(FileRecord::getUserId, userId)
+                .eq(FileRecord::getDeleted, 1)
+                .orderByDesc(FileRecord::getCreateTime));
+    }
+
+    /** 无鉴权永久删除（回收站定时清理用，跳过登录态校验） */
+    public void purgeByIdNoAuth(Long id) {
+        FileRecord record = fileMapper.selectById(id);
+        if (record == null) return;
+        boolean ok = deleteDufsFile(record.getStoredKey());
+        if (!ok) {
+            log.warn("云盘删除 dufs 失败，key={}", record.getStoredKey());
+        }
+        fileMapper.deleteById(id);
+        log.info("云盘文件永久删除(定时): id={} name={}", id, record.getOriginalName());
+    }
+
+    /** 重命名文件（仅改 originalName，不动 dufs 物理路径） */
+    public void renameFile(Long id, String name) {
+        String userId = userId();
+        if (name == null || name.isBlank()) throw new BizException("文件名不能为空");
+        if (name.length() > 500) throw new BizException("文件名过长（最多 500 字符）");
+        FileRecord record = fileMapper.selectById(id);
+        if (record == null || !record.getUserId().equals(userId)) {
+            throw new BizException("文件不存在");
+        }
+        FileRecord update = new FileRecord();
+        update.setId(id);
+        update.setOriginalName(name.trim());
+        fileMapper.updateById(update);
+    }
+
+    /** 移动文件到其他云盘目录 */
+    public void moveFile(Long id, Long directoryId) {
+        String userId = userId();
+        FileRecord record = fileMapper.selectById(id);
+        if (record == null || !record.getUserId().equals(userId)) {
+            throw new BizException("文件不存在");
+        }
+        if (directoryId == null) throw new BizException("请选择目标目录");
+        checkDirOwnership(directoryId, userId);
+        FileRecord update = new FileRecord();
+        update.setId(id);
+        update.setDirectoryId(directoryId);
+        fileMapper.updateById(update);
+    }
+
+    /** 批量移动文件 */
+    @Transactional
+    public void moveFilesBatch(List<Long> ids, Long directoryId) {
+        if (ids == null || ids.isEmpty()) return;
+        if (directoryId == null) throw new BizException("请选择目标目录");
+        checkDirOwnership(directoryId, userId());
+        for (Long id : ids) {
+            moveFile(id, directoryId);
+        }
     }
 
     /**
