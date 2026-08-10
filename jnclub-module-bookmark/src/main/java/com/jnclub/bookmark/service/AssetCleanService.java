@@ -143,8 +143,10 @@ public class AssetCleanService {
                 }
             } else {
                 // 未认领：只清理超过 1 小时的（保护正在编辑中的上传），且满足 minAgeDays
-                if (asset.getCreatedAt().isBefore(unclaimedCutoff)
-                        && (minAgeDays == 0 || asset.getCreatedAt().isBefore(cutoff))) {
+                // createdAt 可能为 null（历史数据），视为远古资产可清理
+                LocalDateTime ca = asset.getCreatedAt() != null ? asset.getCreatedAt() : LocalDateTime.of(2000, 1, 1, 0, 0);
+                if (ca.isBefore(unclaimedCutoff)
+                        && (minAgeDays == 0 || ca.isBefore(cutoff))) {
                     shouldDelete = true;
                 }
             }
@@ -191,7 +193,8 @@ public class AssetCleanService {
                     if (minAgeDays == 0 || ca2.isBefore(cutoff)) isOrphan = true;
                 }
             } else {
-                if (asset.getCreatedAt().isBefore(unclaimedCutoff)
+                if (asset.getCreatedAt() != null
+                        && asset.getCreatedAt().isBefore(unclaimedCutoff)
                         && (minAgeDays == 0 || asset.getCreatedAt().isBefore(cutoff))) {
                     isOrphan = true;
                 }
