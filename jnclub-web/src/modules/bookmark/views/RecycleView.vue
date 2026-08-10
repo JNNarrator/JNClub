@@ -123,14 +123,14 @@ onMounted(fetchItems)
           回收站
         </span>
       </div>
-      <NButton type="error" quaternary size="small" :disabled="!items.length" @click="clearAll">
+      <NButton size="small" class="glass-danger-btn ghost" :disabled="!items.length" @click="clearAll">
         <template #icon><NIcon :component="Eraser" size="15" /></template>
         清空当前类型
       </NButton>
     </div>
 
     <div class="recycle-body">
-      <NTabs v-model:value="activeType" type="line" @update:value="onTabChange">
+      <NTabs v-model:value="activeType" type="line" class="recycle-tabs" @update:value="onTabChange">
         <NTabPane name="bookmark" tab="收藏" />
         <NTabPane name="note" tab="便签" />
         <NTabPane name="file" tab="云盘文件" />
@@ -151,11 +151,11 @@ onMounted(fetchItems)
               </div>
             </div>
             <div class="item-actions">
-              <NButton size="tiny" type="primary" quaternary @click="restore(item)">
+              <NButton size="tiny" class="glass-primary-btn restore-btn" @click="restore(item)">
                 <template #icon><NIcon :component="RotateCcw" size="13" /></template>
                 恢复
               </NButton>
-              <NButton size="tiny" type="error" quaternary @click="purge(item)">
+              <NButton size="tiny" class="glass-danger-btn" @click="purge(item)">
                 <template #icon><NIcon :component="Trash2" size="13" /></template>
                 永久删除
               </NButton>
@@ -197,14 +197,31 @@ onMounted(fetchItems)
 }
 .recycle-body {
   flex: 1;
-  padding: 20px 24px;
+  margin: 20px 24px;
+  padding: 16px 20px;
   overflow-y: auto;
+  background:
+    radial-gradient(1200px 500px at 10% -10%, var(--glass-glow-top), transparent 60%),
+    var(--glass-bg-trans);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--glass-shadow);
 }
 .recycle-spin {
   min-height: 200px;
 }
 .recycle-empty {
-  padding-top: 80px;
+  padding-top: 60px;
+}
+/* Tabs 玻璃化：选中粉色下划线/文字 */
+.recycle-tabs :deep(.n-tabs-nav) {
+  --n-tab-text-color: var(--glass-text-secondary);
+  --n-tab-text-color-hover: var(--brand);
+  --n-tab-text-color-active: var(--brand);
+  --n-tab-text-color-disabled: var(--glass-text-placeholder);
+  --n-bar-color: var(--brand);
 }
 .recycle-list {
   display: flex;
@@ -222,7 +239,9 @@ onMounted(fetchItems)
   -webkit-backdrop-filter: blur(var(--glass-blur));
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-sm);
+  transition: border-color var(--dur) var(--ease);
 }
+.recycle-item:hover { border-color: var(--brand); }
 .item-main {
   flex: 1;
   min-width: 0;
@@ -243,7 +262,7 @@ onMounted(fetchItems)
   align-items: center;
   gap: 12px;
   font-size: 12px;
-  color: var(--text-3);
+  color: var(--glass-text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -259,6 +278,34 @@ onMounted(fetchItems)
   gap: 4px;
   flex-shrink: 0;
 }
+/* 恢复按钮：粉色渐变（玻璃体系） */
+.restore-btn {
+  height: 24px;
+  padding: 0 10px;
+  font-size: 12px;
+  border-radius: var(--radius-pill);
+}
+/* 永久删除 / 清空：红色玻璃按钮 */
+.glass-danger-btn {
+  border-radius: var(--radius-pill) !important;
+  background: var(--glass-bg-trans) !important;
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid rgba(245, 72, 92, 0.4) !important;
+  color: #ff8a97 !important;
+  font-weight: 500;
+  transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease), opacity var(--dur) var(--ease);
+}
+.glass-danger-btn:hover {
+  background: rgba(245, 72, 92, 0.16) !important;
+  border-color: var(--danger) !important;
+}
+.glass-danger-btn.ghost {
+  background: transparent !important;
+}
+.glass-danger-btn[disabled] {
+  opacity: 0.4;
+}
 
 /* === 移动端适配（<768px） === */
 @media (max-width: 767px) {
@@ -267,6 +314,7 @@ onMounted(fetchItems)
     height: 52px;
   }
   .recycle-body {
+    margin: 12px;
     padding: 12px;
   }
   .recycle-item {
