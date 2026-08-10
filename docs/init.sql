@@ -96,12 +96,14 @@ CREATE TABLE IF NOT EXISTS t_user_preference (
 -- ==========================================
 -- 迁移脚本：已有数据库增量变更
 -- ==========================================
--- ALTER TABLE t_directory ADD COLUMN IF NOT EXISTS type INT DEFAULT 1 COMMENT '目录类型：1=收藏夹  2=便签' AFTER name;
+-- ⚠️ 注意：以下迁移在 MySQL 8.0 上执行，不支持 `ADD COLUMN IF NOT EXISTS`/`ADD INDEX IF NOT EXISTS`（MariaDB 语法）。
+-- 使用前需先确认目标列/索引不存在；或改用存储过程判断，否则会报 ERROR 1060 Duplicate column / ERROR 1061 Duplicate key。
+-- ALTER TABLE t_directory ADD COLUMN type INT DEFAULT 1 COMMENT '目录类型：1=收藏夹  2=便签' AFTER name;
 -- ALTER TABLE t_note MODIFY COLUMN title VARCHAR(200) DEFAULT '' COMMENT '标题（可为空，由内容派生）';
 -- ALTER TABLE t_note MODIFY COLUMN content MEDIUMTEXT COMMENT 'Markdown原文';
--- ALTER TABLE t_note_asset ADD COLUMN IF NOT EXISTS note_id BIGINT DEFAULT NULL COMMENT '关联便签ID' AFTER mime;
--- ALTER TABLE t_note_asset ADD INDEX IF NOT EXISTS idx_note_id (note_id);
--- ALTER TABLE t_directory ADD COLUMN IF NOT EXISTS icon VARCHAR(50) DEFAULT NULL COMMENT '目录图标（预设 key）' AFTER name;
+-- ALTER TABLE t_note_asset ADD COLUMN note_id BIGINT DEFAULT NULL COMMENT '关联便签ID' AFTER mime;
+-- ALTER TABLE t_note_asset ADD INDEX idx_note_id (note_id);
+-- ALTER TABLE t_directory ADD COLUMN icon VARCHAR(50) DEFAULT NULL COMMENT '目录图标（预设 key）' AFTER name;
 -- CREATE TABLE IF NOT EXISTS t_user_preference (
 --   id BIGINT PRIMARY KEY AUTO_INCREMENT,
 --   user_id VARCHAR(64) NOT NULL COMMENT 'SSO用户标识',
