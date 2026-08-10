@@ -73,6 +73,9 @@ watch(isMobile, (m) => {
 .app-content {
   height: 100vh;
   overflow: auto;
-  background: var(--bg-page);
+  background:
+    radial-gradient(1200px 500px at 10% -10%, var(--glass-glow-top), transparent 60%),
+    radial-gradient(900px 400px at 110% 120%, var(--glass-glow-bottom), transparent 60%),
+    var(--bg-page);
 }
 </style>

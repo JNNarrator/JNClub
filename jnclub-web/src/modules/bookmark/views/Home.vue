@@ -16,10 +16,9 @@ import type { Note } from '../stores/note'
 import FolderPanel from '../components/FolderPanel.vue'
 import CollectionGrid from '../components/CollectionGrid.vue'
 import CollectionList from '../components/CollectionList.vue'
-import CollectionEmpty from '../components/CollectionEmpty.vue'
+import EmptyState from '../components/EmptyState.vue'
 import NoteGrid from '../components/NoteGrid.vue'
 import NoteList from '../components/NoteList.vue'
-import NoteEmpty from '../components/NoteEmpty.vue'
 import DiskView from '../components/DiskView.vue'
 import VaultView from '../components/VaultView.vue'
 import ViewSwitcher from '../components/ViewSwitcher.vue'
@@ -555,9 +554,12 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
             @refresh="loadData" @edit="handleEditBookmark" @sort="handleSort"
           />
           <!-- 收藏空状态 -->
-          <CollectionEmpty
+          <EmptyState
             v-else-if="props.activeModule === 'bookmarks' && !loading"
+            icon="bookmark"
             :message="emptyMessage"
+            :hint="emptyHint"
+            cta-label="添加收藏"
             @create="handleOpenCreate"
           />
 
@@ -576,10 +578,12 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
             @refresh="loadData" @sort="handleSort"
           />
           <!-- 便签空状态 -->
-          <NoteEmpty
+          <EmptyState
             v-else-if="props.activeModule === 'notes' && !loading"
+            icon="note"
             :message="emptyMessage"
             :hint="emptyHint"
+            cta-label="写第一篇便签"
             @create="handleCreateNote"
           />
 
@@ -710,12 +714,30 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
 .folder-column {
   width: 220px;
   flex-shrink: 0;
+  background:
+    radial-gradient(900px 400px at 110% 120%, var(--glass-glow-bottom), transparent 60%),
+    var(--glass-bg-trans);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  box-shadow: var(--glass-shadow);
 }
 
 .collection-column {
   flex: 1;
   min-width: 0;
   overflow-y: auto;
+  background:
+    radial-gradient(1200px 500px at 10% -10%, var(--glass-glow-top), transparent 60%),
+    var(--glass-bg-trans);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  padding: 18px 20px;
+  box-shadow: var(--glass-shadow);
 }
 
 /* === Chip 标签栏 === */
@@ -735,8 +757,10 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
   gap: 8px;
   margin-bottom: 14px;
   padding: 8px 12px;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
+  background: var(--glass-bg-trans);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-sm);
 }
 .tag-chip {
@@ -777,7 +801,7 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
   gap: 10px;
   padding: 10px 14px;
   margin-bottom: 16px;
-  background: var(--hover-bg);
+  background: var(--glass-chip-bg);
   border-radius: var(--radius-sm);
   font-size: 13px;
   color: var(--text-2);

@@ -187,8 +187,10 @@ defineExpose({ openCreate })
   align-items: center;
   gap: 12px;
   padding: 12px 14px;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
+  background: var(--glass-bg-trans);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-sm);
 }
 .vault-item:hover { border-color: var(--brand); }
@@ -196,7 +198,8 @@ defineExpose({ openCreate })
   width: 38px;
   height: 38px;
   border-radius: 8px;
-  background: var(--brand-soft);
+  background: var(--glass-chip-bg);
+  border: 1px solid var(--glass-chip-border);
   display: flex;
   align-items: center;
   justify-content: center;

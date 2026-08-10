@@ -108,7 +108,10 @@ const goRegister = () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--bg-page);
+  background:
+    radial-gradient(1200px 500px at 10% -10%, var(--glass-glow-top), transparent 60%),
+    radial-gradient(900px 400px at 110% 120%, var(--glass-glow-bottom), transparent 60%),
+    var(--bg-page);
   overflow: hidden;
 }
 
@@ -131,9 +134,11 @@ const goRegister = () => {
   justify-content: center;
   width: 38px;
   height: 38px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-pill);
-  background: var(--bg-card);
+  background: var(--glass-bg-trans);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
   color: var(--text-2);
   cursor: pointer;
   transition: all .2s ease;
@@ -150,7 +155,16 @@ const goRegister = () => {
   z-index: 1;
   width: min(960px, 92vw);
   text-align: center;
-  padding: 48px 0;
+  padding: 48px 48px 44px;
+  background:
+    radial-gradient(1200px 500px at 10% -10%, var(--glass-glow-top), transparent 60%),
+    radial-gradient(900px 400px at 110% 120%, var(--glass-glow-bottom), transparent 60%),
+    var(--glass-bg-trans);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: 28px;
+  box-shadow: var(--glass-shadow);
 }
 
 /* 品牌区 */
@@ -164,7 +178,7 @@ const goRegister = () => {
   border-radius: 22px;
   background: linear-gradient(135deg, var(--brand), var(--brand-hover));
   color: #fff;
-  box-shadow: 0 12px 32px var(--brand-soft);
+  box-shadow: 0 12px 32px var(--brand-soft), inset 0 1px 0 rgba(255, 255, 255, 0.35);
   margin-bottom: 20px;
 }
 .brand-name {
@@ -193,15 +207,17 @@ const goRegister = () => {
 }
 .feature-card {
   padding: 28px 22px;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
+  background: var(--glass-bg-trans);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-lg);
   text-align: left;
   transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
 }
 .feature-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 14px 34px rgba(0, 0, 0, .07);
+  box-shadow: var(--glass-shadow);
   border-color: var(--brand);
 }
 .feature-icon {
@@ -211,7 +227,8 @@ const goRegister = () => {
   width: 46px;
   height: 46px;
   border-radius: 14px;
-  background: var(--brand-soft);
+  background: var(--glass-chip-bg);
+  border: 1px solid var(--glass-chip-border);
   color: var(--brand);
   margin-bottom: 14px;
 }
@@ -244,12 +261,13 @@ const goRegister = () => {
 .btn-register {
   min-width: 150px;
   border-radius: var(--radius-pill);
-  border: 1px solid var(--border);
+  border: 1px solid var(--glass-border);
   color: var(--text-2);
 }
 
 @media (max-width: 720px) {
   .features { grid-template-columns: 1fr; }
   .brand-name { font-size: 32px; }
+  .welcome-inner { padding: 32px 20px 32px; }
 }
 </style>

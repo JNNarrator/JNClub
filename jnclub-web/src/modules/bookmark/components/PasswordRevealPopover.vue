@@ -66,9 +66,9 @@ const onCopy = async () => {
   max-width: 300px;
 }
 .pwd-text {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: 13px;
-  color: #fff;
+  color: var(--text-1);
   word-break: break-all;
   user-select: all;
 }

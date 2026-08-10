@@ -129,7 +129,7 @@ const handleDropdown = (key: string) => {
 }
 
 .collection-row:hover {
-  background: var(--hover-bg);
+  background: var(--glass-chip-bg);
 }
 
 .collection-row:active {

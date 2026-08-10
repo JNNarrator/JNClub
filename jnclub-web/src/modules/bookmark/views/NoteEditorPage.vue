@@ -103,7 +103,10 @@ const handleDeleted = () => {
   height: 100vh;
   display: flex;
   flex-direction: column;
-  background: var(--bg-card);
+  background:
+    radial-gradient(1200px 500px at 10% -10%, var(--glass-glow-top), transparent 60%),
+    radial-gradient(900px 400px at 110% 120%, var(--glass-glow-bottom), transparent 60%),
+    var(--bg-page);
 }
 .page-spin {
   flex: 1;

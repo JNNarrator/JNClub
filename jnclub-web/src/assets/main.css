@@ -249,8 +249,209 @@ html, body {
 /* ---- 毛玻璃顶栏 ---- */
 .glass-header {
   background: color-mix(in srgb, var(--bg-card) 80%, transparent) !important;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+}
+
+/* ================================================================
+   玻璃拟态体系（从密码库弹框提炼，全项目统一）
+   ================================================================ */
+
+/* 玻璃卡片基座：半透明 + 毛玻璃 + 细描边 + 内高光 + 柔和投影 */
+.glass-card {
+  position: relative;
+  background: var(--glass-bg-trans) !important;
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+}
+
+/* 弹框级玻璃：更强投影 + 品牌光晕 */
+.glass-card--modal {
+  background:
+    radial-gradient(1200px 500px at 10% -10%, var(--glass-glow-top), transparent 60%),
+    radial-gradient(900px 400px at 110% 120%, var(--glass-glow-bottom), transparent 60%),
+    var(--glass-bg-trans) !important;
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+}
+
+/* 玻璃芯片（图标底盒 / 徽章） */
+.glass-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--glass-chip-bg);
+  border: 1px solid var(--glass-chip-border);
+  color: var(--glass-chip-text);
+}
+
+/* pill 渐变主按钮 */
+.glass-pill-btn {
+  border-radius: var(--radius-pill) !important;
+  background: var(--glass-btn-primary) !important;
+  color: #fff !important;
+  border: none !important;
+  font-weight: 600;
+  box-shadow: 0 4px 14px -4px var(--focus-ring);
+  transition: filter var(--dur) var(--ease), transform var(--dur) var(--ease-bouncy);
+}
+.glass-pill-btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
+.glass-pill-btn:active { transform: scale(0.97) translateY(0); }
+
+/* ghost 玻璃按钮 */
+.glass-ghost-btn {
+  border-radius: var(--radius-sm);
+  background: var(--glass-btn-ghost);
+  border: 1px solid var(--glass-border);
+  color: var(--text-1);
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+.glass-ghost-btn:hover { background: var(--glass-btn-ghost-hover); }
+
+/* 渐变主按钮（含圆角） */
+.glass-primary-btn {
+  border-radius: var(--radius-sm);
+  background: var(--glass-btn-primary) !important;
+  color: #fff !important;
+  border: none !important;
+  font-weight: 600;
+  box-shadow: 0 4px 14px -4px var(--focus-ring);
+  transition: filter var(--dur) var(--ease), transform var(--dur) var(--ease-bouncy);
+}
+.glass-primary-btn:hover { filter: brightness(1.12); transform: translateY(-1px); }
+.glass-primary-btn:active { transform: scale(0.97) translateY(0); }
+
+/* 玻璃输入框聚焦辉光（配合 Naive :deep 覆盖具体变量） */
+.glass-input {
+  border-radius: var(--radius-sm);
+  --n-color: var(--glass-input-bg) !important;
+  --n-color-focus: var(--glass-input-bg) !important;
+  --n-color-hover: var(--glass-input-bg) !important;
+  --n-border: var(--glass-input-border) !important;
+  --n-border-hover: var(--glass-chip-border) !important;
+  --n-border-focus: var(--brand) !important;
+  --n-box-shadow-focus: 0 0 0 3px var(--focus-ring) !important;
+  --n-caret-color: var(--brand) !important;
+}
+
+/* 玻璃 FAB 悬浮 */
+.glass-float {
+  background: var(--glass-bg-trans) !important;
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+}
+
+/* 玻璃抽屉 / 面板 */
+.glass-panel {
+  background: var(--glass-bg-trans) !important;
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+}
+
+/* 玻璃滑块轨道（深/浅通用） */
+.glass-slider-rail {
+  background: var(--glass-input-border) !important;
+}
+
+/* 玻璃列表项 hover */
+.glass-row-hover {
+  transition: background var(--dur) var(--ease), transform var(--dur) var(--ease);
+}
+.glass-row-hover:hover {
+  background: var(--glass-chip-bg) !important;
+}
+
+/* ================================================================
+   Naive UI 弹框 / 抽屉 / 浮层 全局玻璃化覆盖
+   （Naive 类名全局渲染到 body，此处直接覆盖，一处定义全项目生效）
+   ================================================================ */
+
+/* 弹框遮罩：柔和玻璃底 + light blur */
+.n-modal-mask,
+.n-drawer-mask {
+  background-color: color-mix(in srgb, var(--bg-page) 55%, transparent) !important;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+/* 弹框本体（无 preset 的 .n-modal / preset=dialog 的 .n-dialog / preset=card 的 .n-card）→ 玻璃卡片 */
+.n-modal,
+.n-dialog,
+.n-modal .n-card {
+  background-color: transparent !important;
+  background:
+    radial-gradient(1200px 500px at 10% -10%, var(--glass-glow-top), transparent 60%),
+    radial-gradient(900px 400px at 110% 120%, var(--glass-glow-bottom), transparent 60%),
+    var(--glass-bg-trans) !important;
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  box-shadow: var(--glass-shadow) !important;
+}
+
+/* 弹框内卡片主体透明，保留弹框玻璃本体 */
+.n-modal .n-card,
+.n-dialog .n-card {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+/* 抽屉 → 玻璃面板 */
+.n-drawer,
+.n-drawer-content-wrapper {
+  background: var(--glass-bg-trans) !important;
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+}
+
+/* Popover → 玻璃浮层 */
+.n-popover {
+  background: var(--glass-bg-trans) !important;
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow) !important;
+}
+
+/* 弹框/抽屉/浮层内 输入框 → 玻璃输入框 + 聚焦辉光 */
+.n-modal .n-input,
+.n-dialog .n-input,
+.n-drawer .n-input,
+.n-modal .n-base-selection,
+.n-dialog .n-base-selection,
+.n-drawer .n-base-selection {
+  --n-color: var(--glass-input-bg) !important;
+  --n-color-focus: var(--glass-input-bg) !important;
+  --n-color-hover: var(--glass-input-bg) !important;
+  --n-border: var(--glass-input-border) !important;
+  --n-border-hover: var(--glass-chip-border) !important;
+  --n-border-focus: var(--brand) !important;
+  --n-box-shadow-focus: 0 0 0 3px var(--focus-ring) !important;
+  --n-caret-color: var(--brand) !important;
+}
+
+/* 弹框 header / footer 分隔线用玻璃描边 */
+.n-dialog__title,
+.n-card__header,
+.n-modal-header {
+  border-bottom: 1px solid var(--glass-border) !important;
+}
+.n-dialog__action,
+.n-card__footer,
+.n-modal-footer {
+  border-top: 1px solid var(--glass-border) !important;
+}
+
+/* 弹框内 表单项标签 / 标题文字颜色 */
+.n-modal .n-form-item-label,
+.n-dialog .n-form-item-label,
+.n-drawer .n-form-item-label {
+  color: var(--text-2) !important;
 }
 
 /* ---- Reduced motion ---- */

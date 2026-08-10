@@ -86,10 +86,10 @@ const onShowChange = (v: boolean) => emit('update:show', v)
     :mask-closable="false"
     @update:show="onShowChange"
   >
-    <div class="pwd-modal">
+    <div class="pwd-modal glass-card--modal">
       <div class="pwd-modal-head">
         <div class="pwd-modal-title">
-          <span class="lock-chip"><NIcon :component="Lock" size="15" /></span>
+          <span class="lock-chip glass-chip"><NIcon :component="Lock" size="15" /></span>
           <span>{{ editingId === null ? '新建密码条目' : '编辑密码条目' }}</span>
         </div>
         <NButton quaternary circle size="small" @click="onShowChange(false)">
@@ -134,7 +134,7 @@ const onShowChange = (v: boolean) => emit('update:show', v)
           </div>
           <div class="field">
             <label class="field-label">&nbsp;</label>
-            <NButton class="gen-btn" @click="generatePwd">
+            <NButton class="gen-btn glass-pill-btn" @click="generatePwd">
               <template #icon><NIcon :component="RefreshCw" size="14" /></template>
               随机生成
             </NButton>
@@ -147,8 +147,8 @@ const onShowChange = (v: boolean) => emit('update:show', v)
       </div>
 
       <div class="pwd-modal-foot">
-        <NButton class="ghost-btn" @click="onShowChange(false)">取消</NButton>
-        <NButton class="confirm-btn" :loading="saving" @click="submit">确认</NButton>
+        <NButton class="ghost-btn glass-ghost-btn" @click="onShowChange(false)">取消</NButton>
+        <NButton class="confirm-btn glass-primary-btn" :loading="saving" @click="submit">确认</NButton>
       </div>
     </div>
   </NModal>
@@ -160,17 +160,7 @@ const onShowChange = (v: boolean) => emit('update:show', v)
   max-width: calc(100vw - 32px);
   border-radius: 16px;
   padding: 24px;
-  color: #fff;
-  background:
-    radial-gradient(1200px 500px at 10% -10%, rgba(124, 58, 237, 0.35), transparent 60%),
-    radial-gradient(900px 400px at 110% 120%, rgba(37, 99, 235, 0.3), transparent 60%),
-    linear-gradient(160deg, #1e1b4b 0%, #172554 55%, #0f172a 100%);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  box-shadow:
-    0 24px 64px -12px rgba(2, 6, 23, 0.7),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  color: var(--text-1);
 }
 .pwd-modal-head {
   display: flex;
@@ -184,18 +174,12 @@ const onShowChange = (v: boolean) => emit('update:show', v)
   gap: 10px;
   font-size: 16px;
   font-weight: 600;
-  color: #fff;
+  color: var(--text-1);
 }
 .lock-chip {
   width: 30px;
   height: 30px;
   border-radius: 9px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #c4b5fd;
-  background: rgba(139, 92, 246, 0.22);
-  border: 1px solid rgba(167, 139, 250, 0.35);
 }
 .form-grid {
   display: grid;
@@ -206,7 +190,7 @@ const onShowChange = (v: boolean) => emit('update:show', v)
 .field-label {
   display: block;
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--glass-text-secondary);
   margin-bottom: 6px;
 }
 .pwd-input-wrap {
@@ -226,9 +210,9 @@ const onShowChange = (v: boolean) => emit('update:show', v)
   text-align: center;
   font-size: 12px;
   font-weight: 600;
-  color: #c4b5fd;
-  background: rgba(139, 92, 246, 0.18);
-  border: 1px solid rgba(167, 139, 250, 0.3);
+  color: var(--glass-chip-text);
+  background: var(--glass-chip-bg);
+  border: 1px solid var(--glass-chip-border);
   border-radius: 999px;
   padding: 2px 8px;
 }
@@ -238,50 +222,36 @@ const onShowChange = (v: boolean) => emit('update:show', v)
   gap: 10px;
   margin-top: 22px;
 }
-/* 玻璃输入框：8px 圆角 + 内阴影 + 轻边框 + 聚焦辉光 */
+/* 玻璃输入框：8px 圆角 + 聚焦辉光 */
 .pwd-modal :deep(.n-input) {
   border-radius: 8px;
-  --n-color: rgba(255, 255, 255, 0.06) !important;
-  --n-color-focus: rgba(255, 255, 255, 0.09) !important;
-  --n-color-hover: rgba(255, 255, 255, 0.08) !important;
-  --n-border: rgba(255, 255, 255, 0.14) !important;
-  --n-border-hover: rgba(167, 139, 250, 0.6) !important;
-  --n-border-focus: #8b5cf6 !important;
-  --n-box-shadow-focus: 0 0 0 3px rgba(139, 92, 246, 0.25) !important;
-  --n-text-color: #fff !important;
-  --n-placeholder-color: rgba(255, 255, 255, 0.35) !important;
-  --n-caret-color: #a78bfa !important;
+  --n-color: var(--glass-input-bg) !important;
+  --n-color-focus: var(--glass-input-bg) !important;
+  --n-color-hover: var(--glass-input-bg) !important;
+  --n-border: var(--glass-input-border) !important;
+  --n-border-hover: var(--glass-chip-border) !important;
+  --n-border-focus: var(--brand) !important;
+  --n-box-shadow-focus: 0 0 0 3px var(--focus-ring) !important;
+  --n-text-color: var(--text-1) !important;
+  --n-placeholder-color: var(--glass-text-placeholder) !important;
+  --n-caret-color: var(--brand) !important;
 }
-/* 滑块轨道/圆点适配深色 */
+/* 滑块轨道适配 */
 .pwd-modal :deep(.n-slider-rail) {
-  background: rgba(255, 255, 255, 0.14) !important;
+  background: var(--glass-input-border) !important;
 }
-/* 绿色 pill 生成按钮 */
+/* 绿色 pill 生成按钮（保持"生成"语义） */
 .gen-btn {
-  border-radius: 999px !important;
-  background: linear-gradient(135deg, #10b981, #059669) !important;
-  color: #fff !important;
-  border: none !important;
-  font-weight: 600;
+  background: linear-gradient(135deg, var(--state-success), #059669) !important;
   box-shadow: 0 4px 14px -4px rgba(16, 185, 129, 0.5);
 }
 .gen-btn:hover { filter: brightness(1.1); }
-/* 渐变主按钮 */
+/* 渐变确认按钮 */
 .confirm-btn {
   border-radius: 10px;
-  background: linear-gradient(135deg, #8b5cf6, #3b82f6) !important;
-  color: #fff !important;
-  border: none !important;
-  font-weight: 600;
-  box-shadow: 0 4px 14px -4px rgba(99, 102, 241, 0.5);
 }
-.confirm-btn:hover { filter: brightness(1.12); }
 /* ghost 取消按钮 */
 .ghost-btn {
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  color: rgba(255, 255, 255, 0.85);
 }
-.ghost-btn:hover { background: rgba(255, 255, 255, 0.14); }
 </style>

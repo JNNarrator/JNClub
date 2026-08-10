@@ -37,8 +37,10 @@ const modes: { key: ViewMode; label: string }[] = [
 <style scoped>
 .view-switcher {
   display: inline-flex;
-  background: var(--hover-bg);
-  border: 1px solid var(--border);
+  background: var(--glass-bg-trans);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-sm);
   overflow: hidden;
   gap: 2px;
@@ -59,7 +61,7 @@ const modes: { key: ViewMode; label: string }[] = [
 
 .switcher-btn:hover:not(.active) {
   color: var(--text-1);
-  background: var(--bg-card);
+  background: var(--glass-chip-bg);
   box-shadow: var(--shadow-1);
 }
 

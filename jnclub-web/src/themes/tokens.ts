@@ -47,6 +47,27 @@ export interface DesignTokens {
   stateWarning: string
   stateError: string
   stateInfo: string
+  // 玻璃拟态体系（从密码库弹框提炼）
+  glassBgSolid: string
+  glassBgTrans: string
+  glassBorder: string
+  glassHighlight: string
+  glassGlowTop: string
+  glassGlowBottom: string
+  glassShadow: string
+  glassBlur: string
+  glassInputBg: string
+  glassInputBorder: string
+  glassInputFocus: string
+  glassBtnPrimary: string
+  glassBtnGhost: string
+  glassBtnGhostHover: string
+  glassChipBg: string
+  glassChipBorder: string
+  glassChipText: string
+  glassTextSecondary: string
+  glassTextPlaceholder: string
+  focusRing: string
   fontSans: string
   fontMono: string
   radiusSm: string
@@ -106,6 +127,27 @@ export const lightTokens: DesignTokens = {
   stateWarning: '#F3C470',
   stateError: '#E87878',
   stateInfo: '#7EB8E8',
+  // 玻璃拟态（亮色：浅粉玻璃）
+  glassBgSolid: '#FFFFFF',
+  glassBgTrans: 'rgba(255, 255, 255, 0.72)',
+  glassBorder: 'rgba(255, 255, 255, 0.6)',
+  glassHighlight: 'rgba(255, 255, 255, 0.9)',
+  glassGlowTop: 'rgba(236, 91, 142, 0.16)',
+  glassGlowBottom: 'rgba(255, 143, 171, 0.14)',
+  glassShadow: '0 24px 64px -12px rgba(236, 91, 142, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
+  glassBlur: '20px',
+  glassInputBg: 'rgba(255, 255, 255, 0.6)',
+  glassInputBorder: 'rgba(236, 91, 142, 0.22)',
+  glassInputFocus: 'rgba(236, 91, 142, 0.28)',
+  glassBtnPrimary: 'linear-gradient(135deg, #EC5B8E, #FF8FAB)',
+  glassBtnGhost: 'rgba(255, 255, 255, 0.5)',
+  glassBtnGhostHover: 'rgba(255, 255, 255, 0.72)',
+  glassChipBg: 'rgba(236, 91, 142, 0.12)',
+  glassChipBorder: 'rgba(236, 91, 142, 0.28)',
+  glassChipText: '#E84D7A',
+  glassTextSecondary: 'rgba(29, 29, 31, 0.6)',
+  glassTextPlaceholder: 'rgba(29, 29, 31, 0.35)',
+  focusRing: 'rgba(236, 91, 142, 0.2)',
   fontSans: '"DM Sans", "Noto Sans SC", "PingFang SC", system-ui, -apple-system, sans-serif',
   fontMono: '"JetBrains Mono", "SF Mono", monospace',
   radiusSm: '10px',
@@ -165,6 +207,27 @@ export const darkTokens: DesignTokens = {
   stateWarning: '#F3C470',
   stateError: '#E87878',
   stateInfo: '#7EB8E8',
+  // 玻璃拟态（暗色：深粉玻璃）
+  glassBgSolid: '#1C1C1E',
+  glassBgTrans: 'rgba(28, 28, 30, 0.72)',
+  glassBorder: 'rgba(255, 255, 255, 0.12)',
+  glassHighlight: 'rgba(255, 255, 255, 0.08)',
+  glassGlowTop: 'rgba(255, 143, 171, 0.16)',
+  glassGlowBottom: 'rgba(244, 114, 182, 0.12)',
+  glassShadow: '0 24px 64px -12px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.08)',
+  glassBlur: '20px',
+  glassInputBg: 'rgba(255, 255, 255, 0.06)',
+  glassInputBorder: 'rgba(255, 255, 255, 0.14)',
+  glassInputFocus: 'rgba(255, 143, 171, 0.28)',
+  glassBtnPrimary: 'linear-gradient(135deg, #FF8FAB, #F472B6)',
+  glassBtnGhost: 'rgba(255, 255, 255, 0.08)',
+  glassBtnGhostHover: 'rgba(255, 255, 255, 0.14)',
+  glassChipBg: 'rgba(255, 143, 171, 0.16)',
+  glassChipBorder: 'rgba(255, 143, 171, 0.32)',
+  glassChipText: '#FFB3C6',
+  glassTextSecondary: 'rgba(245, 245, 247, 0.6)',
+  glassTextPlaceholder: 'rgba(245, 245, 247, 0.35)',
+  focusRing: 'rgba(255, 143, 171, 0.28)',
   fontSans: '"DM Sans", "Noto Sans SC", "PingFang SC", system-ui, -apple-system, sans-serif',
   fontMono: '"JetBrains Mono", "SF Mono", monospace',
   radiusSm: '10px',
@@ -221,6 +284,26 @@ export function tokensToCSSVars(tokens: DesignTokens): Record<string, string> {
     '--state-warning': tokens.stateWarning,
     '--state-error': tokens.stateError,
     '--state-info': tokens.stateInfo,
+    '--glass-bg-solid': tokens.glassBgSolid,
+    '--glass-bg-trans': tokens.glassBgTrans,
+    '--glass-border': tokens.glassBorder,
+    '--glass-highlight': tokens.glassHighlight,
+    '--glass-glow-top': tokens.glassGlowTop,
+    '--glass-glow-bottom': tokens.glassGlowBottom,
+    '--glass-shadow': tokens.glassShadow,
+    '--glass-blur': tokens.glassBlur,
+    '--glass-input-bg': tokens.glassInputBg,
+    '--glass-input-border': tokens.glassInputBorder,
+    '--glass-input-focus': tokens.glassInputFocus,
+    '--glass-btn-primary': tokens.glassBtnPrimary,
+    '--glass-btn-ghost': tokens.glassBtnGhost,
+    '--glass-btn-ghost-hover': tokens.glassBtnGhostHover,
+    '--glass-chip-bg': tokens.glassChipBg,
+    '--glass-chip-border': tokens.glassChipBorder,
+    '--glass-chip-text': tokens.glassChipText,
+    '--glass-text-secondary': tokens.glassTextSecondary,
+    '--glass-text-placeholder': tokens.glassTextPlaceholder,
+    '--focus-ring': tokens.focusRing,
     '--font-sans': tokens.fontSans,
     '--font-mono': tokens.fontMono,
     '--radius-sm': tokens.radiusSm,

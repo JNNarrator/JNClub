@@ -124,12 +124,14 @@ const handleDropdown = (key: string) => {
   position: relative;
   display: flex;
   flex-direction: column;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
+  background: var(--glass-bg-trans);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-md);
   cursor: pointer;
   overflow: hidden;
-  box-shadow: var(--shadow-1);
+  box-shadow: var(--glass-shadow);
 }
 
 .bookmark-card:hover {

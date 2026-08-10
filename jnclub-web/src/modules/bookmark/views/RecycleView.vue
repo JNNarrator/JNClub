@@ -217,8 +217,10 @@ onMounted(fetchItems)
   align-items: center;
   gap: 12px;
   padding: 10px 14px;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
+  background: var(--glass-bg-trans);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-sm);
 }
 .item-main {

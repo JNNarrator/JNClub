@@ -191,7 +191,8 @@ const handleJump = (module: 'bookmarks' | 'notes' | 'files', directoryId: number
 .search-hint {
   font-size: 11px;
   color: var(--text-3);
-  background: var(--hover-bg);
+  background: var(--glass-chip-bg);
+  border: 1px solid var(--glass-chip-border);
   padding: 2px 8px;
   border-radius: var(--radius-pill);
 }
@@ -235,7 +236,7 @@ const handleJump = (module: 'bookmarks' | 'notes' | 'files', directoryId: number
   cursor: pointer;
 }
 .result-item:hover {
-  background: var(--hover-bg);
+  background: var(--glass-chip-bg);
 }
 .item-icon {
   width: 18px;

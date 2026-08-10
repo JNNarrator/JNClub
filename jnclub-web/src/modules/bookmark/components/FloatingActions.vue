@@ -64,10 +64,12 @@ const emit = defineEmits<{
 }
 
 .secondary-btn {
-  background: var(--bg-card) !important;
-  border: 1px solid var(--border) !important;
+  background: var(--glass-bg-trans) !important;
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border) !important;
   color: var(--text-2) !important;
-  box-shadow: var(--shadow-1);
+  box-shadow: var(--glass-shadow);
 }
 
 .secondary-btn:hover {

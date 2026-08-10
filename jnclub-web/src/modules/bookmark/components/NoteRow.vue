@@ -100,7 +100,7 @@ const handleClick = () => {
   cursor: pointer;
   transition: background var(--dur) var(--ease);
 }
-.note-row:hover { background: var(--hover-bg); }
+.note-row:hover { background: var(--glass-chip-bg); }
 
 /* 图标 */
 .row-icon {

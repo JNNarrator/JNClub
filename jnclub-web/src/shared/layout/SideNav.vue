@@ -47,6 +47,9 @@ const loadNavOrder = () => {
     const order = prefs.get<NavKey[]>('nav.order', DEFAULT_ORDER)
     if (Array.isArray(order) && order.length) {
       const valid = order.filter(k => NAV_META[k])
+      // 补齐偏好中缺失的默认导航项（如旧数据没有 vault/密码库），避免导航项意外消失
+      const present = new Set<NavKey>(valid)
+      DEFAULT_ORDER.forEach(k => { if (!present.has(k)) valid.push(k) })
       if (valid.length) {
         navItems.value = valid.map(k => ({ key: k, ...NAV_META[k] }))
       }
@@ -251,6 +254,9 @@ const goSsoProfile = () => {
   transition: width var(--dur) var(--ease);
   overflow: hidden;
   position: relative;
+  background: var(--glass-bg-trans) !important;
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
 }
 
 /* === Logo 区 === */
@@ -259,8 +265,8 @@ const goSsoProfile = () => {
   align-items: center;
   gap: 12px;
   padding: 20px 20px;
-  background: var(--bg-card);
-  border-bottom: 1px solid var(--border);
+  background: transparent;
+  border-bottom: 1px solid var(--glass-border);
   flex-shrink: 0;
   transition: padding var(--dur) var(--ease), justify-content var(--dur) var(--ease);
 }
@@ -318,7 +324,7 @@ const goSsoProfile = () => {
 .sider-footer {
   margin-top: auto;
   padding: 16px 16px 20px;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--glass-border);
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -346,7 +352,7 @@ const goSsoProfile = () => {
   font-size: 13px;
 }
 .theme-toggle-btn:hover {
-  background: var(--hover-bg);
+  background: var(--glass-chip-bg);
   color: var(--text-1);
 }
 .theme-toggle-label {

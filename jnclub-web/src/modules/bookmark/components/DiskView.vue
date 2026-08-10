@@ -4,7 +4,7 @@
  * P0 增强：重命名 / 移动到目录 / 多选批量（移动、删除）
  */
 <script setup lang="ts">
-import { ref, watch, onMounted, computed, h } from 'vue'
+import { ref, watch, onMounted, computed, h, nextTick } from 'vue'
 import {
   NButton, NIcon, NSpin, NEmpty, NProgress, NTag, useMessage, useDialog,
   NDropdown, NCheckbox, NModal, NInput, NSelect, NForm, NFormItem,
@@ -33,7 +33,7 @@ const uploader = useChunkedUpload()
 
 const fileInputRef = ref<HTMLInputElement | null>(null)
 
-/** 单文件选择触发 */
+/** 单文件选择触发（组件未挂载/ref 未就绪时 nextTick 重试，避免偶发不弹文件框） */
 const triggerSelect = () => {
   if (!props.directoryId) {
     message.warning('请先选择一个云盘目录')
@@ -43,7 +43,13 @@ const triggerSelect = () => {
     message.warning('已有文件正在上传')
     return
   }
-  fileInputRef.value?.click()
+  const openPicker = () => fileInputRef.value?.click()
+  if (fileInputRef.value) {
+    openPicker()
+  } else {
+    // 组件可能刚挂载，ref 尚未绑定 DOM，延迟到渲染完成后触发
+    nextTick(openPicker)
+  }
 }
 
 /** 监听外部上传触发（顶栏/右下角按钮） */
@@ -413,8 +419,10 @@ onMounted(loadDiskDirs)
 
 .upload-progress-card {
   padding: 14px 16px;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
+  background: var(--glass-bg-trans);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius);
   margin-bottom: 18px;
   display: flex;
@@ -480,8 +488,10 @@ onMounted(loadDiskDirs)
   align-items: center;
   gap: 12px;
   padding: 10px 14px;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
+  background: var(--glass-bg-trans);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-sm);
 }
 .file-item:hover { border-color: var(--brand); }
@@ -494,7 +504,7 @@ onMounted(loadDiskDirs)
   width: 36px;
   height: 36px;
   border-radius: 8px;
-  background: var(--hover-bg);
+  background: var(--glass-chip-bg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -533,10 +543,12 @@ onMounted(loadDiskDirs)
   gap: 10px;
   margin-top: 14px;
   padding: 10px 16px;
-  background: var(--bg-card);
+  background: var(--glass-bg-trans);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
   border: 1px solid var(--brand);
   border-radius: var(--radius-sm);
-  box-shadow: var(--shadow-1);
+  box-shadow: var(--glass-shadow);
 }
 .batch-info {
   flex: 1;
