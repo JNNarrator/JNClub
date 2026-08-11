@@ -187,7 +187,7 @@ onMounted(() => { initNavSort() })
 }
 .nav-item-wrap { position: relative; }
 
-/* 侧栏拖拽视觉 */
+/* 侧栏拖拽视觉（导航项为 pill 圆角，保留本地覆写；chosen 全局统一） */
 .nav-list :deep(.sortable-ghost) {
   opacity: 0.5;
   background: var(--brand-soft) !important;
@@ -195,6 +195,5 @@ onMounted(() => { initNavSort() })
   outline: 2px dashed var(--brand);
   outline-offset: -2px;
 }
-.nav-list :deep(.sortable-chosen) { cursor: grabbing; }
 .nav-list :deep(.sortable-chosen .nav-item) { background: var(--hover-bg); }
 </style>

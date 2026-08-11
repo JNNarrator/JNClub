@@ -55,15 +55,4 @@ onMounted(() => { initSort() })
   flex-direction: column;
   gap: 2px;
 }
-/* SortableJS 拖拽视觉 */
-.list-inner :deep(.sortable-ghost) {
-  opacity: 0.4;
-  background: var(--brand-soft) !important;
-  border-radius: var(--radius-sm);
-  outline: 2px dashed var(--brand);
-  outline-offset: -2px;
-}
-.list-inner :deep(.sortable-chosen) {
-  cursor: grabbing;
-}
 </style>

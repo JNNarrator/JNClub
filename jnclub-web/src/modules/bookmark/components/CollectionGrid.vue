@@ -83,18 +83,6 @@ onMounted(() => { initSort() })
   transform: none !important;
 }
 
-/* SortableJS 拖拽视觉 */
-.grid-cards :deep(.sortable-ghost) {
-  opacity: 0.4;
-  background: var(--brand-soft) !important;
-  border-radius: var(--radius-md);
-  outline: 2px dashed var(--brand);
-  outline-offset: -2px;
-}
-.grid-cards :deep(.sortable-chosen) {
-  cursor: grabbing;
-}
-
 @keyframes fadeSlideIn {
   from {
     opacity: 0;

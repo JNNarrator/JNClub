@@ -474,15 +474,6 @@ onMounted(loadDiskDirs)
   flex-direction: column;
   gap: 8px;
 }
-/* 云盘文件拖拽视觉 */
-.file-list :deep(.sortable-ghost) {
-  opacity: 0.4;
-  background: var(--brand-soft) !important;
-  border-radius: var(--radius-sm);
-  outline: 2px dashed var(--brand);
-  outline-offset: -2px;
-}
-.file-list :deep(.sortable-chosen) { cursor: grabbing; }
 .file-item {
   display: flex;
   align-items: center;
