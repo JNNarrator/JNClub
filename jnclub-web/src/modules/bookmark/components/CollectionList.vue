@@ -64,16 +64,16 @@ onMounted(() => { initSort() })
   gap: 2px;
 }
 
-/* Stagger 渐入 */
+/* Stagger 渐入（全局 jnclub-cardIn，统一节奏） */
 .list-item-wrap {
   opacity: 0;
-  transform: translateY(8px);
-  animation: fadeSlideIn 0.3s var(--ease) forwards;
-  animation-delay: calc(var(--i, 0) * 0.04s);
+  transform: translateY(10px);
+  animation: jnclub-cardIn 0.32s var(--ease) forwards;
+  animation-delay: calc(var(--i, 0) * 0.045s);
 }
 
 .list-items.visible .list-item-wrap {
-  animation-name: fadeSlideIn;
+  animation-name: jnclub-cardIn;
 }
 
 /* 拖拽排序时抑制 stagger 渐入动画重播 */
@@ -81,16 +81,5 @@ onMounted(() => { initSort() })
   animation: none !important;
   opacity: 1 !important;
   transform: none !important;
-}
-
-@keyframes fadeSlideIn {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 </style>

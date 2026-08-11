@@ -292,6 +292,15 @@ watch(viewMode, (mode) => {
   if (mode) prefs.set(`view.${props.activeModule}`, mode)
 })
 
+/** 内容切换动画 key：模块 + 视图 + 空态 任一变化触发 out-in 过渡 */
+const contentKey = computed(() => {
+  const m = props.activeModule
+  const isEmpty = m === 'bookmarks' ? bookmarkStore.bookmarks.length === 0
+    : m === 'notes' ? noteStore.notes.length === 0
+    : false
+  return `${m}-${viewMode.value}-${isEmpty ? 'empty' : 'data'}`
+})
+
 /** 监听 URL dir 变化（浏览器前进/后退/手动改 URL）→ 同步选中目录 */
 watch(() => route.query.dir, async (dir) => {
   if (dir == null) return // 模块切换时主动清理，交给模块 watch 处理
@@ -686,6 +695,8 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
         </div>
 
         <NSpin :show="loading" class="spin-area">
+          <Transition name="module-fade" mode="out-in">
+            <div :key="contentKey" class="module-content">
           <!-- 收藏卡片网格 -->
           <CollectionGrid
             v-if="props.activeModule === 'bookmarks' && viewMode === 'grid' && bookmarkStore.bookmarks.length > 0"
@@ -748,6 +759,8 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
             @refresh="loadData"
             @sort="handleSort"
           />
+            </div>
+          </Transition>
         </NSpin>
       </div>
     </div>
@@ -1081,6 +1094,17 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
 .spin-area {
   min-height: 200px;
 }
+
+/* 模块内容切换过渡（out-in） */
+.module-content {
+  min-height: 200px;
+}
+.module-fade-enter-active,
+.module-fade-leave-active {
+  transition: opacity 0.18s var(--ease), transform 0.18s var(--ease);
+}
+.module-fade-enter-from { opacity: 0; transform: translateY(8px); }
+.module-fade-leave-to { opacity: 0; transform: translateY(-6px); }
 
 /* === 预览条 === */
 .preview-bar {

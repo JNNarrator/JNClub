@@ -70,6 +70,12 @@ html, body {
   50%      { transform: translateY(-12px) rotate(14deg); }
 }
 
+/* 卡片网格/列表统一入场（各视图共用，删除 scoped 副本） */
+@keyframes jnclub-cardIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 .fade-in-up {
   animation: jnclub-fadeInUp 520ms var(--ease-bouncy) both;
 }
