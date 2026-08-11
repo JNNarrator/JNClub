@@ -74,8 +74,28 @@ public class BookmarkService extends ServiceImpl<BookmarkMapper, Bookmark> {
             bookmark.setIcon(fallbackIcon(bookmark.getUrl()));
         }
 
+        // 字段长度兜底：抓取的 favicon/标题可能超过列长度上限，先归一化再落库
+        sanitizeForInsert(bookmark);
+
         save(bookmark);
         return bookmark;
+    }
+
+    /**
+     * 字段长度兜底：title/icon/url 分别有列长度上限（200/2048/2048），
+     * 超长会导致 INSERT 抛 DataIntegrityViolationException，这里统一归一化。
+     * 超长 favicon 直接置空（前端有占位兜底），避免截断出无效坏链。
+     */
+    static void sanitizeForInsert(Bookmark bookmark) {
+        if (bookmark.getIcon() != null && bookmark.getIcon().length() > 2048) {
+            bookmark.setIcon(null);
+        }
+        if (bookmark.getTitle() != null && bookmark.getTitle().length() > 200) {
+            bookmark.setTitle(bookmark.getTitle().substring(0, 200));
+        }
+        if (bookmark.getUrl() != null && bookmark.getUrl().length() > 2048) {
+            bookmark.setUrl(bookmark.getUrl().substring(0, 2048));
+        }
     }
 
     /**
