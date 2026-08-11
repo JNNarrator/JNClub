@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- JNClub maskable 图标：背景铺满（系统自行裁切），heart 收进 80% 安全区 -->
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#EC5B8E"/>
+      <stop offset="100%" stop-color="#FF8FAB"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.30"/>
+      <stop offset="45%" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="shadow" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#D43F6A" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#D43F6A" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <rect width="512" height="512" fill="url(#shine)"/>
+  <!-- heart 底部阴影（200 尺寸，居中） -->
+  <g transform="translate(156 162)">
+    <path d="M200 101.78l-1.12-1.02C81.08 76.43 50.77 59.45 50.77 35.77 50.77 19.55 61.86 10 73.46 10c9.03 0 18.01 3.7 23.46 9.3C102.38 13.7 111.35 10 120.39 10 131.98 10 143.08 19.55 143.08 35.77c0 23.68-30.31 40.66-80.42 65L61.54 101.78z" fill="url(#shadow)"/>
+  </g>
+  <!-- heart（200/24 = 8.333） -->
+  <g transform="translate(156 156)">
+    <path d="M200 101.78l-1.12-1.02C81.08 76.43 50.77 59.45 50.77 35.77 50.77 19.55 61.86 10 73.46 10c9.03 0 18.01 3.7 23.46 9.3C102.38 13.7 111.35 10 120.39 10 131.98 10 143.08 19.55 143.08 35.77c0 23.68-30.31 40.66-80.42 65L61.54 101.78z" fill="#FFFFFF"/>
+  </g>
+</svg>

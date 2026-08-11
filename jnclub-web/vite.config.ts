@@ -1,10 +1,53 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
+import { VitePWA } from 'vite-plugin-pwa'
 import { resolve } from 'path'
 
 export default defineConfig({
   base: '/jnclub/',
-  plugins: [vue()],
+  plugins: [
+    vue(),
+    // PWA：可安装 + Service Worker 预缓存应用壳（离线可打开，API 不缓存保持实时）
+    VitePWA({
+      registerType: 'autoUpdate',
+      includeAssets: ['favicon.svg'],
+      manifest: {
+        name: 'JNClub 个人工作台',
+        short_name: 'JNClub',
+        description: '收藏夹 · 便签 · 云盘 · 密码库 — 个人工作台',
+        theme_color: '#EC5B8E',
+        background_color: '#F5F5F7',
+        display: 'standalone',
+        orientation: 'any',
+        start_url: '/jnclub/',
+        scope: '/jnclub/',
+        lang: 'zh-CN',
+        icons: [
+          { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
+          { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png' },
+          { src: 'pwa-maskable-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          { src: 'pwa-180x180.png', sizes: '180x180', type: 'image/png' },
+        ],
+      },
+      workbox: {
+        // 只预缓存构建产物中的应用壳静态资源（不缓存 /api、/sso 等动态请求）
+        globPatterns: ['**/*.{js,css,html,svg,png,woff2,ico}'],
+        navigateFallback: '/jnclub/index.html',
+        runtimeCaching: [
+          // Google Fonts 缓存字体（跨域，CacheFirst 命中即用）
+          {
+            urlPattern: /^https:\/\/fonts\.(googleapis|gstatic)\.com\/.*/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'jnclub-fonts',
+              expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+        ],
+      },
+    }),
+  ],
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),

@@ -67,10 +67,13 @@ const handleJump = (module: 'bookmarks' | 'notes' | 'files', directoryId: number
   emit('close')
   emit('jump', module, directoryId)
 }
+
+/** 移动端抽屉全宽（NDrawer width 支持 number 或字符串，'100%' 在窄屏生效） */
+const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth < 768 ? '100%' : 420)
 </script>
 
 <template>
-  <NDrawer v-model:show="props.show" :width="420" placement="right" @update:show="(v: boolean) => !v && emit('close')">
+  <NDrawer v-model:show="props.show" :width="isMobileWidth()" placement="right" @update:show="(v: boolean) => !v && emit('close')">
     <div class="search-panel">
       <!-- 标题 -->
       <div class="search-header">
@@ -279,5 +282,18 @@ const handleJump = (module: 'bookmarks' | 'notes' | 'files', directoryId: number
 }
 .no-result {
   padding-top: 40px;
+}
+
+/* 移动端：抽屉全宽时收紧内边距 */
+@media (max-width: 767px) {
+  .search-panel {
+    padding: 16px;
+  }
+  .result-item {
+    padding: 10px 8px;
+  }
+  .item-arrow {
+    opacity: 1;
+  }
 }
 </style>

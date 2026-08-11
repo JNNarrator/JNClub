@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- JNClub PWA 图标：Apple Pink 渐变圆角方块 + 白色 heart（lucide heart path） -->
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#EC5B8E"/>
+      <stop offset="100%" stop-color="#FF8FAB"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.30"/>
+      <stop offset="45%" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="shadow" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#D43F6A" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#D43F6A" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <rect width="512" height="512" rx="112" fill="url(#shine)"/>
+  <!-- heart 底部阴影 -->
+  <g transform="translate(126 132)">
+    <path d="M260 132.32l-1.45-1.32C105.4 99.36 66 77.28 66 46.5 66 25.42 80.42 13 95.5 13c11.74 0 23.41 4.81 30.5 12.09C133.09 17.81 144.76 13 156.5 13 171.58 13 186 25.42 186 46.5c0 30.78-39.4 52.86-104.55 84.5L80 132.32z" fill="url(#shadow)"/>
+  </g>
+  <!-- heart（lucide heart，24 viewport → 260） -->
+  <g transform="translate(126 126)">
+    <path d="M260 132.32l-1.45-1.32C105.4 99.36 66 77.28 66 46.5 66 25.42 80.42 13 95.5 13c11.74 0 23.41 4.81 30.5 12.09C133.09 17.81 144.76 13 156.5 13 171.58 13 186 25.42 186 46.5c0 30.78-39.4 52.86-104.55 84.5L80 132.32z" fill="#FFFFFF"/>
+  </g>
+</svg>

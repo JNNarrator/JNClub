@@ -146,6 +146,31 @@ npm run build          # 产物在 dist/
 
 将 `dist/` 部署到 nginx 或静态托管。SPA 需将 `/jnclub/` 下请求回退到 `index.html`（处理 history 路由），并把 `/api`、`/sso` 反向代理到后端 19005。
 
+**PWA（Service Worker）nginx 要点**：
+- Service Worker 注册要求 **HTTPS**（localhost 除外），线上域名必须走 https。
+- `sw.js`、`manifest.webmanifest` 与构建产物**不能长缓存**（SW 更新需要拿到新 sw.js；产物文件名带 hash 本身安全，但 index.html 也不应长缓存，否则拿不到新引用）。
+- `.webmanifest` 需正确 MIME。参考配置：
+
+```nginx
+location /jnclub/ {
+    alias /path/to/jnclub-web/dist/;
+    # SW / manifest / index 不缓存，其余带 hash 的静态资源可强缓存
+    location ~* \.(?:js|css|png|svg|woff2)$ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+    location ~* (?:sw\.js|manifest\.webmanifest|index\.html)$ {
+        add_header Cache-Control "no-cache";
+        add_header Service-Worker-Allowed "/jnclub/";
+    }
+    try_files $uri $uri/ /jnclub/index.html;
+    # manifest MIME
+    location = /jnclub/manifest.webmanifest {
+        default_type application/manifest+json;
+    }
+}
+```
+
 ### 5. SSO 生产应用登记
 
 在 `jn_sso.sso_client_app` 登记/确认线上应用（如已有 `app-jnclub-prod`）：

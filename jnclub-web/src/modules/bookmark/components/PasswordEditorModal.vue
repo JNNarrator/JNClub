@@ -254,4 +254,16 @@ const onShowChange = (v: boolean) => emit('update:show', v)
 .ghost-btn {
   border-radius: 10px;
 }
+
+/* 移动端：弹窗贴边、表单单列 */
+@media (max-width: 767px) {
+  .pwd-modal {
+    width: calc(100vw - 24px);
+    max-width: calc(100vw - 24px);
+    padding: 18px;
+  }
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+}
 </style>

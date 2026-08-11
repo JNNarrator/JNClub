@@ -4,8 +4,12 @@ import { NConfigProvider, darkTheme, NMessageProvider, NDialogProvider } from 'n
 import { tokensToCSSVars, lightTokens, darkTokens } from './themes/tokens'
 import lightThemeOverrides from './themes/light'
 import darkThemeOverrides from './themes/dark'
+import { useOnlineStatus } from './shared/composables/useOnlineStatus'
 
 const isDark = ref(false)
+
+// 离线提示（PWA 应用壳离线可打开，业务数据仍需网络）
+const { isOnline } = useOnlineStatus()
 
 /** 将 token 注入为 CSS 变量到 :root */
 function applyTokens(isDark: boolean) {
@@ -50,6 +54,11 @@ const toggleTheme = () => {
   >
     <NMessageProvider>
       <NDialogProvider>
+        <Transition name="offline-fade">
+          <div v-if="!isOnline" class="offline-banner" role="status">
+            <span class="offline-dot" />当前离线 — 应用已离线打开，数据可能需要联网后加载
+          </div>
+        </Transition>
         <router-view :is-dark="isDark" @toggle-theme="toggleTheme" />
       </NDialogProvider>
     </NMessageProvider>
@@ -61,5 +70,41 @@ body {
   margin: 0;
   padding: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* 离线提示条：固定顶部，不遮挡内容 */
+.offline-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: var(--glass-bg-solid);
+  border-bottom: 1px solid var(--glass-border);
+  color: var(--text-2);
+  font-size: 13px;
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+}
+.offline-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--state-warning);
+  flex-shrink: 0;
+}
+.offline-fade-enter-active,
+.offline-fade-leave-active {
+  transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease);
+}
+.offline-fade-enter-from,
+.offline-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-100%);
 }
 </style>

@@ -7,6 +7,7 @@
 import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { NLayout, NLayoutContent } from 'naive-ui'
 import SideNav from './SideNav.vue'
+import MobileTabBar from './MobileTabBar.vue'
 
 const props = defineProps<{
   isDark: boolean
@@ -46,8 +47,10 @@ watch(isMobile, (m) => {
 </script>
 
 <template>
-  <NLayout has-sider class="app-layout">
+  <NLayout has-sider class="app-layout" :class="{ 'is-mobile': isMobile }">
+    <!-- 桌面端（≥768px）：三段式侧栏 -->
     <SideNav
+      v-if="!isMobile"
       :is-dark="isDark"
       :active-module="props.activeModule"
       :collapsed="collapsed"
@@ -61,6 +64,13 @@ watch(isMobile, (m) => {
         <slot />
       </NLayoutContent>
     </NLayout>
+
+    <!-- 移动端（<768px）：底部 Tab 导航 -->
+    <MobileTabBar
+      v-if="isMobile"
+      :active-module="props.activeModule"
+      @module-change="handleModuleChange"
+    />
   </NLayout>
 </template>
 
@@ -76,5 +86,10 @@ watch(isMobile, (m) => {
     radial-gradient(1200px 500px at 10% -10%, var(--glass-glow-top), transparent 60%),
     radial-gradient(900px 400px at 110% 120%, var(--glass-glow-bottom), transparent 60%),
     var(--bg-page);
+}
+
+/* 移动端：底部 TabBar 让位（Home 内滚动，防止内容被 TabBar 遮挡） */
+.app-layout.is-mobile .app-content {
+  padding-bottom: calc(64px + env(safe-area-inset-bottom));
 }
 </style>
