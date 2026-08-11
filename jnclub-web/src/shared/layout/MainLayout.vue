@@ -88,6 +88,6 @@ watch(isMobile, (m) => {
 
 /* 移动端：底部 TabBar 让位（Home 内滚动，防止内容被 TabBar 遮挡） */
 .app-layout.is-mobile .app-content {
-  padding-bottom: calc(64px + env(safe-area-inset-bottom));
+  padding-bottom: calc(56px + env(safe-area-inset-bottom));
 }
 </style>
