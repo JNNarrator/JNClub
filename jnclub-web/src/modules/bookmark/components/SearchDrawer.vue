@@ -192,7 +192,7 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
   color: var(--text-1);
 }
 .search-hint {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--text-3);
   background: var(--glass-chip-bg);
   border: 1px solid var(--glass-chip-border);
@@ -222,12 +222,12 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
+  font-size: var(--fs-md);
   font-weight: 600;
   color: var(--text-2);
 }
 .group-count {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--text-3);
 }
 .result-item {
@@ -259,16 +259,16 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
   gap: 1px;
 }
 .item-title {
-  font-size: 13px;
+  font-size: var(--fs-md);
   font-weight: 500;
   color: var(--text-1);
 }
 .item-sub {
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--text-3);
 }
 .item-size {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--text-3);
 }
 .item-arrow {

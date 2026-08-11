@@ -47,7 +47,7 @@ defineEmits<{
   border-radius: var(--radius-pill);
   color: var(--text-3);
   text-align: left;
-  font-size: 14px;
+  font-size: var(--fs-base);
   line-height: 1.4;
 }
 
@@ -87,7 +87,7 @@ defineEmits<{
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 14px;
+  font-size: var(--fs-base);
   font-weight: 500;
   transition: color var(--dur) var(--ease);
 }

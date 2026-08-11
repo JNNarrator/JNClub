@@ -189,7 +189,7 @@ const onShowChange = (v: boolean) => emit('update:show', v)
 .field { min-width: 0; }
 .field-label {
   display: block;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--glass-text-secondary);
   margin-bottom: 6px;
 }

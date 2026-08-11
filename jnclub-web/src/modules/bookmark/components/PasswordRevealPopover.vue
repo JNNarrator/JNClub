@@ -67,7 +67,7 @@ const onCopy = async () => {
 }
 .pwd-text {
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: var(--fs-md);
   color: var(--text-1);
   word-break: break-all;
   user-select: all;

@@ -175,7 +175,7 @@ onMounted(() => { initNavSort() })
   line-height: 1.2;
 }
 .logo-sub {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--text-3);
   margin-left: auto;
 }

@@ -894,7 +894,7 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
 
 .jnclub-breadcrumb :deep(.n-breadcrumb-item__link) {
   cursor: pointer;
-  font-size: 13px;
+  font-size: var(--fs-md);
 }
 .breadcrumb-current :deep(.n-breadcrumb-item__link) {
   font-weight: 600;
@@ -947,7 +947,7 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
+  font-size: var(--fs-md);
   font-weight: 600;
   color: var(--text-2);
   margin-bottom: 12px;
@@ -1015,7 +1015,7 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
   flex-shrink: 0;
 }
 .user-name {
-  font-size: 13px;
+  font-size: var(--fs-md);
   font-weight: 500;
   color: var(--text-1);
   max-width: 120px;
@@ -1024,7 +1024,7 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
   white-space: nowrap;
 }
 .user-role {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--text-3);
 }
 
@@ -1073,7 +1073,7 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
   background: transparent;
   border-radius: var(--radius-pill);
   cursor: pointer;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--text-2);
 }
 .tag-chip:hover {
@@ -1086,7 +1086,7 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
   font-weight: 600;
 }
 .tag-count {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   opacity: 0.7;
 }
 
@@ -1115,7 +1115,7 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
   margin-bottom: 16px;
   background: var(--glass-chip-bg);
   border-radius: var(--radius-sm);
-  font-size: 13px;
+  font-size: var(--fs-md);
   color: var(--text-2);
 }
 .preview-avatar { flex-shrink: 0; }
@@ -1174,7 +1174,7 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
   }
   /* 面包屑收窄 */
   .jnclub-breadcrumb :deep(.n-breadcrumb-item__link) {
-    font-size: 12px;
+    font-size: var(--fs-sm);
     max-width: 90px;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1232,7 +1232,7 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
 }
 .detail-row {
   color: var(--text-2);
-  font-size: 14px;
+  font-size: var(--fs-base);
   line-height: 2;
 }
 </style>

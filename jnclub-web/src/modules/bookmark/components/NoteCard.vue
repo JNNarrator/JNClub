@@ -157,7 +157,7 @@ const handleClick = () => {
 }
 
 .title-text {
-  font-size: 14px;
+  font-size: var(--fs-base);
   font-weight: 600;
   color: var(--text-1);
   line-height: 1.4;
@@ -165,7 +165,7 @@ const handleClick = () => {
 
 /* === 摘要 === */
 .card-summary {
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--text-3);
   line-height: 1.5;
   display: -webkit-box;
@@ -198,7 +198,7 @@ const handleClick = () => {
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--text-3);
 }
 

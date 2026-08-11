@@ -124,12 +124,12 @@ const handleClick = () => {
   gap: 2px;
 }
 .row-title {
-  font-size: 14px;
+  font-size: var(--fs-base);
   font-weight: 600;
   color: var(--text-1); /* 非链接蓝 */
 }
 .row-summary {
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--text-3);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -154,7 +154,7 @@ const handleClick = () => {
   align-items: center;
   gap: 4px;
   color: var(--text-3);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   white-space: nowrap;
 }
 .meta-time {

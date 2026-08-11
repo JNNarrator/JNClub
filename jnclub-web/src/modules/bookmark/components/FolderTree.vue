@@ -212,7 +212,7 @@ const findSiblings = (dirs: Directory[], a: number, b: number): Directory[] | nu
 const renderLabel = ({ option }: { option: TreeOption }) => {
   const node = option as any
   return h('span', { style: 'display: flex; align-items: center; justify-content: space-between; width: 100%;' }, [
-    h('span', { style: 'overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; font-size: 14px;' }, node.name),
+    h('span', { style: 'overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; font-size: var(--fs-base);' }, node.name),
     h(NButton, {
       quaternary: true, circle: true, size: 'tiny',
       style: 'opacity: 0; flex-shrink: 0; margin-left: 4px;',
@@ -365,7 +365,7 @@ const handleRenameSubmit = async () => {
   border-radius: var(--radius-sm);
   background: var(--glass-chip-bg);
   color: var(--text-2);
-  font-size: 13px;
+  font-size: var(--fs-md);
   cursor: pointer;
   transition: all .18s ease;
 }

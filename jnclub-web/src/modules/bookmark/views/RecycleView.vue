@@ -254,7 +254,7 @@ onMounted(fetchItems)
   gap: 2px;
 }
 .item-title {
-  font-size: 14px;
+  font-size: var(--fs-base);
   font-weight: 500;
   color: var(--text-1);
   overflow: hidden;
@@ -265,7 +265,7 @@ onMounted(fetchItems)
   display: flex;
   align-items: center;
   gap: 12px;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--glass-text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -286,7 +286,7 @@ onMounted(fetchItems)
 .restore-btn {
   height: 24px;
   padding: 0 10px;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   border-radius: var(--radius-pill);
 }
 /* 永久删除 / 清空：红色玻璃按钮 */

@@ -423,7 +423,7 @@ defineExpose({ openCreate })
   color: var(--text-1);
 }
 .guide-desc {
-  font-size: 13px;
+  font-size: var(--fs-md);
   color: var(--text-2);
 }
 .guide-warn {
@@ -462,7 +462,7 @@ defineExpose({ openCreate })
 .strength-fill.lv-weak { background: var(--state-error); }
 .strength-fill.lv-medium { background: var(--state-warning); }
 .strength-fill.lv-strong { background: var(--state-success); }
-.strength-text { font-size: 12px; min-width: 18px; }
+.strength-text { font-size: var(--fs-sm); min-width: 18px; }
 .strength-text.lv-weak { color: var(--state-error); }
 .strength-text.lv-medium { color: var(--state-warning); }
 .strength-text.lv-strong { color: var(--state-success); }
@@ -496,7 +496,7 @@ defineExpose({ openCreate })
   color: var(--text-1);
 }
 .lock-desc {
-  font-size: 13px;
+  font-size: var(--fs-md);
   color: var(--text-2);
 }
 .lock-input {
@@ -514,7 +514,7 @@ defineExpose({ openCreate })
   border: none;
   background: transparent;
   color: var(--text-3);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -575,12 +575,12 @@ defineExpose({ openCreate })
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 14px;
+  font-size: var(--fs-base);
   font-weight: 600;
   color: var(--text-1);
 }
 .item-url {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--text-3);
   font-weight: 400;
   overflow: hidden;
@@ -599,7 +599,7 @@ defineExpose({ openCreate })
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--text-3);
 }
 .pwd-tag {
@@ -640,12 +640,12 @@ defineExpose({ openCreate })
   padding: 4px 0;
 }
 .reset-danger {
-  font-size: 13px;
+  font-size: var(--fs-md);
   color: var(--state-error);
   line-height: 1.6;
 }
 .reset-code {
-  font-size: 13px;
+  font-size: var(--fs-md);
   color: var(--text-2);
 }
 .reset-code code {

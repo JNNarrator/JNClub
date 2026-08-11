@@ -195,7 +195,7 @@ const handleDropdown = (key: string) => {
 }
 
 .title-text {
-  font-size: 14px;
+  font-size: var(--fs-base);
   font-weight: 600;
   color: var(--text-1);
   line-height: 1.4;
@@ -203,7 +203,7 @@ const handleDropdown = (key: string) => {
 
 /* === 域名 === */
 .card-domain {
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--text-3);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -226,7 +226,7 @@ const handleDropdown = (key: string) => {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--pink-adzuki);
   text-decoration: none;
   margin-top: auto;

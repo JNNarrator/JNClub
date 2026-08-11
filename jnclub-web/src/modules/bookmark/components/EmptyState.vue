@@ -67,7 +67,7 @@ const emit = defineEmits<{
       <h3 class="empty-title">{{ message || '这里空空如也～' }}</h3>
       <p class="empty-sub">{{ hint || '里面还没有内容，去添加一些吧 ✨' }}</p>
 
-      <button class="empty-cta jnclub-bouncy-slow" @click="emit('create')">
+      <button class="empty-cta glass-pill-btn jnclub-bouncy-slow" @click="emit('create')">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
           <line x1="12" y1="5" x2="12" y2="19" />
           <line x1="5" y1="12" x2="19" y2="12" />
@@ -128,7 +128,7 @@ const emit = defineEmits<{
 }
 
 .empty-sub {
-  font-size: 13px;
+  font-size: var(--fs-md);
   color: var(--text-3);
   max-width: 280px;
   line-height: 1.7;
@@ -139,21 +139,8 @@ const emit = defineEmits<{
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background: var(--gradient-btn);
-  color: #fff;
-  font-size: 14px;
-  font-weight: 600;
+  font-size: var(--fs-base);
   padding: 11px 28px;
-  border: none;
-  border-radius: var(--radius-pill);
   cursor: pointer;
-  box-shadow: 0 4px 16px var(--focus-ring);
-}
-.empty-cta:hover {
-  box-shadow: 0 6px 22px var(--focus-ring);
-  transform: scale(1.04);
-}
-.empty-cta:active {
-  transform: scale(0.97);
 }
 </style>

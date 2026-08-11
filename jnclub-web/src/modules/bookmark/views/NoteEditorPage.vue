@@ -172,7 +172,7 @@ const handleDeleted = () => {
   flex-shrink: 0;
 }
 .dir-picker-label {
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--text-3);
   flex-shrink: 0;
 }

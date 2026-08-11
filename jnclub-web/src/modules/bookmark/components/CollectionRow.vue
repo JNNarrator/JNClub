@@ -188,7 +188,7 @@ const handleDropdown = (key: string) => {
   gap: 16px;
   flex-shrink: 0;
   color: var(--text-3);
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .meta-time {
