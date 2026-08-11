@@ -47,6 +47,10 @@ export interface DesignTokens {
   stateWarning: string
   stateError: string
   stateInfo: string
+  stateWarningSoft: string
+  stateErrorSoft: string
+  gradientSuccess: string
+  shadowSuccess: string
   // 玻璃拟态体系（从密码库弹框提炼）
   glassBgSolid: string
   glassBgTrans: string
@@ -70,6 +74,11 @@ export interface DesignTokens {
   focusRing: string
   fontSans: string
   fontMono: string
+  fsXs: string
+  fsSm: string
+  fsMd: string
+  fsBase: string
+  radiusXs: string
   radiusSm: string
   radiusMd: string
   radiusLg: string
@@ -127,6 +136,10 @@ export const lightTokens: DesignTokens = {
   stateWarning: '#F3C470',
   stateError: '#E87878',
   stateInfo: '#7EB8E8',
+  stateWarningSoft: 'rgba(243, 196, 112, 0.14)',
+  stateErrorSoft: 'rgba(232, 120, 120, 0.12)',
+  gradientSuccess: 'linear-gradient(135deg, #7AC686, #059669)',
+  shadowSuccess: '0 4px 14px -4px rgba(16, 185, 129, 0.5)',
   // 玻璃拟态（亮色：浅粉玻璃）
   glassBgSolid: '#FFFFFF',
   glassBgTrans: 'rgba(255, 255, 255, 0.72)',
@@ -150,6 +163,11 @@ export const lightTokens: DesignTokens = {
   focusRing: 'rgba(236, 91, 142, 0.2)',
   fontSans: '"DM Sans", "Noto Sans SC", "PingFang SC", system-ui, -apple-system, sans-serif',
   fontMono: '"JetBrains Mono", "SF Mono", monospace',
+  fsXs: '11px',
+  fsSm: '12px',
+  fsMd: '13px',
+  fsBase: '14px',
+  radiusXs: '6px',
   radiusSm: '10px',
   radiusMd: '16px',
   radiusLg: '20px',
@@ -207,6 +225,10 @@ export const darkTokens: DesignTokens = {
   stateWarning: '#F3C470',
   stateError: '#E87878',
   stateInfo: '#7EB8E8',
+  stateWarningSoft: 'rgba(243, 196, 112, 0.16)',
+  stateErrorSoft: 'rgba(232, 120, 120, 0.14)',
+  gradientSuccess: 'linear-gradient(135deg, #7AC686, #059669)',
+  shadowSuccess: '0 4px 14px -4px rgba(16, 185, 129, 0.45)',
   // 玻璃拟态（暗色：深粉玻璃）
   glassBgSolid: '#1C1C1E',
   glassBgTrans: 'rgba(28, 28, 30, 0.72)',
@@ -230,6 +252,11 @@ export const darkTokens: DesignTokens = {
   focusRing: 'rgba(255, 143, 171, 0.28)',
   fontSans: '"DM Sans", "Noto Sans SC", "PingFang SC", system-ui, -apple-system, sans-serif',
   fontMono: '"JetBrains Mono", "SF Mono", monospace',
+  fsXs: '11px',
+  fsSm: '12px',
+  fsMd: '13px',
+  fsBase: '14px',
+  radiusXs: '6px',
   radiusSm: '10px',
   radiusMd: '16px',
   radiusLg: '20px',
@@ -284,6 +311,10 @@ export function tokensToCSSVars(tokens: DesignTokens): Record<string, string> {
     '--state-warning': tokens.stateWarning,
     '--state-error': tokens.stateError,
     '--state-info': tokens.stateInfo,
+    '--state-warning-soft': tokens.stateWarningSoft,
+    '--state-error-soft': tokens.stateErrorSoft,
+    '--gradient-success': tokens.gradientSuccess,
+    '--shadow-success': tokens.shadowSuccess,
     '--glass-bg-solid': tokens.glassBgSolid,
     '--glass-bg-trans': tokens.glassBgTrans,
     '--glass-border': tokens.glassBorder,
@@ -306,6 +337,11 @@ export function tokensToCSSVars(tokens: DesignTokens): Record<string, string> {
     '--focus-ring': tokens.focusRing,
     '--font-sans': tokens.fontSans,
     '--font-mono': tokens.fontMono,
+    '--fs-xs': tokens.fsXs,
+    '--fs-sm': tokens.fsSm,
+    '--fs-md': tokens.fsMd,
+    '--fs-base': tokens.fsBase,
+    '--radius-xs': tokens.radiusXs,
     '--radius-sm': tokens.radiusSm,
     '--radius-md': tokens.radiusMd,
     '--radius-lg': tokens.radiusLg,
