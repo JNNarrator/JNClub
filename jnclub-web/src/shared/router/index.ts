@@ -15,6 +15,11 @@ const router = createRouter({
       component: () => import('../views/Welcome.vue'),
     },
     {
+      path: '/extension',
+      name: 'extension',
+      component: () => import('../views/ExtensionPage.vue'),
+    },
+    {
       path: '/sso/login',
       name: 'sso-callback',
       component: () => import('../views/SsoCallback.vue'),
@@ -61,6 +66,12 @@ router.beforeEach(async (to, _from, next) => {
     } catch {
       next()
     }
+    return
+  }
+
+  // 插件下载页：公开，无需登录
+  if (to.name === 'extension') {
+    next()
     return
   }
 

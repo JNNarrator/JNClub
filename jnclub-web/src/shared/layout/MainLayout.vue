@@ -51,10 +51,8 @@ watch(isMobile, (m) => {
     <!-- 桌面端（≥768px）：三段式侧栏 -->
     <SideNav
       v-if="!isMobile"
-      :is-dark="isDark"
       :active-module="props.activeModule"
       :collapsed="collapsed"
-      @toggle-theme="emit('toggle-theme')"
       @module-change="handleModuleChange"
       @update:collapsed="(v: boolean) => collapsed = v"
     />

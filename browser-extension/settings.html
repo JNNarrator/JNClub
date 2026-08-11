@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JNClub 收藏助手 · 设置</title>
+  <link rel="stylesheet" href="shared/theme.css" />
+  <link rel="stylesheet" href="settings.css" />
+</head>
+<body>
+  <div class="settings glass-card">
+    <header class="head">
+      <img src="assets/icon32.png" alt="" class="logo-img" />
+      <span class="logo-text">JNClub 收藏助手 · 设置</span>
+    </header>
+
+    <div class="field">
+      <label class="label">JNClub 服务器地址</label>
+      <input id="inputServer" class="jn-input" type="text" placeholder="http://localhost:19005" />
+      <p class="jn-muted">用于收藏请求的 JNClub 后端地址（含端口，不要带 /jnclub 前缀）。</p>
+    </div>
+
+    <div class="actions">
+      <button id="btnSave" class="jn-btn-primary">保存</button>
+      <button id="btnOpen" class="jn-btn-ghost">打开 JNClub</button>
+    </div>
+
+    <div id="status" class="status"></div>
+
+    <section class="login-state">
+      <span class="jn-muted">登录状态：</span>
+      <span id="loginStateText" class="jn-err">未登录</span>
+      <button id="btnLogout" class="jn-btn-ghost hidden">退出登录</button>
+    </section>
+  </div>
+  <script type="module" src="settings.js"></script>
+</body>
+</html>

@@ -1,0 +1,58 @@
+/* settings.css — 设置页样式 */
+body {
+  padding: 20px;
+  display: flex;
+  justify-content: center;
+}
+.settings {
+  width: 100%;
+  max-width: 480px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.logo-img {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+}
+.logo-text {
+  font-size: 16px;
+  font-weight: 700;
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+.actions {
+  display: flex;
+  gap: 10px;
+}
+.status {
+  min-height: 18px;
+  font-size: 13px;
+}
+.status.ok { color: var(--state-success); }
+.status.err { color: var(--state-error); }
+.login-state {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--glass-border);
+}
+.hidden {
+  display: none !important;
+}

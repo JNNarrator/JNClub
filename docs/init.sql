@@ -175,3 +175,18 @@ CREATE TABLE IF NOT EXISTS t_user_preference (
 --   INDEX idx_directory (directory_id),
 --   INDEX idx_user (user_id, deleted)
 -- ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='密码库表';
+
+-- P2 迁移：密码库主密钥 + 健康检查（2026-08-11）
+-- ⚠️ 生产库需手工执行：
+-- 1) 密码指纹列（健康检查：同用户重复密码检测，SHA-256 指纹不解密可比）：
+-- ALTER TABLE t_vault ADD COLUMN password_fingerprint VARCHAR(64) DEFAULT NULL COMMENT '密码SHA-256指纹' AFTER password;
+-- 2) 主密钥元数据表（只存 KDF 参数与校验密文，密钥本身永不落库）：
+-- CREATE TABLE IF NOT EXISTS t_vault_meta (
+--   user_id VARCHAR(64) PRIMARY KEY COMMENT 'SSO用户标识',
+--   salt VARCHAR(64) NOT NULL COMMENT 'PBKDF2 盐（Base64）',
+--   iterations INT NOT NULL DEFAULT 100000 COMMENT 'PBKDF2 迭代次数',
+--   key_version INT NOT NULL DEFAULT 1 COMMENT '密钥版本',
+--   kdf VARCHAR(20) NOT NULL DEFAULT 'PBKDF2-SHA256' COMMENT 'KDF 算法',
+--   key_check TEXT NOT NULL COMMENT '派生密钥加密的校验密文（Hex），解锁时校验输入',
+--   update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+-- ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='密码库主密钥元数据';

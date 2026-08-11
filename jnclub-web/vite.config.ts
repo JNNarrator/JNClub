@@ -53,6 +53,21 @@ export default defineConfig({
       '@': resolve(__dirname, 'src'),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // 大依赖独立 chunk，减少首屏/编辑页单 chunk 体积
+          'naive-ui': ['naive-ui'],
+          'md-editor': ['md-editor-v3'],
+          'lucide': ['lucide-vue-next'],
+          'vendor': ['vue', 'vue-router', 'pinia', 'axios'],
+        },
+      },
+    },
+    // md-editor-v3 内含 codemirror，为便签编辑页路由懒加载 chunk（gzip 约 300KB），阈值放宽容许
+    chunkSizeWarningLimit: 900,
+  },
   server: {
     port: 5173,
     proxy: {

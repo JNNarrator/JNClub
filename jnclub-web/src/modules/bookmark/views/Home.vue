@@ -1,18 +1,19 @@
 <script setup lang="ts">
-import { ref, onMounted, watch, computed, nextTick, onBeforeUnmount } from 'vue'
+import { ref, h, onMounted, watch, computed, nextTick, onBeforeUnmount } from 'vue'
 import {
   NButton, NIcon, NSpin, NBreadcrumb, NBreadcrumbItem,
   NModal, NForm, NFormItem, NInput, NSpace, NSelect, NAvatar,
-  NDrawer, NDrawerContent,
+  NDrawer, NDrawerContent, NDropdown,
   useMessage, useDialog,
 } from 'naive-ui'
-import { Plus, FolderOpen, Link, Globe, RefreshCw, UploadCloud, Tag, Search, KeyRound, Download } from 'lucide-vue-next'
+import { Plus, FolderOpen, Link, Globe, RefreshCw, UploadCloud, Tag, Search, Download, Sun, Moon, CircleUser, LogOut } from 'lucide-vue-next'
 import { useRouter, useRoute, type RouteLocationRaw } from 'vue-router'
 import { useDirectoryStore } from '../stores/directory'
 import { useBookmarkStore } from '../stores/bookmark'
 import { useNoteStore } from '../stores/note'
 import { useCloudDiskStore } from '../stores/clouddisk'
 import { useVaultStore } from '../stores/vault'
+import { useUserStore } from '../../../shared/stores/user'
 import type { Note } from '../stores/note'
 import FolderPanel from '../components/FolderPanel.vue'
 import CollectionGrid from '../components/CollectionGrid.vue'
@@ -23,7 +24,6 @@ import NoteList from '../components/NoteList.vue'
 import DiskView from '../components/DiskView.vue'
 import VaultView from '../components/VaultView.vue'
 import ViewSwitcher from '../components/ViewSwitcher.vue'
-import FloatingActions from '../components/FloatingActions.vue'
 import TagPicker from '../components/TagPicker.vue'
 import SearchDrawer from '../components/SearchDrawer.vue'
 import type { ViewMode } from '../components/ViewSwitcher.vue'
@@ -40,8 +40,54 @@ const bookmarkStore = useBookmarkStore()
 const noteStore = useNoteStore()
 const cloudDiskStore = useCloudDiskStore()
 const vaultStore = useVaultStore()
+const userStore = useUserStore()
 const message = useMessage()
 const dialog = useDialog()
+
+/** 顶栏用户下拉（自 SideNav 迁移）：用户信息 / 退出登录 */
+const userDropdownOptions = [
+  { label: '用户信息', key: 'profile', icon: () => h(NIcon, null, { default: () => h(CircleUser) }) },
+  { label: '退出登录', key: 'logout', icon: () => h(NIcon, null, { default: () => h(LogOut) }) },
+]
+const showProfileModal = ref(false)
+const roleLabel = computed(() => userStore.userinfo?.role === 'admin' ? '管理员' : '用户')
+
+const handleUserDropdown = (key: string) => {
+  if (key === 'logout') {
+    dialog.warning({
+      title: '确认退出',
+      content: '确定要退出登录吗？',
+      positiveText: '确定',
+      negativeText: '取消',
+      onPositiveClick: async () => {
+        try {
+          const res = await axios.post('/api/auth/logout')
+          const ssoLogoutUrl = res.data?.data?.ssoLogoutUrl
+          const redirectUrl = res.data?.data?.redirectUrl
+          if (ssoLogoutUrl) {
+            try {
+              await axios.post(ssoLogoutUrl, null, { params: { redirect: redirectUrl ?? '' }, timeout: 5000 })
+            } catch { /* 忽略 */ }
+            window.location.href = redirectUrl || '/sso/login'
+            return
+          }
+        } catch { /* 忽略 */ }
+        delete axios.defaults.headers.common['jn-token']
+        localStorage.removeItem('jn-token')
+        window.location.href = '/sso/login'
+      },
+    })
+  } else if (key === 'profile') {
+    showProfileModal.value = true
+  }
+}
+
+const goSsoProfile = () => {
+  const url = userStore.userinfo?.ssoProfileUrl
+  if (url) {
+    window.open(url, '_blank', 'noopener,noreferrer')
+  }
+}
 
 const props = defineProps<{
   activeModule: 'bookmarks' | 'notes' | 'files' | 'vault'
@@ -50,6 +96,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'module-change': [module: 'bookmarks' | 'notes' | 'files' | 'vault']
+  'toggle-theme': []
 }>()
 
 const directoryType = computed(() => props.activeModule === 'bookmarks' ? 1 : props.activeModule === 'notes' ? 2 : props.activeModule === 'files' ? 3 : 5)
@@ -482,20 +529,6 @@ const handleFilesRefresh = () => {
   loadData()
 }
 
-/** 密码库新建（由 VaultView 内部弹窗承接） */
-const vaultViewRef = ref<InstanceType<typeof VaultView> | null>(null)
-const handleCreateVault = () => {
-  if (!selectedDirectoryId.value) {
-    message.warning('请先选择密码库目录')
-    return
-  }
-  vaultViewRef.value?.openCreate()
-}
-
-// ========== FAB 标签 ==========
-
-const fabLabel = computed(() => props.activeModule === 'bookmarks' ? '添加收藏' : props.activeModule === 'notes' ? '新建便签' : props.activeModule === 'files' ? '上传文件' : '新建密码')
-
 // ========== 空状态文案 ==========
 
 const emptyMessage = computed(() => props.activeModule === 'bookmarks' ? '这个目录还没有收藏' : props.activeModule === 'notes' ? '这个目录还没有便签' : props.activeModule === 'files' ? '这个目录还没有文件' : '这个目录还没有密码条目')
@@ -536,54 +569,27 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
           <template #icon><NIcon :component="Search" size="16" /></template>
         </NButton>
         <ViewSwitcher v-if="props.activeModule === 'bookmarks' || props.activeModule === 'notes'" v-model="viewMode" />
-        <NButton
-          v-if="props.activeModule === 'bookmarks'"
-          class="btn-new jnclub-bouncy-slow"
-          @click="handleOpenCreate"
-        >
-          <template #icon><NIcon :component="Plus" /></template>
-          新建
-        </NButton>
-        <NButton
-          v-else-if="props.activeModule === 'notes'"
-          class="btn-new jnclub-bouncy-slow"
-          @click="handleCreateNote"
-        >
-          <template #icon><NIcon :component="Plus" /></template>
-          新建便签
-        </NButton>
-        <NButton
-          v-if="props.activeModule === 'notes'"
-          size="small"
-          class="io-export-btn jnclub-bouncy"
-          :disabled="!noteStore.notes.length"
-          title="导出当前目录全部便签为 .md（图片内嵌 base64）"
-          @click="handleExportAllNotes"
-        >
-          <template #icon><NIcon :component="Download" size="15" /></template>
-          导出全部
-        </NButton>
-        <NButton
-          v-else-if="props.activeModule === 'files'"
-          class="btn-new jnclub-bouncy-slow"
-          :disabled="!selectedDirectoryId"
-          @click="handleFilesUpload"
-        >
-          <template #icon><NIcon :component="UploadCloud" /></template>
-          上传文件
-        </NButton>
-        <NButton
-          v-else
-          class="btn-new jnclub-bouncy-slow"
-          :disabled="!selectedDirectoryId"
-          @click="handleCreateVault"
-        >
-          <template #icon><NIcon :component="KeyRound" /></template>
-          新建密码
-        </NButton>
-        <NButton quaternary circle size="small" @click="handleRefresh" class="refresh-btn jnclub-bouncy">
+        <NButton quaternary circle size="small" @click="handleRefresh" class="refresh-btn jnclub-bouncy" title="刷新">
           <template #icon><NIcon :component="RefreshCw" size="16" /></template>
         </NButton>
+
+        <!-- 暗色模式开关（自侧栏移入） -->
+        <button type="button" class="theme-toggle-btn jnclub-bouncy" @click="emit('toggle-theme')" title="切换暗色模式">
+          <NIcon :component="props.isDark ? Sun : Moon" size="16" />
+        </button>
+
+        <!-- 头像 + 名称下拉（自侧栏移入） -->
+        <NDropdown :options="userDropdownOptions" @select="handleUserDropdown" placement="bottom-end" trigger="click">
+          <div class="user-row jnclub-bouncy">
+            <NAvatar round size="small" :src="userStore.userinfo?.avatar" class="user-avatar">
+              <template v-if="!userStore.userinfo?.avatar">
+                {{ userStore.userinfo?.nickname?.charAt(0) || 'U' }}
+              </template>
+            </NAvatar>
+            <span class="user-name">{{ userStore.userinfo?.nickname || '用户' }}</span>
+            <span class="user-role">{{ roleLabel }}</span>
+          </div>
+        </NDropdown>
       </div>
     </header>
 
@@ -601,6 +607,46 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
       </aside>
 
       <div class="collection-column">
+        <!-- 模块内部工具栏（模块特定操作归这里，顶栏只留通用能力） -->
+        <div class="module-toolbar fade-in-up">
+          <NButton
+            v-if="props.activeModule === 'bookmarks'"
+            class="btn-new jnclub-bouncy-slow"
+            @click="handleOpenCreate"
+          >
+            <template #icon><NIcon :component="Plus" /></template>
+            新建收藏
+          </NButton>
+          <NButton
+            v-if="props.activeModule === 'notes'"
+            class="btn-new jnclub-bouncy-slow"
+            @click="handleCreateNote"
+          >
+            <template #icon><NIcon :component="Plus" /></template>
+            新建便签
+          </NButton>
+          <NButton
+            v-if="props.activeModule === 'notes'"
+            size="small"
+            class="io-export-btn jnclub-bouncy"
+            :disabled="!noteStore.notes.length"
+            title="导出当前目录全部便签为 .md（图片内嵌 base64）"
+            @click="handleExportAllNotes"
+          >
+            <template #icon><NIcon :component="Download" size="15" /></template>
+            导出全部
+          </NButton>
+          <NButton
+            v-if="props.activeModule === 'files'"
+            class="btn-new jnclub-bouncy-slow"
+            :disabled="!selectedDirectoryId"
+            @click="handleFilesUpload"
+          >
+            <template #icon><NIcon :component="UploadCloud" /></template>
+            上传文件
+          </NButton>
+        </div>
+
         <!-- 目录 Chip 快速切换 -->
         <div class="chip-bar fade-in-up">
           <!-- 目录 chips（创建入口在左侧目录树） -->
@@ -694,7 +740,6 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
           <!-- 密码库 -->
           <VaultView
             v-else-if="props.activeModule === 'vault'"
-            ref="vaultViewRef"
             :directory-id="selectedDirectoryId"
             @refresh="loadData"
             @sort="handleSort"
@@ -703,14 +748,37 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
       </div>
     </div>
 
-    <!-- 悬浮 FAB -->
-    <FloatingActions
-      :add-label="fabLabel"
-      @add="props.activeModule === 'bookmarks' ? handleOpenCreate() : props.activeModule === 'notes' ? handleCreateNote() : props.activeModule === 'files' ? handleFilesUpload() : handleCreateVault()"
-    />
-
     <!-- 全局搜索抽屉 -->
     <SearchDrawer :show="showSearch" @close="showSearch = false" @jump="handleSearchJump" />
+
+    <!-- 用户信息弹窗 -->
+    <NModal v-model:show="showProfileModal" preset="dialog" title="用户信息">
+      <div class="profile-content">
+        <div class="profile-avatar">
+          <NAvatar round :size="64" :src="userStore.userinfo?.avatar" class="profile-avatar-large">
+            <template v-if="!userStore.userinfo?.avatar">
+              {{ userStore.userinfo?.nickname?.charAt(0) || 'U' }}
+            </template>
+          </NAvatar>
+          <div class="profile-name">{{ userStore.userinfo?.nickname || '用户' }}</div>
+        </div>
+        <div class="profile-detail">
+          <div class="detail-row">邮箱：{{ userStore.userinfo?.email || userStore.userinfo?.username || '--' }}</div>
+          <div class="detail-row" v-if="userStore.userinfo?.ssoProfileUrl">
+            <NButton type="primary" block @click="goSsoProfile">
+              <template #icon><NIcon :component="CircleUser" /></template>
+              前往 SSO 修改资料
+            </NButton>
+          </div>
+        </div>
+      </div>
+      <template #action>
+        <NButton type="error" @click="handleUserDropdown('logout')">
+          <template #icon><NIcon :component="LogOut" /></template>
+          退出登录
+        </NButton>
+      </template>
+    </NModal>
 
     <!-- 移动端目录抽屉（<768px）：复用 FolderPanel，选中后自动收起） -->
     <NDrawer
@@ -853,6 +921,9 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
 .folder-column {
   width: 220px;
   flex-shrink: 0;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
   background:
     radial-gradient(900px 400px at 110% 120%, var(--glass-glow-bottom), transparent 60%),
     var(--glass-bg-trans);
@@ -862,6 +933,65 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
   border-radius: var(--radius-md);
   padding: 12px;
   box-shadow: var(--glass-shadow);
+}
+
+/* 模块内部工具栏（各模块特定操作，滚动区顶部） */
+.module-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+/* 顶栏暗色模式开关（自侧栏移入） */
+.theme-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  color: var(--text-2);
+}
+.theme-toggle-btn:hover {
+  background: var(--hover-bg);
+  color: var(--text-1);
+}
+
+/* 顶栏用户行（头像 + 名称 + 角色） */
+.user-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 4px 10px 4px 6px;
+  border-radius: var(--radius-pill);
+  transition: background var(--dur) var(--ease);
+}
+.user-row:hover {
+  background: var(--hover-bg);
+}
+.user-avatar {
+  background: var(--pink-cherry) !important;
+  color: var(--brand) !important;
+  flex-shrink: 0;
+}
+.user-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-1);
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.user-role {
+  font-size: 11px;
+  color: var(--text-3);
 }
 
 .collection-column {
@@ -1028,5 +1158,38 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
   .collection-column {
     padding-bottom: 12px;
   }
+}
+/* 用户信息弹窗 */
+.profile-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding: 16px 0;
+}
+.profile-avatar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+.profile-avatar-large {
+  background: var(--pink-cherry) !important;
+  color: var(--brand) !important;
+  font-size: 28px;
+  font-weight: 700;
+}
+.profile-name {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-1);
+}
+.profile-detail {
+  width: 100%;
+}
+.detail-row {
+  color: var(--text-2);
+  font-size: 14px;
+  line-height: 2;
 }
 </style>

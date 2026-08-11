@@ -62,6 +62,6 @@ onMounted(() => {
     @toggle-theme="emit('toggle-theme')"
     @module-change="handleModuleChange"
   >
-    <Home :active-module="activeModule" :is-dark="isDark" @module-change="handleModuleChange" />
+    <Home :active-module="activeModule" :is-dark="isDark" @module-change="handleModuleChange" @toggle-theme="emit('toggle-theme')" />
   </MainLayout>
 </template>

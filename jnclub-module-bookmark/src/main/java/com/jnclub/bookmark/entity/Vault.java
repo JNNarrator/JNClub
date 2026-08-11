@@ -29,6 +29,9 @@ public class Vault {
     /** 密码（AES 密文；列表查询不返回明文） */
     private String password;
 
+    /** 密码 SHA-256 指纹（健康检查用：同用户重复检测，不解密可比） */
+    private String passwordFingerprint;
+
     /** 站点地址 */
     private String url;
 

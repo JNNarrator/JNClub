@@ -19,6 +19,12 @@ export const useVaultStore = defineStore('vault', () => {
   const items = ref<VaultItem[]>([])
   const loading = ref(false)
 
+  /** 主密钥状态：{ configured: 是否已设置, unlocked: 当前是否已解锁 } */
+  const masterStatus = ref<{ configured: boolean; unlocked: boolean }>({ configured: false, unlocked: false })
+
+  /** 健康检查结果：弱密码 / 重复密码条目 id → 展示角标（仅提示不拦截） */
+  const health = ref<{ weakIds: Set<number>; dupIds: Set<number> }>({ weakIds: new Set(), dupIds: new Set() })
+
   const fetchItems = async (directoryId: number) => {
     loading.value = true
     try {
@@ -59,14 +65,73 @@ export const useVaultStore = defineStore('vault', () => {
     if (res.data.code !== 200) throw new Error(res.data.message || '排序失败')
   }
 
+  // ========== 主密钥管理 ==========
+
+  /** 查询主密钥状态（configured/unlocked） */
+  const fetchMasterStatus = async () => {
+    const res = await axios.get('/api/vault/master-key/status')
+    if (res.data.code === 200) masterStatus.value = res.data.data || { configured: false, unlocked: false }
+    return masterStatus.value
+  }
+
+  /** 设置/修改主密钥（修改需传旧密钥，全量重加密迁移） */
+  const setMasterKey = async (newMasterKey: string, oldMasterKey?: string) => {
+    const res = await axios.post('/api/vault/master-key', { newMasterKey, oldMasterKey })
+    if (res.data.code !== 200) throw new Error(res.data.message || '设置失败')
+    masterStatus.value = { configured: true, unlocked: true }
+  }
+
+  /** 解锁 */
+  const unlock = async (masterKey: string) => {
+    const res = await axios.post('/api/vault/unlock', { masterKey })
+    if (res.data.code !== 200) throw new Error(res.data.message || '解锁失败')
+    masterStatus.value = { configured: true, unlocked: true }
+  }
+
+  /** 锁定 */
+  const lock = async () => {
+    await axios.post('/api/vault/lock')
+    masterStatus.value = { configured: true, unlocked: false }
+  }
+
+  /** 遗忘重置（双重确认） */
+  const reset = async (resetCode: string) => {
+    const res = await axios.post('/api/vault/reset', { confirm: 'RESET', resetCode })
+    if (res.data.code !== 200) throw new Error(res.data.message || '重置失败')
+    masterStatus.value = { configured: false, unlocked: false }
+    items.value = []
+    health.value = { weakIds: new Set(), dupIds: new Set() }
+  }
+
+  /** 健康检查（需解锁）：拉取弱/重复密码条目 id 集合 */
+  const fetchHealth = async () => {
+    const res = await axios.get('/api/vault/check-health')
+    if (res.data.code === 200) {
+      const data = res.data.data || { weak: [], duplicates: [] }
+      health.value = {
+        weakIds: new Set((data.weak || []).map((w: any) => w.id)),
+        dupIds: new Set((data.duplicates || []).map((d: any) => d.id)),
+      }
+    }
+    return health.value
+  }
+
   return {
     items,
     loading,
+    masterStatus,
+    health,
     fetchItems,
     fetchDetail,
     createItem,
     updateItem,
     deleteItem,
     updateSortOrder,
+    fetchMasterStatus,
+    setMasterKey,
+    unlock,
+    lock,
+    reset,
+    fetchHealth,
   }
 })

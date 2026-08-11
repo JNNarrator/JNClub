@@ -1,0 +1,101 @@
+/* popup/popup.css — JNClub 收藏助手弹窗样式 */
+.popup {
+  width: 340px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.logo-img {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+}
+.logo-text {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+.icon-btn {
+  border: none;
+  background: transparent;
+  color: var(--text-3);
+  font-size: 16px;
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+.icon-btn:hover {
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+
+.hidden {
+  display: none !important;
+}
+
+.login-box {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px 0 6px;
+}
+.server-hint {
+  text-align: center;
+  margin-top: 4px;
+  word-break: break-all;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.label {
+  font-size: 12px;
+  color: var(--text-2);
+}
+select.jn-input {
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238e8e93' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  cursor: pointer;
+}
+
+.status {
+  min-height: 20px;
+  font-size: 12px;
+  text-align: center;
+}
+.status.ok { color: var(--state-success); }
+.status.err { color: var(--state-error); }
+
+.divider {
+  height: 1px;
+  background: var(--glass-border);
+  margin: 4px 0;
+}
+.quick-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.quick-actions .jn-btn-ghost {
+  flex: 1;
+  font-size: 12px;
+  padding: 7px 8px;
+}

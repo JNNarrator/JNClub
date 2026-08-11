@@ -58,4 +58,48 @@ public class VaultController {
         vaultService.updateSortOrder(sortList);
         return R.ok();
     }
+
+    // ============================================================
+    // 主密钥管理（加密存储核心）
+    // ============================================================
+
+    /** 主密钥状态：{ configured, unlocked } */
+    @GetMapping("/master-key/status")
+    public R<Map<String, Object>> masterKeyStatus() {
+        return R.ok(vaultService.masterKeyStatus());
+    }
+
+    /** 设置/修改主密钥（已设置需验证旧密钥）→ 全量重加密迁移 */
+    @PostMapping("/master-key")
+    public R<Void> setMasterKey(@RequestBody Map<String, String> body) {
+        vaultService.setMasterKey(body.get("oldMasterKey"), body.get("newMasterKey"));
+        return R.ok();
+    }
+
+    /** 解锁：输入主密钥，派生密钥解密 keyCheck 校验，内存会话 30 分钟 */
+    @PostMapping("/unlock")
+    public R<Void> unlock(@RequestBody Map<String, String> body) {
+        vaultService.unlock(body.get("masterKey"));
+        return R.ok();
+    }
+
+    /** 锁定：清除内存密钥 */
+    @PostMapping("/lock")
+    public R<Void> lock() {
+        vaultService.lock();
+        return R.ok();
+    }
+
+    /** 遗忘重置：双重确认（confirm=RESET + 重置验证码）后清空密码库重新开始 */
+    @PostMapping("/reset")
+    public R<Void> reset(@RequestBody Map<String, String> body) {
+        vaultService.reset(body.get("confirm"), body.get("resetCode"));
+        return R.ok();
+    }
+
+    /** 健康检查（需解锁）：弱/重复密码列表，仅提示不拦截 */
+    @GetMapping("/check-health")
+    public R<Map<String, Object>> checkHealth() {
+        return R.ok(vaultService.checkHealth());
+    }
 }

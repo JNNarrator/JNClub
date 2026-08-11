@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>JNClub 收藏助手</title>
+  <link rel="stylesheet" href="../shared/theme.css" />
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div class="popup">
+    <!-- 头部 -->
+    <header class="head">
+      <div class="logo">
+        <img src="../assets/icon32.png" alt="" class="logo-img" />
+        <span class="logo-text">JNClub 收藏助手</span>
+      </div>
+      <button id="btnSettings" class="icon-btn" title="设置">⚙</button>
+    </header>
+
+    <!-- 未登录态 -->
+    <section id="loginView" class="view hidden">
+      <div class="login-box">
+        <p class="jn-muted" style="margin-bottom: 12px">登录后即可一键收藏网页到 JNClub</p>
+        <button id="btnLogin" class="jn-btn-primary" style="width: 100%">登录 JNClub</button>
+        <p class="server-hint jn-muted">服务器：<span id="serverText">-</span></p>
+      </div>
+    </section>
+
+    <!-- 已登录：当前页收藏 -->
+    <section id="saveView" class="view hidden">
+      <div class="field">
+        <label class="label">标题</label>
+        <input id="inputTitle" class="jn-input" type="text" placeholder="网页标题" />
+      </div>
+      <div class="field">
+        <label class="label">网址</label>
+        <input id="inputUrl" class="jn-input" type="text" placeholder="https://" readonly />
+      </div>
+      <div class="field">
+        <label class="label">收藏到目录</label>
+        <select id="selectDir" class="jn-input"></select>
+      </div>
+      <button id="btnSave" class="jn-btn-primary" style="width: 100%; margin-top: 4px">
+        收藏当前页
+      </button>
+      <div id="saveStatus" class="status"></div>
+
+      <div class="divider"></div>
+      <div class="quick-actions">
+        <button id="btnBatch" class="jn-btn-ghost">批量收藏标签页</button>
+        <button id="btnLogout" class="jn-btn-ghost">退出</button>
+      </div>
+    </section>
+  </div>
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

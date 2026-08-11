@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>批量收藏标签页 · JNClub</title>
+  <link rel="stylesheet" href="../shared/theme.css" />
+  <link rel="stylesheet" href="batch.css" />
+</head>
+<body>
+  <div class="batch glass-card">
+    <header class="head">
+      <div class="logo">
+        <img src="../assets/icon32.png" alt="" class="logo-img" />
+        <span class="logo-text">批量收藏标签页</span>
+      </div>
+      <span id="tabCount" class="count-badge">-</span>
+    </header>
+
+    <section id="loginBar" class="login-bar hidden">
+      <span class="jn-muted">未登录，无法收藏。</span>
+      <button id="btnLogin" class="jn-btn-primary">登录 JNClub</button>
+    </section>
+
+    <section id="toolbar" class="toolbar">
+      <div class="toolbar-row">
+        <select id="selectDir" class="jn-input"></select>
+        <button id="btnSave" class="jn-btn-primary">收藏选中</button>
+      </div>
+      <div class="toolbar-row2">
+        <label class="check-label"><input type="checkbox" id="chkAll" /> 全选</label>
+        <label class="check-label"><input type="checkbox" id="chkHideChrome" checked /> 隐藏浏览器内置页</label>
+      </div>
+    </section>
+
+    <div id="status" class="status"></div>
+
+    <ul id="tabList" class="tab-list"></ul>
+  </div>
+  <script type="module" src="batch.js"></script>
+</body>
+</html>
