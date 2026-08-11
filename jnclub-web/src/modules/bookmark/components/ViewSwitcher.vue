@@ -51,11 +51,11 @@ const modes: { key: ViewMode; label: string }[] = [
   border: none;
   background: transparent;
   padding: 5px 15px;
-  font-size: 13px;
+  font-size: var(--fs-md);
   font-weight: 500;
   color: var(--text-2);
   cursor: pointer;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   white-space: nowrap;
 }
 
@@ -66,9 +66,9 @@ const modes: { key: ViewMode; label: string }[] = [
 }
 
 .switcher-btn.active {
-  background: var(--gradient-btn);
-  color: #fff;
+  background: var(--brand-soft);
+  color: var(--brand);
   font-weight: 600;
-  box-shadow: var(--shadow-1);
+  box-shadow: none;
 }
 </style>
