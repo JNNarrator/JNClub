@@ -7,8 +7,8 @@
 defineProps<{
   message?: string
   hint?: string
-  /** 图标类型：bookmark / note / 其他默认 */
-  icon?: 'bookmark' | 'note'
+  /** 图标类型：bookmark / note / file / vault */
+  icon?: 'bookmark' | 'note' | 'file' | 'vault'
   ctaLabel?: string
 }>()
 
@@ -42,6 +42,18 @@ const emit = defineEmits<{
           <line x1="16" y1="28" x2="24" y2="28" stroke="#fff" stroke-width="1.5" stroke-linecap="round" opacity=".4" />
           <line x1="16" y1="34" x2="20" y2="34" stroke="#fff" stroke-width="1.5" stroke-linecap="round" opacity=".3" />
           <circle cx="34" cy="12" r="2.5" fill="#fff" opacity="0.7" />
+        </svg>
+        <svg v-else-if="icon === 'file'" width="44" height="44" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M10 8h17l9 9v22a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2z" stroke="#fff" stroke-width="2" />
+          <path d="M26 8v10h10" stroke="#fff" stroke-width="2" stroke-linejoin="round" />
+          <rect x="18" y="23" width="12" height="8" rx="1.5" stroke="#fff" stroke-width="1.5" opacity=".7" />
+          <circle cx="38" cy="8" r="3" fill="#fff" opacity="0.7" />
+        </svg>
+        <svg v-else-if="icon === 'vault'" width="44" height="44" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M24 6l14 6v10c0 8-5.5 14-14 17-8.5-3-14-9-14-17V12l14-6z" stroke="#fff" stroke-width="2" stroke-linejoin="round" />
+          <circle cx="24" cy="21" r="4.5" stroke="#fff" stroke-width="1.8" />
+          <path d="M24 25.5V31" stroke="#fff" stroke-width="1.8" stroke-linecap="round" />
+          <circle cx="39" cy="8" r="3" fill="#fff" opacity="0.7" />
         </svg>
         <svg v-else width="44" height="44" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
           <rect x="8" y="6" width="32" height="36" rx="4" stroke="#fff" stroke-width="2" />

@@ -6,7 +6,7 @@
  */
 import { ref, computed, watch, onMounted } from 'vue'
 import {
-  NButton, NIcon, NSpin, NEmpty, NTag, NInput, useMessage, useDialog,
+  NButton, NIcon, NSpin, NTag, NInput, useMessage, useDialog,
 } from 'naive-ui'
 import {
   KeyRound, Plus, Pencil, Trash2, Copy, User, Lock, Unlock, ShieldAlert, RotateCcw,
@@ -16,6 +16,7 @@ import { useUserStore } from '../../../shared/stores/user'
 import { useDraggableSort } from '../composables/useDraggableSort'
 import PasswordEditorModal from './PasswordEditorModal.vue'
 import PasswordRevealPopover from './PasswordRevealPopover.vue'
+import EmptyState from './EmptyState.vue'
 import { copyText } from '../../../shared/utils/clipboard'
 
 const props = defineProps<{
@@ -317,7 +318,14 @@ defineExpose({ openCreate })
       </div>
 
       <NSpin :show="vaultStore.loading">
-        <NEmpty v-if="!vaultStore.loading && !vaultStore.items.length" description="这个目录还没有密码条目" class="vault-empty" />
+        <EmptyState
+          v-if="!vaultStore.loading && !vaultStore.items.length"
+          icon="vault"
+          message="密码库空空如也"
+          hint="添加第一条密码，开始你的安全清单"
+          cta-label="新建条目"
+          @create="openCreate"
+        />
         <div v-else ref="listRef" class="vault-list">
           <div v-for="item in vaultStore.items" :key="item.id" :data-id="item.id" class="vault-item jnclub-bouncy">
             <div class="item-icon"><NIcon :component="KeyRound" size="20" /></div>

@@ -6,9 +6,10 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, computed, h, nextTick } from 'vue'
 import {
-  NButton, NIcon, NSpin, NEmpty, NProgress, NTag, useMessage, useDialog,
+  NButton, NIcon, NSpin, NProgress, NTag, useMessage, useDialog,
   NDropdown, NCheckbox, NModal, NInput, NSelect, NForm, NFormItem,
 } from 'naive-ui'
+import EmptyState from './EmptyState.vue'
 import { Pause, Play, Download, Trash2, FileText, Pencil, FolderInput, Ellipsis, X } from 'lucide-vue-next'
 import { useCloudDiskStore, type DiskFile } from '../stores/clouddisk'
 import { useChunkedUpload } from '../composables/useChunkedUpload'
@@ -333,7 +334,14 @@ const fileKindColor = (name: string) => FILE_KINDS.find(k => k.re.test(name))?.c
     <!-- 文件列表 -->
     <div class="file-area">
       <NSpin :show="diskStore.loading">
-        <NEmpty v-if="!diskStore.loading && !diskStore.files.length" description="这个目录还没有文件" class="disk-empty" />
+        <EmptyState
+          v-if="!diskStore.loading && !diskStore.files.length"
+          icon="file"
+          message="这个目录还没有文件"
+          hint="上传第一个文件，开始你的云盘整理"
+          cta-label="上传文件"
+          @create="triggerSelect"
+        />
         <template v-else>
           <!-- 工具栏：多选模式切换 / 全选 -->
           <div class="disk-toolbar">
