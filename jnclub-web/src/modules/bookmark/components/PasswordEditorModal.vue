@@ -158,7 +158,7 @@ const onShowChange = (v: boolean) => emit('update:show', v)
 .pwd-modal {
   width: 640px;
   max-width: calc(100vw - 32px);
-  border-radius: 16px;
+  border-radius: var(--radius-md);
   padding: 24px;
   color: var(--text-1);
 }
@@ -179,7 +179,7 @@ const onShowChange = (v: boolean) => emit('update:show', v)
 .lock-chip {
   width: 30px;
   height: 30px;
-  border-radius: 9px;
+  border-radius: var(--radius-sm);
 }
 .form-grid {
   display: grid;
@@ -208,12 +208,12 @@ const onShowChange = (v: boolean) => emit('update:show', v)
 .length-badge {
   min-width: 34px;
   text-align: center;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   font-weight: 600;
   color: var(--glass-chip-text);
   background: var(--glass-chip-bg);
   border: 1px solid var(--glass-chip-border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 2px 8px;
 }
 .pwd-modal-foot {
@@ -222,37 +222,29 @@ const onShowChange = (v: boolean) => emit('update:show', v)
   gap: 10px;
   margin-top: 22px;
 }
-/* 玻璃输入框：8px 圆角 + 聚焦辉光 */
+/* 玻璃输入框：圆角走 token，色彩由 main.css 全局覆盖，此处只补文本/占位符色 */
 .pwd-modal :deep(.n-input) {
-  border-radius: 8px;
-  --n-color: var(--glass-input-bg) !important;
-  --n-color-focus: var(--glass-input-bg) !important;
-  --n-color-hover: var(--glass-input-bg) !important;
-  --n-border: var(--glass-input-border) !important;
-  --n-border-hover: var(--glass-chip-border) !important;
-  --n-border-focus: var(--brand) !important;
-  --n-box-shadow-focus: 0 0 0 3px var(--focus-ring) !important;
+  border-radius: var(--radius-sm);
   --n-text-color: var(--text-1) !important;
   --n-placeholder-color: var(--glass-text-placeholder) !important;
-  --n-caret-color: var(--brand) !important;
 }
 /* 滑块轨道适配 */
 .pwd-modal :deep(.n-slider-rail) {
   background: var(--glass-input-border) !important;
 }
-/* 绿色 pill 生成按钮（保持"生成"语义） */
+/* 绿色 pill 生成按钮（保持"生成"语义，渐变/阴影走 token） */
 .gen-btn {
-  background: linear-gradient(135deg, var(--state-success), #059669) !important;
-  box-shadow: 0 4px 14px -4px rgba(16, 185, 129, 0.5);
+  background: var(--gradient-success) !important;
+  box-shadow: var(--shadow-success);
 }
 .gen-btn:hover { filter: brightness(1.1); }
 /* 渐变确认按钮 */
 .confirm-btn {
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
 }
 /* ghost 取消按钮 */
 .ghost-btn {
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
 }
 
 /* 移动端：弹窗贴边、表单单列 */
