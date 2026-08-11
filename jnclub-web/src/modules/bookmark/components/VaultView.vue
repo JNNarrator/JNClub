@@ -388,12 +388,7 @@ defineExpose({ openCreate })
 <style scoped>
 .glass-panel {
   padding: 28px 24px;
-  background: var(--glass-bg-trans);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid var(--glass-border);
   border-radius: var(--radius-md);
-  box-shadow: var(--glass-shadow);
 }
 
 /* === 主密钥设置引导 === */
@@ -424,10 +419,10 @@ defineExpose({ openCreate })
   color: var(--text-2);
 }
 .guide-warn {
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--state-warning);
-  background: rgba(217, 119, 6, 0.08);
-  border: 1px solid rgba(217, 119, 6, 0.2);
+  background: var(--state-warning-soft);
+  border: 1px solid color-mix(in srgb, var(--state-warning) 25%, transparent);
   border-radius: var(--radius-sm);
   padding: 8px 12px;
   margin-bottom: 14px;
@@ -543,13 +538,15 @@ defineExpose({ openCreate })
   align-items: center;
   gap: 12px;
   padding: 12px 14px;
-  background: var(--glass-bg-trans);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid var(--glass-border);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
+  transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease), background var(--dur) var(--ease);
 }
-.vault-item:hover { border-color: var(--brand); }
+.vault-item:hover {
+  background: var(--glass-chip-bg);
+  box-shadow: inset 3px 0 0 var(--brand);
+}
 .item-icon {
   width: 38px;
   height: 38px;
@@ -602,14 +599,14 @@ defineExpose({ openCreate })
   color: var(--text-3) !important;
 }
 .health-tag.weak {
-  background: rgba(217, 119, 6, 0.12) !important;
-  color: #d97706 !important;
-  border: 1px solid rgba(217, 119, 6, 0.25) !important;
+  background: var(--state-warning-soft) !important;
+  color: var(--state-warning) !important;
+  border: 1px solid var(--state-warning-soft) !important;
 }
 .health-tag.dup {
-  background: rgba(220, 38, 38, 0.1) !important;
-  color: #dc2626 !important;
-  border: 1px solid rgba(220, 38, 38, 0.22) !important;
+  background: var(--state-error-soft) !important;
+  color: var(--state-error) !important;
+  border: 1px solid var(--state-error-soft) !important;
 }
 .item-actions {
   display: flex;
