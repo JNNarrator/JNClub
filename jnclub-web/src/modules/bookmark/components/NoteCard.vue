@@ -103,19 +103,17 @@ const handleClick = () => {
   position: relative;
   display: flex;
   flex-direction: column;
-  background: var(--glass-bg-trans);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid var(--glass-border);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
   border-radius: var(--radius-md);
   cursor: pointer;
   overflow: hidden;
-  box-shadow: var(--glass-shadow);
+  box-shadow: var(--shadow-1);
 }
 
 .note-card:hover {
   transform: translateY(-2px);
-  border-color: var(--pink-peach);
+  border-color: var(--brand);
   box-shadow: var(--shadow-card-hover);
 }
 
