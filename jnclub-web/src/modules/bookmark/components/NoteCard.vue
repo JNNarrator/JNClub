@@ -103,8 +103,8 @@ const handleClick = () => {
   position: relative;
   display: flex;
   flex-direction: column;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
+  background: var(--pink-white);
+  border: 1px solid color-mix(in srgb, var(--pink-peach) 40%, transparent);
   border-radius: var(--radius-md);
   cursor: pointer;
   overflow: hidden;
