@@ -7,7 +7,8 @@ import { NButton, NIcon, NSteps, NStep, NAlert } from 'naive-ui'
 import { Download, MousePointerClick, ListChecks, MousePointer, ShieldCheck, Puzzle, ChevronRight } from 'lucide-vue-next'
 
 const EXT_VERSION = '1.0.0'
-const zipUrl = `${import.meta.env.BASE_URL}extension/jnclub-extension-v${EXT_VERSION}.zip`
+// zip 为 public/extension.zip 单文件：不用 extension/ 目录，避免与 SPA 路由 /extension 冲突（nginx 403）
+const zipUrl = `${import.meta.env.BASE_URL}extension.zip`
 
 const features = [
   { icon: MousePointerClick, title: '当前页一键收藏', desc: '点工具栏图标，自动带出当前页标题/网址，选目录即收藏' },
