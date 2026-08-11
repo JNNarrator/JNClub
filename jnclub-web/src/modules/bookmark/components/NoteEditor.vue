@@ -14,6 +14,7 @@ import 'md-editor-v3/lib/style.css'
 import 'md-editor-v3/lib/preview.css'
 import axios from 'axios'
 import type { Note } from '../stores/note'
+import TagPicker from './TagPicker.vue'
 
 /** md-editor-v3 实例 id（MdEditor 与 MdCatalog 通过它联动） */
 const EDITOR_ID = 'jnclub-note-editor'
@@ -42,6 +43,11 @@ const title = ref('')
 const saving = ref(false)
 const autoSaveTimer = ref<ReturnType<typeof setTimeout> | null>(null)
 const hasUnsavedChanges = ref(false)
+
+/** 便签标签：TagPicker + saveTrigger 在保存成功后持久化（新建时 refId 为 null，保存后 props.note.id 回填真实值） */
+const tagPickerRef = ref<InstanceType<typeof TagPicker> | null>(null)
+const saveTick = ref(0)
+const noteRefId = computed(() => (props.note && props.note.id !== 0 ? props.note.id : null))
 
 /** 目录大纲数据（来自 MdEditor / MdPreview 的 onGetCatalog 回调） */
 const catalogList = ref<HeadList[]>([])
@@ -265,6 +271,8 @@ const handleSave = async (silent = false) => {
         lastSavedAt.value = formatTime(new Date())
         if (!silent) message.success('已保存')
         emit('saved', res.data.data as Note)
+        // 新建：emit 同步回填 props.note.id 后，触发标签持久化
+        saveTick.value++
       } else {
         saveState.value = 'dirty'
         message.error(res.data.message || '创建失败')
@@ -280,6 +288,7 @@ const handleSave = async (silent = false) => {
       lastSavedAt.value = formatTime(new Date())
       if (!silent) message.success('已保存')
       emit('saved', { ...props.note, title: title.value, content: content.value } as Note)
+      saveTick.value++
     }
   } catch (e: any) {
     saveState.value = 'dirty'
@@ -392,6 +401,17 @@ defineExpose({ hasUnsavedChanges })
       >
         <NIcon :component="syncIcon" size="17" />
       </NButton>
+    </div>
+
+    <!-- 标签行（编辑态）：保存时随便签一并持久化 -->
+    <div v-if="!readonlyMode" class="editor-tags">
+      <span class="tags-label">标签</span>
+      <TagPicker
+        ref="tagPickerRef"
+        ref-type="note"
+        :ref-id="noteRefId"
+        :save-trigger="saveTick"
+      />
     </div>
 
     <div class="editor-body" :class="{ flash: editorFlash }">
@@ -545,6 +565,25 @@ defineExpose({ hasUnsavedChanges })
 }
 :deep(.editor-title-input .n-input__placeholder) {
   color: var(--text-4);
+}
+
+/* 标签行 */
+.editor-tags {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  border-bottom: 1px solid var(--glass-border);
+  flex-shrink: 0;
+}
+.tags-label {
+  font-size: 12px;
+  color: var(--text-3);
+  flex-shrink: 0;
+}
+.editor-tags .tag-picker {
+  flex: 1;
+  min-width: 0;
 }
 
 /* 编辑/只读 Toggle 开关 */
@@ -719,18 +758,6 @@ defineExpose({ hasUnsavedChanges })
   background: transparent !important;
   padding: 16px 22px 40px !important;
   min-height: 100%;
-}
-
-/* 预览区为空时的占位提示 */
-:deep(.md-editor-preview:empty::before) {
-  content: '📄 预览区域';
-  color: var(--text-4);
-  font-size: 14px;
-  letter-spacing: 2px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 160px;
 }
 
 /* 只读（MdPreview）模式下不显示工具栏 */

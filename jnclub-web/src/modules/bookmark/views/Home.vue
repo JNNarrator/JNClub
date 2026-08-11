@@ -28,7 +28,7 @@ import SearchDrawer from '../components/SearchDrawer.vue'
 import type { ViewMode } from '../components/ViewSwitcher.vue'
 import axios from 'axios'
 import { useUserPreferences } from '../../../shared/composables/useUserPreferences'
-import { fetchTags, type TagItem } from '../composables/tags'
+import { fetchTags, setRefTags, type TagItem } from '../composables/tags'
 
 const router = useRouter()
 const route = useRoute()
@@ -85,6 +85,7 @@ const creating = ref(false)
 const editingBookmarkId = ref<number | null>(null)
 const createBookmarkForm = ref({ title: '', url: '', directoryId: null as number | null })
 const editTagPickerRef = ref<InstanceType<typeof TagPicker> | null>(null)
+const createTagPickerRef = ref<InstanceType<typeof TagPicker> | null>(null)
 
 // URL 预览
 const previewIcon = ref('')
@@ -350,12 +351,20 @@ const handleCreate = async () => {
       })
       message.success('保存成功')
     } else {
-      await axios.post('/api/bookmarks', {
+      const created = await axios.post('/api/bookmarks', {
         title: createBookmarkForm.value.title.trim(),
         url: createBookmarkForm.value.url.trim(),
         directoryId: createBookmarkForm.value.directoryId,
       })
       message.success('收藏成功')
+      // 创建态标签持久化（refId 为空时由 TagPicker 收集选中名，创建成功后按新 id 写入）
+      if (created.data?.code === 200 && created.data?.data?.id) {
+        const names = createTagPickerRef.value?.getSelectedNames() ?? []
+        if (names.length) {
+          await setRefTags('bookmark', created.data.data.id, names)
+          await loadTags()
+        }
+      }
     }
     // 编辑态保存标签
     if (editingBookmarkId.value !== null) {
@@ -443,10 +452,6 @@ const handleCreateVault = () => {
 // ========== FAB 标签 ==========
 
 const fabLabel = computed(() => props.activeModule === 'bookmarks' ? '添加收藏' : props.activeModule === 'notes' ? '新建便签' : props.activeModule === 'files' ? '上传文件' : '新建密码')
-
-const handleHelp = () => {
-  window.open('https://github.com/your-repo/jnclub', '_blank')
-}
 
 // ========== 空状态文案 ==========
 
@@ -638,7 +643,6 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
     <FloatingActions
       :add-label="fabLabel"
       @add="props.activeModule === 'bookmarks' ? handleOpenCreate() : props.activeModule === 'notes' ? handleCreateNote() : props.activeModule === 'files' ? handleFilesUpload() : handleCreateVault()"
-      @help="handleHelp"
     />
 
     <!-- 全局搜索抽屉 -->
@@ -667,6 +671,9 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
         </NFormItem>
         <NFormItem v-if="editingBookmarkId !== null" label="标签" path="tags">
           <TagPicker ref="editTagPickerRef" ref-type="bookmark" :ref-id="editingBookmarkId" :save-trigger="tagSaveTrigger" />
+        </NFormItem>
+        <NFormItem v-else label="标签" path="tags">
+          <TagPicker ref="createTagPickerRef" ref-type="bookmark" :ref-id="null" />
         </NFormItem>
       </NForm>
       <template #action>

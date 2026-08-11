@@ -17,7 +17,7 @@ const router = useRouter()
 const message = useMessage()
 const dialog = useDialog()
 
-type RecycleType = 'bookmark' | 'note' | 'file'
+type RecycleType = 'bookmark' | 'note' | 'file' | 'vault'
 const activeType = ref<RecycleType>('bookmark')
 const items = ref<any[]>([])
 const loading = ref(false)
@@ -26,6 +26,7 @@ const typeLabels: Record<RecycleType, string> = {
   bookmark: '收藏',
   note: '便签',
   file: '云盘文件',
+  vault: '密码',
 }
 
 const fetchItems = async () => {
@@ -45,12 +46,14 @@ const onTabChange = () => fetchItems()
 const itemTitle = (item: any) => {
   if (activeType.value === 'bookmark') return item.title || item.url
   if (activeType.value === 'note') return item.title || '无标题'
+  if (activeType.value === 'vault') return item.name || '未命名'
   return item.originalName
 }
 
 const itemSub = (item: any) => {
   if (activeType.value === 'bookmark') return item.url
   if (activeType.value === 'note') return (item.content || '').replace(/[#*`\[\]()!>_~\-]/g, '').trim().slice(0, 60)
+  if (activeType.value === 'vault') return item.username || '--'
   return `${item.size ? (item.size / 1024 / 1024).toFixed(1) + ' MB' : ''}`
 }
 
@@ -134,6 +137,7 @@ onMounted(fetchItems)
         <NTabPane name="bookmark" tab="收藏" />
         <NTabPane name="note" tab="便签" />
         <NTabPane name="file" tab="云盘文件" />
+        <NTabPane name="vault" tab="密码" />
       </NTabs>
 
       <NSpin :show="loading" class="recycle-spin">

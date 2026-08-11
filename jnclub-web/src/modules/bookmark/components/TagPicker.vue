@@ -29,6 +29,9 @@ const selectedNames = () =>
     .map(id => options.value.find(o => o.value === id)?.label)
     .filter((n): n is string => !!n)
 
+/** 供父组件在创建态（refId 为空）读取已选标签名 */
+const getSelectedNames = () => selectedNames()
+
 const loadAll = async () => {
   allTags.value = await fetchTags(props.refType)
   options.value = allTags.value.map(t => ({ label: t.name, value: t.id }))
@@ -58,7 +61,7 @@ onMounted(async () => {
   await Promise.all([loadAll(), loadSelected()])
 })
 
-defineExpose({ save, loadSelected })
+defineExpose({ save, loadSelected, getSelectedNames })
 </script>
 
 <template>

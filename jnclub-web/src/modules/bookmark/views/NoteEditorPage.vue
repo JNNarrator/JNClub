@@ -6,9 +6,10 @@
  */
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { NSpin, NEmpty, NButton, useMessage } from 'naive-ui'
+import { NSpin, NEmpty, NButton, NSelect, useMessage } from 'naive-ui'
 import NoteEditor from '../components/NoteEditor.vue'
 import { useNoteStore } from '../stores/note'
+import { useDirectoryStore, type Directory } from '../stores/directory'
 import type { Note } from '../stores/note'
 
 const props = defineProps<{
@@ -19,11 +20,32 @@ const route = useRoute()
 const router = useRouter()
 const message = useMessage()
 const noteStore = useNoteStore()
+const directoryStore = useDirectoryStore()
 
 const note = ref<Note | null>(null)
 const loading = ref(false)
 
 const isNew = computed(() => route.name === 'note-create')
+
+/** 新建便签缺目录时的选择器：拉取便签目录（type=2）并展平为下拉选项 */
+const dirOptions = ref<{ label: string; value: number }[]>([])
+const flattenDirs = (list: Directory[], depth = 0): { label: string; value: number }[] => {
+  const out: { label: string; value: number }[] = []
+  for (const d of list) {
+    out.push({ label: `${'　'.repeat(depth)}${d.name}`, value: d.id })
+    if (d.children?.length) out.push(...flattenDirs(d.children, depth + 1))
+  }
+  return out
+}
+const loadDirOptions = async () => {
+  await directoryStore.fetchDirectories(2)
+  dirOptions.value = flattenDirs(directoryStore.directories)
+}
+
+/** 选择目录 → 回填 note.directoryId（保存时 POST 携带） */
+const onPickDirectory = (id: number) => {
+  if (note.value) note.value.directoryId = id
+}
 
 onMounted(async () => {
   if (isNew.value) {
@@ -38,7 +60,10 @@ onMounted(async () => {
       createTime: '',
       updateTime: '',
     } as Note
-    if (!directoryId) message.warning('未指定所属目录，保存可能失败')
+    if (!directoryId) {
+      message.warning('未指定所属目录，请选择后保存')
+      await loadDirOptions()
+    }
     return
   }
   // 编辑：拉取最新内容
@@ -81,6 +106,18 @@ const handleDeleted = () => {
 
 <template>
   <div class="note-editor-page">
+    <div v-if="isNew && note && !note.directoryId" class="dir-picker-bar">
+      <span class="dir-picker-label">保存到目录</span>
+      <NSelect
+        :value="note.directoryId || null"
+        :options="dirOptions"
+        placeholder="选择所属目录"
+        clearable
+        size="small"
+        class="dir-picker-select"
+        @update:value="(v: number | null) => { if (v) onPickDirectory(v) }"
+      />
+    </div>
     <NSpin :show="loading" class="page-spin">
       <NoteEditor
         v-if="note"
@@ -124,5 +161,22 @@ const handleDeleted = () => {
   align-items: center;
   justify-content: center;
   gap: 16px;
+}
+/* 新建便签缺目录时的目录选择条 */
+.dir-picker-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--glass-border);
+  flex-shrink: 0;
+}
+.dir-picker-label {
+  font-size: 12px;
+  color: var(--text-3);
+  flex-shrink: 0;
+}
+.dir-picker-select {
+  max-width: 280px;
 }
 </style>

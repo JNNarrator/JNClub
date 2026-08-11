@@ -7,7 +7,7 @@
  */
 import { h } from 'vue'
 import { NButton, NIcon, NDropdown, NEllipsis, NTag, useMessage } from 'naive-ui'
-import { Pencil, Trash2, Ellipsis, Clock, Eye } from 'lucide-vue-next'
+import { Pencil, Trash2, Ellipsis, Clock } from 'lucide-vue-next'
 import axios from 'axios'
 import { formatRelativeTime } from '../composables/formatDate'
 
@@ -97,10 +97,6 @@ const handleDropdown = (key: string) => {
       <span class="meta-time">
         <NIcon :component="Clock" size="12" />
         {{ formatRelativeTime(bookmark.createTime) }}
-      </span>
-      <span class="meta-views">
-        <NIcon :component="Eye" size="12" />
-        0
       </span>
     </div>
 
@@ -193,8 +189,7 @@ const handleDropdown = (key: string) => {
   font-size: 12px;
 }
 
-.meta-time,
-.meta-views {
+.meta-time {
   display: flex;
   align-items: center;
   gap: 4px;
