@@ -271,6 +271,15 @@ const handleRowMenu = (key: string, file: DiskFile) => {
 
 watch(() => props.directoryId, () => { loadDiskDirs() })
 onMounted(loadDiskDirs)
+
+/** 文件类型彩色图标映射（图片/文档/压缩包/音频，其余用中性色） */
+const FILE_KINDS = [
+  { re: /\.(png|jpe?g|gif|webp|svg|avif)$/i, color: '#7EB8E8' },
+  { re: /\.(docx?|pdf|txt|md|pptx?|xlsx?)$/i, color: '#F472B6' },
+  { re: /\.(zip|rar|7z|tar|gz)$/i, color: '#F3C470' },
+  { re: /\.(mp3|wav|flac|aac|ogg|m4a)$/i, color: '#7AC686' },
+] as const
+const fileKindColor = (name: string) => FILE_KINDS.find(k => k.re.test(name))?.color ?? 'var(--text-3)'
 </script>
 
 <template>
@@ -348,7 +357,7 @@ onMounted(loadDiskDirs)
                 @update:checked="() => toggleSelect(file.id)"
                 class="file-check"
               />
-              <div class="file-icon"><NIcon :component="FileText" size="20" /></div>
+              <div class="file-icon"><NIcon :component="FileText" size="20" :style="{ color: fileKindColor(file.originalName) }" /></div>
               <div class="file-main">
                 <div class="file-name" :title="file.originalName">{{ file.originalName }}</div>
                 <div class="file-meta">{{ diskStore.formatSize(file.size) }}</div>
@@ -536,7 +545,7 @@ onMounted(loadDiskDirs)
   background: var(--glass-bg-trans);
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid var(--brand);
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-sm);
   box-shadow: var(--glass-shadow);
 }
