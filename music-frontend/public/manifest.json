@@ -1,0 +1,54 @@
+{
+  "name": "JNMusic · 夜猫电台",
+  "short_name": "JNMusic",
+  "description": "一个简洁优雅的在线音乐播放器",
+    "display": "standalone",
+    "display_override": ["window-controls-overlay", "standalone"],
+    "id": "/music/",
+    "start_url": ".",
+  "scope": ".",
+  "background_color": "#100c11",
+  "theme_color": "#f2b134",
+  "orientation": "any",
+ "icons": [
+    {
+      "src": "./icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "./screenshot-narrow.png",
+      "sizes": "390x844",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "JNMusic 歌单列表 - 精选曲目，点开即播"
+    },
+    {
+      "src": "./screenshot-wide.png",
+      "sizes": "1280x800",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "JNMusic 桌面/车机视图 - 完整歌单与底部播放器"
+    }
+  ],
+  "categories": ["music", "entertainment"],
+  "lang": "zh-CN",
+  "dir": "ltr",
+  "prefer_related_applications": false
+,
+  "protocol_handlers": [
+    {
+      "protocol": "web+music",
+      "url": "/music/?play=%s"
+    }
+  ]
+}

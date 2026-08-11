@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
 import { NLayoutSider, NIcon } from 'naive-ui'
-import { Bookmark, StickyNote, Cloud, Trash2, KeyRound, Heart } from 'lucide-vue-next'
+import { Bookmark, StickyNote, Cloud, Trash2, KeyRound, Heart, Music } from 'lucide-vue-next'
 import { useUserPreferences } from '../composables/useUserPreferences'
 import NavItem from '../../modules/bookmark/components/NavItem.vue'
 import { useDraggableSort } from '../../modules/bookmark/composables/useDraggableSort'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 
 const props = defineProps<{
   activeModule: 'bookmarks' | 'notes' | 'files' | 'vault'
@@ -19,6 +19,7 @@ const emit = defineEmits<{
 }>()
 
 const router = useRouter()
+const route = useRoute()
 
 const prefs = useUserPreferences()
 
@@ -102,6 +103,14 @@ onMounted(() => { initNavSort() })
           :icon="item.icon" :label="item.label"
           :active="activeModule === item.key" :collapsed="props.collapsed ?? false"
           @click="emit('module-change', item.key)"
+        />
+      </div>
+      <!-- 音乐入口（固定，不参与拖拽）：iframe 内嵌播放器 -->
+      <div class="nav-item-wrap">
+        <NavItem
+          :icon="Music" label="音乐"
+          :active="route.name === 'music'" :collapsed="props.collapsed ?? false"
+          @click="router.push('/music')"
         />
       </div>
       <!-- 回收站入口（固定，不参与拖拽） -->

@@ -21,6 +21,7 @@
     <modules>
         <module>jnclub-common</module>
         <module>jnclub-module-bookmark</module>
+        <module>jnclub-module-music</module>
         <module>jnclub-gateway</module>
     </modules>
 
@@ -42,6 +43,11 @@
             <dependency>
                 <groupId>com.jnclub</groupId>
                 <artifactId>jnclub-module-bookmark</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.jnclub</groupId>
+                <artifactId>jnclub-module-music</artifactId>
                 <version>${project.version}</version>
             </dependency>
 

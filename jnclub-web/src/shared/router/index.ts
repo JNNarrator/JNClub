@@ -41,6 +41,12 @@ const router = createRouter({
       name: 'recycle',
       component: () => import('../../modules/bookmark/views/RecycleView.vue'),
     },
+    // 音乐播放器内嵌页（iframe /music/，登录后经侧边栏入口进入）
+    {
+      path: '/music',
+      name: 'music',
+      component: () => import('../views/Music.vue'),
+    },
   ],
 })
 

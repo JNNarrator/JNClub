@@ -1,6 +1,6 @@
 # JNClub - 个人工作台服务
 
-JNClub 是一个前后端分离的个人工作台 Web 服务，包含「收藏夹」「便签」「云盘」三大模块。
+JNClub 是一个前后端分离的个人工作台 Web 服务，包含「收藏夹」「便签」「云盘」三大模块，并内嵌「音乐」模块（JNMUSIC 融合，对外路径 `/music/`）。
 
 ## 技术栈
 
@@ -26,10 +26,14 @@ JNClub/
 ├── pom.xml                    # 父 POM
 ├── jnclub-common/             # 公共模块（SSO、异常、CORS、统一返回 R）
 ├── jnclub-module-bookmark/    # 业务模块（目录/收藏/便签/云盘/上传）
+├── jnclub-module-music/       # 音乐模块（JNMUSIC 并入：/music/api 匿名 API，music_* 表）
 ├── jnclub-gateway/            # API 网关（启动入口，端口 19005）
-├── jnclub-web/                # 前端项目（Vue3，base /jnclub/）
+├── jnclub-web/                # 主前端项目（Vue3，base /jnclub/，侧边栏含音乐入口）
+├── music-frontend/            # 音乐播放器前端（Vue3，base /music/，nginx 静态托管）
 └── docs/                      # 文档（init.sql / 部署 / 设计）
 ```
+
+> **音乐模块**：后端为 `jnclub-module-music`，对外 URL 保持 `/music/api/v1/...`（内部由过滤器重写为 `/api/v1/...`），接口匿名访问（按 `X-Device-Id` 隔离用户数据）；数据存放于 `jnclub` 库 `music_*` 表（`music_track` / `music_lyrics_cache` / `music_user_favorite` / `music_play_history` / `music_search_history` / `music_play_queue`），建表脚本见 `jnclub-module-music/src/main/resources/schema.sql`。音乐依赖蓝奏云（`lanzou.client.*`）与 dufs（`jnmusic.file-server.*`）配置，见 `jnclub-module-music/src/main/resources/application.properties`。
 
 ## 快速开始
 

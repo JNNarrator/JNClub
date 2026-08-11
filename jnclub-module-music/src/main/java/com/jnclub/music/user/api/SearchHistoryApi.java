@@ -1,0 +1,33 @@
+package com.jnclub.music.user.api;
+
+import com.jnclub.music.common.ApiResponse;
+import com.jnclub.music.user.dto.SearchKeywordDTO;
+import com.jnclub.music.user.dto.SearchKeywordRequest;
+import java.util.List;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+
+/**
+ * P1 搜索历史接口定义。
+ */
+@RequestMapping("/api/v1/search-history")
+public interface SearchHistoryApi {
+
+    @GetMapping
+    ApiResponse<List<SearchKeywordDTO>> listSearchHistory(
+            @RequestHeader(value = "X-Device-Id", required = false) String deviceId,
+            @RequestParam(value = "limit", defaultValue = "20") Integer limit);
+
+    @PostMapping
+    ApiResponse<Void> recordKeyword(
+            @RequestHeader(value = "X-Device-Id", required = false) String deviceId,
+            @RequestBody SearchKeywordRequest request);
+
+    @DeleteMapping
+    ApiResponse<Void> clearSearchHistory(@RequestHeader(value = "X-Device-Id", required = false) String deviceId);
+}

@@ -1,0 +1,108 @@
+package com.jnclub.music.common.exception;
+
+import com.jnclub.music.common.ApiError;
+import com.jnclub.music.common.ApiResponse;
+import com.jnclub.music.common.TraceIdContext;
+import com.jnclub.music.common.enums.ErrorCode;
+import jakarta.servlet.http.HttpServletRequest;
+import java.util.List;
+import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.validation.BindException;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.server.ResponseStatusException;
+
+// 类名重命名 + basePackages 限定 + @Order 优先：避免与 com.jnclub.common.exception.GlobalExceptionHandler 重名冲突、互相劫持，
+// 并确保音乐 Controller 抛出的异常优先由本处理器响应（返回音乐统一响应格式 {success,error,traceId}）
+@RestControllerAdvice(basePackages = "com.jnclub.music")
+@org.springframework.core.annotation.Order(1)
+public class MusicGlobalExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(MusicGlobalExceptionHandler.class);
+
+    @ExceptionHandler({MethodArgumentNotValidException.class, BindException.class})
+    public ResponseEntity<ApiResponse<Void>> handleValidationException(HttpServletRequest request, Exception ex) {
+        String message = "参数校验失败";
+        if (ex instanceof MethodArgumentNotValidException) {
+            MethodArgumentNotValidException methodArgumentNotValidException = (MethodArgumentNotValidException) ex;
+            message = formatFieldErrors(methodArgumentNotValidException.getBindingResult().getFieldErrors());
+        } else if (ex instanceof BindException) {
+            BindException bindException = (BindException) ex;
+            message = formatFieldErrors(bindException.getFieldErrors());
+        }
+        log.warn("参数校验失败 traceId={} path={} message={}", TraceIdContext.getTraceId(), request.getRequestURI(), message);
+        return buildResponse(ErrorCode.INVALID_PARAMETER, message);
+    }
+
+    @ExceptionHandler({MissingServletRequestParameterException.class, MethodArgumentTypeMismatchException.class})
+    public ResponseEntity<ApiResponse<Void>> handleRequestParameterException(HttpServletRequest request, Exception ex) {
+        String message = "请求参数不合法";
+        if (ex instanceof MissingServletRequestParameterException parameterException) {
+            message = "缺少必填参数: " + parameterException.getParameterName();
+        } else if (ex instanceof MethodArgumentTypeMismatchException typeMismatchException) {
+            message = "参数类型不合法: " + typeMismatchException.getName();
+        }
+        log.warn("请求参数异常 traceId={} path={} message={}", TraceIdContext.getTraceId(), request.getRequestURI(), message);
+        return buildResponse(ErrorCode.INVALID_PARAMETER, message);
+    }
+
+    @ExceptionHandler({IllegalArgumentException.class, BusinessException.class})
+    public ResponseEntity<ApiResponse<Void>> handleBusinessException(HttpServletRequest request, Exception ex) {
+        if (ex instanceof BusinessException) {
+            BusinessException businessException = (BusinessException) ex;
+            log.warn("业务异常 traceId={} path={} message={}", TraceIdContext.getTraceId(), request.getRequestURI(), ex.getMessage());
+            return buildResponse(businessException.getErrorCode(), ex.getMessage());
+        }
+        log.warn("参数异常 traceId={} path={} message={}", TraceIdContext.getTraceId(), request.getRequestURI(), ex.getMessage());
+        return buildResponse(ErrorCode.INVALID_PARAMETER, ex.getMessage());
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ApiResponse<Void>> handleGeneralException(HttpServletRequest request, Exception ex) {
+        log.error("未预期异常 traceId={} path={}", TraceIdContext.getTraceId(), request.getRequestURI(), ex);
+        return buildResponse(ErrorCode.INTERNAL_ERROR, "服务内部错误");
+    }
+
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<ApiResponse<Void>> handleResponseStatusException(HttpServletRequest request, ResponseStatusException ex) {
+        ErrorCode errorCode = ErrorCode.INVALID_PARAMETER;
+        if (ex.getStatusCode() != null) {
+            errorCode = mapStatusCode(ex.getStatusCode().value());
+        }
+        log.warn("状态异常 traceId={} path={} status={} message={}", TraceIdContext.getTraceId(), request.getRequestURI(), ex.getStatusCode(), ex.getReason());
+        return buildResponse(errorCode, ex.getReason() != null ? ex.getReason() : errorCode.getMessage());
+    }
+
+    private ErrorCode mapStatusCode(int statusCode) {
+        if (statusCode == 401) {
+            return ErrorCode.INVALID_PARAMETER;
+        }
+        return ErrorCode.INTERNAL_ERROR;
+    }
+
+    private ResponseEntity<ApiResponse<Void>> buildResponse(ErrorCode errorCode, String message) {
+        ApiResponse<Void> response = ApiResponse.<Void>builder()
+                .success(false)
+                .error(ApiError.builder().code(errorCode.name()).message(message).build())
+                .traceId(TraceIdContext.getTraceId())
+                .build();
+        return ResponseEntity.status(errorCode.getHttpStatus()).body(response);
+    }
+
+    private String formatFieldErrors(List<FieldError> fieldErrors) {
+        if (fieldErrors.isEmpty()) {
+            return "参数校验失败";
+        }
+        return fieldErrors.stream()
+                .map(fieldError -> fieldError.getField() + ": " + fieldError.getDefaultMessage())
+                .collect(Collectors.joining("; "));
+    }
+}

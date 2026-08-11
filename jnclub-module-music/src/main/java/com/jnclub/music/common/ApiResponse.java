@@ -1,0 +1,32 @@
+package com.jnclub.music.common;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+/**
+ * 统一接口响应体，成功时返回 data，失败时返回 error。
+ */
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class ApiResponse<T> {
+
+    private Boolean success;
+
+    private T data;
+
+    private ApiError error;
+
+    private String traceId;
+
+    public static <T> ApiResponse<T> success(T data) {
+        return ApiResponse.<T>builder()
+                .success(Boolean.TRUE)
+                .data(data)
+                .traceId(TraceIdContext.getTraceId())
+                .build();
+    }
+}

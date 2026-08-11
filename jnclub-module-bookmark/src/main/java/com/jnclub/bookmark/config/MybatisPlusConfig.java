@@ -18,7 +18,7 @@ import javax.sql.DataSource;
  * MyBatis-Plus 配置 - 手动创建 SqlSessionFactory 解决 Spring Boot 4.0.0 兼容性问题
  */
 @Configuration
-@MapperScan("com.jnclub.bookmark.mapper")
+@MapperScan("com.jnclub.**.mapper")
 public class MybatisPlusConfig {
 
     private final MetaObjectHandler metaObjectHandler;

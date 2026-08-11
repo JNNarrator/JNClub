@@ -21,6 +21,12 @@
             <artifactId>jnclub-module-bookmark</artifactId>
         </dependency>
 
+        <!-- 音乐模块 -->
+        <dependency>
+            <groupId>com.jnclub</groupId>
+            <artifactId>jnclub-module-music</artifactId>
+        </dependency>
+
         <!-- Spring Boot Actuator -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
