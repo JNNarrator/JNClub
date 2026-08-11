@@ -121,15 +121,17 @@ const handleDropdown = (key: string) => {
   padding: 10px 16px;
   border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: background var(--dur) var(--ease);
+  transition: background var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
 }
 
 .collection-row:hover {
   background: var(--glass-chip-bg);
+  box-shadow: inset 3px 0 0 var(--brand);
 }
 
 .collection-row:active {
   background: var(--brand-soft);
+  box-shadow: inset 3px 0 0 var(--brand);
 }
 
 /* Favicon */
@@ -145,7 +147,7 @@ const handleDropdown = (key: string) => {
 .favicon-img {
   width: 16px;
   height: 16px;
-  border-radius: 2px;
+  border-radius: var(--radius-xs);
 }
 
 .favicon-placeholder {

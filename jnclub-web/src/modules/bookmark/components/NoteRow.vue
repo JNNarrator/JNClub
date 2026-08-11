@@ -98,9 +98,12 @@ const handleClick = () => {
   padding: 12px 16px;
   border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: background var(--dur) var(--ease);
+  transition: background var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
 }
-.note-row:hover { background: var(--glass-chip-bg); }
+.note-row:hover {
+  background: var(--glass-chip-bg);
+  box-shadow: inset 3px 0 0 var(--brand);
+}
 
 /* 图标 */
 .row-icon {
