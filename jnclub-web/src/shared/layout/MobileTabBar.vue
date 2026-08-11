@@ -85,6 +85,7 @@ const handleTab = (tab: TabDef) => {
   cursor: pointer;
   color: var(--text-3);
   -webkit-tap-highlight-color: transparent;
+  position: relative;
 }
 
 .tab-label {
@@ -98,5 +99,22 @@ const handleTab = (tab: TabDef) => {
 }
 .tab-active :deep(.n-icon) {
   filter: drop-shadow(0 0 6px var(--focus-ring));
+}
+
+/* 激活指示条 */
+.tab-item.tab-active::after {
+  content: '';
+  position: absolute;
+  bottom: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 16px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--brand);
+  transition: width var(--dur) var(--ease);
+}
+.tab-item.tab-active:hover::after {
+  width: 22px;
 }
 </style>

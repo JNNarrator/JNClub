@@ -76,6 +76,15 @@ html, body {
   to   { opacity: 1; transform: translateY(0); }
 }
 
+/* 拖拽落定回弹（!important 压过 scoped stagger，sorting 抑制态不受影响） */
+@keyframes jnclub-dropSettle {
+  0%   { transform: scale(0.97); }
+  100% { transform: scale(1); }
+}
+.drop-settle {
+  animation: jnclub-dropSettle 0.28s var(--ease-bouncy) !important;
+}
+
 .fade-in-up {
   animation: jnclub-fadeInUp 520ms var(--ease-bouncy) both;
 }

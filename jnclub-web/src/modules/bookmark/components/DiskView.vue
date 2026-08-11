@@ -384,21 +384,23 @@ const fileKindColor = (name: string) => FILE_KINDS.find(k => k.re.test(name))?.c
           </div>
 
           <!-- 批量操作条 -->
-          <div v-if="batchMode && selectedIds.length" class="batch-bar">
-            <span class="batch-info">已选 {{ selectedIds.length }} 个文件</span>
-            <NButton size="small" type="primary" secondary @click="openBatchMove">
-              <template #icon><NIcon :component="FolderInput" size="14" /></template>
-              移动到
-            </NButton>
-            <NButton size="small" type="error" secondary @click="handleBatchDelete">
-              <template #icon><NIcon :component="Trash2" size="14" /></template>
-              删除
-            </NButton>
-            <NButton size="small" quaternary @click="toggleBatchMode(false)">
-              <template #icon><NIcon :component="X" size="14" /></template>
-              取消
-            </NButton>
-          </div>
+          <Transition name="batch-up">
+            <div v-if="batchMode && selectedIds.length" class="batch-bar">
+              <span class="batch-info">已选 {{ selectedIds.length }} 个文件</span>
+              <NButton size="small" type="primary" secondary @click="openBatchMove">
+                <template #icon><NIcon :component="FolderInput" size="14" /></template>
+                移动到
+              </NButton>
+              <NButton size="small" type="error" secondary @click="handleBatchDelete">
+                <template #icon><NIcon :component="Trash2" size="14" /></template>
+                删除
+              </NButton>
+              <NButton size="small" quaternary @click="toggleBatchMode(false)">
+                <template #icon><NIcon :component="X" size="14" /></template>
+                取消
+              </NButton>
+            </div>
+          </Transition>
         </template>
       </NSpin>
     </div>
@@ -561,5 +563,20 @@ const fileKindColor = (name: string) => FILE_KINDS.find(k => k.re.test(name))?.c
   flex: 1;
   font-size: 13px;
   color: var(--text-2);
+}
+
+/* 批量条入场过渡 */
+.batch-up-enter-active {
+  transition: opacity 0.22s var(--ease), transform 0.22s var(--ease-bouncy);
+}
+.batch-up-enter-from {
+  opacity: 0;
+  transform: translateY(14px);
+}
+.batch-up-leave-active {
+  transition: opacity 0.15s var(--ease);
+}
+.batch-up-leave-to {
+  opacity: 0;
 }
 </style>

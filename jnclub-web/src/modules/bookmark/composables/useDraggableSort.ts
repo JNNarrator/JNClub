@@ -34,6 +34,14 @@ export function useDraggableSort(
       },
       onEnd(evt) {
         containerRef.value?.classList.remove('sorting')
+        // 拖拽落定回弹动画（重播：先移除再强制重排后添加）
+        if (evt.item) {
+          const el = evt.item as HTMLElement
+          el.classList.remove('drop-settle')
+          void el.offsetWidth
+          el.classList.add('drop-settle')
+          el.addEventListener('animationend', () => el.classList.remove('drop-settle'), { once: true })
+        }
         if (evt.oldIndex === undefined || evt.newIndex === undefined) return
         // 顺序未变则跳过
         if (evt.oldIndex === evt.newIndex) return
