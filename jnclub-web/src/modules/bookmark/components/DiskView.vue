@@ -423,7 +423,7 @@ onMounted(loadDiskDirs)
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
   border: 1px solid var(--glass-border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
   margin-bottom: 18px;
   display: flex;
   flex-direction: column;
@@ -479,13 +479,12 @@ onMounted(loadDiskDirs)
   align-items: center;
   gap: 12px;
   padding: 10px 14px;
-  background: var(--glass-bg-trans);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid var(--glass-border);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
+  transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease), background var(--dur) var(--ease);
 }
-.file-item:hover { border-color: var(--brand); }
+.file-item:hover { border-color: var(--brand); box-shadow: var(--shadow-card-hover); }
 .file-item-selected {
   border-color: var(--brand);
   background: var(--brand-soft);
@@ -494,7 +493,7 @@ onMounted(loadDiskDirs)
 .file-icon {
   width: 36px;
   height: 36px;
-  border-radius: 8px;
+  border-radius: var(--radius-xs);
   background: var(--glass-chip-bg);
   display: flex;
   align-items: center;
