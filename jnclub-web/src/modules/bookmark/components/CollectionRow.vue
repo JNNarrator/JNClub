@@ -156,7 +156,7 @@ const handleDropdown = (key: string) => {
   justify-content: center;
 }
 
-/* 标题区 — 链接蓝 */
+/* 标题区 — 内容色（与卡片视图标题一致） */
 .row-title {
   flex: 1;
   min-width: 0;
@@ -164,8 +164,8 @@ const handleDropdown = (key: string) => {
 }
 
 .title-link {
-  color: var(--link) !important;
-  font-size: 14px;
+  color: var(--text-1) !important;
+  font-size: var(--fs-base);
   font-weight: 500;
 }
 

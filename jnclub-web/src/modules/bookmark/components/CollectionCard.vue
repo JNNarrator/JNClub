@@ -170,6 +170,11 @@ const handleDropdown = (key: string) => {
   justify-content: center;
   box-shadow: var(--glow-icon);
   flex-shrink: 0;
+  transition: box-shadow var(--dur) var(--ease), transform var(--dur) var(--ease-bouncy);
+}
+.bookmark-card:hover .favicon-box {
+  box-shadow: 0 0 0 6px var(--focus-ring), var(--glow-icon);
+  transform: scale(1.06);
 }
 
 .favicon-img {
