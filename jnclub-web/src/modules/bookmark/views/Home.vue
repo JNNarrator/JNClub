@@ -923,6 +923,10 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
   max-width: 1560px;
   margin: 0 auto;
   padding: 20px 24px;
+  /* 品牌色氛围光晕（背景层次第 0 层） */
+  background:
+    radial-gradient(700px 280px at 4% 0%, var(--glass-glow-top), transparent 55%),
+    radial-gradient(700px 280px at 96% 100%, var(--glass-glow-bottom), transparent 55%);
 }
 
 /* 目录面板标题（与移动端抽屉标题呼应） */
@@ -943,15 +947,13 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
   flex: 0 0 220px;
   min-height: 0;
   overflow: hidden;
-  background:
-    radial-gradient(900px 400px at 110% 120%, var(--glass-glow-bottom), transparent 60%),
-    var(--glass-bg-trans);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
+  background: var(--glass-bg-trans);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-md);
   padding: 14px 12px;
-  box-shadow: var(--glass-shadow);
+  box-shadow: var(--shadow-1);
 }
 
 /* 模块内部工具栏（各模块特定操作，滚动区顶部） */
@@ -1017,15 +1019,13 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
   flex: 1;
   min-width: 0;
   overflow-y: auto;
-  background:
-    radial-gradient(1200px 500px at 10% -10%, var(--glass-glow-top), transparent 60%),
-    var(--glass-bg-trans);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
+  background: var(--glass-bg-trans);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-md);
   padding: 18px 20px;
-  box-shadow: var(--glass-shadow);
+  box-shadow: var(--shadow-1);
 }
 
 /* === Chip 标签栏 === */
