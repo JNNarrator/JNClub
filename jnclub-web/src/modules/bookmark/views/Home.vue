@@ -3,9 +3,10 @@ import { ref, onMounted, watch, computed, nextTick, onBeforeUnmount } from 'vue'
 import {
   NButton, NIcon, NSpin, NBreadcrumb, NBreadcrumbItem,
   NModal, NForm, NFormItem, NInput, NSpace, NSelect, NAvatar,
+  NDrawer, NDrawerContent,
   useMessage, useDialog,
 } from 'naive-ui'
-import { Plus, FolderOpen, Link, Globe, RefreshCw, UploadCloud, Tag, Search, KeyRound } from 'lucide-vue-next'
+import { Plus, FolderOpen, Link, Globe, RefreshCw, UploadCloud, Tag, Search, KeyRound, Download } from 'lucide-vue-next'
 import { useRouter, useRoute, type RouteLocationRaw } from 'vue-router'
 import { useDirectoryStore } from '../stores/directory'
 import { useBookmarkStore } from '../stores/bookmark'
@@ -29,6 +30,7 @@ import type { ViewMode } from '../components/ViewSwitcher.vue'
 import axios from 'axios'
 import { useUserPreferences } from '../../../shared/composables/useUserPreferences'
 import { fetchTags, setRefTags, type TagItem } from '../composables/tags'
+import { exportMarkdown, downloadFile } from '../composables/markdownIO'
 
 const router = useRouter()
 const route = useRoute()
@@ -76,6 +78,28 @@ const selectedDirectoryId = ref<number | null>(null)
 const loading = ref(false)
 /** 视图模式：按模块记忆（后端偏好），便签默认极简 list、收藏夹默认卡片 grid */
 const viewMode = ref<ViewMode>(prefs.get(`view.${props.activeModule}`, props.activeModule === 'notes' ? 'list' : 'grid'))
+
+// ========== 移动端：目录抽屉 ==========
+
+/** 移动端目录抽屉开关（<768px 时替代左侧目录树） */
+const showDirDrawer = ref(false)
+const isMobile = ref(false)
+
+const checkMobile = () => {
+  isMobile.value = window.innerWidth < 768
+  if (!isMobile.value) showDirDrawer.value = false
+}
+onMounted(() => {
+  checkMobile()
+  window.addEventListener('resize', checkMobile)
+})
+onBeforeUnmount(() => window.removeEventListener('resize', checkMobile))
+
+/** 抽屉内选中目录：复用桌面端逻辑 + 自动收起抽屉 */
+const handleDrawerSelect = async (id: number) => {
+  showDirDrawer.value = false
+  await handleDirectorySelect(id)
+}
 
 // 目录创建
 
@@ -398,6 +422,25 @@ const handleCreateNote = () => {
   })
 }
 
+/** 导出当前目录全部便签为 .md（逐个下载，图片内嵌 base64） */
+const handleExportAllNotes = async () => {
+  const notes = noteStore.notes
+  if (!notes.length) { message.warning('当前目录没有便签'); return }
+  const loadingMsg = message.loading(`正在导出 ${notes.length} 篇便签…`, { duration: 0 })
+  let ok = 0
+  for (const n of notes) {
+    try {
+      const md = await exportMarkdown(n.content || '')
+      downloadFile(`${(n.title || '未命名').replace(/[\\/:*?"<>|]/g, '_')}.md`, md, 'text/markdown')
+      ok++
+    } catch {
+      /* 单篇失败跳过，继续导出其余 */
+    }
+  }
+  loadingMsg.destroy()
+  message.success(ok === notes.length ? `已导出 ${ok} 篇便签` : `已导出 ${ok}/${notes.length} 篇（部分失败）`)
+}
+
 const handleEditNote = (note: Note) => {
   openNoteInNewTab({ name: 'note-view', params: { id: note.id } })
 }
@@ -467,6 +510,16 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
     <!-- 毛玻璃顶栏 -->
     <header class="home-header glass-header">
       <div class="header-left">
+        <!-- 移动端：目录抽屉入口 -->
+        <NButton
+          v-if="isMobile"
+          quaternary circle size="small"
+          class="mobile-dir-btn jnclub-bouncy"
+          title="目录"
+          @click="showDirDrawer = true"
+        >
+          <template #icon><NIcon :component="FolderOpen" size="18" /></template>
+        </NButton>
         <NBreadcrumb class="jnclub-breadcrumb">
           <NBreadcrumbItem @click="selectedDirectoryId = null">JNClub</NBreadcrumbItem>
           <NBreadcrumbItem @click="selectedDirectoryId = null">
@@ -498,6 +551,17 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
         >
           <template #icon><NIcon :component="Plus" /></template>
           新建便签
+        </NButton>
+        <NButton
+          v-if="props.activeModule === 'notes'"
+          size="small"
+          class="io-export-btn jnclub-bouncy"
+          :disabled="!noteStore.notes.length"
+          title="导出当前目录全部便签为 .md（图片内嵌 base64）"
+          @click="handleExportAllNotes"
+        >
+          <template #icon><NIcon :component="Download" size="15" /></template>
+          导出全部
         </NButton>
         <NButton
           v-else-if="props.activeModule === 'files'"
@@ -648,6 +712,31 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
     <!-- 全局搜索抽屉 -->
     <SearchDrawer :show="showSearch" @close="showSearch = false" @jump="handleSearchJump" />
 
+    <!-- 移动端目录抽屉（<768px）：复用 FolderPanel，选中后自动收起） -->
+    <NDrawer
+      v-model:show="showDirDrawer"
+      :width="280"
+      placement="left"
+      :mask-closable="true"
+      class="mobile-dir-drawer"
+    >
+      <NDrawerContent :native-scrollbar="false">
+        <template #header>
+          <span class="drawer-title">
+            <NIcon :component="FolderOpen" size="16" style="margin-right: 6px; vertical-align: -2px;" />
+            目录
+          </span>
+        </template>
+        <FolderPanel
+          :directories="directoryStore.directories"
+          :selected-id="selectedDirectoryId"
+          :type="directoryType"
+          @select="handleDrawerSelect"
+          @refresh="handleRefresh"
+        />
+      </NDrawerContent>
+    </NDrawer>
+
     <!-- 收藏创建/编辑弹窗 -->
     <NModal v-model:show="showCreateModal" preset="dialog" :title="editingBookmarkId !== null ? '编辑收藏' : '添加收藏'">
       <NForm :model="createBookmarkForm" style="margin-top: 12px;">
@@ -733,6 +822,23 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
 .refresh-btn:hover {
   color: var(--text-1);
   background: var(--hover-bg);
+}
+
+/* 导出全部（玻璃小按钮） */
+.io-export-btn {
+  border-radius: var(--radius-pill) !important;
+  background: var(--glass-bg-trans) !important;
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border) !important;
+  color: var(--text-2) !important;
+}
+.io-export-btn:hover {
+  color: var(--brand) !important;
+  border-color: var(--brand) !important;
+}
+.io-export-btn[disabled] {
+  opacity: 0.45;
 }
 
 /* === 主体 === */
@@ -846,6 +952,19 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
   white-space: nowrap;
 }
 
+/* 移动端目录抽屉 */
+.mobile-dir-drawer :deep(.n-drawer-body-content-wrapper) {
+  background: var(--glass-bg-trans);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+}
+.drawer-title {
+  display: inline-flex;
+  align-items: center;
+  font-weight: 600;
+  color: var(--text-1);
+}
+
 /* === 移动端适配（<768px） === */
 @media (max-width: 767px) {
   .home-header {
@@ -853,7 +972,7 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
     gap: 8px;
     height: 52px;
   }
-  /* 侧栏目录树在窄屏隐藏，靠顶部 chips 切换 */
+  /* 侧栏目录树在窄屏隐藏，靠顶栏目录按钮唤起抽屉 */
   .folder-column {
     display: none;
   }
@@ -864,9 +983,21 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
   .header-right {
     gap: 6px;
   }
-  /* 顶栏新建按钮在窄屏只留图标（隐藏文字） */
+  /* 顶栏按钮加大触控目标（≥44px），新建按钮窄屏只留图标（隐藏文字） */
+  .header-right :deep(.n-button) {
+    min-width: 40px;
+    height: 40px;
+  }
   .header-right :deep(.n-button) span {
     display: none;
+  }
+  .mobile-dir-btn {
+    margin-right: 2px;
+    color: var(--text-2);
+  }
+  .mobile-dir-btn:hover {
+    color: var(--text-1);
+    background: var(--hover-bg);
   }
   /* 面包屑收窄 */
   .jnclub-breadcrumb :deep(.n-breadcrumb-item__link) {
@@ -879,9 +1010,23 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
   .chip-bar {
     margin-bottom: 12px;
   }
+  /* 目录 chips 可横滑，避免换行堆叠 */
+  .chip-bar {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .chip-bar::-webkit-scrollbar {
+    display: none;
+  }
   /* 收藏卡片网格：窄屏单列 */
   .collection-grid {
     grid-template-columns: 1fr !important;
+  }
+  /* 底部留白，避免被移动端 TabBar 遮挡 */
+  .collection-column {
+    padding-bottom: 12px;
   }
 }
 </style>

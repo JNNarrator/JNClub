@@ -6,15 +6,16 @@
  * 能力：自动保存（3s）+ Ctrl/⌘+S + 保存状态指示 + 空态引导 + 快捷键帮助 + 图片上传
  * 扩展（highlight.js 等）走 unpkg CDN 按需加载
  */
-import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { NButton, NIcon, NInput, NModal, NSwitch, useMessage, useDialog } from 'naive-ui'
-import { Keyboard, ArrowLeft, CheckCircle2, CloudOff, LoaderCircle } from 'lucide-vue-next'
+import { Keyboard, ArrowLeft, CheckCircle2, CloudOff, LoaderCircle, Download, Upload } from 'lucide-vue-next'
 import { MdEditor, MdPreview, type ExposeParam, type ToolbarNames, type HeadList } from 'md-editor-v3'
 import 'md-editor-v3/lib/style.css'
 import 'md-editor-v3/lib/preview.css'
 import axios from 'axios'
 import type { Note } from '../stores/note'
 import TagPicker from './TagPicker.vue'
+import { extractDataUris, dataUriToFile, uploadImage, downloadFile, exportMarkdown } from '../composables/markdownIO'
 
 /** md-editor-v3 实例 id（MdEditor 与 MdCatalog 通过它联动） */
 const EDITOR_ID = 'jnclub-note-editor'
@@ -38,6 +39,19 @@ const mdEditor = ref<ExposeParam | null>(null)
 const readonlyMode = ref(props.note ? props.note.id !== 0 : true)
 const isViewNote = computed(() => !!props.note && props.note.id !== 0)
 
+/** 移动端检测：窄屏默认关闭分屏预览（md-editor-v3 preview 为内部状态，经 expose preview(false) 切换） */
+const isMobile = ref(false)
+const checkMobile = () => { isMobile.value = window.innerWidth < 768 }
+onMounted(() => {
+  checkMobile()
+  window.addEventListener('resize', checkMobile)
+  if (isMobile.value) {
+    outlineVisible.value = false // 窄屏大纲默认收起，避免遮挡编辑区
+    nextTick(() => mdEditor.value?.togglePreview(false))
+  }
+})
+onBeforeUnmount(() => window.removeEventListener('resize', checkMobile))
+
 const content = ref('')
 const title = ref('')
 const saving = ref(false)
@@ -53,7 +67,7 @@ const noteRefId = computed(() => (props.note && props.note.id !== 0 ? props.note
 const catalogList = ref<HeadList[]>([])
 const handleCatalog = (headings: HeadList[]) => { catalogList.value = headings || [] }
 
-/** 悬浮大纲：收起/展开 + 可拖拽位置（记忆到 localStorage） */
+/** 悬浮大纲：收起/展开 + 可拖拽位置（记忆到 localStorage）。移动端默认收起，避免遮挡窄屏编辑区 */
 const outlineVisible = ref(true)
 const OUTLINE_POS_KEY = 'jnclub-outline-pos'
 const outlinePos = ref({ x: 0, y: 0 })
@@ -76,6 +90,13 @@ const initOutlinePos = () => {
       if (typeof x === 'number' && typeof y === 'number') outlinePos.value = { x, y }
     }
   } catch { /* 忽略损坏数据 */ }
+  // 拖拽记忆位置可能超出当前视口（换设备/窗口缩放），clamp 防止大纲跑出屏幕
+  const maxX = Math.max(0, vw - outlineW - 12)
+  const vh = typeof window !== 'undefined' ? window.innerHeight : 800
+  outlinePos.value = {
+    x: Math.min(Math.max(outlinePos.value.x, 0), maxX),
+    y: Math.min(Math.max(outlinePos.value.y, 60), Math.max(60, vh - 220)),
+  }
 }
 initOutlinePos()
 
@@ -301,6 +322,66 @@ const handleEditorSave = () => {
   handleSave()
 }
 
+/** ===== Markdown 导入 / 导出 ===== */
+const mdFileInput = ref<HTMLInputElement | null>(null)
+
+/** 导出当前便签：本地图嵌 base64，外链保留 */
+const handleExportMd = async () => {
+  if (!content.value.trim()) { message.warning('内容为空，无可导出'); return }
+  const loadingMsg = message.loading('正在导出，处理图片…', { duration: 0 })
+  try {
+    const md = await exportMarkdown(content.value)
+    downloadFile(`${title.value.trim() || '未命名'}.md`, md, 'text/markdown')
+    message.success('已导出')
+  } catch (e: any) {
+    message.error(e.message || '导出失败')
+  } finally {
+    loadingMsg.destroy()
+  }
+}
+
+/** 触发隐藏文件选择 */
+const handleImportClick = () => {
+  mdFileInput.value?.click()
+}
+
+/** 导入 .md：data URI 图片逐个落地为 /api/files/...，替换正文 */
+const handleImportFile = async (e: Event) => {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = '' // 允许重复选同一文件
+  if (!file) return
+  try {
+    const text = await file.text()
+    const uris = extractDataUris(text)
+    if (!uris.length) {
+      content.value = text
+      hasUnsavedChanges.value = true
+      saveState.value = 'dirty'
+      message.success('已导入（无内嵌图片）')
+      return
+    }
+    const loadingMsg = message.loading(`正在处理 ${uris.length} 张图片…`, { duration: 0 })
+    let md = text
+    let failed = 0
+    for (const uri of uris) {
+      const imgFile = dataUriToFile(uri)
+      if (!imgFile) { failed++; continue }
+      try {
+        const url = await uploadImage(imgFile)
+        md = md.split(uri).join(url)
+      } catch { failed++ }
+    }
+    loadingMsg.destroy()
+    content.value = md
+    hasUnsavedChanges.value = true
+    saveState.value = 'dirty'
+    message.success(failed ? `已导入（${failed} 张图片处理失败）` : `已导入 ${uris.length} 张图片`)
+  } catch (e: any) {
+    message.error(e.message || '导入失败')
+  }
+}
+
 /** 关闭前检查未保存 */
 const handleRequestClose = () => {
   if (hasUnsavedChanges.value) {
@@ -389,6 +470,19 @@ defineExpose({ hasUnsavedChanges })
       <NButton quaternary circle size="small" title="快捷键帮助" @click="showHelp = true">
         <template #icon><NIcon :component="Keyboard" size="16" /></template>
       </NButton>
+      <NButton quaternary circle size="small" class="io-btn" title="导出 Markdown" @click="handleExportMd">
+        <template #icon><NIcon :component="Download" size="16" /></template>
+      </NButton>
+      <NButton quaternary circle size="small" class="io-btn" title="导入 Markdown" @click="handleImportClick">
+        <template #icon><NIcon :component="Upload" size="16" /></template>
+      </NButton>
+      <input
+        ref="mdFileInput"
+        type="file"
+        accept=".md,.markdown,text/markdown"
+        style="display: none"
+        @change="handleImportFile"
+      />
       <!-- 保存同步状态图标（自动保存已开启，点击手动保存） -->
       <NButton
         v-if="!readonlyMode"
@@ -432,7 +526,6 @@ defineExpose({ hasUnsavedChanges })
         :on-save="handleEditorSave"
         :on-change="handleEditorInput"
         :on-get-catalog="handleCatalog"
-        :preview="true"
         class="md-editor-wrap"
       />
       <MdPreview
@@ -601,6 +694,19 @@ defineExpose({ hasUnsavedChanges })
 .mode-toggle-label.active {
   color: var(--brand);
   font-weight: 600;
+}
+
+/* 导入/导出按钮（玻璃） */
+.io-btn {
+  background: var(--glass-bg-trans) !important;
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border) !important;
+  color: var(--text-2) !important;
+}
+.io-btn:hover {
+  color: var(--brand) !important;
+  border-color: var(--brand) !important;
 }
 
 /* 保存同步状态图标 */
@@ -1035,4 +1141,30 @@ defineExpose({ hasUnsavedChanges })
 }
 :deep(.md-editor-preview th) { background: var(--hover-bg); font-weight: 600; }
 :deep(.md-editor-preview img) { max-width: 100%; border-radius: var(--radius-sm); }
+
+/* === 移动端（<768px）：顶栏收窄、大纲防溢出、隐藏次要信息 === */
+@media (max-width: 767px) {
+  .editor-topbar {
+    padding: 10px 12px;
+    gap: 8px;
+  }
+  .editor-title-input :deep(.n-input__input-el) {
+    font-size: 15px;
+  }
+  .mode-toggle-label {
+    display: none;
+  }
+  .statusbar-keys {
+    display: none;
+  }
+  .outline-float {
+    width: 170px;
+  }
+  .editor-statusbar {
+    padding: 6px 12px;
+  }
+  .editor-tags {
+    padding: 6px 12px;
+  }
+}
 </style>
