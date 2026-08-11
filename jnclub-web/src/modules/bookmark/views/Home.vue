@@ -597,6 +597,10 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
     <div class="content-area">
       <!-- 左侧目录树 -->
       <aside class="folder-column">
+        <div class="folder-panel-title">
+          <NIcon :component="FolderOpen" size="15" />
+          目录
+        </div>
         <FolderPanel
           :directories="directoryStore.directories"
           :selected-id="selectedDirectoryId"
@@ -915,13 +919,28 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
   display: flex;
   gap: 20px;
   min-height: 0;
+  width: 100%;
+  max-width: 1560px;
+  margin: 0 auto;
   padding: 20px 24px;
 }
 
-.folder-column {
-  width: 220px;
+/* 目录面板标题（与移动端抽屉标题呼应） */
+.folder-panel-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-2);
+  margin-bottom: 12px;
   flex-shrink: 0;
-  flex: 1;
+}
+
+.folder-column {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 220px;
   min-height: 0;
   overflow: hidden;
   background:
@@ -931,7 +950,7 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
   -webkit-backdrop-filter: blur(var(--glass-blur));
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-md);
-  padding: 12px;
+  padding: 14px 12px;
   box-shadow: var(--glass-shadow);
 }
 

@@ -37,7 +37,8 @@ const emit = defineEmits<{
 <style scoped>
 .folder-panel {
   padding: 0 4px;
-  max-height: calc(100vh - 120px);
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
 }
 </style>
