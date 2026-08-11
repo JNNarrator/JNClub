@@ -4,7 +4,7 @@
  * 嵌入 MainLayout（含 SideNav），管理 activeModule（后端偏好记忆 + localStorage 首屏兜底）
  * 将 isDark 透传至 Home
  */
-import { ref, watch } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import MainLayout from '../layout/MainLayout.vue'
 import Home from '../../modules/bookmark/views/Home.vue'
@@ -47,6 +47,11 @@ watch(() => route.query.module, (m) => {
   if (typeof m === 'string' && (MODULES as string[]).includes(m)) {
     activeModule.value = m as ModuleKey
   }
+})
+
+/** 启动时加载后端偏好（nav 排序/视图模式/模块记忆等水合） */
+onMounted(() => {
+  prefs.load()
 })
 </script>
 
