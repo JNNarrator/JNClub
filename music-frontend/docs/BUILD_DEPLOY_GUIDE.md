@@ -1,68 +1,53 @@
-# JNMusic 构建部署指南
+# 音乐模块构建部署指南（并入 JNClub 后）
 
-> ⚠️ **已接入服务器自动部署**：`git push` 到 master 后，gm 服务器最长 5 分钟内自动构建部署（服务器自拉取自构建自重启）。**日常发布流程 = `git push`**；立即部署可执行 `/opt/auto-deploy/deploy.sh music`；框架说明见 `服务器服务操作/AUTO-DEPLOY.md`。本指南保留的 `deploy.sh` 流程为手动备选/回退。
+> **现状（2026-08-11 起）**：音乐服务（前身独立仓库 JNMUSIC_SERVER）已并入 JNClub 单体。
+> 后端为 `jnclub-module-music`（随 `jnclub-gateway` 一起构建，端口 19005），对外 URL 保持 `/music/api/v1/...`（内部路径重写）；前端为本目录 `music-frontend/`。
+> 本指南即音乐前端的构建部署说明，**已无独立后端 jar / 独立 `deploy.sh`**。
 
-## 前置条件
+## 部署方式（git push 即上线）
 
-- Node.js 环境（已安装 npm）
-- Java 21+ / Maven 环境（仓库内置 `./mvnw`）
-- SSH 访问 `gm` 服务器（`~/.ssh/config` 已配置，或 `DEPLOY_HOST=gm`）
-- gm 服务器上已有后端启动脚本：`/home/jiangnan/music/deepseek_bash_20260708_19322e.sh`
+音乐前端与后端均随 **JNClub 自动部署** 上线：
 
-## 快速部署（一条命令）
+1. **常规发布**：本地 `git push` 到 JNClub master → gm 服务器最长 5 分钟内自动构建部署（含 `music-frontend: npm ci && npm run build`）
+2. **立即部署**：`/opt/auto-deploy/deploy.sh jnclub`
+3. **框架说明**：见 `服务器服务操作/AUTO-DEPLOY.md`
 
-```bash
-cd Workspace/JNMUSIC_SERVER
-bash deploy.sh
-```
+自动部署产物落位：
 
-`deploy.sh` 自动执行（前后端分离）：
+| 内容 | 位置 |
+|---|---|
+| 音乐前端构建产物 | gm `/home/jiangnan/music-frontend/`（nginx 静态托管 `/music/`） |
+| 音乐后端 | 随 `jnclub-gateway` jar（端口 19005，对外 `/music/api/v1`） |
+| 数据 | `jnclub` 库 `music_*` 表（`schema.sql` 见 `jnclub-module-music/src/main/resources/`） |
 
-1. **构建前端**：`cd admin && npm run build`，产物在 `admin/dist/`
-2. **构建后端 JAR**：`./mvnw package -DskipTests`，产物 `target/music-0.0.1-SNAPSHOT.jar`（仅后端 API）
-3. **上传前端**：打包 `dist/` → 解压到 gm 服务器 `/home/jiangnan/music-frontend/`（nginx 静态托管，base `/music/`）
-4. **上传后端**：JAR 先 `rsync` 到 `/home/jiangnan/music/music-0.0.1-SNAPSHOT.jar.bak`（回滚备份），再上传到 `/home/jiangnan/music/`
-5. **重启后端服务**：`ssh gm "cd /home/jiangnan/music && sh deepseek_bash_20260708_19322e.sh restart"`
-
-## 回滚
+## 本地开发
 
 ```bash
-ssh gm 'cp /home/jiangnan/music/music-0.0.1-SNAPSHOT.jar.bak \
-  /home/jiangnan/music/music-0.0.1-SNAPSHOT.jar \
-  && cd /home/jiangnan/music && sh deepseek_bash_20260708_19322e.sh start'
+cd Workspace/JNClub/music-frontend
+npm install
+npm run dev        # Vite :5173，base /music/，/music 代理到 http://127.0.0.1:19005
 ```
 
-## 验证部署
+> 需本地 JNClub 后端（19005）已启动。配置见 `vite.config.ts` 的 `server.proxy`。
+
+## 本地构建验证
+
+```bash
+cd Workspace/JNClub/music-frontend
+npm run build      # 产物 dist/（base /music/）
+```
+
+## 验证线上部署
 
 ```bash
 # 前端（nginx 静态托管）
 curl -I http://jiangnan.88933.vip/music/
 
-# 后端 JAR 完整性
-ssh gm "ls -lh /home/jiangnan/music/music-0.0.1-SNAPSHOT.jar && unzip -t /home/jiangnan/music/music-0.0.1-SNAPSHOT.jar 2>&1 | tail -2"
-
-# 服务进程 / 日志
-ssh gm "ps aux | grep music"
-ssh gm "tail -30 /home/jiangnan/music/logs/music-app.log"
+# 后端接口（随 jnclub 服务）
+curl -s -o /dev/null -w '%{http_code}' http://localhost:19005/music/api/v1/tracks
 ```
 
-## 仅提交代码（不部署）
+## 相关配置
 
-```bash
-cd Workspace/JNMUSIC_SERVER
-git add <files>
-git commit -m "message"
-git push
-```
-
-## 项目路径速查
-
-| 项目 | 路径 |
-|------|------|
-| 前端源码 | `admin/src/` |
-| 前端构建产物 | `admin/dist/` |
-| 后端 JAR | `target/music-0.0.1-SNAPSHOT.jar` |
-| gm 服务器前端部署目录 | `/home/jiangnan/music-frontend/` |
-| gm 服务器后端部署目录 | `/home/jiangnan/music/` |
-| gm 服务器启动脚本 | `/home/jiangnan/music/deepseek_bash_20260708_19322e.sh` |
-| gm 服务器日志 | `/home/jiangnan/music/logs/music-app.log` |
+- 音乐后端配置（dufs 直链 / 蓝奏云 / 缓存）在 `jnclub-module-music/src/main/resources/application.properties`；生产如需覆盖，追加到 `jnclub-gateway` 外置 `application.yml`（服务器 `/home/jiangnan/JNClub/jnclub-gateway/application.yml`）。
+- 音频/封面/歌词直链来自 dufs（`jn_file.88933.vip:27472`）。
