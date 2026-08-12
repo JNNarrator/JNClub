@@ -29,7 +29,7 @@ public class AuthController {
                 return R.fail(401, "未登录");
             }
             String userId = StpUtil.getLoginIdAsString();
-            JSONObject cached = SsoClientController.getUserInfoCache().get(userId);
+            JSONObject cached = SsoClientController.getUserInfo(userId);
             Map<String, Object> result = new LinkedHashMap<>();
             result.put("id", userId);
             // SSO 个人中心地址(本地/生产由 sa-token.sso.server-url 自动区分)
@@ -63,10 +63,14 @@ public class AuthController {
         if (StpUtil.isLogin()) {
             try {
                 String userId = StpUtil.getLoginIdAsString();
-                SsoClientController.getUserInfoCache().remove(userId);
-                SsoClientController.getSsoTokenCache().remove(userId);
+                // userInfo/ssoToken 存于 Sa-Session，随登出清理
+                cn.dev33.satoken.session.SaSession session = StpUtil.getSessionByLoginId(userId, false);
+                if (session != null) {
+                    session.delete(SsoClientController.SESSION_KEY_USERINFO);
+                    session.delete(SsoClientController.SESSION_KEY_SSO_TOKEN);
+                }
             } catch (Exception e) {
-                log.warn("清除用户缓存异常（忽略）", e);
+                log.warn("清除用户会话异常（忽略）", e);
             }
             try {
                 StpUtil.logout();

@@ -1,5 +1,6 @@
 package com.jnclub.common.sso;
 
+import cn.dev33.satoken.session.SaSession;
 import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.http.HttpRequest;
 import cn.hutool.http.HttpResponse;
@@ -16,12 +17,15 @@ import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @RestController
 @RequestMapping("/sso")
 public class SsoClientController {
+
+    /** 写入 Sa-Session 的 key 常量 */
+    public static final String SESSION_KEY_USERINFO = "ssoUserInfo";
+    public static final String SESSION_KEY_SSO_TOKEN = "ssoToken";
 
     @Value("${sa-token.sso.server-url}")
     private String serverUrl;
@@ -32,19 +36,28 @@ public class SsoClientController {
     @Value("${jnclub.frontend-url:http://localhost:5173}")
     private String frontendUrl;
 
-    private static final Map<String, JSONObject> userInfoCache = new ConcurrentHashMap<>();
-    private static final Map<String, String> ssoTokenCache = new ConcurrentHashMap<>();
-
-    public static Map<String, JSONObject> getUserInfoCache() {
-        return userInfoCache;
+    /**
+     * 读取 userId 的持久化 userInfo（取自 Sa-Session，随持久化 DAO 落库，重启不丢）。
+     */
+    public static JSONObject getUserInfo(String userId) {
+        SaSession session = querySessionByLoginId(userId);
+        return session == null ? null : (JSONObject) session.get(SESSION_KEY_USERINFO);
     }
 
-    public static Map<String, String> getSsoTokenCache() {
-        return ssoTokenCache;
-    }
-
+    /**
+     * 读取 userId 的持久化 ssoToken（取自 Sa-Session）。
+     */
     public static String getSsoToken(String userId) {
-        return ssoTokenCache.get(userId);
+        SaSession session = querySessionByLoginId(userId);
+        return session == null ? null : (String) session.get(SESSION_KEY_SSO_TOKEN);
+    }
+
+    private static SaSession querySessionByLoginId(String userId) {
+        try {
+            return StpUtil.getSessionByLoginId(userId, false);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     /**
@@ -99,8 +112,10 @@ public class SsoClientController {
                     return;
                 }
 
-                userInfoCache.put(userId, data);
-                ssoTokenCache.put(userId, ssoToken);
+                // 登录成功后，用户信息与 SSO token 一并写入 Sa-Session（随持久化 DAO 落库，重启不丢）
+                SaSession session = StpUtil.getSessionByLoginId(userId, true);
+                session.set(SESSION_KEY_USERINFO, data);
+                session.set(SESSION_KEY_SSO_TOKEN, ssoToken);
 
                 StpUtil.login(userId);
                 String jnclubToken = StpUtil.getTokenValue();
@@ -129,9 +144,7 @@ public class SsoClientController {
         if (StpUtil.isLogin()) {
             try {
                 String userId = StpUtil.getLoginIdAsString();
-                ssoToken = ssoTokenCache.get(userId);
-                userInfoCache.remove(userId);
-                ssoTokenCache.remove(userId);
+                ssoToken = getSsoToken(userId);
                 StpUtil.logout();
                 log.info("JNClub 本地退出成功, userId={}", userId);
             } catch (Exception e) {

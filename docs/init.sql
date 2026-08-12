@@ -190,3 +190,14 @@ CREATE TABLE IF NOT EXISTS t_user_preference (
 --   key_check TEXT NOT NULL COMMENT '派生密钥加密的校验密文（Hex），解锁时校验输入',
 --   update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 -- ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='密码库主密钥元数据';
+
+-- ==========================================
+-- P3 迁移：Sa-Token 客户端会话持久化（解决后端重启丢登录态，仿 JN_SSO sa_token_data）
+-- ⚠️ 生产库需手工执行：
+CREATE TABLE IF NOT EXISTS sa_token_data (
+  id       VARCHAR(255) NOT NULL COMMENT 'key（login:token:/login:session: 等前缀）',
+  value    LONGTEXT     NOT NULL COMMENT 'AES-GCM 加密后的 Java 序列化值（base64）',
+  sa_type  VARCHAR(50)  DEFAULT NULL COMMENT '数据类型：String / Object',
+  expire   BIGINT       DEFAULT 0 COMMENT '过期毫秒时间戳，0 表示永不过期',
+  PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Sa-Token 客户端会话持久化表';
