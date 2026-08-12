@@ -1,19 +1,20 @@
+// RecycleView.vue — 回收站内容区
 <script setup lang="ts">
 /**
- * RecycleView.vue — 回收站（软删除条目查看/恢复/永久删除/清空）
- * 独立页面，侧栏"回收站"入口进入
+ * RecycleView.vue — 回收站内容区（软删除条目查看/恢复/永久删除/清空）
+ * 现由 RecycleLayout 套用主壳渲染：顶栏/导航/TabBar 与其他模块一致
  */
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import {
   NButton, NIcon, NSpin, NEmpty, NTabs, NTabPane,
   useMessage, useDialog,
 } from 'naive-ui'
-import { Trash2, RotateCcw, Eraser, ArrowLeft, Clock } from 'lucide-vue-next'
-import { useRouter } from 'vue-router'
+import { Trash2, RotateCcw, Eraser, Clock } from 'lucide-vue-next'
 import axios from 'axios'
 import { formatRelativeTime } from '../composables/formatDate'
 
-const router = useRouter()
+const props = defineProps<{ refresh?: number }>()
+
 const message = useMessage()
 const dialog = useDialog()
 
@@ -42,6 +43,9 @@ const fetchItems = async () => {
 }
 
 const onTabChange = () => fetchItems()
+
+// 顶栏刷新触发
+watch(() => props.refresh, () => { if (props.refresh) fetchItems() })
 
 const itemTitle = (item: any) => {
   if (activeType.value === 'bookmark') return item.title || item.url
@@ -115,111 +119,60 @@ onMounted(fetchItems)
 </script>
 
 <template>
-  <div class="recycle-page">
-    <div class="recycle-header glass-header">
-      <div class="header-left">
-        <NButton quaternary circle size="small" @click="router.push('/')">
-          <template #icon><NIcon :component="ArrowLeft" size="16" /></template>
-        </NButton>
-        <span class="page-title">
-          <NIcon :component="Trash2" size="16" />
-          回收站
-        </span>
-      </div>
-      <NButton size="small" class="glass-danger-btn ghost" :disabled="!items.length" @click="clearAll">
-        <template #icon><NIcon :component="Eraser" size="15" /></template>
-        清空当前类型
-      </NButton>
-    </div>
-
-    <div class="recycle-body">
+  <div>
+    <div class="recycle-toolbar">
       <NTabs v-model:value="activeType" type="line" class="recycle-tabs" @update:value="onTabChange">
         <NTabPane name="bookmark" tab="收藏" />
         <NTabPane name="note" tab="便签" />
         <NTabPane name="file" tab="云盘文件" />
         <NTabPane name="vault" tab="密码" />
       </NTabs>
+      <NButton size="small" class="recycle-clear-btn" :disabled="!items.length" @click="clearAll">
+        <template #icon><NIcon :component="Eraser" size="15" /></template>
+        清空当前类型
+      </NButton>
+    </div>
 
-      <NSpin :show="loading" class="recycle-spin">
-        <NEmpty v-if="!loading && !items.length" description="回收站是空的" class="recycle-empty" />
-        <div v-else class="recycle-list">
-          <div v-for="item in items" :key="item.id" class="recycle-item">
-            <div class="item-main">
-              <div class="item-title">{{ itemTitle(item) }}</div>
-              <div class="item-sub">
-                <span v-if="itemSub(item)">{{ itemSub(item) }}</span>
-                <span class="item-time">
-                  <NIcon :component="Clock" size="12" />
-                  {{ formatRelativeTime(item.createTime) }}
-                </span>
-              </div>
-            </div>
-            <div class="item-actions">
-              <NButton size="tiny" class="glass-primary-btn restore-btn" @click="restore(item)">
-                <template #icon><NIcon :component="RotateCcw" size="13" /></template>
-                恢复
-              </NButton>
-              <NButton size="tiny" class="glass-danger-btn" @click="purge(item)">
-                <template #icon><NIcon :component="Trash2" size="13" /></template>
-                永久删除
-              </NButton>
+    <NSpin :show="loading" class="recycle-spin">
+      <NEmpty v-if="!loading && !items.length" description="回收站是空的" class="recycle-empty" />
+      <div v-else class="recycle-list">
+        <div v-for="item in items" :key="item.id" class="recycle-item">
+          <div class="item-main">
+            <div class="item-title">{{ itemTitle(item) }}</div>
+            <div class="item-sub">
+              <span v-if="itemSub(item)">{{ itemSub(item) }}</span>
+              <span class="item-time">
+                <NIcon :component="Clock" size="12" />
+                {{ formatRelativeTime(item.createTime) }}
+              </span>
             </div>
           </div>
+          <div class="item-actions">
+            <NButton size="tiny" class="glass-primary-btn restore-btn" @click="restore(item)">
+              <template #icon><NIcon :component="RotateCcw" size="13" /></template>
+              恢复
+            </NButton>
+            <NButton size="tiny" class="recycle-danger-btn" @click="purge(item)">
+              <template #icon><NIcon :component="Trash2" size="13" /></template>
+              永久删除
+            </NButton>
+          </div>
         </div>
-      </NSpin>
-    </div>
+      </div>
+    </NSpin>
   </div>
 </template>
 
 <style scoped>
-.recycle-page {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-}
-.recycle-header {
+.recycle-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 24px;
-  height: 60px;
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
+  gap: 12px;
+  margin-bottom: 8px;
 }
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.page-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--text-1);
-}
-.recycle-body {
+.recycle-tabs {
   flex: 1;
-  width: 100%;
-  max-width: 1560px;
-  margin: 20px auto;
-  padding: 16px 20px;
-  overflow-y: auto;
-  background:
-    radial-gradient(1200px 500px at 10% -10%, var(--glass-glow-top), transparent 60%),
-    var(--glass-bg-trans);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-md);
-  box-shadow: var(--glass-shadow);
-}
-.recycle-spin {
-  min-height: 200px;
-}
-.recycle-empty {
-  padding-top: 60px;
 }
 /* Tabs 玻璃化：选中粉色下划线/文字 */
 .recycle-tabs :deep(.n-tabs-nav) {
@@ -228,6 +181,27 @@ onMounted(fetchItems)
   --n-tab-text-color-active: var(--brand);
   --n-tab-text-color-disabled: var(--glass-text-placeholder);
   --n-bar-color: var(--brand);
+}
+.recycle-clear-btn {
+  border-radius: var(--radius-pill) !important;
+  background: transparent !important;
+  border: 1px solid rgba(245, 72, 92, 0.4) !important;
+  color: #ff8a97 !important;
+  font-weight: 500;
+  transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease), opacity var(--dur) var(--ease);
+}
+.recycle-clear-btn:hover {
+  background: rgba(245, 72, 92, 0.16) !important;
+  border-color: var(--danger) !important;
+}
+.recycle-clear-btn[disabled] {
+  opacity: 0.4;
+}
+.recycle-spin {
+  min-height: 200px;
+}
+.recycle-empty {
+  padding-top: 60px;
 }
 .recycle-list {
   display: flex;
@@ -291,8 +265,8 @@ onMounted(fetchItems)
   font-size: var(--fs-sm);
   border-radius: var(--radius-pill);
 }
-/* 永久删除 / 清空：红色玻璃按钮 */
-.glass-danger-btn {
+/* 永久删除：红色玻璃按钮 */
+.recycle-danger-btn {
   border-radius: var(--radius-pill) !important;
   background: var(--glass-bg-trans) !important;
   backdrop-filter: blur(var(--glass-blur));
@@ -302,26 +276,19 @@ onMounted(fetchItems)
   font-weight: 500;
   transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease), opacity var(--dur) var(--ease);
 }
-.glass-danger-btn:hover {
+.recycle-danger-btn:hover {
   background: rgba(245, 72, 92, 0.16) !important;
   border-color: var(--danger) !important;
 }
-.glass-danger-btn.ghost {
-  background: transparent !important;
-}
-.glass-danger-btn[disabled] {
+.recycle-danger-btn[disabled] {
   opacity: 0.4;
 }
 
-/* === 移动端适配（<768px） === */
+/* 移动端（<768px） */
 @media (max-width: 767px) {
-  .recycle-header {
-    padding: 0 12px;
-    height: 52px;
-  }
-  .recycle-body {
-    margin: 12px auto;
-    padding: 12px;
+  .recycle-toolbar {
+    flex-direction: column;
+    align-items: flex-start;
   }
   .recycle-item {
     flex-wrap: wrap;

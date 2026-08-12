@@ -35,11 +35,11 @@ const router = createRouter({
       name: 'note-view',
       component: () => import('../../modules/bookmark/views/NoteEditorPage.vue'),
     },
-    // 回收站独立页面
+    // 回收站独立页面（套用与主界面一致的壳：MainLayout 侧栏/TabBar + 模块顶栏）
     {
       path: '/recycle',
       name: 'recycle',
-      component: () => import('../../modules/bookmark/views/RecycleView.vue'),
+      component: () => import('../layout/RecycleLayout.vue'),
     },
     // 音乐播放器内嵌页（iframe /music/，登录后经侧边栏入口进入）
     {
