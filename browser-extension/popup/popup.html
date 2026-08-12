@@ -48,8 +48,34 @@
       <div class="divider"></div>
       <div class="quick-actions">
         <button id="btnBatch" class="jn-btn-ghost">批量收藏标签页</button>
+        <button id="btnToNote" class="jn-btn-ghost">转为便签</button>
         <button id="btnLogout" class="jn-btn-ghost">退出</button>
       </div>
+    </section>
+
+    <!-- 已登录：网页转便签预览 -->
+    <section id="noteView" class="view hidden">
+      <div class="note-head">
+        <button id="btnNoteBack" class="icon-btn" title="返回">←</button>
+        <span class="note-head-title">转为便签</span>
+      </div>
+      <div class="field">
+        <label class="label">标题</label>
+        <input id="noteTitle" class="jn-input" type="text" placeholder="便签标题（留空自动取文章标题）" />
+      </div>
+      <div class="field">
+        <label class="label">保存到便签目录</label>
+        <select id="noteSelectDir" class="jn-input"></select>
+      </div>
+      <div class="field">
+        <label class="label">Markdown 预览</label>
+        <textarea id="notePreview" class="jn-input note-preview" readonly spellcheck="false"></textarea>
+        <span id="noteChars" class="note-chars"></span>
+      </div>
+      <button id="btnNoteSave" class="jn-btn-primary" style="width: 100%; margin-top: 4px">
+        保存为便签
+      </button>
+      <div id="noteStatus" class="status"></div>
     </section>
   </div>
   <script type="module" src="popup.js"></script>

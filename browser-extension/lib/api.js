@@ -82,10 +82,15 @@ export async function api(path, { method = 'GET', body = null, server } = {}) {
   return { ok: true, data: payload }
 }
 
-/** 目录树（type=1 收藏夹），返回树形数组 */
-export async function fetchDirectories() {
-  const res = await api('/api/directories?type=1')
+/** 目录树（type 参数化：1=收藏夹 2=便签），返回树形数组 */
+export async function fetchDirectories(type = 1) {
+  const res = await api(`/api/directories?type=${type}`)
   return res.ok ? res.data || [] : []
+}
+
+/** 便签目录树（type=2） */
+export async function fetchNoteDirs() {
+  return fetchDirectories(2)
 }
 
 /** 展平目录树 → [{ label, value }] 供下拉 */
@@ -109,4 +114,12 @@ export async function createBookmark({ title, url, directoryId }) {
 export async function fetchBookmarks(directoryId) {
   const res = await api(`/api/bookmarks?directoryId=${directoryId}`)
   return res.ok ? res.data || [] : []
+}
+
+/** 新建便签（userId 由后端从 token 取） */
+export async function createNote({ title, content, directoryId }) {
+  return api('/api/notes', {
+    method: 'POST',
+    body: { title, content, directoryId },
+  })
 }

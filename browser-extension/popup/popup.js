@@ -1,13 +1,15 @@
 /**
- * popup/popup.js — 弹窗：当前页一键收藏 + 登录态管理 + 入口
+ * popup/popup.js — 弹窗：当前页一键收藏 + 网页转便签 + 登录态管理 + 入口
  */
-import { getState, saveState, serverRoot, api, fetchDirectories, flattenDirs } from '../lib/api.js'
+import { getState, saveState, serverRoot, api, fetchDirectories, fetchNoteDirs, flattenDirs } from '../lib/api.js'
 
 const $ = (id) => document.getElementById(id)
 
 const loginView = $('loginView')
 const saveView = $('saveView')
+const noteView = $('noteView')
 const statusEl = $('saveStatus')
+const noteStatusEl = $('noteStatus')
 
 /** 拉取当前激活标签页信息 */
 async function getActiveTab() {
@@ -46,17 +48,30 @@ function setStatus(text, type = '') {
   statusEl.className = `status ${type}`
 }
 
+function setNoteStatus(text, type = '') {
+  noteStatusEl.textContent = text
+  noteStatusEl.className = `status ${type}`
+}
+
+/** 当前便签 Markdown 草稿（保存按钮用） */
+let noteDraft = null
+
+/** 切换视图：收藏 / 便签 / 登录 */
+function switchView(view) {
+  loginView.classList.toggle('hidden', view !== 'login')
+  saveView.classList.toggle('hidden', view !== 'save')
+  noteView.classList.toggle('hidden', view !== 'note')
+}
+
 /** 渲染登录态 */
 async function render() {
   const state = await getState()
   $('serverText').textContent = state.server || '-'
   if (!state.token) {
-    loginView.classList.remove('hidden')
-    saveView.classList.add('hidden')
+    switchView('login')
     return
   }
-  loginView.classList.add('hidden')
-  saveView.classList.remove('hidden')
+  switchView('save')
 
   const tab = await getActiveTab()
   $('inputTitle').value = tab.title || ''
@@ -67,6 +82,53 @@ async function render() {
     await fillDirs(state)
   } catch (e) {
     setStatus(e?.status === 401 ? '登录已过期，请重新登录' : (e?.message || '加载目录失败'), 'err')
+  }
+}
+
+/** 填充便签目录下拉（记忆上次选择 / 右键默认目录） */
+async function fillNoteDirs(state) {
+  const res = await api('/api/directories?type=2')
+  const select = $('noteSelectDir')
+  if (!res.ok) throw res
+  const dirs = flattenDirs(res.data || [])
+  select.innerHTML = ''
+  if (!dirs.length) {
+    select.innerHTML = '<option value="">（暂无便签目录，请先到 JNClub 创建）</option>'
+    select.disabled = true
+    return
+  }
+  select.disabled = false
+  for (const d of dirs) {
+    const opt = document.createElement('option')
+    opt.value = String(d.value)
+    opt.textContent = d.label
+    select.appendChild(opt)
+  }
+  const preferred = state.noteLastDirId || state.noteDefaultDirId
+  if (preferred) {
+    const exists = dirs.some((d) => d.value === preferred)
+    if (exists) select.value = String(preferred)
+  }
+}
+
+/** 提取当前页 Markdown 并进入便签预览视图 */
+async function openNoteFromTab(tab) {
+  setNoteStatus('正在提取正文…')
+  switchView('note')
+  try {
+    const res = await chrome.tabs.sendMessage(tab.id, { type: 'EXTRACT_MARKDOWN' })
+    if (!res?.ok) {
+      setNoteStatus(res?.message || '该页面无法转换（可能为浏览器内置页面）', 'err')
+      return
+    }
+    noteDraft = res
+    $('noteTitle').value = res.title || ''
+    $('notePreview').value = res.markdown
+    $('noteChars').textContent = `约 ${res.markdown.length} 字符`
+    await fillNoteDirs(await getState())
+    setNoteStatus('', '')
+  } catch {
+    setNoteStatus('该页面无法转换（可能为浏览器内置页面）', 'err')
   }
 }
 
@@ -117,6 +179,44 @@ $('btnSave').addEventListener('click', async () => {
 $('btnBatch').addEventListener('click', () => {
   chrome.tabs.create({ url: chrome.runtime.getURL('batch/batch.html') })
   window.close()
+})
+
+/* ========== 网页转便签 ========== */
+
+$('btnToNote').addEventListener('click', async () => {
+  const tab = await getActiveTab()
+  if (!tab?.id) { setStatus('无法获取当前标签页', 'err'); return }
+  await openNoteFromTab(tab)
+})
+
+$('btnNoteBack').addEventListener('click', () => {
+  noteDraft = null
+  switchView('save')
+})
+
+$('btnNoteSave').addEventListener('click', async () => {
+  const directoryId = Number($('noteSelectDir').value)
+  const content = noteDraft?.markdown || ''
+  const title = $('noteTitle').value.trim() || noteDraft?.title || ''
+  if (!directoryId) { setNoteStatus('请选择便签目录', 'err'); return }
+  if (!content.trim()) { setNoteStatus('内容为空，无法保存', 'err'); return }
+
+  setNoteStatus('保存中…')
+  const res = await chrome.runtime.sendMessage({
+    type: 'CREATE_NOTE',
+    data: { title, content, directoryId },
+  })
+  if (res?.ok) {
+    setNoteStatus('已保存为便签 ✓', 'ok')
+    const st = await getState()
+    // 记录便签默认目录（右键菜单「保存为 JNClub 便签」使用）
+    await saveState({ noteLastDirId: directoryId, noteDefaultDirId: st.noteDefaultDirId || directoryId })
+    setTimeout(() => window.close(), 600)
+  } else if (res?.status === 401) {
+    setNoteStatus('登录已过期，请重新登录', 'err')
+  } else {
+    setNoteStatus(res?.message || '保存失败', 'err')
+  }
 })
 
 render()

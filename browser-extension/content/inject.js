@@ -43,4 +43,41 @@
   window.addEventListener('storage', (e) => {
     if (e.key === KEY) sync()
   })
-})()
+})();
+
+/**
+ * 网页转 Markdown：监听 EXTRACT_MARKDOWN 消息
+ * 流程：克隆 document → Readability 提取正文 → 图片 src 补全绝对 URL → Turndown 转 Markdown。
+ * 依赖 manifest 中先注入的 vendor/Readability.js 与 vendor/turndown.js（全局 Readability / TurndownService）。
+ */
+chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+  if (msg?.type !== 'EXTRACT_MARKDOWN') return false
+
+  try {
+    // 克隆文档，避免 Readability 原地删除节点污染页面
+    const clone = document.cloneNode(true)
+    const article = new Readability(clone).parse()
+    if (!article || !article.content) {
+      sendResponse({ ok: false, message: '未能提取到正文内容' })
+      return true
+    }
+
+    // 图片相对路径补全为绝对 URL（否则在便签里会相对 JNClub 域名而失效）
+    const tmp = document.createElement('div')
+    tmp.innerHTML = article.content
+    tmp.querySelectorAll('img[src]').forEach((img) => {
+      try {
+        img.setAttribute('src', new URL(img.getAttribute('src'), location.href).href)
+      } catch { /* 保留原值 */ }
+    })
+
+    // 兜底清洗：Readability 对内容少/结构特殊的页面可能保留导航等噪音，确定性移除
+    tmp.querySelectorAll('nav, footer, form, script, style, iframe').forEach((el) => el.remove())
+
+    const markdown = new TurndownService({ headingStyle: 'atx', codeBlockStyle: 'fenced' }).turndown(tmp)
+    sendResponse({ ok: true, title: article.title || document.title, markdown, url: location.href })
+  } catch (e) {
+    sendResponse({ ok: false, message: `转换失败：${e?.message || e}` })
+  }
+  return true
+})

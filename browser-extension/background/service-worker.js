@@ -1,10 +1,11 @@
 /**
  * background/service-worker.js — 插件后台
- * 职责：右键菜单收藏、token 管理（content script 同步）、消息路由、桌面通知
+ * 职责：右键菜单收藏 / 保存便签、token 管理（content script 同步）、消息路由、桌面通知
  */
-import { api, getState, saveState, serverRoot, DEFAULT_SERVER } from '../lib/api.js'
+import { api, getState, saveState, serverRoot, DEFAULT_SERVER, createNote } from '../lib/api.js'
 
 const MENU_ID = 'jnclub-save-page'
+const MENU_NOTE_ID = 'jnclub-save-note'
 
 /**
  * 旧版本迁移：老默认地址为 localhost（本地开发），现默认线上地址。
@@ -28,6 +29,11 @@ chrome.runtime.onInstalled.addListener(() => {
     title: '收藏到 JNClub',
     contexts: ['page', 'link'],
   })
+  chrome.contextMenus.create({
+    id: MENU_NOTE_ID,
+    title: '保存为 JNClub 便签',
+    contexts: ['page'],
+  })
   migrateDefaultServer()
 })
 
@@ -36,6 +42,10 @@ migrateDefaultServer()
 
 /** 右键菜单收藏：pageUrl 或 linkUrl，标题取当前标签页标题 */
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+  if (info.menuItemId === MENU_NOTE_ID) {
+    savePageAsNote(tab)
+    return
+  }
   if (info.menuItemId !== MENU_ID) return
   const url = info.linkUrl || info.pageUrl
   const title = info.selectionText ? info.selectionText.slice(0, 100) : tab?.title || url
@@ -58,6 +68,54 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     notify('收藏失败', res.message)
   }
 })
+
+/** 右键菜单：把当前页转为 Markdown 便签（默认便签目录，无则取第一个并记忆） */
+async function savePageAsNote(tab) {
+  const state = await getState()
+  if (!state.token) {
+    notify('未登录', '请先打开 JNClub 收藏助手完成登录')
+    return
+  }
+  let md
+  try {
+    md = await chrome.tabs.sendMessage(tab.id, { type: 'EXTRACT_MARKDOWN' })
+  } catch {
+    notify('无法转换', '该页面不支持转换（可能为浏览器内置页面）')
+    return
+  }
+  if (!md?.ok) {
+    notify('无法转换', md?.message || '该页面不支持转换')
+    return
+  }
+  const dirId = state.noteDefaultDirId
+  if (!dirId) {
+    const dirs = await fetchNoteDirs()
+    const first = dirs[0]
+    if (first) {
+      await saveState({ noteDefaultDirId: first.id })
+      return createNoteWithDir(tab, md, first.id)
+    }
+    notify('无便签目录', '请先在 JNClub 创建便签目录')
+    return
+  }
+  return createNoteWithDir(tab, md, dirId)
+}
+
+async function createNoteWithDir(tab, md, directoryId) {
+  const res = await createNote({ title: md.title || '', content: md.markdown, directoryId })
+  if (res.ok) {
+    notify('已保存为便签', `${md.title || '无标题'} → 便签 #${directoryId}`)
+  } else if (res.status === 401) {
+    notify('登录已过期', '请打开 JNClub 收藏助手重新登录')
+  } else {
+    notify('保存失败', res.message)
+  }
+}
+
+async function fetchNoteDirs() {
+  const res = await api('/api/directories?type=2')
+  return res.ok ? res.data || [] : []
+}
 
 /** 右键菜单点击时也刷新菜单可见性（未登录也允许点，弹提示） */
 
@@ -139,6 +197,13 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     case 'FAVORITE':
       // popup/batch 创建收藏
       createBookmarkSafe(msg.data)
+        .then(sendResponse)
+        .catch((e) => sendResponse({ ok: false, message: String(e) }))
+      return true
+
+    case 'CREATE_NOTE':
+      // popup 网页转便签：直接创建（目录由弹窗选择）
+      createNote(msg.data)
         .then(sendResponse)
         .catch((e) => sendResponse({ ok: false, message: String(e) }))
       return true

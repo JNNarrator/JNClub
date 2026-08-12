@@ -99,3 +99,31 @@ select.jn-input {
   font-size: 12px;
   padding: 7px 8px;
 }
+
+/* 便签预览视图 */
+.note-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.note-head-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-1);
+}
+.note-preview {
+  min-height: 160px;
+  max-height: 240px;
+  resize: none;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: var(--glass-bg-trans);
+}
+.note-chars {
+  font-size: 11px;
+  color: var(--text-3);
+  text-align: right;
+}

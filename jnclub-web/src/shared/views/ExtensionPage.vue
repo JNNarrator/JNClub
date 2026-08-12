@@ -4,9 +4,9 @@
  * 公开页（无需登录）：下载 zip + 图文安装步骤
  */
 import { NButton, NIcon, NSteps, NStep, NAlert } from 'naive-ui'
-import { Download, MousePointerClick, ListChecks, MousePointer, ShieldCheck, Puzzle, ChevronRight } from 'lucide-vue-next'
+import { Download, MousePointerClick, ListChecks, MousePointer, ShieldCheck, Puzzle, ChevronRight, FileText } from 'lucide-vue-next'
 
-const EXT_VERSION = '1.0.0'
+const EXT_VERSION = '1.1.0'
 // zip 为 public/extension.zip 单文件：不用 extension/ 目录，避免与 SPA 路由 /extension 冲突（nginx 403）
 const zipUrl = `${import.meta.env.BASE_URL}extension.zip`
 
@@ -14,6 +14,7 @@ const features = [
   { icon: MousePointerClick, title: '当前页一键收藏', desc: '点工具栏图标，自动带出当前页标题/网址，选目录即收藏' },
   { icon: ListChecks, title: '批量收藏标签页', desc: '列出全部打开的标签页，勾选批量收藏，已收藏自动去重' },
   { icon: MousePointer, title: '右键菜单收藏', desc: '任意网页右键 →「收藏到 JNClub」，收藏后桌面通知' },
+  { icon: FileText, title: '网页转 Markdown 便签', desc: '右键或弹窗一键把文章正文转为 Markdown 便签，自动去导航/广告' },
 ]
 
 const steps = [
@@ -63,7 +64,7 @@ const download = () => {
           <template #icon><NIcon :component="Download" /></template>
           下载插件包 v{{ EXT_VERSION }}
         </NButton>
-        <p class="jn-hint">zip 约 25KB · 免费 · 支持 Chrome / Edge（基于 Chromium）</p>
+        <p class="jn-hint">zip 约 60KB · 免费 · 支持 Chrome / Edge（基于 Chromium）</p>
         <NAlert type="warning" :bordered="false" class="install-alert">
           <template #icon><NIcon :component="ShieldCheck" /></template>
           安装后在「开发者模式」下加载，无需发布到商店；登录使用 JNClub 既有 SSO 账号。
@@ -232,16 +233,18 @@ const download = () => {
   margin-bottom: 16px;
 }
 .step-num {
-  display: inline-flex;
+  /* 绝对定位于 slot（slot 本身 position:relative），避免行内基线对齐造成的偏移 */
+  position: absolute;
+  inset: 0;
+  display: flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
   border-radius: 50%;
   background: var(--brand-soft);
   color: var(--brand);
   font-size: 12px;
   font-weight: 700;
+  line-height: 1;
 }
 :deep(.n-step) {
   --n-title-text-color: var(--text-1) !important;
@@ -249,6 +252,10 @@ const download = () => {
   --n-indicator-color: var(--brand-soft) !important;
   --n-indicator-text-color: var(--brand) !important;
   --n-line-color: var(--glass-border) !important;
+  /* 指示器圆与内部数字槽同尺寸，确保数字严格居中 */
+  --n-indicator-size: 28px !important;
+  --n-indicator-icon-size: 28px !important;
+  --n-indicator-index-font-size: 12px !important;
 }
 
 .foot {

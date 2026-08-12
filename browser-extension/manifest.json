@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "JNClub 收藏助手",
-  "version": "1.0.0",
-  "description": "一键收藏当前网页、批量收藏打开的标签页到 JNClub 个人工作台。右键菜单快捷收藏。",
+  "version": "1.1.0",
+  "description": "一键收藏当前网页、批量收藏打开的标签页到 JNClub 个人工作台。右键菜单快捷收藏，支持网页转 Markdown 便签。",
   "permissions": ["tabs", "storage", "contextMenus", "notifications"],
   "host_permissions": ["<all_urls>"],
   "background": {
@@ -28,7 +28,7 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["content/inject.js"],
+      "js": ["vendor/Readability.js", "vendor/turndown.js", "content/inject.js"],
       "run_at": "document_idle"
     }
   ]
