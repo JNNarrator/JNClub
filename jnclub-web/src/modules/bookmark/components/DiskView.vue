@@ -14,6 +14,7 @@ import { Pause, Play, Download, Trash2, FileText, Pencil, FolderInput, Ellipsis,
 import { useCloudDiskStore, type DiskFile } from '../stores/clouddisk'
 import { useChunkedUpload } from '../composables/useChunkedUpload'
 import { useDraggableSort } from '../composables/useDraggableSort'
+import { openMenu } from '../../../shared/composables/useContextMenu'
 import axios from 'axios'
 
 const props = defineProps<{
@@ -358,6 +359,7 @@ const fileKindColor = (name: string) => FILE_KINDS.find(k => k.re.test(name))?.c
             <div
               v-for="file in diskStore.files" :key="file.id" :data-id="file.id"
               :class="['file-item', 'jnclub-bouncy', { 'file-item-selected': isSelected(file.id) }]"
+              @contextmenu.prevent="openMenu($event, rowMenu(), (key: string) => handleRowMenu(key, file))"
             >
               <NCheckbox
                 v-if="batchMode"

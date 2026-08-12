@@ -9,6 +9,7 @@ import { NButton, NIcon, NDropdown, NEllipsis, NTag } from 'naive-ui'
 import { Pencil, Trash2, Eye, EllipsisVertical, StickyNote, Clock } from 'lucide-vue-next'
 import { formatDate } from '../composables/formatDate'
 import { stripMarkdown } from '../composables/stripMarkdown'
+import { openMenu } from '../../../shared/composables/useContextMenu'
 import type { Note } from '../stores/note'
 
 const props = defineProps<{
@@ -47,7 +48,7 @@ const handleClick = () => {
 </script>
 
 <template>
-  <div class="note-card jnclub-bouncy" @click="handleClick">
+  <div class="note-card jnclub-bouncy" @click="handleClick" @contextmenu.prevent="openMenu($event, dropdownOptions, handleDropdown)">
     <!-- 顶部渐变装饰条 -->
     <div class="card-top-bar"></div>
 

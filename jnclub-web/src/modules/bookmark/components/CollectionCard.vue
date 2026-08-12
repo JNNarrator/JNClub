@@ -7,6 +7,7 @@
 import { h, ref } from 'vue'
 import { NButton, NIcon, NDropdown, NEllipsis, NTag, useMessage } from 'naive-ui'
 import { Pencil, Trash2, EllipsisVertical, ExternalLink } from 'lucide-vue-next'
+import { openMenu } from '../../../shared/composables/useContextMenu'
 import axios from 'axios'
 import type { BookmarkItem } from './CollectionRow.vue'
 
@@ -54,7 +55,7 @@ const handleDropdown = (key: string) => {
 </script>
 
 <template>
-  <div class="bookmark-card jnclub-bouncy" @click="handleOpen">
+  <div class="bookmark-card jnclub-bouncy" @click="handleOpen" @contextmenu.prevent="openMenu($event, dropdownOptions, handleDropdown)">
     <!-- 顶部渐变装饰条 -->
     <div class="card-top-bar"></div>
 

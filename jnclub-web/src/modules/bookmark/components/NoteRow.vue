@@ -9,6 +9,7 @@ import { NButton, NIcon, NDropdown, NEllipsis, NTag } from 'naive-ui'
 import { Pencil, Trash2, Eye, Ellipsis, StickyNote, Clock } from 'lucide-vue-next'
 import { formatRelativeTime } from '../composables/formatDate'
 import { stripMarkdown } from '../composables/stripMarkdown'
+import { openMenu } from '../../../shared/composables/useContextMenu'
 import type { Note } from '../stores/note'
 
 const props = defineProps<{
@@ -48,7 +49,7 @@ const handleClick = () => {
 </script>
 
 <template>
-  <div class="note-row" @click="handleClick">
+  <div class="note-row" @click="handleClick" @contextmenu.prevent="openMenu($event, dropdownOptions, handleDropdown)">
     <!-- 文档图标 -->
     <div class="row-icon">
       <NIcon :component="StickyNote" size="18" color="var(--text-3)" />

@@ -7,7 +7,8 @@
  */
 import { h } from 'vue'
 import { NButton, NIcon, NDropdown, NEllipsis, NTag, useMessage } from 'naive-ui'
-import { Pencil, Trash2, Ellipsis, Clock } from 'lucide-vue-next'
+import { Pencil, Trash2, Ellipsis, Clock, ExternalLink } from 'lucide-vue-next'
+import { openMenu } from '../../../shared/composables/useContextMenu'
 import axios from 'axios'
 import { formatRelativeTime } from '../composables/formatDate'
 
@@ -48,7 +49,7 @@ const handleDelete = async () => {
 }
 
 const dropdownOptions = [
-  { label: '打开', key: 'open', icon: () => h(NIcon, null, { default: () => h(Ellipsis) }) },
+  { label: '打开', key: 'open', icon: () => h(NIcon, null, { default: () => h(ExternalLink) }) },
   { label: '编辑', key: 'edit', icon: () => h(NIcon, null, { default: () => h(Pencil) }) },
   { label: '删除', key: 'delete', icon: () => h(NIcon, null, { default: () => h(Trash2) }) },
 ]
@@ -61,7 +62,7 @@ const handleDropdown = (key: string) => {
 </script>
 
 <template>
-  <div class="collection-row" @click="handleOpen">
+  <div class="collection-row" @click="handleOpen" @contextmenu.prevent="openMenu($event, dropdownOptions, handleDropdown)">
     <!-- favicon -->
     <div class="row-favicon">
       <img

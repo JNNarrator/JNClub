@@ -26,6 +26,8 @@ import VaultView from '../components/VaultView.vue'
 import ViewSwitcher from '../components/ViewSwitcher.vue'
 import TagPicker from '../components/TagPicker.vue'
 import SearchDrawer from '../components/SearchDrawer.vue'
+import ContextMenuHost from '../../../shared/components/ContextMenuHost.vue'
+import { openMenu } from '../../../shared/composables/useContextMenu'
 import type { ViewMode } from '../components/ViewSwitcher.vue'
 import axios from 'axios'
 import { useUserPreferences } from '../../../shared/composables/useUserPreferences'
@@ -589,7 +591,7 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
 
         <!-- 头像 + 名称下拉（自侧栏移入） -->
         <NDropdown :options="userDropdownOptions" @select="handleUserDropdown" placement="bottom-end" trigger="click">
-          <div class="user-row jnclub-bouncy">
+          <div class="user-row jnclub-bouncy" @contextmenu.prevent="openMenu($event, userDropdownOptions, handleUserDropdown)">
             <NAvatar round size="small" :src="userStore.userinfo?.avatar" class="user-avatar">
               <template v-if="!userStore.userinfo?.avatar">
                 {{ userStore.userinfo?.nickname?.charAt(0) || 'U' }}
@@ -858,6 +860,8 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
       </template>
     </NModal>
 
+    <!-- 全局右键菜单宿主 -->
+    <ContextMenuHost />
   </div>
 </template>
 

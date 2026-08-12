@@ -5,10 +5,11 @@
  * 删除前 content-count 预检（有内容禁止删除）；创建带 type 参数
  */
 import { ref, computed, h } from 'vue'
-import { NTree, NButton, NIcon, NDropdown, NModal, NForm, NFormItem, NInput, NSpace, useMessage, useDialog } from 'naive-ui'
+import { NTree, NButton, NIcon, NModal, NForm, NFormItem, NInput, NSpace, useMessage, useDialog } from 'naive-ui'
 import type { TreeOption, TreeDropInfo } from 'naive-ui'
 import { Plus, FolderOpen, Folder, Bookmark, Star, Heart, BookOpen, Tag, Archive, Pencil, Trash2, Ellipsis } from 'lucide-vue-next'
 import { useDirectoryStore } from '../stores/directory'
+import { openMenu } from '../../../shared/composables/useContextMenu'
 import axios from 'axios'
 
 interface Directory {
@@ -63,11 +64,6 @@ const renaming = ref(false)
 const deleting = ref(false)
 const reordering = ref(false)
 
-const contextMenuDirId = ref<number | null>(null)
-const showContextMenu = ref(false)
-const contextMenuX = ref(0)
-const contextMenuY = ref(0)
-
 const treeData = computed((): TreeOption[] => {
   const map = new Map<number, TreeOption & { id: number; isLeaf: boolean; name: string }>()
   const roots: (TreeOption & { id: number; isLeaf: boolean; name: string })[] = []
@@ -113,19 +109,17 @@ const contextMenuOptions = [
   { label: '删除', key: 'delete', icon: () => h(NIcon, null, { default: () => h(Trash2) }) },
 ]
 
-const handleContextMenuAction = (key: string) => {
-  const id = contextMenuDirId.value
-  if (!id) return
+const handleContextMenuAction = (dirId: number, key: string) => {
   if (key === 'rename') {
-    const dir = findDir(props.directories, id)
+    const dir = findDir(props.directories, dirId)
     if (dir) {
-      renameId.value = id
+      renameId.value = dirId
       renameName.value = dir.name
       renameIcon.value = dir.icon || ''
       showRenameModal.value = true
     }
   } else if (key === 'delete') {
-    const dir = findDir(props.directories, id)
+    const dir = findDir(props.directories, dirId)
     dialog.warning({
       title: '确认删除',
       content: `确定要删除"${dir?.name}"及其所有子目录吗？`,
@@ -136,13 +130,13 @@ const handleContextMenuAction = (key: string) => {
         deleting.value = true
         try {
           // 删除保护预检：有内容（含子目录）禁止删除
-          const res = await axios.get(`/api/directories/${id}/content-count`)
+          const res = await axios.get(`/api/directories/${dirId}/content-count`)
           const { bookmarkCount, noteCount } = res.data.data || {}
           if ((bookmarkCount || 0) > 0 || (noteCount || 0) > 0) {
             message.warning('目录下存在条目，请先清空或移动后再删除')
             return
           }
-          await axios.delete(`/api/directories/${id}`)
+          await axios.delete(`/api/directories/${dirId}`)
           message.success('删除成功')
           emit('refresh')
         } catch (e: any) {
@@ -208,10 +202,16 @@ const findSiblings = (dirs: Directory[], a: number, b: number): Directory[] | nu
   return null
 }
 
-/* each row: hover shows ... menu */
+/* each row: hover shows ... menu + 右键打开同一菜单 */
 const renderLabel = ({ option }: { option: TreeOption }) => {
   const node = option as any
-  return h('span', { style: 'display: flex; align-items: center; justify-content: space-between; width: 100%;' }, [
+  const openNodeMenu = (e: MouseEvent) => {
+    openMenu(e, contextMenuOptions, (key: string) => handleContextMenuAction(node.id, key))
+  }
+  return h('span', {
+    style: 'display: flex; align-items: center; justify-content: space-between; width: 100%;',
+    onContextmenu: openNodeMenu,
+  }, [
     h('span', { style: 'overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; font-size: var(--fs-base);' }, node.name),
     h(NButton, {
       quaternary: true, circle: true, size: 'tiny',
@@ -219,10 +219,7 @@ const renderLabel = ({ option }: { option: TreeOption }) => {
       class: 'node-menu-btn',
       onClick: (e: MouseEvent) => {
         e.stopPropagation()
-        contextMenuDirId.value = node.id
-        showContextMenu.value = true
-        contextMenuX.value = e.clientX
-        contextMenuY.value = e.clientY
+        openNodeMenu(e)
       },
     }, { default: () => h(NIcon, { component: Ellipsis, size: 14 }) }),
   ])
@@ -277,16 +274,6 @@ const handleRenameSubmit = async () => {
       @update:selected-keys="handleSelect"
       @drop="handleDrop"
       class="folder-n-tree"
-    />
-
-    <NDropdown
-      v-if="contextMenuDirId"
-      :options="contextMenuOptions"
-      :show="showContextMenu"
-      :x="contextMenuX" :y="contextMenuY"
-      placement="bottom-start"
-      @clickoutside="showContextMenu = false"
-      @select="handleContextMenuAction"
     />
 
     <!-- 新建目录 -->
