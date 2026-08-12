@@ -540,47 +540,6 @@ defineExpose({ hasUnsavedChanges })
         />
       </Transition>
 
-      <!-- 统一可拖拽、可收起的悬浮大纲 -->
-      <div
-        v-show="outlineVisible && catalogList.length"
-        ref="outlineBox"
-        class="outline-float"
-        :style="{ left: outlinePos.x + 'px', top: outlinePos.y + 'px' }"
-      >
-        <div class="outline-float__head" @mousedown="onOutlineDragStart" title="拖动调整位置">
-          <span class="outline-float__title">大纲</span>
-          <div class="outline-float__actions">
-            <button class="outline-float__btn" title="收起" @click="outlineVisible = false">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg>
-            </button>
-          </div>
-        </div>
-        <div class="outline-float__body">
-          <button
-            v-for="(h, i) in catalogList"
-            :key="i"
-            class="outline-float__item"
-            :class="{ 'outline-float__item--active': h.active }"
-            :style="{ paddingLeft: headingPadding(h.level) }"
-            @click="scrollToHeading(h)"
-          >{{ h.text }}</button>
-        </div>
-      </div>
-
-      <!-- 悬浮大纲展开按钮（收起后显示，可拖动调整位置） -->
-      <button
-        v-if="catalogList.length && !outlineVisible"
-        ref="outlineToggle"
-        class="outline-float__reopen"
-        title="点击展开大纲 · 拖动调整位置"
-        @mousedown="onOutlineDragStart"
-        @click="onOutlineToggleClick"
-        :style="{ left: outlinePos.x + 'px', top: outlinePos.y + 'px' }"
-      >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
-        <span>大纲</span>
-      </button>
-
       <!-- 空态引导：首次打开不是白板 -->
       <div v-if="showGuide" class="editor-guide">
         <div class="guide-card">
@@ -625,7 +584,48 @@ defineExpose({ hasUnsavedChanges })
       </div>
     </NModal>
   </div>
+
+  <!-- 统一可拖拽、可收起的悬浮大纲（置于 .note-editor 之外，避免被其 backdrop-filter 建立的 containing block 约束，fixed 才相对视口） -->
+  <div
+    v-show="outlineVisible && catalogList.length"
+    ref="outlineBox"
+    class="outline-float"
+    :style="{ left: outlinePos.x + 'px', top: outlinePos.y + 'px' }"
+  >
+    <div class="outline-float__head" @mousedown="onOutlineDragStart" title="拖动调整位置">
+      <span class="outline-float__title">大纲</span>
+      <div class="outline-float__actions">
+        <button class="outline-float__btn" title="收起" @click="outlineVisible = false">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="outline-float__body">
+      <button
+        v-for="(h, i) in catalogList"
+        :key="i"
+        class="outline-float__item"
+        :class="{ 'outline-float__item--active': h.active }"
+        :style="{ paddingLeft: headingPadding(h.level) }"
+        @click="scrollToHeading(h)"
+      >{{ h.text }}</button>
+    </div>
   </div>
+
+  <!-- 悬浮大纲展开按钮（收起后显示，可拖动调整位置） -->
+  <button
+    v-if="catalogList.length && !outlineVisible"
+    ref="outlineToggle"
+    class="outline-float__reopen"
+    title="点击展开大纲 · 拖动调整位置"
+    @mousedown="onOutlineDragStart"
+    @click="onOutlineToggleClick"
+    :style="{ left: outlinePos.x + 'px', top: outlinePos.y + 'px' }"
+  >
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+    <span>大纲</span>
+  </button>
+</div>
 </template>
 
 <style scoped>

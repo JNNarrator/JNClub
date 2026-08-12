@@ -88,7 +88,7 @@ VALUES ('JNClub', 'app-jnclub', 'http://localhost:19005/sso/login', 'http://loca
 
 - ✅ 目录管理（树形目录、CRUD、拖拽排序、级联删除、删除保护；type 区分模块：1 收藏夹 / 2 便签 / 3 云盘）
 - ✅ 网页收藏（CRUD、Favicon 自动提取、URL 预览、拖拽排序）
-- ✅ 便签（CRUD、Markdown 编辑、图片上传、拖拽排序）
+- ✅ 便签（CRUD、Markdown 编辑、图片上传、拖拽排序、可拖拽悬浮大纲/目录）
 - ✅ 云盘（单文件分片上传、断点续传、暂停/恢复、文件列表、下载还原原始文件名、删除）
 - ✅ SSO 单点登录
 - ✅ 日/夜间模式（跟随系统）
