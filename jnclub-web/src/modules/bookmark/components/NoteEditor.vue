@@ -446,7 +446,7 @@ defineExpose({ hasUnsavedChanges })
 </script>
 
 <template>
-  <div class="note-editor-shell">
+  <div class="note-editor-shell" :class="{ 'readonly-mode': readonlyMode }">
     <div class="note-editor" :class="{ 'readonly-mode': readonlyMode }">
     <div class="editor-topbar">
       <NButton quaternary size="small" @click="handleRequestClose" title="返回列表（有未保存修改时二次确认）">
@@ -511,32 +511,34 @@ defineExpose({ hasUnsavedChanges })
 
     <div class="editor-body" :class="{ flash: editorFlash }">
       <!-- md-editor-v3 编辑器（编辑态：左右分栏实时预览） / 渲染预览（只读态）
-           两态都通过 onGetCatalog 输出目录数据给统一的悬浮大纲 -->
-      <MdEditor
-        v-if="!readonlyMode"
-        ref="mdEditor"
-        :id="EDITOR_ID"
-        v-model="content"
-        :theme="isDark ? 'dark' : 'light'"
-        language="zh-CN"
-        :toolbars="toolbars"
-        :placeholder="'支持 Markdown 语法，试试输入 # 标题，或 ** 加粗'"
-        :no-upload-img="false"
-        :auto-detect-code="true"
-        :on-upload-img="handleUploadImg"
-        :on-save="handleEditorSave"
-        :on-change="handleEditorInput"
-        :on-get-catalog="handleCatalog"
-        class="md-editor-wrap"
-      />
-      <MdPreview
-        v-else
-        :id="EDITOR_ID + '-preview'"
-        :model-value="content"
-        :theme="isDark ? 'dark' : 'light'"
-        :on-get-catalog="handleCatalog"
-        class="md-preview-wrap"
-      />
+           两态都通过 onGetCatalog 输出目录数据给统一的悬浮大纲；切换带淡入淡出过渡 -->
+      <Transition name="editor-mode" mode="out-in">
+        <MdEditor
+          v-if="!readonlyMode"
+          ref="mdEditor"
+          :id="EDITOR_ID"
+          v-model="content"
+          :theme="isDark ? 'dark' : 'light'"
+          language="zh-CN"
+          :toolbars="toolbars"
+          :placeholder="'支持 Markdown 语法，试试输入 # 标题，或 ** 加粗'"
+          :no-upload-img="false"
+          :auto-detect-code="true"
+          :on-upload-img="handleUploadImg"
+          :on-save="handleEditorSave"
+          :on-change="handleEditorInput"
+          :on-get-catalog="handleCatalog"
+          class="md-editor-wrap"
+        />
+        <MdPreview
+          v-else
+          :id="EDITOR_ID + '-preview'"
+          :model-value="content"
+          :theme="isDark ? 'dark' : 'light'"
+          :on-get-catalog="handleCatalog"
+          class="md-preview-wrap"
+        />
+      </Transition>
 
       <!-- 统一可拖拽、可收起的悬浮大纲 -->
       <div
@@ -629,9 +631,15 @@ defineExpose({ hasUnsavedChanges })
 <style scoped>
 .note-editor-shell {
   height: 100%;
-  max-width: 880px;
+  max-width: 100vw; /* 编辑态全屏 */
+  margin: 0;
+  transition: max-width 0.3s var(--ease), padding 0.3s var(--ease);
+}
+/* 只读预览态：居中窄栏，适度放宽到 1040px */
+.note-editor-shell.readonly-mode {
+  max-width: 1040px;
   margin: 0 auto;
-  padding: 0 16px; /* 两侧留一点，窄屏不贴边 */
+  padding: 0 16px;
 }
 .note-editor {
   position: relative;
@@ -736,6 +744,19 @@ defineExpose({ hasUnsavedChanges })
   min-height: 0;
   overflow: hidden;
   position: relative;
+}
+/* 编辑态 ↔ 预览态切换过渡：淡入 + 轻微位移 */
+.editor-mode-enter-active,
+.editor-mode-leave-active {
+  transition: opacity 0.22s var(--ease), transform 0.22s var(--ease);
+}
+.editor-mode-enter-from {
+  opacity: 0;
+  transform: translateY(10px);
+}
+.editor-mode-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
 }
 /* 只读→编辑切换：编辑框高亮动画（inset 描边，不影响布局） */
 .editor-body.flash {
@@ -1152,8 +1173,10 @@ defineExpose({ hasUnsavedChanges })
 
 /* === 移动端（<768px）：顶栏收窄、大纲防溢出、隐藏次要信息 === */
 @media (max-width: 767px) {
-  .note-editor-shell {
+  .note-editor-shell,
+  .note-editor-shell.readonly-mode {
     max-width: none;
+    margin: 0;
     padding: 0 !important;
   }
   .editor-topbar {
