@@ -122,15 +122,15 @@ const handleNavEditorSaved = () => { refreshNav() }
       </div>
     </nav>
 
-    <!-- 编辑导航入口（固定，不参与拖拽） -->
-    <div class="nav-editor-bar">
+    <!-- 编辑导航入口（左下角小图标，不参与拖拽） -->
+    <div :class="['nav-editor-bar', { collapsed: props.collapsed }]">
       <button
         type="button"
-        :class="['nav-editor-btn', 'jnclub-bouncy', { collapsed: props.collapsed }]"
+        class="nav-editor-btn jnclub-bouncy"
+        title="编辑导航"
         @click="showNavEditor = true"
       >
-        <NIcon :component="Pencil" :size="props.collapsed ? 20 : 15" class="nav-editor-icon" />
-        <span v-if="!props.collapsed" class="nav-editor-label">编辑导航</span>
+        <NIcon :component="Pencil" :size="18" />
       </button>
     </div>
   </NLayoutSider>
@@ -203,38 +203,41 @@ const handleNavEditorSaved = () => { refreshNav() }
 }
 .nav-item-wrap { position: relative; }
 
-/* === 编辑导航入口（侧栏底部固定） === */
+/* === 编辑导航入口（左下角小图标） === */
+/* NLayoutSider 内容实际在内部 scroll-container 中：需让其成为 flex 列布局，
+   nav-list(flex:1) 撑满、编辑按钮才能真正贴到左下角 */
+.side-nav :deep(.n-layout-sider-scroll-container) {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
 .nav-editor-bar {
   flex-shrink: 0;
-  padding: 8px 12px 12px;
+  display: flex;
+  justify-content: flex-start;
+  padding: 6px 10px 10px;
   border-top: 1px solid var(--glass-border);
 }
+.nav-editor-bar.collapsed {
+  justify-content: center;
+  padding: 8px 0 10px;
+}
 .nav-editor-btn {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  width: 100%;
-  padding: 9px 12px;
-  border: 1px dashed var(--glass-chip-border);
-  border-radius: var(--radius-pill);
-  background: var(--glass-chip-bg);
-  color: var(--text-2);
-  font-size: 13px;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-3);
   cursor: pointer;
   transition: all .18s ease;
 }
 .nav-editor-btn:hover {
   color: var(--brand);
-  border-color: var(--brand);
   background: var(--brand-soft);
-}
-.nav-editor-btn.collapsed {
-  padding: 10px 0;
-  border-radius: var(--radius-sm);
-}
-.nav-editor-icon {
-  flex-shrink: 0;
 }
 
 /* 侧栏拖拽视觉 */
