@@ -446,7 +446,8 @@ defineExpose({ hasUnsavedChanges })
 </script>
 
 <template>
-  <div class="note-editor" :class="{ 'readonly-mode': readonlyMode }">
+  <div class="note-editor-shell">
+    <div class="note-editor" :class="{ 'readonly-mode': readonlyMode }">
     <div class="editor-topbar">
       <NButton quaternary size="small" @click="handleRequestClose" title="返回列表（有未保存修改时二次确认）">
         <template #icon><NIcon :component="ArrowLeft" size="18" /></template>
@@ -622,9 +623,16 @@ defineExpose({ hasUnsavedChanges })
       </div>
     </NModal>
   </div>
+  </div>
 </template>
 
 <style scoped>
+.note-editor-shell {
+  height: 100%;
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 0 16px; /* 两侧留一点，窄屏不贴边 */
+}
 .note-editor {
   position: relative;
   display: flex;
@@ -1144,6 +1152,10 @@ defineExpose({ hasUnsavedChanges })
 
 /* === 移动端（<768px）：顶栏收窄、大纲防溢出、隐藏次要信息 === */
 @media (max-width: 767px) {
+  .note-editor-shell {
+    max-width: none;
+    padding: 0 !important;
+  }
   .editor-topbar {
     padding: 10px 12px;
     gap: 8px;
