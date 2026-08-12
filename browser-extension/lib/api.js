@@ -5,8 +5,8 @@
  */
 export const STORAGE_KEY = 'jnclub-ext-state'
 
-/** 默认服务器（本地开发；可设置页修改） */
-export const DEFAULT_SERVER = 'http://localhost:19005'
+/** 默认服务器（线上生产；本地开发可在设置页改为 http://localhost:19005） */
+export const DEFAULT_SERVER = 'https://jiangnan.88933.vip'
 
 export async function getState() {
   const s = await chrome.storage.local.get(STORAGE_KEY)

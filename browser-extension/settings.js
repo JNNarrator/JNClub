@@ -21,7 +21,7 @@ $('btnSave').addEventListener('click', async () => {
     // 轻量校验：可选探测（不做强制网络检查，避免误报）
     new URL(server)
   } catch {
-    $('status').textContent = '请输入合法的服务器地址，如 http://localhost:19005'
+    $('status').textContent = '请输入合法的服务器地址，如 https://jiangnan.88933.vip'
     $('status').className = 'status err'
     return
   }

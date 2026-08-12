@@ -2,18 +2,37 @@
  * background/service-worker.js — 插件后台
  * 职责：右键菜单收藏、token 管理（content script 同步）、消息路由、桌面通知
  */
-import { api, getState, saveState, serverRoot } from '../lib/api.js'
+import { api, getState, saveState, serverRoot, DEFAULT_SERVER } from '../lib/api.js'
 
 const MENU_ID = 'jnclub-save-page'
 
-/** 初始化：注册右键菜单 */
+/**
+ * 旧版本迁移：老默认地址为 localhost（本地开发），现默认线上地址。
+ * 已安装扩展若还存着旧默认 server，自动迁移到线上，避免点登录仍进本地。
+ */
+async function migrateDefaultServer() {
+  const state = await getState()
+  if (state.server && state.server !== DEFAULT_SERVER) {
+    const oldDefaults = ['http://localhost:19005', 'https://localhost:19005']
+    const normalized = state.server.replace(/\/+$/, '')
+    if (oldDefaults.includes(normalized)) {
+      await saveState({ server: DEFAULT_SERVER })
+    }
+  }
+}
+
+/** 初始化：注册右键菜单 + 迁移旧默认服务器（onInstalled 覆盖安装/更新） */
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
     id: MENU_ID,
     title: '收藏到 JNClub',
     contexts: ['page', 'link'],
   })
+  migrateDefaultServer()
 })
+
+// 顶层启动兜底迁移（幂等，仅当 server 仍为旧默认时改写）
+migrateDefaultServer()
 
 /** 右键菜单收藏：pageUrl 或 linkUrl，标题取当前标签页标题 */
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
