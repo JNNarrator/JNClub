@@ -4,10 +4,11 @@
  * 嵌入 MainLayout（含 SideNav），管理 activeModule（后端偏好记忆 + localStorage 首屏兜底）
  * 将 isDark 透传至 Home
  */
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import MainLayout from '../layout/MainLayout.vue'
 import Home from '../../modules/bookmark/views/Home.vue'
+import RecycleView from '../../modules/bookmark/views/RecycleView.vue'
 import { useUserPreferences } from '../composables/useUserPreferences'
 
 defineProps<{
@@ -24,6 +25,9 @@ const MODULES: ModuleKey[] = ['bookmarks', 'notes', 'files', 'vault']
 const route = useRoute()
 const router = useRouter()
 const prefs = useUserPreferences()
+
+/** 回收站独立路由：同样进入主布局壳（侧边栏/移动端 TabBar 保持），仅内容区不同 */
+const isRecycle = computed(() => route.name === 'recycle')
 
 /** 从 URL query.module 读取合法模块；无则回退偏好/默认 */
 const moduleFromUrl = (): ModuleKey => {
@@ -62,6 +66,7 @@ onMounted(() => {
     @toggle-theme="emit('toggle-theme')"
     @module-change="handleModuleChange"
   >
-    <Home :active-module="activeModule" :is-dark="isDark" @module-change="handleModuleChange" @toggle-theme="emit('toggle-theme')" />
+    <RecycleView v-if="isRecycle" />
+    <Home v-else :active-module="activeModule" :is-dark="isDark" @module-change="handleModuleChange" @toggle-theme="emit('toggle-theme')" />
   </MainLayout>
 </template>

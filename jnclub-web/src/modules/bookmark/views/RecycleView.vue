@@ -201,7 +201,9 @@ onMounted(fetchItems)
 }
 .recycle-body {
   flex: 1;
-  margin: 20px 24px;
+  width: 100%;
+  max-width: 1560px;
+  margin: 20px auto;
   padding: 16px 20px;
   overflow-y: auto;
   background:
@@ -318,7 +320,7 @@ onMounted(fetchItems)
     height: 52px;
   }
   .recycle-body {
-    margin: 12px;
+    margin: 12px auto;
     padding: 12px;
   }
   .recycle-item {

@@ -1,12 +1,14 @@
 <script setup lang="ts">
 /**
  * MobileTabBar.vue — 移动端底部导航（<768px）
- * 收藏/便签/云盘/密码库 4 Tab + 回收站入口
+ * 跟随用户导航配置（nav.hidden）：隐藏的项不显示；空时回退默认 5 项
  * 桌面端不渲染，由 MainLayout 按视口切换
  */
+import { ref, computed, watch } from 'vue'
 import { NIcon } from 'naive-ui'
-import { Bookmark, StickyNote, Cloud, KeyRound, Trash2 } from 'lucide-vue-next'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
+import { useUserPreferences } from '../composables/useUserPreferences'
+import { NAV_META, MOBILE_KEYS, normalizeNavKeys, type NavDef } from './navConfig'
 
 const props = defineProps<{
   activeModule: 'bookmarks' | 'notes' | 'files' | 'vault'
@@ -17,23 +19,41 @@ const emit = defineEmits<{
 }>()
 
 const router = useRouter()
+const route = useRoute()
+const prefs = useUserPreferences()
 
-type ModuleKey = 'bookmarks' | 'notes' | 'files' | 'vault'
-interface TabDef { key: ModuleKey | 'recycle'; icon: any; label: string }
-const TABS: TabDef[] = [
-  { key: 'bookmarks', icon: Bookmark, label: '收藏' },
-  { key: 'notes', icon: StickyNote, label: '便签' },
-  { key: 'files', icon: Cloud, label: '云盘' },
-  { key: 'vault', icon: KeyRound, label: '密码' },
-  { key: 'recycle', icon: Trash2, label: '回收站' },
-]
+/** 用户隐藏的导航项（nav.hidden） */
+const hiddenKeys = ref<string[]>([])
 
-const handleTab = (tab: TabDef) => {
-  if (tab.key === 'recycle') {
-    router.push('/recycle')
+const loadHidden = () => {
+  const hidden = prefs.get<any[]>('nav.hidden', [])
+  hiddenKeys.value = Array.isArray(hidden) ? normalizeNavKeys(hidden) : []
+}
+loadHidden()
+
+watch(() => prefs.ready, (r) => {
+  if (r) loadHidden()
+})
+
+/** 参与移动端显示的 tab：默认 5 项按 nav.hidden 过滤；全隐藏时回退默认（防空 TabBar） */
+const TABS = computed<NavDef[]>(() => {
+  const shown = MOBILE_KEYS.filter(k => !hiddenKeys.value.includes(k))
+  const keys = shown.length ? shown : MOBILE_KEYS
+  return keys.map(k => ({ key: k, ...NAV_META[k] }))
+})
+
+const handleTab = (tab: NavDef) => {
+  if (tab.kind === 'route') {
+    router.push(tab.target)
     return
   }
-  emit('module-change', tab.key as ModuleKey)
+  emit('module-change', tab.key as 'bookmarks' | 'notes' | 'files' | 'vault')
+}
+
+/** 激活态：模块按 activeModule，路由按 route.name（与 key 同名） */
+const isActive = (tab: NavDef) => {
+  if (tab.kind === 'module') return props.activeModule === tab.key
+  return route.name === tab.key
 }
 </script>
 
@@ -44,7 +64,7 @@ const handleTab = (tab: TabDef) => {
       :key="tab.key"
       type="button"
       class="tab-item jnclub-bouncy"
-      :class="{ 'tab-active': props.activeModule === tab.key }"
+      :class="{ 'tab-active': isActive(tab) }"
       @click="handleTab(tab)"
     >
       <NIcon :component="tab.icon" :size="22" />
