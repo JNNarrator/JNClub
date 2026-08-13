@@ -14,6 +14,7 @@ import { Pause, Play, Download, Trash2, FileText, Pencil, FolderInput, Ellipsis,
 import { useCloudDiskStore, type DiskFile } from '../stores/clouddisk'
 import { useChunkedUpload } from '../composables/useChunkedUpload'
 import { useDraggableSort } from '../composables/useDraggableSort'
+import { useItemDragContext } from '../composables/useItemDragContext'
 import { openMenu } from '../../../shared/composables/useContextMenu'
 import axios from 'axios'
 
@@ -32,6 +33,7 @@ const message = useMessage()
 const dialog = useDialog()
 const diskStore = useCloudDiskStore()
 const uploader = useChunkedUpload()
+const { setDragging } = useItemDragContext()
 
 const fileInputRef = ref<HTMLInputElement | null>(null)
 
@@ -271,6 +273,21 @@ const handleRowMenu = (key: string, file: DiskFile) => {
   else if (key === 'delete') handleDelete(file)
 }
 
+/** 拖拽到目录树：写入跨容器上下文 */
+const handleDragStart = (e: DragEvent, file: DiskFile) => {
+  setDragging({
+    itemId: file.id,
+    module: 'files',
+    currentDirectoryId: file.directoryId ?? null,
+  })
+  if (e.dataTransfer) {
+    e.dataTransfer.effectAllowed = 'move'
+    try { e.dataTransfer.setData('text/plain', String(file.id)) } catch { /* 忽略 */ }
+  }
+}
+
+const handleDragEnd = () => setDragging(null)
+
 watch(() => props.directoryId, () => { loadDiskDirs() })
 onMounted(loadDiskDirs)
 
@@ -359,6 +376,9 @@ const fileKindColor = (name: string) => FILE_KINDS.find(k => k.re.test(name))?.c
             <div
               v-for="file in diskStore.files" :key="file.id" :data-id="file.id"
               :class="['file-item', 'jnclub-bouncy', { 'file-item-selected': isSelected(file.id) }]"
+              draggable="true"
+              @dragstart="handleDragStart($event, file)"
+              @dragend="handleDragEnd"
               @contextmenu.prevent="openMenu($event, rowMenu(), (key: string) => handleRowMenu(key, file))"
             >
               <NCheckbox

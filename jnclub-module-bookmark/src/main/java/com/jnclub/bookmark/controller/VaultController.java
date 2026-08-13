@@ -45,6 +45,15 @@ public class VaultController {
         return R.ok();
     }
 
+    /** 移动密码条目到其他目录：body { directoryId }（需主密钥解锁） */
+    @PutMapping("/{id}/move")
+    public R<Void> move(@PathVariable Long id, @RequestBody Map<String, Object> body) {
+        Long directoryId = body.get("directoryId") == null
+                ? null : Long.parseLong(String.valueOf(body.get("directoryId")));
+        vaultService.move(id, directoryId);
+        return R.ok();
+    }
+
     /** 删除（软删除，进入回收站） */
     @DeleteMapping("/{id}")
     public R<Void> delete(@PathVariable Long id) {

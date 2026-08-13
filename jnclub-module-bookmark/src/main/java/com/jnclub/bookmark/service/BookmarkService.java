@@ -7,8 +7,11 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.jnclub.common.cache.CacheKey;
 import com.jnclub.common.cache.CacheService;
+import com.jnclub.common.exception.BizException;
 import com.jnclub.bookmark.entity.Bookmark;
+import com.jnclub.bookmark.entity.Directory;
 import com.jnclub.bookmark.mapper.BookmarkMapper;
+import com.jnclub.bookmark.mapper.DirectoryMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -29,6 +32,9 @@ public class BookmarkService extends ServiceImpl<BookmarkMapper, Bookmark> {
 
     @Autowired
     private CacheService cacheService;
+
+    @Autowired
+    private DirectoryMapper directoryMapper;
 
     private static final String UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
 
@@ -152,6 +158,36 @@ public class BookmarkService extends ServiceImpl<BookmarkMapper, Bookmark> {
         if (bookmark.getIcon() != null) existing.setIcon(bookmark.getIcon());
         updateById(existing);
         cacheService.evictByPrefix(CacheKey.bookmarkPrefix(userId));
+    }
+
+    /** 移动收藏到其他目录（type=1 目录校验 + 缓存失效） */
+    public void moveBookmark(Long id, Long directoryId) {
+        String userId = StpUtil.getLoginIdAsString();
+        Bookmark bookmark = getById(id);
+        if (bookmark == null || !bookmark.getUserId().equals(userId)) {
+            throw new BizException("收藏不存在");
+        }
+        if (directoryId == null) {
+            throw new BizException("请选择目标目录");
+        }
+        checkDirOwnership(directoryId, userId);
+        if (bookmark.getDirectoryId() != null && bookmark.getDirectoryId().equals(directoryId)) {
+            throw new BizException("已在该目录中");
+        }
+        bookmark.setDirectoryId(directoryId);
+        updateById(bookmark);
+        cacheService.evictByPrefix(CacheKey.bookmarkPrefix(userId));
+    }
+
+    /** 目标目录归属 + type 校验（收藏夹目录 type=1，模式同 CloudDiskService.checkDirOwnership） */
+    private void checkDirOwnership(Long directoryId, String userId) {
+        Directory dir = directoryMapper.selectById(directoryId);
+        if (dir == null || !dir.getUserId().equals(userId)) {
+            throw new BizException("目录不存在");
+        }
+        if (dir.getType() == null || dir.getType() != 1) {
+            throw new BizException("目标目录不是收藏夹目录");
+        }
     }
 
     public void deleteBookmark(Long id) {

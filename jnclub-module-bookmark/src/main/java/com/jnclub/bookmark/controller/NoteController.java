@@ -54,6 +54,17 @@ public class NoteController {
     }
 
     /**
+     * 移动便签到其他目录：body { directoryId }
+     */
+    @PutMapping("/{id}/move")
+    public R<Void> moveNote(@PathVariable Long id, @RequestBody Map<String, Object> body) {
+        Long directoryId = body.get("directoryId") == null
+                ? null : Long.parseLong(String.valueOf(body.get("directoryId")));
+        noteService.moveNote(id, directoryId);
+        return R.ok();
+    }
+
+    /**
      * 删除便签
      */
     @DeleteMapping("/{id}")

@@ -8,8 +8,10 @@ import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.jnclub.bookmark.crypto.VaultCrypto;
 import com.jnclub.bookmark.entity.Vault;
 import com.jnclub.bookmark.entity.VaultMeta;
+import com.jnclub.bookmark.entity.Directory;
 import com.jnclub.bookmark.mapper.VaultMapper;
 import com.jnclub.bookmark.mapper.VaultMetaMapper;
+import com.jnclub.bookmark.mapper.DirectoryMapper;
 import com.jnclub.common.exception.BizException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -41,8 +43,11 @@ public class VaultService extends ServiceImpl<VaultMapper, Vault> {
 
     private final VaultMetaMapper vaultMetaMapper;
 
-    public VaultService(VaultMetaMapper vaultMetaMapper) {
+    private final DirectoryMapper directoryMapper;
+
+    public VaultService(VaultMetaMapper vaultMetaMapper, DirectoryMapper directoryMapper) {
         this.vaultMetaMapper = vaultMetaMapper;
+        this.directoryMapper = directoryMapper;
     }
 
     /** 主密钥空闲过期（毫秒）：30 分钟 */
@@ -294,6 +299,36 @@ public class VaultService extends ServiceImpl<VaultMapper, Vault> {
         }
         vault.setDeleted(1);
         updateById(vault);
+    }
+
+    /** 移动密码条目到其他目录（type=5 目录校验；需主密钥解锁） */
+    public void move(Long id, Long directoryId) {
+        String userId = StpUtil.getLoginIdAsString();
+        requireUnlocked(userId);
+        Vault vault = getById(id);
+        if (vault == null || !vault.getUserId().equals(userId)) {
+            throw new BizException("条目不存在");
+        }
+        if (directoryId == null) {
+            throw new BizException("请选择目标目录");
+        }
+        checkDirOwnership(directoryId, userId);
+        if (vault.getDirectoryId() != null && vault.getDirectoryId().equals(directoryId)) {
+            throw new BizException("已在该目录中");
+        }
+        vault.setDirectoryId(directoryId);
+        updateById(vault);
+    }
+
+    /** 目标目录归属 + type 校验（密码库目录 type=5，模式同 CloudDiskService.checkDirOwnership） */
+    private void checkDirOwnership(Long directoryId, String userId) {
+        Directory dir = directoryMapper.selectById(directoryId);
+        if (dir == null || !dir.getUserId().equals(userId)) {
+            throw new BizException("目录不存在");
+        }
+        if (dir.getType() == null || dir.getType() != 5) {
+            throw new BizException("目标目录不是密码库目录");
+        }
     }
 
     @Transactional

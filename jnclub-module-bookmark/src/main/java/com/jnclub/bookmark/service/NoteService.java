@@ -3,10 +3,13 @@ package com.jnclub.bookmark.service;
 import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.jnclub.bookmark.entity.Note;
+import com.jnclub.bookmark.entity.Directory;
 import com.jnclub.bookmark.mapper.NoteMapper;
+import com.jnclub.bookmark.mapper.DirectoryMapper;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.jnclub.common.cache.CacheKey;
 import com.jnclub.common.cache.CacheService;
+import com.jnclub.common.exception.BizException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,6 +32,9 @@ public class NoteService extends ServiceImpl<NoteMapper, Note> {
 
     @Autowired
     private CacheService cacheService;
+
+    @Autowired
+    private DirectoryMapper directoryMapper;
 
     public List<Note> getNotes(Long directoryId, Long tagId) {
         String userId = StpUtil.getLoginIdAsString();
@@ -116,6 +122,37 @@ public class NoteService extends ServiceImpl<NoteMapper, Note> {
         note.setDeleted(1);
         updateById(note);
         cacheService.evictByPrefix(CacheKey.notePrefix(userId));
+    }
+
+    /** 移动便签到其他目录（type=2 目录校验 + 缓存失效） */
+    @Transactional
+    public void moveNote(Long id, Long directoryId) {
+        String userId = StpUtil.getLoginIdAsString();
+        Note note = getById(id);
+        if (note == null || !note.getUserId().equals(userId)) {
+            throw new BizException("便签不存在");
+        }
+        if (directoryId == null) {
+            throw new BizException("请选择目标目录");
+        }
+        checkDirOwnership(directoryId, userId);
+        if (note.getDirectoryId() != null && note.getDirectoryId().equals(directoryId)) {
+            throw new BizException("已在该目录中");
+        }
+        note.setDirectoryId(directoryId);
+        updateById(note);
+        cacheService.evictByPrefix(CacheKey.notePrefix(userId));
+    }
+
+    /** 目标目录归属 + type 校验（便签目录 type=2，模式同 CloudDiskService.checkDirOwnership） */
+    private void checkDirOwnership(Long directoryId, String userId) {
+        Directory dir = directoryMapper.selectById(directoryId);
+        if (dir == null || !dir.getUserId().equals(userId)) {
+            throw new BizException("目录不存在");
+        }
+        if (dir.getType() == null || dir.getType() != 2) {
+            throw new BizException("目标目录不是便签目录");
+        }
     }
 
     /**

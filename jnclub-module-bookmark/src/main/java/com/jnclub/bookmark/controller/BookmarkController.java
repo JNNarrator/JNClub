@@ -42,6 +42,15 @@ public class BookmarkController {
         return R.ok();
     }
 
+    /** 移动收藏到其他目录：body { directoryId } */
+    @PutMapping("/{id}/move")
+    public R<Void> moveBookmark(@PathVariable Long id, @RequestBody Map<String, Object> body) {
+        Long directoryId = body.get("directoryId") == null
+                ? null : Long.parseLong(String.valueOf(body.get("directoryId")));
+        bookmarkService.moveBookmark(id, directoryId);
+        return R.ok();
+    }
+
     @DeleteMapping("/{id}")
     public R<Void> deleteBookmark(@PathVariable Long id) {
         bookmarkService.deleteBookmark(id);

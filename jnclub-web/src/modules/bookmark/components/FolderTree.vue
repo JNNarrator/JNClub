@@ -10,6 +10,7 @@ import type { TreeOption, TreeDropInfo } from 'naive-ui'
 import { Plus, FolderOpen, Folder, Bookmark, Star, Heart, BookOpen, Tag, Archive, Pencil, Trash2, Ellipsis } from 'lucide-vue-next'
 import { useDirectoryStore } from '../stores/directory'
 import { openMenu } from '../../../shared/composables/useContextMenu'
+import { useItemDragContext } from '../composables/useItemDragContext'
 import axios from 'axios'
 
 interface Directory {
@@ -63,6 +64,80 @@ const renaming = ref(false)
 
 const deleting = ref(false)
 const reordering = ref(false)
+
+/** item 拖拽到目录树的落点（item 卡片/行 → 目录树跨容器） */
+const { dragging, setDragging } = useItemDragContext()
+/** 当前高亮的目标节点元素（dragenter/dragover 时置位，dragleave/drop 清除） */
+const dropNodeEl = ref<HTMLElement | null>(null)
+const dropBusy = ref(false)
+
+/** 模块 key → move 接口前缀（与 MoveItemModal 一致） */
+const ITEM_MOVE_API: Record<string, string> = {
+  bookmarks: '/api/bookmarks',
+  notes: '/api/notes',
+  files: '/api/clouddisk/files',
+  vault: '/api/vault',
+}
+
+/** 从鼠标位置解析目标目录节点（renderLabel 里给 label 注入了 data-dir-id） */
+const findDropNode = (e: DragEvent): HTMLElement | null => {
+  if (!dragging.value) return null
+  const el = document.elementFromPoint(e.clientX, e.clientY)
+  if (!el) return null
+  return (el as HTMLElement).closest('[data-dir-id]') as HTMLElement | null
+}
+
+const onItemDragOver = (e: DragEvent) => {
+  if (!dragging.value) return
+  e.preventDefault() // 允许 drop
+  if (e.dataTransfer) e.dataTransfer.dropEffect = 'move'
+  const label = findDropNode(e)
+  const node = (label?.closest('.n-tree-node') as HTMLElement | null) ?? null
+  if (dropNodeEl.value === node) return
+  dropNodeEl.value?.classList.remove('item-drop-target')
+  dropNodeEl.value = node
+  node?.classList.add('item-drop-target')
+}
+
+const onItemDragLeave = () => {
+  dropNodeEl.value?.classList.remove('item-drop-target')
+  dropNodeEl.value = null
+}
+
+/** item 拖到目录节点上松手：直接移动（拖拽落定动画见样式） */
+const onItemDrop = async (e: DragEvent) => {
+  const payload = dragging.value
+  e.preventDefault()
+  onItemDragLeave()
+  if (!payload) return
+  // 先解析落点节点（findDropNode 依赖 dragging 上下文），再清上下文
+  const node = findDropNode(e)
+  setDragging(null)
+  if (!node) return
+  const targetDirId = Number(node.dataset.dirId)
+  if (!targetDirId || isNaN(targetDirId)) return
+  if (payload.currentDirectoryId === targetDirId) {
+    message.info('已在该目录中')
+    return
+  }
+  const api = ITEM_MOVE_API[payload.module]
+  if (!api) return
+  // 落定回弹动画：先播再等接口返回（视觉反馈优先）
+  const treeNode = (node.closest('.n-tree-node') as HTMLElement | null) ?? node
+  treeNode.classList.add('move-target-pulse')
+  treeNode.addEventListener('animationend', () => treeNode.classList.remove('move-target-pulse'), { once: true })
+  if (dropBusy.value) return
+  dropBusy.value = true
+  try {
+    await axios.put(`${api}/${payload.itemId}/move`, { directoryId: targetDirId })
+    message.success('已移动')
+    emit('refresh')
+  } catch (err: any) {
+    message.error(err.response?.data?.message || '移动失败')
+  } finally {
+    dropBusy.value = false
+  }
+}
 
 const treeData = computed((): TreeOption[] => {
   const map = new Map<number, TreeOption & { id: number; isLeaf: boolean; name: string }>()
@@ -212,7 +287,10 @@ const renderLabel = ({ option }: { option: TreeOption }) => {
     style: 'display: flex; align-items: center; justify-content: space-between; width: 100%;',
     onContextmenu: openNodeMenu,
   }, [
-    h('span', { style: 'overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; font-size: var(--fs-base);' }, node.name),
+    h('span', {
+      'data-dir-id': String(node.id),
+      style: 'overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; font-size: var(--fs-base);',
+    }, node.name),
     h(NButton, {
       quaternary: true, circle: true, size: 'tiny',
       style: 'opacity: 0; flex-shrink: 0; margin-left: 4px;',
@@ -257,7 +335,13 @@ const handleRenameSubmit = async () => {
 </script>
 
 <template>
-  <div class="folder-tree">
+  <div
+    class="folder-tree"
+    @dragenter="onItemDragOver"
+    @dragover="onItemDragOver"
+    @dragleave="onItemDragLeave"
+    @drop="onItemDrop"
+  >
     <div class="tree-toolbar">
       <button type="button" class="add-dir-btn" @click="showCreateModal = true">
         <NIcon :component="Plus" size="16" />
@@ -408,4 +492,24 @@ const handleRenameSubmit = async () => {
 }
 :deep(.n-tree-switcher--dragging) { opacity: 0.5; }
 :deep(.n-tree-node--dragging) { opacity: 0.5; }
+
+/* item 拖拽落点：目录节点高亮（品牌粉 + 描边 + 轻微放大） */
+:deep(.n-tree-node.item-drop-target) {
+  background: var(--brand-soft) !important;
+  box-shadow: inset 0 0 0 2px var(--brand);
+  border-radius: var(--radius-sm);
+  transform: scale(1.03);
+  transition: background var(--dur) var(--ease), box-shadow var(--dur) var(--ease),
+    transform var(--dur) var(--ease-bouncy);
+}
+
+/* item 落定回弹（参照 jnclub-dropSettle 的 bouncy 节奏） */
+:deep(.n-tree-node.move-target-pulse) {
+  animation: move-target-pulse 0.32s var(--ease-bouncy);
+}
+@keyframes move-target-pulse {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
 </style>

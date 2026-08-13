@@ -4,19 +4,22 @@
  * 主密钥体系：未设置 → 设置引导；已设置未解锁 → 锁定面板；已解锁 → 条目列表
  * 健康检查：弱/重复密码角标（仅提示不拦截）
  */
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, h } from 'vue'
 import {
-  NButton, NIcon, NSpin, NTag, NInput, useMessage, useDialog,
+  NButton, NIcon, NSpin, NTag, NInput, NDropdown, useMessage, useDialog,
 } from 'naive-ui'
 import {
-  KeyRound, Plus, Pencil, Trash2, Copy, User, Lock, Unlock, ShieldAlert, RotateCcw,
+  KeyRound, Plus, Pencil, Trash2, Copy, User, Lock, Unlock, ShieldAlert, RotateCcw, Ellipsis, FolderInput,
 } from 'lucide-vue-next'
 import { useVaultStore, type VaultItem } from '../stores/vault'
 import { useUserStore } from '../../../shared/stores/user'
 import { useDraggableSort } from '../composables/useDraggableSort'
+import { useItemDragContext } from '../composables/useItemDragContext'
+import { openMenu } from '../../../shared/composables/useContextMenu'
 import PasswordEditorModal from './PasswordEditorModal.vue'
 import PasswordRevealPopover from './PasswordRevealPopover.vue'
 import EmptyState from './EmptyState.vue'
+import MoveItemModal from './MoveItemModal.vue'
 import { copyText } from '../../../shared/utils/clipboard'
 
 const props = defineProps<{
@@ -32,6 +35,10 @@ const message = useMessage()
 const dialog = useDialog()
 const vaultStore = useVaultStore()
 const userStore = useUserStore()
+
+const showMoveModal = ref(false)
+const moveTarget = ref<VaultItem | null>(null)
+const { setDragging } = useItemDragContext()
 
 const configured = computed(() => vaultStore.masterStatus.configured)
 const unlocked = computed(() => vaultStore.masterStatus.unlocked)
@@ -218,6 +225,39 @@ const handleDelete = (item: VaultItem) => {
   })
 }
 
+// ========== 行菜单（三点 + 右键共用；含移动到） ==========
+const rowMenu = () => [
+  { label: '移动到…', key: 'move', icon: () => h(NIcon, null, { default: () => h(FolderInput) }) },
+  { label: '编辑', key: 'edit', icon: () => h(NIcon, null, { default: () => h(Pencil) }) },
+  { label: '删除', key: 'delete', icon: () => h(NIcon, null, { default: () => h(Trash2) }) },
+]
+
+const handleRowMenu = (key: string, item: VaultItem) => {
+  if (key === 'move') {
+    moveTarget.value = item
+    showMoveModal.value = true
+  } else if (key === 'edit') {
+    openEdit(item)
+  } else if (key === 'delete') {
+    handleDelete(item)
+  }
+}
+
+// ========== 拖拽到目录树 ==========
+const handleDragStart = (e: DragEvent, item: VaultItem) => {
+  setDragging({
+    itemId: item.id,
+    module: 'vault',
+    currentDirectoryId: item.directoryId ?? null,
+  })
+  if (e.dataTransfer) {
+    e.dataTransfer.effectAllowed = 'move'
+    try { e.dataTransfer.setData('text/plain', String(item.id)) } catch { /* 忽略 */ }
+  }
+}
+
+const handleDragEnd = () => setDragging(null)
+
 // ========== 拖拽排序 ==========
 const listRef = ref<HTMLElement | null>(null)
 const { init: initSort } = useDraggableSort(listRef, (ids) => {
@@ -327,7 +367,16 @@ defineExpose({ openCreate })
           @create="openCreate"
         />
         <div v-else ref="listRef" class="vault-list">
-          <div v-for="item in vaultStore.items" :key="item.id" :data-id="item.id" class="vault-item jnclub-bouncy">
+          <div
+            v-for="item in vaultStore.items"
+            :key="item.id"
+            :data-id="item.id"
+            class="vault-item jnclub-bouncy"
+            draggable="true"
+            @dragstart="handleDragStart($event, item)"
+            @dragend="handleDragEnd"
+            @contextmenu.prevent="openMenu($event, rowMenu(), (key: string) => handleRowMenu(key, item))"
+          >
             <div class="item-icon"><NIcon :component="KeyRound" size="20" /></div>
             <div class="item-main">
               <div class="item-title">
@@ -356,6 +405,12 @@ defineExpose({ openCreate })
               <NButton quaternary circle size="small" type="error" title="删除" @click="handleDelete(item)">
                 <template #icon><NIcon :component="Trash2" size="16" /></template>
               </NButton>
+              <!-- 三点菜单（与右键共用 rowMenu） -->
+              <NDropdown :options="rowMenu()" @select="(k: string) => handleRowMenu(k, item)" placement="bottom-end">
+                <NButton quaternary circle size="small" title="更多操作">
+                  <template #icon><NIcon :component="Ellipsis" size="16" /></template>
+                </NButton>
+              </NDropdown>
             </div>
           </div>
         </div>
@@ -369,6 +424,15 @@ defineExpose({ openCreate })
       :directory-id="props.directoryId"
       :initial="modalInitial"
       @saved="onSaved"
+    />
+
+    <!-- 移动到目录弹窗（type=5 密码库目录） -->
+    <MoveItemModal
+      v-model:show="showMoveModal"
+      :item-type="5"
+      :targets="moveTarget ? [{ id: moveTarget.id, name: moveTarget.name }] : []"
+      :current-directory-id="moveTarget?.directoryId ?? null"
+      @refresh="load"
     />
 
     <!-- 遗忘重置：二次确认（输入确认码 RESET） -->

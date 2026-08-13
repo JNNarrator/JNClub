@@ -4,12 +4,14 @@
  * 文档图标 + 标题(--text-1, 非链接蓝) + 摘要 + 更新时间 + 操作菜单
  * hover 浅底，整行可点=进入预览
  */
-import { h } from 'vue'
+import { h, ref } from 'vue'
 import { NButton, NIcon, NDropdown, NEllipsis, NTag } from 'naive-ui'
-import { Pencil, Trash2, Eye, Ellipsis, StickyNote, Clock } from 'lucide-vue-next'
+import { Pencil, Trash2, Eye, Ellipsis, StickyNote, Clock, FolderInput } from 'lucide-vue-next'
 import { formatRelativeTime } from '../composables/formatDate'
 import { stripMarkdown } from '../composables/stripMarkdown'
 import { openMenu } from '../../../shared/composables/useContextMenu'
+import { useItemDragContext } from '../composables/useItemDragContext'
+import MoveItemModal from './MoveItemModal.vue'
 import type { Note } from '../stores/note'
 
 const props = defineProps<{
@@ -23,6 +25,8 @@ const emit = defineEmits<{
   refresh: []
 }>()
 
+const showMoveModal = ref(false)
+const { setDragging } = useItemDragContext()
 
 const getSummary = (content: string | null) => {
   if (!content) return '暂无内容'
@@ -33,12 +37,14 @@ const getSummary = (content: string | null) => {
 
 const dropdownOptions = [
   { label: '预览', key: 'preview', icon: () => h(NIcon, null, { default: () => h(Eye) }) },
+  { label: '移动到…', key: 'move', icon: () => h(NIcon, null, { default: () => h(FolderInput) }) },
   { label: '编辑', key: 'edit', icon: () => h(NIcon, null, { default: () => h(Pencil) }) },
   { label: '删除', key: 'delete', icon: () => h(NIcon, null, { default: () => h(Trash2) }) },
 ]
 
 const handleDropdown = (key: string) => {
   if (key === 'preview') emit('preview', props.note)
+  else if (key === 'move') showMoveModal.value = true
   else if (key === 'edit') emit('edit', props.note)
   else if (key === 'delete') emit('delete', props.note)
 }
@@ -46,10 +52,32 @@ const handleDropdown = (key: string) => {
 const handleClick = () => {
   emit('preview', props.note)
 }
+
+/** 拖拽到目录树：写入跨容器上下文 */
+const handleDragStart = (e: DragEvent) => {
+  setDragging({
+    itemId: props.note.id,
+    module: 'notes',
+    currentDirectoryId: props.note.directoryId ?? null,
+  })
+  if (e.dataTransfer) {
+    e.dataTransfer.effectAllowed = 'move'
+    try { e.dataTransfer.setData('text/plain', String(props.note.id)) } catch { /* 忽略 */ }
+  }
+}
+
+const handleDragEnd = () => setDragging(null)
 </script>
 
 <template>
-  <div class="note-row" @click="handleClick" @contextmenu.prevent="openMenu($event, dropdownOptions, handleDropdown)">
+  <div
+    class="note-row"
+    draggable="true"
+    @click="handleClick"
+    @dragstart="handleDragStart"
+    @dragend="handleDragEnd"
+    @contextmenu.prevent="openMenu($event, dropdownOptions, handleDropdown)"
+  >
     <!-- 文档图标 -->
     <div class="row-icon">
       <NIcon :component="StickyNote" size="18" color="var(--text-3)" />
@@ -88,6 +116,15 @@ const handleClick = () => {
         </NButton>
       </NDropdown>
     </div>
+
+    <!-- 移动到目录弹窗 -->
+    <MoveItemModal
+      v-model:show="showMoveModal"
+      :item-type="2"
+      :targets="[{ id: note.id, name: note.title }]"
+      :current-directory-id="note.directoryId ?? null"
+      @refresh="emit('refresh')"
+    />
   </div>
 </template>
 
