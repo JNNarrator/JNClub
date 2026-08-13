@@ -24,11 +24,19 @@ const router = useRouter()
 /** 顶栏刷新计数：递增触发 RecycleView 重新拉取 */
 const refreshTick = ref(0)
 const handleRefresh = () => { refreshTick.value++ }
+
+/** 回收站内点左侧模块：跳回主界面并切换到对应模块（AppWrapper 从 URL query.module 定位） */
+const handleModuleChange = (module: 'bookmarks' | 'notes' | 'files' | 'vault') => {
+  router.push({ path: '/', query: { module } })
+}
 </script>
 
 <template>
-  <MainLayout :is-dark="isDark" :active-module="'bookmarks'">
-    <div class="recycle-page">
+  <MainLayout
+    :is-dark="isDark"
+    :active-module="'bookmarks'"
+    @module-change="handleModuleChange"
+  >    <div class="recycle-page">
       <!-- 毛玻璃顶栏（与 Home 顶栏同款） -->
       <header class="home-header glass-header">
         <div class="header-left">
