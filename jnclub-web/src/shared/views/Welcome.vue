@@ -10,6 +10,7 @@ import { NButton, NIcon } from 'naive-ui'
 import { Sun, Moon, Link, PenLine, Cloud, KeyRound, Music, Trash2, ArrowRight, UserPlus } from 'lucide-vue-next'
 import { useUserStore } from '../stores/user'
 import BrandLogo from '../components/BrandLogo.vue'
+import { JShinyText, JMagnet } from '../components/animation'
 
 defineProps<{
   isDark: boolean
@@ -87,7 +88,7 @@ const goRegister = () => {
       <!-- 品牌区 -->
       <header class="brand">
         <BrandLogo :size="72" :show-text="false" class="brand-mark" />
-        <h1 class="brand-name">JNClub</h1>
+        <JShinyText text="JNClub" className="brand-name" :speed="3" :spread="140" />
         <p class="brand-slogan">个人工作台 · 收藏夹 / 便签 / 云盘 / 密码库，一站式打理你的数字生活</p>
       </header>
 
@@ -109,14 +110,18 @@ const goRegister = () => {
 
       <!-- 操作区 -->
       <footer class="actions">
-        <NButton size="large" type="primary" class="btn-enter" @click="goApp">
-          <template #icon><NIcon :component="ArrowRight" size="18" /></template>
-          进入 JNClub
-        </NButton>
-        <NButton v-if="!isLoggedIn" size="large" quaternary class="btn-register" @click="goRegister">
-          <template #icon><NIcon :component="UserPlus" size="18" /></template>
-          注册账号
-        </NButton>
+        <JMagnet :magnet-strength="3" :padding="120">
+          <NButton size="large" type="primary" class="btn-enter" @click="goApp">
+            <template #icon><NIcon :component="ArrowRight" size="18" /></template>
+            进入 JNClub
+          </NButton>
+        </JMagnet>
+        <JMagnet v-if="!isLoggedIn" :magnet-strength="3" :padding="100">
+          <NButton size="large" quaternary class="btn-register" @click="goRegister">
+            <template #icon><NIcon :component="UserPlus" size="18" /></template>
+            注册账号
+          </NButton>
+        </JMagnet>
       </footer>
     </div>
   </div>
@@ -196,6 +201,7 @@ const goRegister = () => {
   filter: drop-shadow(0 12px 24px var(--brand-soft));
 }
 .brand-name {
+  display: inline-block;
   margin: 0 0 10px;
   font-size: 40px;
   font-weight: 800;

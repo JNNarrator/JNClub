@@ -11,9 +11,12 @@
   "dependencies": {
     "@tsparticles/slim": "^4.3.2",
     "@tsparticles/vue3": "^4.3.2",
+    "@vueuse/core": "^14.4.0",
     "axios": "^1.7.9",
+    "gsap": "^3.15.0",
     "lucide-vue-next": "^0.577.0",
     "md-editor-v3": "^6.5.6",
+    "motion-v": "^2.3.0",
     "naive-ui": "^2.40.3",
     "pinia": "^2.3.0",
     "sortablejs": "^1.15.7",

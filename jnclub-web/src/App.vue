@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { NConfigProvider, darkTheme, NMessageProvider, NDialogProvider } from 'naive-ui'
 import { tokensToCSSVars, lightTokens, darkTokens } from './themes/tokens'
 import lightThemeOverrides from './themes/light'
@@ -11,6 +12,7 @@ import CursorTrail from './shared/components/CursorTrail.vue'
 import ParticlesBackground from './shared/components/ParticlesBackground.vue'
 
 const isDark = ref(false)
+const route = useRoute()
 
 // 离线提示（PWA 应用壳离线可打开，业务数据仍需网络）
 const { isOnline } = useOnlineStatus()
@@ -63,7 +65,16 @@ const toggleTheme = () => {
             <span class="offline-dot" />当前离线 — 应用已离线打开，数据可能需要联网后加载
           </div>
         </Transition>
-        <router-view :is-dark="isDark" @toggle-theme="toggleTheme" />
+        <router-view v-slot="{ Component }">
+          <Transition name="page-fade" mode="out-in">
+            <component
+              :is="Component"
+              :key="route.path"
+              :is-dark="isDark"
+              @toggle-theme="toggleTheme"
+            />
+          </Transition>
+        </router-view>
         <!-- 全局粒子背景（tsParticles，偏好 particles.style 驱动，路由内排除音乐/便签） -->
         <ParticlesBackground :is-dark="isDark" />
         <!-- 全局自定义光标（可爱光标：5 种风格，偏好 cursor.style 驱动） -->
@@ -118,5 +129,19 @@ body {
 .offline-fade-leave-to {
   opacity: 0;
   transform: translateY(-100%);
+}
+
+/* 全局路由过渡：淡入 + 轻微上移（vue-bits 适配层节奏，随主题 token 缓动） */
+.page-fade-enter-active,
+.page-fade-leave-active {
+  transition: opacity var(--dur, 0.2s) var(--ease, ease), transform var(--dur, 0.2s) var(--ease, ease);
+}
+.page-fade-enter-from {
+  opacity: 0;
+  transform: translateY(10px);
+}
+.page-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
 }
 </style>

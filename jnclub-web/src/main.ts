@@ -6,6 +6,7 @@ import { loadSlim } from '@tsparticles/slim'
 import App from './App.vue'
 import router from './shared/router'
 import './assets/main.css'
+import './shared/components/animation/utility.css'
 
 // PWA Service Worker：预缓存应用壳（离线可打开），autoUpdate 静默更新
 registerSW({ immediate: true })
