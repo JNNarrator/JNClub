@@ -4,8 +4,11 @@ import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
+import com.jnclub.common.cache.CacheKey;
+import com.jnclub.common.cache.CacheService;
 import com.jnclub.bookmark.entity.UserPreference;
 import com.jnclub.bookmark.mapper.UserPreferenceMapper;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,11 +23,17 @@ import java.util.Map;
 @Service
 public class UserPreferenceService extends ServiceImpl<UserPreferenceMapper, UserPreference> {
 
+    @Autowired
+    private CacheService cacheService;
+
     /**
      * 获取当前用户全部偏好（JSON 反序列化后的值）
      */
     public Map<String, Object> getAllMap() {
         String userId = StpUtil.getLoginIdAsString();
+        String cacheKey = CacheKey.pref(userId);
+        Map<String, Object> cached = cacheService.getMap(cacheKey);
+        if (cached != null) return cached;
         List<UserPreference> list = list(new LambdaQueryWrapper<UserPreference>()
                 .eq(UserPreference::getUserId, userId));
         Map<String, Object> map = new HashMap<>();
@@ -36,6 +45,7 @@ public class UserPreferenceService extends ServiceImpl<UserPreferenceMapper, Use
                 map.put(p.getPrefKey(), p.getPrefValue());
             }
         }
+        cacheService.setMap(cacheKey, map, CacheService.DEFAULT_TTL);
         return map;
     }
 
@@ -72,5 +82,6 @@ public class UserPreferenceService extends ServiceImpl<UserPreferenceMapper, Use
                 save(p);
             }
         }
+        cacheService.evict(CacheKey.pref(userId));
     }
 }

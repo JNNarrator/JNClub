@@ -4,6 +4,8 @@ import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
+import com.jnclub.common.cache.CacheKey;
+import com.jnclub.common.cache.CacheService;
 import com.jnclub.bookmark.entity.Bookmark;
 import com.jnclub.bookmark.entity.Directory;
 import com.jnclub.bookmark.entity.FileRecord;
@@ -37,8 +39,14 @@ public class DirectoryService extends ServiceImpl<DirectoryMapper, Directory> {
     @Autowired
     private com.jnclub.bookmark.mapper.VaultMapper vaultMapper;
 
+    @Autowired
+    private CacheService cacheService;
+
     public List<Directory> getDirectoryTree(Integer type) {
         String userId = StpUtil.getLoginIdAsString();
+        String cacheKey = CacheKey.dir(userId, type);
+        List<Directory> cached = cacheService.getList(cacheKey, Directory.class);
+        if (cached != null) return cached;
         LambdaQueryWrapper<Directory> wrapper = new LambdaQueryWrapper<Directory>()
                 .eq(Directory::getUserId, userId)
                 .orderByAsc(Directory::getSortOrder);
@@ -46,7 +54,9 @@ public class DirectoryService extends ServiceImpl<DirectoryMapper, Directory> {
             wrapper.eq(Directory::getType, type);
         }
         List<Directory> directories = list(wrapper);
-        return buildTree(directories, null);
+        List<Directory> tree = buildTree(directories, null);
+        cacheService.setList(cacheKey, tree, CacheService.DEFAULT_TTL);
+        return tree;
     }
 
     public Directory createDirectory(Directory directory) {
@@ -56,6 +66,7 @@ public class DirectoryService extends ServiceImpl<DirectoryMapper, Directory> {
             directory.setType(1);
         }
         save(directory);
+        cacheService.evictByPrefix(CacheKey.dirPrefix(userId));
         return directory;
     }
 
@@ -70,6 +81,7 @@ public class DirectoryService extends ServiceImpl<DirectoryMapper, Directory> {
             directory.setIcon(icon);
         }
         updateById(directory);
+        cacheService.evictByPrefix(CacheKey.dirPrefix(userId));
     }
 
     public Map<String, Long> getContentCount(Long id) {
@@ -155,6 +167,7 @@ public class DirectoryService extends ServiceImpl<DirectoryMapper, Directory> {
 
         deleteChildren(id, userId);
         removeById(id);
+        cacheService.evictByPrefix(CacheKey.dirPrefix(userId));
     }
 
     @Transactional
@@ -169,6 +182,7 @@ public class DirectoryService extends ServiceImpl<DirectoryMapper, Directory> {
                 updateById(directory);
             }
         }
+        cacheService.evictByPrefix(CacheKey.dirPrefix(userId));
     }
 
     private List<Directory> buildTree(List<Directory> directories, Long parentId) {

@@ -4,6 +4,8 @@ import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
+import com.jnclub.common.cache.CacheKey;
+import com.jnclub.common.cache.CacheService;
 import com.jnclub.bookmark.entity.Tag;
 import com.jnclub.bookmark.entity.TagRelation;
 import com.jnclub.bookmark.mapper.TagMapper;
@@ -27,6 +29,7 @@ import java.util.stream.Collectors;
 public class TagService extends ServiceImpl<TagMapper, Tag> {
 
     private final TagRelationMapper tagRelationMapper;
+    private final CacheService cacheService;
 
     // ============================================================
     // 标签 CRUD
@@ -37,11 +40,17 @@ public class TagService extends ServiceImpl<TagMapper, Tag> {
      */
     public List<Tag> listTags(String refType) {
         String userId = StpUtil.getLoginIdAsString();
+        String cacheKey = CacheKey.tag(userId, refType);
+        List<Tag> cached = cacheService.getList(cacheKey, Tag.class);
+        if (cached != null) return cached;
         List<Tag> tags = list(new LambdaQueryWrapper<Tag>()
                 .eq(Tag::getUserId, userId)
                 .orderByAsc(Tag::getName));
 
-        if (tags.isEmpty()) return tags;
+        if (tags.isEmpty()) {
+            cacheService.setList(cacheKey, tags, CacheService.DEFAULT_TTL);
+            return tags;
+        }
 
         List<Long> tagIds = tags.stream().map(Tag::getId).toList();
         List<TagRelation> relations = tagRelationMapper.selectList(
@@ -52,6 +61,7 @@ public class TagService extends ServiceImpl<TagMapper, Tag> {
         Map<Long, Long> countByTag = relations.stream()
                 .collect(Collectors.groupingBy(TagRelation::getTagId, Collectors.counting()));
         tags.forEach(t -> t.setCount(countByTag.getOrDefault(t.getId(), 0L)));
+        cacheService.setList(cacheKey, tags, CacheService.DEFAULT_TTL);
         return tags;
     }
 
@@ -72,6 +82,7 @@ public class TagService extends ServiceImpl<TagMapper, Tag> {
         tag.setUserId(userId);
         tag.setName(trimmed);
         save(tag);
+        cacheService.evictByPrefix(CacheKey.tagPrefix(userId));
         return tag;
     }
 
@@ -101,6 +112,7 @@ public class TagService extends ServiceImpl<TagMapper, Tag> {
 
         tag.setName(trimmed);
         updateById(tag);
+        cacheService.evictByPrefix(CacheKey.tagPrefix(userId));
     }
 
     /** 删除标签：级联清空所有关联 */
@@ -111,6 +123,7 @@ public class TagService extends ServiceImpl<TagMapper, Tag> {
         removeById(id);
         tagRelationMapper.delete(new LambdaUpdateWrapper<TagRelation>()
                 .eq(TagRelation::getTagId, id));
+        cacheService.evictByPrefix(CacheKey.tagPrefix(userId));
     }
 
     // ============================================================
@@ -162,6 +175,7 @@ public class TagService extends ServiceImpl<TagMapper, Tag> {
             relation.setRefId(refId);
             tagRelationMapper.insert(relation);
         }
+        cacheService.evictByPrefix(CacheKey.tagPrefix(userId));
     }
 
     /** 删除某记录的全部关联（永久删除收藏/便签时调用） */

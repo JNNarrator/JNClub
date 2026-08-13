@@ -1,5 +1,9 @@
 package com.jnclub.music.track.service.impl;
 
+import cn.hutool.json.JSONObject;
+import cn.hutool.json.JSONUtil;
+import com.jnclub.common.cache.CacheKey;
+import com.jnclub.common.cache.CacheService;
 import com.jnclub.music.common.PageResponse;
 import com.jnclub.music.common.enums.ErrorCode;
 import com.jnclub.music.common.exception.BusinessException;
@@ -80,15 +84,19 @@ public class TrackServiceImpl implements TrackService {
     );
     private static final String ROOT_FOLDER_ID = "-1";
     private static final int MAX_PAGES = 20;
+    /** 批量直链 Redis 缓存 TTL：对齐蓝奏云直链约 45 分钟有效期（留 30 秒裕量） */
+    private static final Duration MUSIC_URLS_TTL = Duration.ofMinutes(30);
 
     private final MusicStorage musicStorage;
     private final TrackMapper trackMapper;
     private final LyricsCacheMapper lyricsCacheMapper;
+    private final CacheService cacheService;
 
-    public TrackServiceImpl(MusicStorage musicStorage, TrackMapper trackMapper, LyricsCacheMapper lyricsCacheMapper) {
+    public TrackServiceImpl(MusicStorage musicStorage, TrackMapper trackMapper, LyricsCacheMapper lyricsCacheMapper, CacheService cacheService) {
         this.musicStorage = musicStorage;
         this.trackMapper = trackMapper;
         this.lyricsCacheMapper = lyricsCacheMapper;
+        this.cacheService = cacheService;
     }
 
     @Override
@@ -396,14 +404,35 @@ public class TrackServiceImpl implements TrackService {
     }
 
     private List<TrackWithUrlDTO> loadAllAudioWithUrl() {
+        List<SongFolder> folders = loadSongFolders();
+        // 先读 Redis 批量直链（key: trackId -> {url, expiresAtMillis}），未命中/已过期才回源蓝奏云
+        Map<String, JSONObject> urlMap = readMusicUrlsFromCache();
         List<TrackWithUrlDTO> out = new ArrayList<>();
-        for (SongFolder sf : loadSongFolders()) {
+        Map<String, JSONObject> toWrite = new HashMap<>();
+        boolean changed = false;
+
+        for (SongFolder sf : folders) {
             ParsedName pn = sf.parseFolderName();
+            String id = sf.audioFile().id();
+            JSONObject cached = urlMap.get(id);
+            if (cached != null && isUrlFresh(cached)) {
+                out.add(TrackWithUrlDTO.builder().trackId(id).name(pn.name()).artist(pn.artist())
+                        .format(pn.format()).fileSize(sf.audioFile().size())
+                        .mediaUrl(cached.getStr("url"))
+                        .urlExpiresAt(toOffsetDateTime(Instant.ofEpochMilli(cached.getLong("expiresAtMillis"))))
+                        .build());
+                continue;
+            }
             try {
-                var dl = musicStorage.getDownloadUrlWithExpiry(sf.audioFile().id());
-                out.add(TrackWithUrlDTO.builder().trackId(sf.audioFile().id()).name(pn.name()).artist(pn.artist())
+                var dl = musicStorage.getDownloadUrlWithExpiry(id);
+                out.add(TrackWithUrlDTO.builder().trackId(id).name(pn.name()).artist(pn.artist())
                         .format(pn.format()).fileSize(sf.audioFile().size()).mediaUrl(dl.url())
                         .urlExpiresAt(toOffsetDateTime(dl.expiresAt())).build());
+                JSONObject entry = new JSONObject();
+                entry.set("url", dl.url());
+                entry.set("expiresAtMillis", dl.expiresAt() != null ? dl.expiresAt().toEpochMilli() : 0L);
+                toWrite.put(id, entry);
+                changed = true;
             } catch (Exception e) {
                 // 检测蓝奏云会话过期，返回特定错误码让前端显示提示
                 Throwable cause = e;
@@ -413,11 +442,45 @@ public class TrackServiceImpl implements TrackService {
                     }
                     cause = cause.getCause();
                 }
-                out.add(TrackWithUrlDTO.builder().trackId(sf.audioFile().id()).name(pn.name()).artist(pn.artist())
+                out.add(TrackWithUrlDTO.builder().trackId(id).name(pn.name()).artist(pn.artist())
                         .format(pn.format()).fileSize(sf.audioFile().size()).build());
             }
         }
+
+        // 回写 Redis：合并「仍有效的旧缓存项 + 本次回源的新条目」，避免整体覆盖丢缓存
+        if (changed) {
+            Map<String, JSONObject> merged = new HashMap<>(urlMap);
+            merged.putAll(toWrite);
+            cacheService.set(CacheKey.musicUrls(), JSONUtil.toJsonStr(merged), MUSIC_URLS_TTL);
+        }
         return out;
+    }
+
+    /** 读 Redis 中的批量直链缓存，反序列化为 trackId -> {url, expiresAtMillis}；失败返回空 Map。 */
+    private Map<String, JSONObject> readMusicUrlsFromCache() {
+        String json = cacheService.get(CacheKey.musicUrls());
+        if (json == null || json.isBlank()) return Map.of();
+        try {
+            JSONObject root = JSONUtil.parseObj(json);
+            Map<String, JSONObject> map = new HashMap<>();
+            for (String k : root.keySet()) {
+                JSONObject jo = root.getJSONObject(k);
+                if (jo != null) {
+                    map.put(k, jo);
+                }
+            }
+            return map;
+        } catch (Exception e) {
+            log.warn("批量直链缓存反序列化失败，忽略缓存: {}", e.getMessage());
+            return Map.of();
+        }
+    }
+
+    /** 判断缓存的直链是否未过期。expiresAtMillis 为 0 时视为过期（保守回源）。 */
+    private boolean isUrlFresh(JSONObject entry) {
+        Long expiresAt = entry.getLong("expiresAtMillis");
+        if (expiresAt == null || expiresAt == 0L) return false;
+        return expiresAt > System.currentTimeMillis();
     }
 
     private String downloadText(String url) {

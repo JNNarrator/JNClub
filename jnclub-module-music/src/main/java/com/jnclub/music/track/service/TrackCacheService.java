@@ -1,7 +1,10 @@
 package com.jnclub.music.track.service;
 
+import com.jnclub.common.cache.CacheKey;
+import com.jnclub.common.cache.RedisLock;
 import com.jnclub.music.track.domain.Track;
 import com.jnclub.music.track.mapper.TrackMapper;
+import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -21,20 +24,23 @@ public class TrackCacheService {
 
     private static final Logger log = LoggerFactory.getLogger(TrackCacheService.class);
     private static final String CACHE_NAME = "cachedMediaUrl";
+    private static final Duration SCHEDULED_LOCK_TTL = Duration.ofMinutes(10);
 
     private final TrackMapper trackMapper;
     private final TrackService trackService;
     private final CacheManager cacheManager;
+    private final RedisLock redisLock;
 
     private final AtomicInteger refreshTotal = new AtomicInteger(0);
     private final AtomicInteger refreshCompleted = new AtomicInteger(0);
     private volatile boolean refreshing = false;
     private volatile boolean initialized = false;
 
-    public TrackCacheService(TrackMapper trackMapper, TrackService trackService, CacheManager cacheManager) {
+    public TrackCacheService(TrackMapper trackMapper, TrackService trackService, CacheManager cacheManager, RedisLock redisLock) {
         this.trackMapper = trackMapper;
         this.trackService = trackService;
         this.cacheManager = cacheManager;
+        this.redisLock = redisLock;
     }
 
     @PostConstruct
@@ -79,8 +85,18 @@ public class TrackCacheService {
 
     @Scheduled(cron = "0 0 */2 * * ?")
     public void scheduledRefresh() {
-        List<String> ids = trackService.getAllTrackIds();
-        refreshAll(ids);
+        String lockKey = CacheKey.lock("scheduled", "track-refresh");
+        String token = redisLock.tryLock(lockKey, SCHEDULED_LOCK_TTL);
+        if (token == null) {
+            log.info("TrackCacheService: 直链刷新已被其他实例执行，跳过");
+            return;
+        }
+        try {
+            List<String> ids = trackService.getAllTrackIds();
+            refreshAll(ids);
+        } finally {
+            redisLock.unlock(lockKey, token);
+        }
     }
 
     /** 全量刷新：从 lanzou 获取指定 trackId 列表的直链 → 写入/更新 MySQL + L1，失败时保留旧值 */

@@ -5,6 +5,8 @@ import cn.hutool.http.HttpRequest;
 import cn.hutool.http.HttpResponse;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
+import com.jnclub.common.cache.CacheKey;
+import com.jnclub.common.cache.CacheService;
 import com.jnclub.bookmark.entity.Bookmark;
 import com.jnclub.bookmark.mapper.BookmarkMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -25,6 +27,9 @@ public class BookmarkService extends ServiceImpl<BookmarkMapper, Bookmark> {
     @Autowired
     private TagService tagService;
 
+    @Autowired
+    private CacheService cacheService;
+
     private static final String UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
 
     public List<Bookmark> getBookmarks(Long directoryId, Long tagId) {
@@ -40,11 +45,17 @@ public class BookmarkService extends ServiceImpl<BookmarkMapper, Bookmark> {
                     .in(Bookmark::getId, refIds)
                     .orderByAsc(Bookmark::getSortOrder));
         }
-        return list(new LambdaQueryWrapper<Bookmark>()
+        // 无标签过滤：读多写少，走 Redis 旁路缓存
+        String cacheKey = CacheKey.bookmark(userId, directoryId);
+        List<Bookmark> cached = cacheService.getList(cacheKey, Bookmark.class);
+        if (cached != null) return cached;
+        List<Bookmark> result = list(new LambdaQueryWrapper<Bookmark>()
                 .eq(Bookmark::getDirectoryId, directoryId)
                 .eq(Bookmark::getUserId, userId)
                 .eq(Bookmark::getDeleted, 0)
                 .orderByAsc(Bookmark::getSortOrder));
+        cacheService.setList(cacheKey, result, CacheService.DEFAULT_TTL);
+        return result;
     }
 
     public Bookmark addBookmark(Bookmark bookmark) {
@@ -78,6 +89,7 @@ public class BookmarkService extends ServiceImpl<BookmarkMapper, Bookmark> {
         sanitizeForInsert(bookmark);
 
         save(bookmark);
+        cacheService.evictByPrefix(CacheKey.bookmarkPrefix(userId));
         return bookmark;
     }
 
@@ -139,6 +151,7 @@ public class BookmarkService extends ServiceImpl<BookmarkMapper, Bookmark> {
         existing.setUrl(bookmark.getUrl());
         if (bookmark.getIcon() != null) existing.setIcon(bookmark.getIcon());
         updateById(existing);
+        cacheService.evictByPrefix(CacheKey.bookmarkPrefix(userId));
     }
 
     public void deleteBookmark(Long id) {
@@ -150,6 +163,7 @@ public class BookmarkService extends ServiceImpl<BookmarkMapper, Bookmark> {
         // 软删除：进入回收站（保留标签关联，恢复后仍可见）
         bookmark.setDeleted(1);
         updateById(bookmark);
+        cacheService.evictByPrefix(CacheKey.bookmarkPrefix(userId));
     }
 
     /** 永久删除收藏（回收站清空/到期清理用）：物理删记录 + 级联删标签关联 */
@@ -161,6 +175,7 @@ public class BookmarkService extends ServiceImpl<BookmarkMapper, Bookmark> {
         }
         removeById(id);
         tagService.deleteRelationsByRef("bookmark", id, userId);
+        cacheService.evictByPrefix(CacheKey.bookmarkPrefix(userId));
     }
 
     /** 从回收站恢复收藏 */
@@ -174,6 +189,7 @@ public class BookmarkService extends ServiceImpl<BookmarkMapper, Bookmark> {
         }
         bookmark.setDeleted(0);
         updateById(bookmark);
+        cacheService.evictByPrefix(CacheKey.bookmarkPrefix(userId));
     }
 
     /** 无鉴权永久删除（回收站定时清理用，跳过登录态校验） */
@@ -182,6 +198,7 @@ public class BookmarkService extends ServiceImpl<BookmarkMapper, Bookmark> {
         if (bookmark == null) return;
         removeById(id);
         tagService.deleteRelationsByRef("bookmark", id, bookmark.getUserId());
+        cacheService.evictByPrefix(CacheKey.bookmarkPrefix(bookmark.getUserId()));
     }
 
     public void updateSortOrder(List<Map<String, Object>> sortList) {
@@ -195,6 +212,7 @@ public class BookmarkService extends ServiceImpl<BookmarkMapper, Bookmark> {
                 updateById(bookmark);
             }
         }
+        cacheService.evictByPrefix(CacheKey.bookmarkPrefix(userId));
     }
 
     // ======================== 提取 ========================

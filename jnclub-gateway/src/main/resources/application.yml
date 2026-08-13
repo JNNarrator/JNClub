@@ -12,6 +12,13 @@ spring:
   jackson:
     date-format: yyyy-MM-dd HH:mm:ss
     time-zone: Asia/Shanghai
+  # Redis：本地开发默认无密码；生产密码走环境变量 JNCLUB_REDIS_PASSWORD，不落明文
+  data:
+    redis:
+      host: 127.0.0.1
+      port: 6379
+      password: ${JNCLUB_REDIS_PASSWORD:}
+      timeout: 3s
   # 分片上传：单分片大小由 jnclub.disk.chunk-size-mb 控制（默认 2MB），
   # max-file-size/max-request-size 需大于单个分片，按上限 10MB 预留余量
   servlet:

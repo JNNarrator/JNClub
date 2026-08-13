@@ -8,6 +8,8 @@ import com.jnclub.bookmark.entity.Note;
 import com.jnclub.bookmark.entity.NoteAsset;
 import com.jnclub.bookmark.mapper.NoteAssetMapper;
 import com.jnclub.bookmark.mapper.NoteMapper;
+import com.jnclub.common.cache.CacheKey;
+import com.jnclub.common.cache.RedisLock;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -15,6 +17,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.regex.Matcher;
@@ -43,19 +46,31 @@ public class AssetCleanService {
     private final NoteMapper noteMapper;
     private final NoteAssetMapper noteAssetMapper;
 
+    private final RedisLock redisLock;
+
     private static final Pattern MD_IMG_PATTERN =
             Pattern.compile("!\\[[^]]*]\\(/api/files/([^)\\s]+)\\)");
+
+    private static final Duration SCHEDULED_LOCK_TTL = Duration.ofMinutes(10);
 
     // ========== 定时任务 ==========
 
     @Scheduled(cron = "0 0 3 * * ?")
     public void scheduledClean() {
+        String lockKey = CacheKey.lock("scheduled", "asset-clean");
+        String token = redisLock.tryLock(lockKey, SCHEDULED_LOCK_TTL);
+        if (token == null) {
+            log.info("孤儿图片定时清理已被其他实例执行，跳过");
+            return;
+        }
         try {
             log.info("=== 定时清理孤儿图片开始 ===");
             Map<String, Object> result = cleanOrphans(7);
             log.info("=== 定时清理完成: {} ===", result);
         } catch (Exception e) {
             log.error("定时清理孤儿图片失败", e);
+        } finally {
+            redisLock.unlock(lockKey, token);
         }
     }
 

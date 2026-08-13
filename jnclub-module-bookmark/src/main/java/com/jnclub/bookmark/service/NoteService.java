@@ -5,6 +5,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.jnclub.bookmark.entity.Note;
 import com.jnclub.bookmark.mapper.NoteMapper;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
+import com.jnclub.common.cache.CacheKey;
+import com.jnclub.common.cache.CacheService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +27,9 @@ public class NoteService extends ServiceImpl<NoteMapper, Note> {
     @Autowired
     private TagService tagService;
 
+    @Autowired
+    private CacheService cacheService;
+
     public List<Note> getNotes(Long directoryId, Long tagId) {
         String userId = StpUtil.getLoginIdAsString();
         List<Note> notes;
@@ -38,11 +43,20 @@ public class NoteService extends ServiceImpl<NoteMapper, Note> {
                     .in(Note::getId, refIds)
                     .orderByAsc(Note::getSortOrder));
         } else {
+            // 无标签过滤：走 Redis 旁路缓存（列表含派生标题，读开销大）
+            String cacheKey = CacheKey.note(userId, directoryId);
+            List<Note> cached = cacheService.getList(cacheKey, Note.class);
+            if (cached != null) return cached;
             notes = list(new LambdaQueryWrapper<Note>()
                     .eq(Note::getDirectoryId, directoryId)
                     .eq(Note::getUserId, userId)
                     .eq(Note::getDeleted, 0)
                     .orderByAsc(Note::getSortOrder));
+            for (Note note : notes) {
+                note.setTitle(deriveDisplayTitle(note.getTitle(), note.getContent()));
+            }
+            cacheService.setList(cacheKey, notes, CacheService.DEFAULT_TTL);
+            return notes;
         }
 
         for (Note note : notes) {
@@ -69,6 +83,7 @@ public class NoteService extends ServiceImpl<NoteMapper, Note> {
         save(note);
 
         assetCleanService.claimAssets(note.getId(), note.getContent());
+        cacheService.evictByPrefix(CacheKey.notePrefix(userId));
         return note;
     }
 
@@ -87,6 +102,7 @@ public class NoteService extends ServiceImpl<NoteMapper, Note> {
         updateById(existing);
 
         assetCleanService.claimAssets(existing.getId(), existing.getContent());
+        cacheService.evictByPrefix(CacheKey.notePrefix(userId));
     }
 
     @Transactional
@@ -99,6 +115,7 @@ public class NoteService extends ServiceImpl<NoteMapper, Note> {
         // 软删除：进入回收站。内容仍引用图片，故不 unclaim（恢复后图片依旧可用）
         note.setDeleted(1);
         updateById(note);
+        cacheService.evictByPrefix(CacheKey.notePrefix(userId));
     }
 
     /**
@@ -114,6 +131,7 @@ public class NoteService extends ServiceImpl<NoteMapper, Note> {
         removeById(id);
         assetCleanService.unclaimAssets(id);
         tagService.deleteRelationsByRef("note", id, userId);
+        cacheService.evictByPrefix(CacheKey.notePrefix(userId));
     }
 
     /** 从回收站恢复便签 */
@@ -127,6 +145,7 @@ public class NoteService extends ServiceImpl<NoteMapper, Note> {
         }
         note.setDeleted(0);
         updateById(note);
+        cacheService.evictByPrefix(CacheKey.notePrefix(userId));
     }
 
     /** 无鉴权永久删除（回收站定时清理用，跳过登录态校验） */
@@ -137,6 +156,7 @@ public class NoteService extends ServiceImpl<NoteMapper, Note> {
         removeById(id);
         assetCleanService.unclaimAssets(id);
         tagService.deleteRelationsByRef("note", id, note.getUserId());
+        cacheService.evictByPrefix(CacheKey.notePrefix(note.getUserId()));
     }
 
     @Transactional
@@ -156,6 +176,7 @@ public class NoteService extends ServiceImpl<NoteMapper, Note> {
         if (!toUpdate.isEmpty()) {
             updateBatchById(toUpdate);
         }
+        cacheService.evictByPrefix(CacheKey.notePrefix(userId));
     }
 
     private String deriveDisplayTitle(String title, String content) {

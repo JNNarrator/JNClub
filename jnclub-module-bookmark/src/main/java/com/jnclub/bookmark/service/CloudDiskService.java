@@ -9,6 +9,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.jnclub.bookmark.entity.FileRecord;
 import com.jnclub.bookmark.mapper.FileMapper;
 import com.jnclub.bookmark.mapper.DirectoryMapper;
+import com.jnclub.common.cache.CacheKey;
+import com.jnclub.common.cache.RedisLock;
 import com.jnclub.common.exception.BizException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,6 +28,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -50,6 +53,13 @@ public class CloudDiskService {
 
     private final FileMapper fileMapper;
     private final DirectoryMapper directoryMapper;
+
+    private final RedisLock redisLock;
+
+    /** 单分片写锁 TTL：覆盖 2MB 分片落盘时间（默认 30 秒，足够） */
+    private static final Duration CHUNK_LOCK_TTL = Duration.ofSeconds(30);
+    /** 定时清理锁 TTL */
+    private static final Duration SCHEDULED_LOCK_TTL = Duration.ofMinutes(10);
 
     @Value("${jnclub.dufs.base-url}")
     private String dufsBaseUrl;
@@ -153,14 +163,24 @@ public class CloudDiskService {
         if (destFile.exists() && destFile.length() > 0) {
             return; // 已存在，幂等跳过
         }
-        Path dir = dest.getParent();
-        if (!Files.exists(dir)) Files.createDirectories(dir);
-        // 先写到临时 .tmp，再原子改名，避免半截文件被当成成功分片
-        Path tmp = dest.resolveSibling(chunkIndex + ".tmp");
-        try (FileOutputStream fos = new FileOutputStream(tmp.toFile())) {
-            in.transferTo(fos);
+        // 分布式锁兜底：多实例共享同一临时目录时，防止并发写同一分片的 .tmp 冲突
+        String lockKey = CacheKey.lock("chunk", uploadId + ":" + chunkIndex);
+        String token = redisLock.tryLock(lockKey, CHUNK_LOCK_TTL);
+        if (token == null) {
+            return; // 已有实例正在写该分片，幂等返回（前端重传兜底）
         }
-        Files.move(tmp, dest, StandardCopyOption.REPLACE_EXISTING);
+        try {
+            Path dir = dest.getParent();
+            if (!Files.exists(dir)) Files.createDirectories(dir);
+            // 先写到临时 .tmp，再原子改名，避免半截文件被当成成功分片
+            Path tmp = dest.resolveSibling(chunkIndex + ".tmp");
+            try (FileOutputStream fos = new FileOutputStream(tmp.toFile())) {
+                in.transferTo(fos);
+            }
+            Files.move(tmp, dest, StandardCopyOption.REPLACE_EXISTING);
+        } finally {
+            redisLock.unlock(lockKey, token);
+        }
     }
 
     /**
@@ -598,10 +618,18 @@ public class CloudDiskService {
      */
     @Scheduled(cron = "0 20 3 * * ?")
     public void scheduledCleanTemp() {
+        String lockKey = CacheKey.lock("scheduled", "clouddisk-temp-clean");
+        String token = redisLock.tryLock(lockKey, SCHEDULED_LOCK_TTL);
+        if (token == null) {
+            log.info("云盘临时目录定时清理已被其他实例执行，跳过");
+            return;
+        }
         try {
             cleanTempDirs(1);
         } catch (Exception e) {
             log.error("定时清理云盘临时目录失败", e);
+        } finally {
+            redisLock.unlock(lockKey, token);
         }
     }
 }

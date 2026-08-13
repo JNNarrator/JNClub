@@ -8,6 +8,8 @@ import com.jnclub.bookmark.entity.Note;
 import com.jnclub.bookmark.mapper.BookmarkMapper;
 import com.jnclub.bookmark.mapper.FileMapper;
 import com.jnclub.bookmark.mapper.NoteMapper;
+import com.jnclub.common.cache.CacheKey;
+import com.jnclub.common.cache.RedisLock;
 import com.jnclub.common.exception.BizException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,6 +18,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -38,6 +41,10 @@ public class RecycleService {
     private final NoteMapper noteMapper;
     private final FileMapper fileMapper;
     private final com.jnclub.bookmark.mapper.VaultMapper vaultMapper;
+
+    private final RedisLock redisLock;
+
+    private static final Duration SCHEDULED_LOCK_TTL = Duration.ofMinutes(10);
 
     /** 回收站保留天数，默认 30 天 */
     @Value("${jnclub.recycle.keep-days:30}")
@@ -124,10 +131,18 @@ public class RecycleService {
 
     @Scheduled(cron = "0 40 3 * * ?")
     public void scheduledClean() {
+        String lockKey = CacheKey.lock("scheduled", "recycle-clean");
+        String token = redisLock.tryLock(lockKey, SCHEDULED_LOCK_TTL);
+        if (token == null) {
+            log.info("回收站定时清理已被其他实例执行，跳过");
+            return;
+        }
         try {
             cleanExpired();
         } catch (Exception e) {
             log.error("定时清理回收站失败", e);
+        } finally {
+            redisLock.unlock(lockKey, token);
         }
     }
 
