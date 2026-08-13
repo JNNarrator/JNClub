@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { NLayoutSider, NIcon } from 'naive-ui'
-import { Heart, Pencil } from 'lucide-vue-next'
+import { Heart, Pencil, MousePointer2 } from 'lucide-vue-next'
 import { useUserPreferences } from '../composables/useUserPreferences'
 import NavItem from '../../modules/bookmark/components/NavItem.vue'
 import NavEditorDrawer from './NavEditorDrawer.vue'
+import CursorSettingsDrawer from './CursorSettingsDrawer.vue'
 import { useDraggableSort } from '../../modules/bookmark/composables/useDraggableSort'
 import { useRouter, useRoute } from 'vue-router'
 import { NAV_META, DEFAULT_ORDER, normalizeNavKeys, completeOrder, type NavDef, type NavKey } from './navConfig'
@@ -87,6 +88,9 @@ const isActive = (item: NavDef) => {
 const showNavEditor = ref(false)
 /** 抽屉每次持久化后刷新侧栏（以 prefs 为准） */
 const handleNavEditorSaved = () => { refreshNav() }
+
+/** 光标样式设置抽屉 */
+const showCursorSettings = ref(false)
 </script>
 
 <template>
@@ -122,8 +126,16 @@ const handleNavEditorSaved = () => { refreshNav() }
       </div>
     </nav>
 
-    <!-- 编辑导航入口（左下角小图标，不参与拖拽） -->
+    <!-- 侧栏底部入口：光标样式 + 编辑导航（小图标，不参与拖拽） -->
     <div :class="['nav-editor-bar', { collapsed: props.collapsed }]">
+      <button
+        type="button"
+        class="nav-editor-btn jnclub-bouncy"
+        title="光标样式"
+        @click="showCursorSettings = true"
+      >
+        <NIcon :component="MousePointer2" :size="18" />
+      </button>
       <button
         type="button"
         class="nav-editor-btn jnclub-bouncy"
@@ -137,6 +149,9 @@ const handleNavEditorSaved = () => { refreshNav() }
 
   <!-- 导航编辑抽屉 -->
   <NavEditorDrawer :show="showNavEditor" @close="showNavEditor = false" @saved="handleNavEditorSaved" />
+
+  <!-- 光标样式设置抽屉 -->
+  <CursorSettingsDrawer :show="showCursorSettings" @close="showCursorSettings = false" />
 </template>
 
 <style scoped>

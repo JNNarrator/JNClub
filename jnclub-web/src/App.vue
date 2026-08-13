@@ -5,6 +5,7 @@ import { tokensToCSSVars, lightTokens, darkTokens } from './themes/tokens'
 import lightThemeOverrides from './themes/light'
 import darkThemeOverrides from './themes/dark'
 import { useOnlineStatus } from './shared/composables/useOnlineStatus'
+import CursorHost from './shared/components/CursorHost.vue'
 
 const isDark = ref(false)
 
@@ -60,6 +61,8 @@ const toggleTheme = () => {
           </div>
         </Transition>
         <router-view :is-dark="isDark" @toggle-theme="toggleTheme" />
+        <!-- 全局自定义光标（可爱光标：圆点+光环 / emoji，偏好 cursor.style 驱动） -->
+        <CursorHost />
       </NDialogProvider>
     </NMessageProvider>
   </NConfigProvider>

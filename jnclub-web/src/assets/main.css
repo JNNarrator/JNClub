@@ -479,6 +479,19 @@ html, body {
   color: var(--text-2) !important;
 }
 
+/* ---- 自定义光标（CursorHost 启用时隐藏系统光标） ---- */
+/* 隐藏全部系统光标，由 .cursor-dot/.cursor-halo/.cursor-emoji 替代 */
+html.custom-cursor-active,
+html.custom-cursor-active * {
+  cursor: none !important;
+}
+/* 输入框内保留系统 I-beam（编辑体验优先） */
+html.custom-cursor-active input,
+html.custom-cursor-active textarea,
+html.custom-cursor-active [contenteditable] {
+  cursor: text !important;
+}
+
 /* ---- Reduced motion ---- */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
