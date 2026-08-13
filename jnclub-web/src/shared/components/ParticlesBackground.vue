@@ -103,7 +103,9 @@ const options = computed<ISourceOptions>(() => {
 .particles-bg {
   position: fixed;
   inset: 0;
-  z-index: 0;
+  /* 高于主界面内容层（.home z-index:1，毛玻璃面板会盖住背景），
+     低于 FAB(100)/弹窗(2000+)/自定义光标(11000)；pointer-events:none 不挡任何点击 */
+  z-index: 5;
   pointer-events: none;
 }
 .particles-bg :deep(#jnclub-particles),
