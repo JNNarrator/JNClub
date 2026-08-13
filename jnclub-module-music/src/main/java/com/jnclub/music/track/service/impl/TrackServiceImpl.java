@@ -34,6 +34,8 @@ import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
@@ -86,17 +88,23 @@ public class TrackServiceImpl implements TrackService {
     private static final int MAX_PAGES = 20;
     /** 批量直链 Redis 缓存 TTL：对齐蓝奏云直链约 45 分钟有效期（留 30 秒裕量） */
     private static final Duration MUSIC_URLS_TTL = Duration.ofMinutes(30);
+    /** Caffeine 缓存名（与 @CacheEvict 注解值保持一致，手动读写同源缓存） */
+    private static final String CACHE_SONG_FOLDERS = "songFolders";
+    private static final String CACHE_TRACK_SUMMARIES = "trackSummaries";
+    private static final String CACHE_KEY_ALL = "all";
 
     private final MusicStorage musicStorage;
     private final TrackMapper trackMapper;
     private final LyricsCacheMapper lyricsCacheMapper;
     private final CacheService cacheService;
+    private final CacheManager cacheManager;
 
-    public TrackServiceImpl(MusicStorage musicStorage, TrackMapper trackMapper, LyricsCacheMapper lyricsCacheMapper, CacheService cacheService) {
+    public TrackServiceImpl(MusicStorage musicStorage, TrackMapper trackMapper, LyricsCacheMapper lyricsCacheMapper, CacheService cacheService, CacheManager cacheManager) {
         this.musicStorage = musicStorage;
         this.trackMapper = trackMapper;
         this.lyricsCacheMapper = lyricsCacheMapper;
         this.cacheService = cacheService;
+        this.cacheManager = cacheManager;
     }
 
     @Override
@@ -339,18 +347,39 @@ public class TrackServiceImpl implements TrackService {
         return paginate(matched, normalize(page, 1), normalize(pageSize, 20));
     }
 
-    @Cacheable(value = "songFolders", key = "'all'")
+    /**
+     * 加载蓝奏云目录树（songFolders 缓存）。
+     * <p>注意：不能依赖 {@code @Cacheable}——本方法在同类内部被多处 self-invocation 调用，
+     * 不会经过 Spring AOP 代理，注解缓存失效。改为显式读/写 Caffeine，与 {@code @CacheEvict} 同源。
+     * 空结果（蓝奏云会话失效）不缓存，避免把临时故障锁死 45 分钟。</p>
+     */
     public List<SongFolder> loadSongFolders() {
+        Cache cache = cacheManager.getCache(CACHE_SONG_FOLDERS);
+        List<SongFolder> hit = cacheGet(cache, CACHE_KEY_ALL);
+        if (hit != null) return hit;
+
+        List<SongFolder> folders;
         try {
-            List<SongFolder> folders = new ArrayList<>();
+            folders = new ArrayList<>();
             loadSongFoldersRecursively(ROOT_FOLDER_ID, folders);
-            return folders;
         } catch (com.jnclub.music.lanzou.LanzouSessionException e) {
             // 蓝奏云会话失效：不向接口抛 500，返回空列表由上层展示/引导重新认证，
             // 同时保留 Caffeine 中可能仍存在的旧缓存值供播放直链兜底。
             log.warn("loadSongFolders: 蓝奏云会话失效，返回空列表，请重新认证。原因: {}", e.getMessage());
-            return new ArrayList<>();
+            folders = new ArrayList<>();
         }
+        if (!folders.isEmpty() && cache != null) {
+            cache.put(CACHE_KEY_ALL, folders);
+        }
+        return folders;
+    }
+
+    /** 从 Caffeine 缓存按 key 读值；未命中返回 null（泛型强转，存入与读取同类型，安全）。 */
+    @SuppressWarnings("unchecked")
+    private static <T> T cacheGet(Cache cache, String key) {
+        if (cache == null) return null;
+        Cache.ValueWrapper vw = cache.get(key);
+        return vw == null ? null : (T) vw.get();
     }
 
     private void loadSongFoldersRecursively(String folderId, List<SongFolder> out) {
@@ -376,9 +405,20 @@ public class TrackServiceImpl implements TrackService {
         return audioFile != null ? new SongFolder(folderId, folderName, audioFile, lyricFile) : null;
     }
 
-    @Cacheable(value = "trackSummaries", key = "'all'")
+    /**
+     * 歌曲摘要列表（trackSummaries 缓存）。同样避免 {@code @Cacheable} 同类内部调用失效，
+     * 改为显式 Caffeine 读写；空结果不缓存。
+     */
     public List<TrackSummaryDTO> getCachedSummaries() {
-        return loadAllAudioSummaries();
+        Cache cache = cacheManager.getCache(CACHE_TRACK_SUMMARIES);
+        List<TrackSummaryDTO> hit = cacheGet(cache, CACHE_KEY_ALL);
+        if (hit != null) return hit;
+
+        List<TrackSummaryDTO> out = loadAllAudioSummaries();
+        if (!out.isEmpty() && cache != null) {
+            cache.put(CACHE_KEY_ALL, out);
+        }
+        return out;
     }
 
 
