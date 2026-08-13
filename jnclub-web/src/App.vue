@@ -6,6 +6,7 @@ import lightThemeOverrides from './themes/light'
 import darkThemeOverrides from './themes/dark'
 import { useOnlineStatus } from './shared/composables/useOnlineStatus'
 import CursorHost from './shared/components/CursorHost.vue'
+import ParticlesBackground from './shared/components/ParticlesBackground.vue'
 
 const isDark = ref(false)
 
@@ -61,6 +62,8 @@ const toggleTheme = () => {
           </div>
         </Transition>
         <router-view :is-dark="isDark" @toggle-theme="toggleTheme" />
+        <!-- 全局粒子背景（tsParticles，偏好 particles.style 驱动，路由内排除音乐/便签） -->
+        <ParticlesBackground :is-dark="isDark" />
         <!-- 全局自定义光标（可爱光标：圆点+光环 / emoji，偏好 cursor.style 驱动） -->
         <CursorHost />
       </NDialogProvider>

@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { NLayoutSider, NIcon } from 'naive-ui'
-import { Heart, Pencil, MousePointer2 } from 'lucide-vue-next'
+import { Heart, Pencil, MousePointer2, Sparkles } from 'lucide-vue-next'
 import { useUserPreferences } from '../composables/useUserPreferences'
 import NavItem from '../../modules/bookmark/components/NavItem.vue'
 import NavEditorDrawer from './NavEditorDrawer.vue'
 import CursorSettingsDrawer from './CursorSettingsDrawer.vue'
+import ParticlesSettingsDrawer from './ParticlesSettingsDrawer.vue'
 import { useDraggableSort } from '../../modules/bookmark/composables/useDraggableSort'
 import { useRouter, useRoute } from 'vue-router'
 import { NAV_META, DEFAULT_ORDER, normalizeNavKeys, completeOrder, type NavDef, type NavKey } from './navConfig'
@@ -91,6 +92,9 @@ const handleNavEditorSaved = () => { refreshNav() }
 
 /** 光标样式设置抽屉 */
 const showCursorSettings = ref(false)
+
+/** 背景特效设置抽屉 */
+const showParticlesSettings = ref(false)
 </script>
 
 <template>
@@ -126,7 +130,7 @@ const showCursorSettings = ref(false)
       </div>
     </nav>
 
-    <!-- 侧栏底部入口：光标样式 + 编辑导航（小图标，不参与拖拽） -->
+    <!-- 侧栏底部入口：光标样式 + 背景特效 + 编辑导航（小图标，不参与拖拽） -->
     <div :class="['nav-editor-bar', { collapsed: props.collapsed }]">
       <button
         type="button"
@@ -135,6 +139,14 @@ const showCursorSettings = ref(false)
         @click="showCursorSettings = true"
       >
         <NIcon :component="MousePointer2" :size="18" />
+      </button>
+      <button
+        type="button"
+        class="nav-editor-btn jnclub-bouncy"
+        title="背景特效"
+        @click="showParticlesSettings = true"
+      >
+        <NIcon :component="Sparkles" :size="18" />
       </button>
       <button
         type="button"
@@ -152,6 +164,9 @@ const showCursorSettings = ref(false)
 
   <!-- 光标样式设置抽屉 -->
   <CursorSettingsDrawer :show="showCursorSettings" @close="showCursorSettings = false" />
+
+  <!-- 背景特效设置抽屉 -->
+  <ParticlesSettingsDrawer :show="showParticlesSettings" @close="showParticlesSettings = false" />
 </template>
 
 <style scoped>
@@ -230,11 +245,14 @@ const showCursorSettings = ref(false)
   flex-shrink: 0;
   display: flex;
   justify-content: flex-start;
+  gap: 6px;
   padding: 6px 10px 10px;
   border-top: 1px solid var(--glass-border);
 }
 .nav-editor-bar.collapsed {
   justify-content: center;
+  flex-direction: column;
+  align-items: center;
   padding: 8px 0 10px;
 }
 .nav-editor-btn {
