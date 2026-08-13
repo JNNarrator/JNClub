@@ -33,6 +33,9 @@ export default defineConfig({
         // 只预缓存构建产物中的应用壳静态资源（不缓存 /api、/sso 等动态请求）
         globPatterns: ['**/*.{js,css,html,svg,png,woff2,ico}'],
         navigateFallback: '/jnclub/index.html',
+        // SSO 回跳(/jnclub/sso/login?ticket=...)与 API 必须走网络，
+        // 否则被 SW fallback 拦截为 SPA 页面，ticket 换票请求到不了后端 → 登录提示"缺少登录凭证"
+        navigateFallbackDenylist: [/^\/jnclub\/sso\//, /^\/jnclub\/api\//],
         runtimeCaching: [
           // Google Fonts 缓存字体（跨域，CacheFirst 命中即用）
           {
