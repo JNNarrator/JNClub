@@ -88,7 +88,7 @@ const goRegister = () => {
       <!-- 品牌区 -->
       <header class="brand">
         <BrandLogo :size="72" :show-text="false" class="brand-mark" />
-        <JShinyText text="JNClub" className="brand-name" :speed="3" :spread="140" />
+        <JShinyText text="JNClub" className="brand-name" :speed="3" :spread="140" color="var(--brand)" />
         <p class="brand-slogan">个人工作台 · 收藏夹 / 便签 / 云盘 / 密码库，一站式打理你的数字生活</p>
       </header>
 
