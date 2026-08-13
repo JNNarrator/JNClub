@@ -7,7 +7,9 @@
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { NButton, NIcon } from 'naive-ui'
-import { Sun, Moon, Link, PenLine, ShieldCheck, ArrowRight, UserPlus, Sparkles } from 'lucide-vue-next'
+import { Sun, Moon, Link, PenLine, Cloud, KeyRound, Music, Trash2, ArrowRight, UserPlus } from 'lucide-vue-next'
+import { useUserStore } from '../stores/user'
+import BrandLogo from '../components/BrandLogo.vue'
 
 defineProps<{
   isDark: boolean
@@ -18,25 +20,41 @@ const emit = defineEmits<{
 }>()
 
 const router = useRouter()
+const userStore = useUserStore()
 
-/** 未登录判定：localStorage 无 token 即视为访客 */
-const isLoggedIn = computed(() => !!localStorage.getItem('jn-token'))
+/** 登录态：与路由守卫一致走 Pinia store（原用 localStorage jn-token 判定，双源不一致） */
+const isLoggedIn = computed(() => userStore.isLoggedIn)
 
 const features = [
   {
     icon: Link,
     title: '网页收藏夹',
-    desc: '集中管理常用网址，目录分类、图标预览，随手收藏随手找。',
+    desc: '集中管理常用网址，目录分类、图标预览、标签筛选。',
   },
   {
     icon: PenLine,
     title: 'Markdown 便签',
-    desc: '即时渲染写作，自动保存、大纲导航、代码高亮，灵感不丢失。',
+    desc: '即时渲染写作，自动保存、大纲导航、图片上传。',
   },
   {
-    icon: ShieldCheck,
-    title: 'SSO 统一认证',
-    desc: '一套账号走遍所有服务，登录一次、处处通行。',
+    icon: Cloud,
+    title: '云盘',
+    desc: '分片上传、断点续传，文件随取随用。',
+  },
+  {
+    icon: KeyRound,
+    title: '密码库',
+    desc: 'AES 加密存储，主密钥解锁，安全守护账号密码。',
+  },
+  {
+    icon: Music,
+    title: '音乐',
+    desc: '夜猫电台内嵌，播放队列、歌词、收藏一应俱全。',
+  },
+  {
+    icon: Trash2,
+    title: '回收站',
+    desc: '软删除统一管理，误删可恢复、可彻底清除。',
   },
 ]
 
@@ -68,16 +86,19 @@ const goRegister = () => {
     <div class="welcome-inner">
       <!-- 品牌区 -->
       <header class="brand">
-        <div class="brand-logo">
-          <NIcon :component="Sparkles" size="30" />
-        </div>
+        <BrandLogo :size="72" :show-text="false" class="brand-mark" />
         <h1 class="brand-name">JNClub</h1>
-        <p class="brand-slogan">个人工作台 · 收藏与便签，一站式打理你的数字生活</p>
+        <p class="brand-slogan">个人工作台 · 收藏夹 / 便签 / 云盘 / 密码库，一站式打理你的数字生活</p>
       </header>
 
-      <!-- 功能简介 -->
+      <!-- 功能简介（模块墙） -->
       <section class="features">
-        <div v-for="f in features" :key="f.title" class="feature-card">
+        <div
+          v-for="(f, i) in features"
+          :key="f.title"
+          class="feature-card"
+          :style="{ animationDelay: `${i * 60}ms` }"
+        >
           <div class="feature-icon">
             <NIcon :component="f.icon" size="22" />
           </div>
@@ -168,18 +189,11 @@ const goRegister = () => {
 }
 
 /* 品牌区 */
-.brand { margin-bottom: 44px; }
-.brand-logo {
+.brand { margin-bottom: 40px; }
+.brand-mark {
   display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 72px;
-  height: 72px;
-  border-radius: 22px;
-  background: linear-gradient(135deg, var(--brand), var(--brand-hover));
-  color: #fff;
-  box-shadow: 0 12px 32px var(--brand-soft), inset 0 1px 0 rgba(255, 255, 255, 0.35);
   margin-bottom: 20px;
+  filter: drop-shadow(0 12px 24px var(--brand-soft));
 }
 .brand-name {
   margin: 0 0 10px;
@@ -198,15 +212,15 @@ const goRegister = () => {
   color: var(--text-2);
 }
 
-/* 功能卡片 */
+/* 功能卡片（模块墙，3 列自适应） */
 .features {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
-  margin-bottom: 44px;
+  gap: 16px;
+  margin-bottom: 40px;
 }
 .feature-card {
-  padding: 28px 22px;
+  padding: 24px 20px;
   background: var(--glass-bg-trans);
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
@@ -214,6 +228,8 @@ const goRegister = () => {
   border-radius: var(--radius-lg);
   text-align: left;
   transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
+  opacity: 0;
+  animation: welcome-fade-up .5s var(--ease) forwards;
 }
 .feature-card:hover {
   transform: translateY(-4px);
@@ -257,6 +273,12 @@ const goRegister = () => {
   min-width: 200px;
   border-radius: var(--radius-pill);
   font-weight: 600;
+  background: var(--gradient-btn);
+  border: none;
+  box-shadow: var(--shadow-fab);
+}
+.btn-enter:hover {
+  box-shadow: var(--shadow-fab-hover);
 }
 .btn-register {
   min-width: 150px;
@@ -265,9 +287,17 @@ const goRegister = () => {
   color: var(--text-2);
 }
 
+@keyframes welcome-fade-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 @media (max-width: 720px) {
-  .features { grid-template-columns: 1fr; }
+  .features { grid-template-columns: 1fr 1fr; }
   .brand-name { font-size: 32px; }
   .welcome-inner { padding: 32px 20px 32px; }
+}
+@media (max-width: 480px) {
+  .features { grid-template-columns: 1fr; }
 }
 </style>

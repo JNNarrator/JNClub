@@ -98,9 +98,6 @@ const handleDropdown = (key: string) => {
         </NEllipsis>
       </div>
 
-      <!-- 描述/域名 -->
-      <div class="card-domain">{{ getDomain(bookmark.url) }}</div>
-
       <!-- 标签 -->
       <div v-if="bookmark.tags?.length" class="card-tags">
         <NTag v-for="t in bookmark.tags" :key="t" size="tiny" round :bordered="false" class="card-tag">
@@ -108,7 +105,7 @@ const handleDropdown = (key: string) => {
         </NTag>
       </div>
 
-      <!-- 链接 -->
+      <!-- 链接（底部唯一域名展示，去冗余） -->
       <a :href="bookmark.url" target="_blank" class="card-link jnclub-bouncy" @click.stop>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
           <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
@@ -182,6 +179,8 @@ const handleDropdown = (key: string) => {
   width: 22px;
   height: 22px;
   border-radius: var(--radius-xs);
+  object-fit: cover;
+  background: #fff; /* 透明/异形 favicon 垫白底，避免透出粉色底盒 */
 }
 
 .favicon-fallback {
@@ -202,15 +201,6 @@ const handleDropdown = (key: string) => {
   line-height: 1.4;
 }
 
-/* === 域名 === */
-.card-domain {
-  font-size: var(--fs-sm);
-  color: var(--text-3);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 /* === 标签 === */
 .card-tags {
   display: flex;
@@ -222,13 +212,13 @@ const handleDropdown = (key: string) => {
   color: var(--brand) !important;
 }
 
-/* === 链接 === */
+/* === 链接（底部唯一域名展示，去冗余） === */
 .card-link {
   display: inline-flex;
   align-items: center;
   gap: 5px;
   font-size: var(--fs-sm);
-  color: var(--pink-adzuki);
+  color: var(--brand);
   text-decoration: none;
   margin-top: auto;
   width: fit-content;

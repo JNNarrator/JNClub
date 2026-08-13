@@ -56,22 +56,24 @@ defineEmits<{
   color: var(--text-1);
 }
 
-/* 展开激活态：pill 形状 + 品牌浅底 */
+/* 展开激活态：pill 形状 + 品牌底 + 左描边强化（选中项更醒目） */
 .nav-item.active:not(.collapsed) {
-  background: var(--brand-soft);
+  background: var(--gradient-nav-active);
   color: var(--text-1);
   font-weight: 600;
+  box-shadow: inset 3px 0 0 var(--brand);
 }
 .nav-item.active:not(.collapsed) .nav-icon {
   color: var(--brand);
 }
 
-/* 折叠激活态：品牌浅底圆角块 */
+/* 折叠激活态：品牌浅底圆角块 + 更强边框 */
 .nav-item.active.collapsed {
   justify-content: center;
   padding: 10px 0;
   background: var(--brand-soft);
   border-radius: var(--radius-sm);
+  box-shadow: inset 0 0 0 1.5px var(--brand);
 }
 .nav-item.active.collapsed .nav-icon {
   color: var(--brand);

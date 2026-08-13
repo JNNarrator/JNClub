@@ -4,7 +4,8 @@
  * 公开页（无需登录）：下载 zip + 图文安装步骤
  */
 import { NButton, NIcon, NSteps, NStep, NAlert } from 'naive-ui'
-import { Download, MousePointerClick, ListChecks, MousePointer, ShieldCheck, Puzzle, ChevronRight, FileText } from 'lucide-vue-next'
+import { Download, MousePointerClick, ListChecks, MousePointer, ShieldCheck, ChevronRight, FileText } from 'lucide-vue-next'
+import BrandLogo from '../components/BrandLogo.vue'
 
 const EXT_VERSION = '1.1.0'
 // zip 为 public/extension.zip 单文件：不用 extension/ 目录，避免与 SPA 路由 /extension 冲突（nginx 403）
@@ -40,9 +41,7 @@ const download = () => {
     <div class="ext-inner">
       <!-- 品牌 -->
       <header class="brand">
-        <div class="brand-logo">
-          <NIcon :component="Puzzle" size="28" />
-        </div>
+        <BrandLogo :size="64" :show-text="false" class="brand-mark" />
         <h1 class="brand-name">JNClub 收藏助手</h1>
         <p class="brand-slogan">浏览器扩展 · 把网页一键收进 JNClub 工作台</p>
       </header>
@@ -131,17 +130,9 @@ const download = () => {
 .brand {
   text-align: center;
 }
-.brand-logo {
-  width: 64px;
-  height: 64px;
+.brand-mark {
   margin: 0 auto 14px;
-  border-radius: 18px;
-  background: var(--gradient-btn);
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: var(--shadow-2);
+  filter: drop-shadow(0 8px 18px var(--brand-soft));
 }
 .brand-name {
   font-size: 26px;

@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { NLayoutSider, NIcon } from 'naive-ui'
-import { Heart, Pencil, MousePointer2, Sparkles } from 'lucide-vue-next'
+import { Pencil, MousePointer2, Sparkles } from 'lucide-vue-next'
 import { useUserPreferences } from '../composables/useUserPreferences'
+import BrandLogo from '../components/BrandLogo.vue'
 import NavItem from '../../modules/bookmark/components/NavItem.vue'
 import NavEditorDrawer from './NavEditorDrawer.vue'
 import CursorSettingsDrawer from './CursorSettingsDrawer.vue'
@@ -24,6 +25,20 @@ const emit = defineEmits<{
 
 const router = useRouter()
 const route = useRoute()
+
+/** 侧栏副标题：模块/路由 → 中文名（补齐 vault/回收站，修复「密码库」误显示「云盘」） */
+const moduleLabel = computed(() => {
+  const n = route.name
+  if (n === 'recycle') return '回收站'
+  if (n === 'music') return '音乐'
+  if (n === 'extension') return '浏览器插件'
+  const m = props.activeModule
+  return m === 'bookmarks' ? '收藏夹'
+    : m === 'notes' ? '便签'
+    : m === 'files' ? '云盘'
+    : m === 'vault' ? '密码库'
+    : 'JNClub'
+})
 
 const prefs = useUserPreferences()
 
@@ -104,15 +119,14 @@ const showParticlesSettings = ref(false)
     :on-update:collapsed="(v: boolean) => emit('update:collapsed', v)"
     class="side-nav sidebar-glow"
   >
-    <!-- Logo 区：渐变粉底 + heart -->
+    <!-- Logo 区：统一品牌标识（粉渐变 heart） -->
     <div :class="['logo-bar', { collapsed: props.collapsed }]">
-      <div :class="['logo-icon-wrap', { collapsed: props.collapsed }]">
-        <NIcon :component="Heart" :size="props.collapsed ? 20 : 18" color="#fff" />
-      </div>
-      <template v-if="!props.collapsed">
-        <span class="logo-text">JNClub</span>
-        <span class="logo-sub">{{ route.name === 'recycle' ? '回收站' : activeModule === 'bookmarks' ? '收藏夹' : activeModule === 'notes' ? '便签' : '云盘' }}</span>
-      </template>
+      <BrandLogo
+        :size="props.collapsed ? 40 : 36"
+        :show-text="!props.collapsed"
+        :collapsed="props.collapsed"
+      />
+      <span v-if="!props.collapsed" class="logo-sub">{{ moduleLabel }}</span>
     </div>
 
     <nav ref="navListRef" class="nav-list">
@@ -195,28 +209,6 @@ const showParticlesSettings = ref(false)
 .logo-bar.collapsed {
   padding: 20px 0;
   justify-content: center;
-}
-.logo-icon-wrap {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  background: var(--brand);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: var(--shadow-1);
-  flex-shrink: 0;
-}
-.logo-icon-wrap.collapsed {
-  width: 40px;
-  height: 40px;
-}
-.logo-text {
-  font-size: 20px;
-  font-weight: 800;
-  color: var(--text-1);
-  letter-spacing: 1px;
-  line-height: 1.2;
 }
 .logo-sub {
   font-size: 11px;

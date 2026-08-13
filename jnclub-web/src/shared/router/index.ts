@@ -107,4 +107,19 @@ router.beforeEach(async (to, _from, next) => {
   next()
 })
 
+// 动态页面标题：按路由名设置「模块 · JNClub」（此前全程静态「JNClub - 个人工作台」）
+const TITLE_BY_NAME: Record<string, string> = {
+  app: 'JNClub - 个人工作台',
+  welcome: '欢迎 - JNClub',
+  extension: '浏览器插件 - JNClub',
+  recycle: '回收站 - JNClub',
+  music: '音乐 - JNClub',
+  'note-create': '新建便签 - JNClub',
+  'note-view': '便签 - JNClub',
+  'sso-callback': '登录 - JNClub',
+}
+router.afterEach((to) => {
+  document.title = TITLE_BY_NAME[to.name as string] || 'JNClub - 个人工作台'
+})
+
 export default router

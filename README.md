@@ -1,6 +1,6 @@
 # JNClub - 个人工作台服务
 
-JNClub 是一个前后端分离的个人工作台 Web 服务，包含「收藏夹」「便签」「云盘」三大模块，并内嵌「音乐」模块（JNMUSIC 融合，对外路径 `/music/`）。
+JNClub 是一个前后端分离的个人工作台 Web 服务，包含「收藏夹」「便签」「云盘」「密码库」四大模块，并配套「回收站」（软删除统一管理）、「浏览器收藏助手」（Chrome 扩展）、内嵌「音乐」模块（JNMUSIC 融合，对外路径 `/music/`）。
 
 ## 技术栈
 
@@ -25,11 +25,12 @@ JNClub 是一个前后端分离的个人工作台 Web 服务，包含「收藏�
 JNClub/
 ├── pom.xml                    # 父 POM
 ├── jnclub-common/             # 公共模块（SSO、异常、CORS、统一返回 R）
-├── jnclub-module-bookmark/    # 业务模块（目录/收藏/便签/云盘/上传）
+├── jnclub-module-bookmark/    # 业务模块（目录/收藏/便签/云盘/密码库/标签/回收站/上传）
 ├── jnclub-module-music/       # 音乐模块（JNMUSIC 并入：/music/api 匿名 API，music_* 表）
 ├── jnclub-gateway/            # API 网关（启动入口，端口 19005）
-├── jnclub-web/                # 主前端项目（Vue3，base /jnclub/，侧边栏含音乐入口）
+├── jnclub-web/                # 主前端项目（Vue3，base /jnclub/，侧边栏含四大模块/回收站/音乐/插件入口）
 ├── music-frontend/            # 音乐播放器前端（Vue3，base /music/，nginx 静态托管）
+├── browser-extension/         # 浏览器收藏助手（Chrome 扩展，一键/批量收藏）
 └── docs/                      # 文档（init.sql / 部署 / 设计）
 ```
 
@@ -86,13 +87,19 @@ VALUES ('JNClub', 'app-jnclub', 'http://localhost:19005/sso/login', 'http://loca
 
 ## 功能特性
 
-- ✅ 目录管理（树形目录、CRUD、拖拽排序、级联删除、删除保护；type 区分模块：1 收藏夹 / 2 便签 / 3 云盘）
+- ✅ 目录管理（树形目录、CRUD、拖拽排序、级联删除、删除保护；type 区分模块：1 收藏夹 / 2 便签 / 3 云盘 / 5 密码库）
 - ✅ 网页收藏（CRUD、Favicon 自动提取、URL 预览、拖拽排序）
 - ✅ 便签（CRUD、Markdown 编辑、图片上传、拖拽排序、可拖拽悬浮大纲/目录）
 - ✅ 云盘（单文件分片上传、断点续传、暂停/恢复、文件列表、下载还原原始文件名、删除）
+- ✅ 密码库（AES 加密存储、主密钥 PBKDF2 派生、解锁/锁定、同用户重复密码健康检查）
+- ✅ 标签（收藏/便签多对多打标、按标签筛选）
+- ✅ 回收站（软删除统一查看/恢复/彻底删除/清空，覆盖收藏/便签/云盘/密码库）
+- ✅ 音乐（JNMUSIC 融合：曲目/收藏/播放历史/搜索历史/播放队列，蓝奏云+dufs 存储）
+- ✅ 浏览器收藏助手（Chrome 扩展：一键收藏当前页、批量收藏标签页、右键菜单收藏）
 - ✅ SSO 单点登录
 - ✅ 日/夜间模式（跟随系统）
-- ✅ 用户偏好记忆（模块/视图/目录跨会话记忆）
+- ✅ 用户偏好记忆（模块/视图/目录/导航顺序跨会话记忆）
+- ✅ 全局搜索、自定义光标、背景粒子特效
 
 ## 配置说明
 
@@ -188,12 +195,64 @@ jnclub:
 - `DELETE /api/clouddisk/files/{id}` - 删除（dufs 对象 + 记录）
 - `DELETE /api/clouddisk/temp-clean?days=` - 手动清理孤儿临时分片
 
+### 标签
+- `GET /api/tags` - 标签列表
+- `POST /api/tags` - 新建标签
+- `PUT /api/tags/{id}` - 重命名标签
+- `DELETE /api/tags/{id}` - 删除标签（解绑关联）
+- `GET /api/tags/relations` - 查询标签关联
+- `PUT /api/tags/relations` - 绑定/更新收藏、便签的标签关联
+
+### 密码库
+- `GET /api/vault?directoryId=` - 条目列表（AES 密文，需已解锁）
+- `GET /api/vault/{id}` - 条目详情
+- `POST /api/vault` - 新增条目
+- `PUT /api/vault/{id}` - 编辑条目
+- `DELETE /api/vault/{id}` - 删除（软删除至回收站）
+- `PUT /api/vault/sort` - 批量排序
+- `POST /api/vault/master-key` - 设置主密钥（PBKDF2 派生）
+- `POST /api/vault/unlock` / `POST /api/vault/lock` - 解锁/锁定
+- `POST /api/vault/reset` - 重置主密钥
+- `GET /api/vault/master-key/status` - 主密钥状态
+- `GET /api/vault/check-health` - 密码库健康检查（重复密码/弱密码）
+
+### 回收站
+- `GET /api/recycle?type=` - 软删除列表（type: bookmark/note/file/vault）
+- `POST /api/recycle/restore` - 恢复
+- `DELETE /api/recycle/{type}/{id}` - 彻底删除
+- `DELETE /api/recycle/clear?type=` - 清空
+
+### 搜索
+- `GET /api/search?q=` - 全局搜索（收藏/便签）
+
+### 用户偏好
+- `GET /api/user-preferences` - 获取偏好
+- `PUT /api/user-preferences` - 保存偏好（模块/视图/导航顺序等）
+
+### 音乐（JNMUSIC，对外前缀 `/music/api/v1/...`，匿名按 `X-Device-Id` 隔离）
+- `GET /api/v1/tracks` - 曲目列表
+- `GET /api/v1/tracks/search?q=` - 曲目搜索
+- `GET /api/v1/tracks/batch` - 批量曲目
+- `GET /api/v1/tracks/{trackId}` - 曲目详情
+- `GET /api/v1/tracks/{trackId}/media-url` - 音频直链
+- `GET /api/v1/tracks/{trackId}/lyrics` - 歌词
+- `GET /api/v1/favorites` - 收藏列表
+- `POST /api/v1/favorites` - 添加收藏
+- `DELETE /api/v1/favorites/{trackId}` - 取消收藏
+- `GET /api/v1/favorites/{trackId}/exists` - 是否已收藏
+- `GET /api/v1/history` / `POST /api/v1/history` / `DELETE /api/v1/history` - 播放历史
+- `GET /api/v1/search-history` / `POST /api/v1/search-history` / `DELETE /api/v1/search-history` - 搜索历史
+- `GET /api/v1/queue` / `PUT /api/v1/queue` - 播放队列（读取/保存）
+- `POST /api/v1/queue/items` / `DELETE /api/v1/queue/items/{trackId}` - 队列增删
+- `GET /api/v1/admin/lanzou/status` - 蓝奏云状态（管理端）
+- `POST /api/v1/admin/lanzou/login` / `POST /api/v1/admin/lanzou/cookie` / `POST /api/v1/admin/lanzou/refresh-cache` - 蓝奏云登录/缓存管理（管理端）
+
 ### 文件读取代理
 - `GET /api/files/**` - 反向代理 dufs 文件（无需登录，只读）
 
 ## 数据库
 
-`docs/init.sql` 包含全部 DDL：`t_directory`、`t_bookmark`、`t_note`、`t_note_asset`、`t_file`、`t_user_preference`。
+`docs/init.sql` 包含核心 DDL：`t_directory`、`t_bookmark`、`t_note`、`t_note_asset`、`t_file`、`t_user_preference`、`sa_token_data`；标签/密码库/回收站为增量迁移（`t_tag`、`t_tag_relation`、`t_vault`、`t_vault_meta` 及软删除 `deleted` 列），见 init.sql 底部「迁移脚本」注释。音乐模块表见 `jnclub-module-music/src/main/resources/schema.sql`（`music_track` 等 6 张表）。
 
 ## 许可证
 

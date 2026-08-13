@@ -3,13 +3,17 @@ import { useUserPreferences } from './useUserPreferences'
 
 /**
  * useCustomCursor — 全局自定义光标单例状态（可爱光标）
- * CursorHost.vue 渲染两层（主光标 + 光环 / emoji），本 composable 管理位置与交互状态：
- *   - 风格偏好 cursor.style（'dot-halo' | 'emoji'）走 useUserPreferences 持久化
+ * CursorHost.vue 渲染主光标 + 光环/emoji，本 composable 管理位置与交互状态：
+ *   - 风格偏好 cursor.style（'dot-halo' | 'emoji' | 'crosshair' | 'ring' | 'star'）走 useUserPreferences 持久化
+ *   - 点击特效 cursor.clickEffect（'none' | 'star' | 'heart' | 'flower'）
+ *   - 轨迹特效 cursor.trailEffect（'none' | 'rainbow' | 'brand' | 'pastel'）
  *   - 触屏设备（pointer: coarse）自动禁用（无 hover 概念）
  *   - 输入框内隐藏自定义光标，露出原生 I-beam
  * 主光标即时跟随 mousemove；光环/emoji 由宿主的 rAF 循环 lerp 延迟追赶（弹性拖尾）。
  */
-export type CursorStyle = 'dot-halo' | 'emoji'
+export type CursorStyle = 'dot-halo' | 'emoji' | 'crosshair' | 'ring' | 'star'
+export type ClickEffectType = 'none' | 'star' | 'heart' | 'flower'
+export type TrailEffectType = 'none' | 'rainbow' | 'brand' | 'pastel'
 
 const prefs = useUserPreferences()
 
@@ -33,6 +37,10 @@ export const haloY = ref(0)
 
 /** 当前风格（由偏好驱动，设置抽屉可切换） */
 export const cursorStyle = ref<CursorStyle>('dot-halo')
+/** 点击粒子特效（由偏好驱动，设置抽屉可切换） */
+export const cursorClickEffect = ref<ClickEffectType>('none')
+/** 鼠标轨迹特效（由偏好驱动，设置抽屉可切换） */
+export const cursorTrailEffect = ref<TrailEffectType>('none')
 /** 用户偏好"减少动态效果"：禁用弹性动画 */
 export const reducedMotion = ref(false)
 
@@ -83,6 +91,8 @@ function init() {
   cursorEnabled.value = !window.matchMedia('(pointer: coarse)').matches
   reducedMotion.value = window.matchMedia('(prefers-reduced-motion: reduce)').matches
   cursorStyle.value = prefs.get<CursorStyle>('cursor.style', 'dot-halo')
+  cursorClickEffect.value = prefs.get<ClickEffectType>('cursor.clickEffect', 'none')
+  cursorTrailEffect.value = prefs.get<TrailEffectType>('cursor.trailEffect', 'none')
 
   window.addEventListener('mousemove', onMove, { passive: true })
   window.addEventListener('mouseover', onOver, { passive: true })
@@ -109,6 +119,18 @@ function setStyle(s: CursorStyle) {
   prefs.set('cursor.style', s)
 }
 
+/** 供设置抽屉调用：切换点击特效并持久化 */
+function setClickEffect(e: ClickEffectType) {
+  cursorClickEffect.value = e
+  prefs.set('cursor.clickEffect', e)
+}
+
+/** 供设置抽屉调用：切换轨迹特效并持久化 */
+function setTrailEffect(t: TrailEffectType) {
+  cursorTrailEffect.value = t
+  prefs.set('cursor.trailEffect', t)
+}
+
 export function useCustomCursor() {
   return {
     enabled: cursorEnabled,
@@ -121,9 +143,13 @@ export function useCustomCursor() {
     haloX,
     haloY,
     style: cursorStyle,
+    clickEffect: cursorClickEffect,
+    trailEffect: cursorTrailEffect,
     reducedMotion,
     init,
     destroy,
     setStyle,
+    setClickEffect,
+    setTrailEffect,
   }
 }

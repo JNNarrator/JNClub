@@ -6,6 +6,8 @@ import lightThemeOverrides from './themes/light'
 import darkThemeOverrides from './themes/dark'
 import { useOnlineStatus } from './shared/composables/useOnlineStatus'
 import CursorHost from './shared/components/CursorHost.vue'
+import CursorClickParticles from './shared/components/CursorClickParticles.vue'
+import CursorTrail from './shared/components/CursorTrail.vue'
 import ParticlesBackground from './shared/components/ParticlesBackground.vue'
 
 const isDark = ref(false)
@@ -64,8 +66,12 @@ const toggleTheme = () => {
         <router-view :is-dark="isDark" @toggle-theme="toggleTheme" />
         <!-- 全局粒子背景（tsParticles，偏好 particles.style 驱动，路由内排除音乐/便签） -->
         <ParticlesBackground :is-dark="isDark" />
-        <!-- 全局自定义光标（可爱光标：圆点+光环 / emoji，偏好 cursor.style 驱动） -->
+        <!-- 全局自定义光标（可爱光标：5 种风格，偏好 cursor.style 驱动） -->
         <CursorHost />
+        <!-- 点击粒子特效（星星/爱心/花朵散开） -->
+        <CursorClickParticles />
+        <!-- 鼠标轨迹特效（彩虹/品牌粉/粉彩拖尾） -->
+        <CursorTrail />
       </NDialogProvider>
     </NMessageProvider>
   </NConfigProvider>
