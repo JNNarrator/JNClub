@@ -12,19 +12,25 @@ import { useCustomCursor } from '../composables/useCustomCursor'
 
 const cursor = useCustomCursor()
 
-/** 光环 lerp 追赶系数（越大越快） */
-const LERP = 0.18
-/** 光环相对主光标的视差（越大拖尾越明显） */
+/** 光环追赶速率：越大越跟手（时间无关阻尼，与刷新率解耦，60/30fps 手感一致） */
+const SMOOTHING = 18
+/** rAF 句柄 */
 let raf = 0
+/** 上一帧时间戳，用于计算 dt 做时间无关阻尼 */
+let lastT = 0
 
-const loop = () => {
+const loop = (t: number) => {
+  // 限制 dt 上限，避免切后台回前台时产生一次大幅跳变
+  const dt = lastT ? Math.min((t - lastT) / 1000, 0.05) : 1 / 60
+  lastT = t
   if (cursor.reducedMotion.value) {
     // 减少动态：光环直接落位，不做弹性追赶
     cursor.haloX.value = cursor.x.value
     cursor.haloY.value = cursor.y.value
   } else {
-    cursor.haloX.value += (cursor.x.value - cursor.haloX.value) * LERP
-    cursor.haloY.value += (cursor.y.value - cursor.haloY.value) * LERP
+    const k = 1 - Math.exp(-SMOOTHING * dt)
+    cursor.haloX.value += (cursor.x.value - cursor.haloX.value) * k
+    cursor.haloY.value += (cursor.y.value - cursor.haloY.value) * k
   }
   raf = requestAnimationFrame(loop)
 }
@@ -72,7 +78,7 @@ onBeforeUnmount(() => {
     <div
       v-else
       class="cursor-emoji"
-      :style="{ transform: `translate3d(${cursor.haloX.value}px, ${cursor.haloY.value}px, 0)` }"
+      :style="{ transform: `translate3d(${cursor.x.value}px, ${cursor.y.value}px, 0)` }"
     >
       <span class="cursor-emoji-inner" :class="{ hovering: cursor.hovering.value, pressed: cursor.pressed.value }">{{ emoji }}</span>
     </div>
