@@ -1,7 +1,11 @@
 package com.jnclub.common.sso;
 
 import cn.dev33.satoken.stp.StpUtil;
+import cn.dev33.satoken.session.SaSession;
+import cn.hutool.http.HttpRequest;
+import cn.hutool.http.HttpResponse;
 import cn.hutool.json.JSONObject;
+import cn.hutool.json.JSONUtil;
 import com.jnclub.common.model.R;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -30,6 +34,13 @@ public class AuthController {
             }
             String userId = StpUtil.getLoginIdAsString();
             JSONObject cached = SsoClientController.getUserInfo(userId);
+            // 会话缓存 vs SSO 最新资料：updateTime 不一致说明用户在 SSO 改了资料（头像/昵称），
+            // 用最新 userinfo 刷新本地会话，改头像即时生效、无需重新登录
+            JSONObject fresh = fetchFreshUserinfo(userId, cached);
+            if (fresh != null) {
+                SsoClientController.refreshUserInfo(userId, fresh);
+                cached = fresh;
+            }
             Map<String, Object> result = new LinkedHashMap<>();
             result.put("id", userId);
             // SSO 个人中心地址(本地/生产由 sa-token.sso.server-url 自动区分)
@@ -55,6 +66,37 @@ public class AuthController {
         } catch (Exception e) {
             log.error("获取用户信息失败", e);
             return R.fail("获取用户信息失败");
+        }
+    }
+
+    /**
+     * 用已存的 SSO token 回源 SSO 拉取最新资料；比 updateTime 判定是否变化。
+     * SSO 不可达/无 token/无缓存时返回 null（走原逻辑，不阻断）。
+     */
+    private JSONObject fetchFreshUserinfo(String userId, JSONObject cached) {
+        String ssoToken = SsoClientController.getSsoToken(userId);
+        if (ssoToken == null || ssoToken.isBlank()) {
+            return null;
+        }
+        try {
+            HttpResponse res = HttpRequest.get(serverUrl + "/api/user/info")
+                    .header("jn-sso-token", ssoToken)
+                    .timeout(3000)
+                    .execute();
+            JSONObject body = JSONUtil.parseObj(res.body());
+            if (res.getStatus() != 200 || body.getInt("code") != 200 || body.getJSONObject("data") == null) {
+                return null;
+            }
+            JSONObject latest = body.getJSONObject("data");
+            if (cached == null) {
+                return latest;
+            }
+            String oldTime = cached.getStr("updateTime", "");
+            String newTime = latest.getStr("updateTime", "");
+            return oldTime.equals(newTime) ? null : latest;
+        } catch (Exception e) {
+            log.warn("SSO 回源比对失败(忽略, 使用缓存), userId={}", userId, e);
+            return null;
         }
     }
 

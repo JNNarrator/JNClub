@@ -52,6 +52,16 @@ public class SsoClientController {
         return session == null ? null : (String) session.get(SESSION_KEY_SSO_TOKEN);
     }
 
+    /**
+     * 用 SSO 回源的最新 userinfo 刷新会话缓存（改头像/昵称即时生效，无需重新登录）。
+     */
+    public static void refreshUserInfo(String userId, JSONObject userinfo) {
+        SaSession session = querySessionByLoginId(userId);
+        if (session != null) {
+            session.set(SESSION_KEY_USERINFO, userinfo);
+        }
+    }
+
     private static SaSession querySessionByLoginId(String userId) {
         try {
             return StpUtil.getSessionByLoginId(userId, false);
