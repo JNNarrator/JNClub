@@ -10,7 +10,7 @@ import { NButton, NIcon } from 'naive-ui'
 import { Sun, Moon, Link, PenLine, Cloud, KeyRound, Music, Trash2, ArrowRight, UserPlus } from 'lucide-vue-next'
 import { useUserStore } from '../stores/user'
 import BrandLogo from '../components/BrandLogo.vue'
-import { JShinyText, JMagnet } from '../components/animation'
+import { JShinyText, JMagnet, JGlareHover } from '../components/animation'
 
 defineProps<{
   isDark: boolean
@@ -92,20 +92,27 @@ const goRegister = () => {
         <p class="brand-slogan">个人工作台 · 收藏夹 / 便签 / 云盘 / 密码库，一站式打理你的数字生活</p>
       </header>
 
-      <!-- 功能简介（模块墙） -->
+      <!-- 功能简介（模块墙，GlareHover 光标光泽跟随） -->
       <section class="features">
-        <div
+        <JGlareHover
           v-for="(f, i) in features"
           :key="f.title"
-          class="feature-card"
+          :glare-color="'#ffffff'"
+          :glare-opacity="0.35"
+          :glare-size="320"
+          :border-radius="'var(--radius-lg)'"
+          :border-color="'transparent'"
+          class="feature-card-wrap"
           :style="{ animationDelay: `${i * 60}ms` }"
         >
-          <div class="feature-icon">
-            <NIcon :component="f.icon" size="22" />
+          <div class="feature-card">
+            <div class="feature-icon">
+              <NIcon :component="f.icon" size="22" />
+            </div>
+            <h3 class="feature-title">{{ f.title }}</h3>
+            <p class="feature-desc">{{ f.desc }}</p>
           </div>
-          <h3 class="feature-title">{{ f.title }}</h3>
-          <p class="feature-desc">{{ f.desc }}</p>
-        </div>
+        </JGlareHover>
       </section>
 
       <!-- 操作区 -->
@@ -218,15 +225,20 @@ const goRegister = () => {
   color: var(--text-2);
 }
 
-/* 功能卡片（模块墙，3 列自适应） */
+/* 功能卡片（模块墙，3 列自适应；GlareHover 外层 wrapper，内部卡片撑满） */
 .features {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 16px;
   margin-bottom: 40px;
 }
+.feature-card-wrap {
+  opacity: 0;
+  animation: welcome-fade-up .5s var(--ease) forwards;
+}
 .feature-card {
   padding: 24px 20px;
+  height: 100%;
   background: var(--glass-bg-trans);
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
@@ -234,10 +246,8 @@ const goRegister = () => {
   border-radius: var(--radius-lg);
   text-align: left;
   transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
-  opacity: 0;
-  animation: welcome-fade-up .5s var(--ease) forwards;
 }
-.feature-card:hover {
+.feature-card-wrap:hover .feature-card {
   transform: translateY(-4px);
   box-shadow: var(--glass-shadow);
   border-color: var(--brand);

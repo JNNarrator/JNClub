@@ -1,26 +1,49 @@
 /* ===== vue-bits 适配层：补齐缺失的最小 Tailwind utility =====
- * vue-bits 组件源码内嵌少量无前缀 utility 类（inline-block / flex /
- * overflow-hidden / whitespace-normal 等），本项目未引入 Tailwind，
+ * vue-bits 组件源码内嵌少量无前缀 utility 类，本项目未引入 Tailwind，
  * 此处按需补齐，保证 vendor 源码原样可用（升级时可直接重新拉取）。
- * 仅包含 vue-bits 首批组件实际用到的类，避免全局污染。
+ * 仅包含 vue-bits 组件实际用到的类，避免全局污染。
  */
 
-.inline-block {
-  display: inline-block;
-}
+/* ── 布局/显示 ── */
+.inline-block { display: inline-block; }
+.flex { display: flex; }
+.flex-wrap { flex-wrap: wrap; }
+.flex-row { flex-direction: row; }
+.grid { display: grid; }
+.place-items-center { place-items: center; }
+.items-center { align-items: center; }
+.justify-center { justify-content: center; }
+.mx-auto { margin-inline: auto; }
+.max-w-fit { max-width: fit-content; }
+.relative { position: relative; }
+.absolute { position: absolute; }
+.inset-0 { inset: 0; }
+.overflow-hidden { overflow: hidden; }
+.whitespace-normal { white-space: normal; }
 
-.flex {
-  display: flex;
-}
+/* ── 尺寸/间距/圆角 ── */
+.py-1 { padding-block: 0.25rem; }
+.px-2 { padding-inline: 0.5rem; }
+.rounded-\[1\.25rem\] { border-radius: 1.25rem; }
 
-.flex-wrap {
-  flex-wrap: wrap;
+/* ── 文字 ── */
+.font-medium { font-weight: 500; }
+.bg-clip-text {
+  -webkit-background-clip: text;
+  background-clip: text;
 }
+.text-transparent { color: transparent; }
 
-.overflow-hidden {
-  overflow: hidden;
-}
+/* ── 层叠/背景 ── */
+.z-0 { z-index: 0; }
+.z-2 { z-index: 2; }
+.z-\[-1\] { z-index: -1; }
+.bg-black { background: #000; }
+.pointer-events-none { pointer-events: none; }
 
-.whitespace-normal {
-  white-space: normal;
-}
+/* ── 边框/光标/效果 ── */
+.border { border-width: 1px; border-style: solid; }
+.cursor-pointer { cursor: pointer; }
+.backdrop-blur { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+.transition-shadow { transition-property: box-shadow; }
+.duration-500 { transition-duration: 500ms; }

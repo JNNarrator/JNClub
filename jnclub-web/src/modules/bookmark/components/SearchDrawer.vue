@@ -8,6 +8,7 @@ import { ref, watch } from 'vue'
 import { NDrawer, NInput, NIcon, NEmpty, NSpin, NEllipsis } from 'naive-ui'
 import { Search, Bookmark, StickyNote, FileText, ArrowRight } from 'lucide-vue-next'
 import axios from 'axios'
+import { JGradientText } from '../../../shared/components/animation'
 
 const props = defineProps<{
   show: boolean
@@ -77,10 +78,11 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
     <div class="search-panel">
       <!-- 标题 -->
       <div class="search-header">
-        <div class="search-title">
-          <NIcon :component="Search" size="16" />
-          全局搜索
-        </div>
+        <JGradientText :animation-speed="6" direction="horizontal" :colors="['var(--brand)', 'var(--brand-suppl)', 'var(--brand)']">
+          <span class="search-title">
+            <NIcon :component="Search" size="16" /> 全局搜索
+          </span>
+        </JGradientText>
         <span class="search-hint">Ctrl / ⌘ + K</span>
       </div>
 
@@ -114,8 +116,9 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
               <span class="group-count">{{ result.bookmarks.length }}</span>
             </div>
             <div
-              v-for="b in result.bookmarks" :key="b.id"
+              v-for="(b, idx) in result.bookmarks" :key="b.id"
               class="result-item jnclub-bouncy" @click="handleJump('bookmarks', b.directoryId)"
+              :style="{ animationDelay: `${Math.min(idx * 35, 300)}ms` }"
             >
               <img v-if="b.icon" :src="b.icon" class="item-icon" @error="(e: Event) => ((e.target as HTMLImageElement).style.display = 'none')" />
               <NIcon v-else :component="Bookmark" size="15" class="item-fallback" />
@@ -134,8 +137,9 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
               <span class="group-count">{{ result.notes.length }}</span>
             </div>
             <div
-              v-for="n in result.notes" :key="n.id"
+              v-for="(n, idx) in result.notes" :key="n.id"
               class="result-item jnclub-bouncy" @click="handleJump('notes', n.directoryId)"
+              :style="{ animationDelay: `${Math.min(idx * 35, 300)}ms` }"
             >
               <NIcon :component="StickyNote" size="15" class="item-fallback" />
               <div class="item-main">
@@ -153,8 +157,9 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
               <span class="group-count">{{ result.files.length }}</span>
             </div>
             <div
-              v-for="f in result.files" :key="f.id"
+              v-for="(f, idx) in result.files" :key="f.id"
               class="result-item jnclub-bouncy" @click="handleJump('files', f.directoryId)"
+              :style="{ animationDelay: `${Math.min(idx * 35, 300)}ms` }"
             >
               <NIcon :component="FileText" size="15" class="item-fallback" />
               <div class="item-main">
@@ -237,9 +242,15 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
   padding: 8px 10px;
   border-radius: var(--radius-sm);
   cursor: pointer;
+  opacity: 0;
+  animation: search-item-in .3s var(--ease) forwards;
 }
 .result-item:hover {
   background: var(--glass-chip-bg);
+}
+@keyframes search-item-in {
+  from { opacity: 0; transform: translateX(12px); }
+  to { opacity: 1; transform: translateX(0); }
 }
 .item-icon {
   width: 18px;

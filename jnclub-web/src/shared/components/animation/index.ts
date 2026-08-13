@@ -10,5 +10,8 @@ export { default as JMagnet } from './JMagnet.vue'
 export { default as JShinyText } from './JShinyText.vue'
 export { default as JSplitText } from './JSplitText.vue'
 export { default as JAnimatedContent } from './JAnimatedContent.vue'
+export { default as JGradientText } from './JGradientText.vue'
+export { default as JBlurText } from './JBlurText.vue'
+export { default as JGlareHover } from './JGlareHover.vue'
 
 export { motion, themeColors } from './tokens'

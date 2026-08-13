@@ -57,6 +57,11 @@ const modes: { key: ViewMode; label: string }[] = [
   cursor: pointer;
   border-radius: var(--radius-sm);
   white-space: nowrap;
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease), transform var(--dur) var(--ease-bouncy);
+}
+
+.switcher-btn:active {
+  transform: scale(0.94);
 }
 
 .switcher-btn:hover:not(.active) {
@@ -70,5 +75,6 @@ const modes: { key: ViewMode; label: string }[] = [
   color: var(--brand);
   font-weight: 600;
   box-shadow: none;
+  transform: translateY(-1px);
 }
 </style>
