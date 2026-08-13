@@ -29,8 +29,8 @@ onMounted(() => {
   settings.init()
 })
 
-/** 亮暗主题配色（与 tokens.ts 对应） */
-const lightColors = ['#EC5B8E', '#FF8FAB', '#FFB3C6', '#F472B6']
+/** 亮暗主题配色（与 tokens.ts 对应；亮色用更深更饱和的粉，避免浅底看不见） */
+const lightColors = ['#D43F6A', '#E84D7A', '#F472B6', '#FF8FAB']
 const darkColors = ['#FF8FAB', '#F472B6', '#5A3A45', '#FFB3C6']
 
 /** 按风格 + 主题构建 options（slim：circle 形状，靠颜色/大小/速度/方向区分） */
@@ -61,7 +61,7 @@ const options = computed<ISourceOptions>(() => {
         particles: {
           ...base.particles,
           number: { value: 32, density: { enable: true } },
-          opacity: { value: { min: 0.2, max: 0.7 } },
+          opacity: { value: { min: 0.35, max: 0.7 } },
           size: { value: { min: 1, max: 3.5 } },
           move: { ...base.particles.move, direction: 'bottom', speed: { min: 0.4, max: 1.2 } },
         },
@@ -72,7 +72,7 @@ const options = computed<ISourceOptions>(() => {
         particles: {
           ...base.particles,
           number: { value: 20, density: { enable: true } },
-          opacity: { value: { min: 0.3, max: 0.7 } },
+          opacity: { value: { min: 0.4, max: 0.75 } },
           size: { value: { min: 3, max: 7 } },
           move: { ...base.particles.move, direction: 'bottom', speed: { min: 0.5, max: 1.4 } },
         },
@@ -84,7 +84,7 @@ const options = computed<ISourceOptions>(() => {
         particles: {
           ...base.particles,
           number: { value: 40, density: { enable: true } },
-          opacity: { value: { min: 0.15, max: 0.55 } },
+          opacity: { value: { min: 0.35, max: 0.65 } },
           size: { value: { min: 1, max: 4 } },
           move: { ...base.particles.move, direction: 'top', speed: { min: 0.3, max: 0.9 } },
         },
