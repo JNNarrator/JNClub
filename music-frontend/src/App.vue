@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, onMounted, defineAsyncComponent } from 'vue'
 import { ElIcon } from 'element-plus'
-import { Sunny, Moon, Download } from '@element-plus/icons-vue'
+import { Sunny, Moon, Download, Back } from '@element-plus/icons-vue'
 import TrackList from './components/TrackList.vue'
 import PlayerBar from './components/PlayerBar.vue'
 const PlayerPage = defineAsyncComponent(() => import('./components/PlayerPage.vue'))
@@ -15,6 +15,20 @@ const player = usePlayerStore()
 function openLanzouAuth() {
   const event = new CustomEvent('open-lanzou-auth')
   window.dispatchEvent(event)
+}
+
+/** 返回 JNClub 工作台：iframe 内嵌时让父窗口跳转；独立访问（直链/PWA）时本窗口跳转 */
+function goBack() {
+  const home = '/jnclub/'
+  if (window.self !== window.top) {
+    try {
+      window.parent.location.href = home
+      return
+    } catch {
+      /* 跨域场景退化为本窗口跳转 */
+    }
+  }
+  location.href = home
 }
 
 // 禁止选中、复制、粘贴
@@ -70,11 +84,23 @@ if (typeof window !== 'undefined') {
       <button class="alert-close" @click="lanzouSessionExpired.value = false">×</button>
     </div>
     <header class="topbar">
-      <div class="brand">
-        <BrandLogo :size="38" />
-        <div class="brand-text">
-          <p class="brand-name">JNMusic</p>
-          <p class="brand-tag">深夜电台 · 一场没有主播的私人节目</p>
+      <div class="brand-group">
+        <button
+          class="back-btn"
+          type="button"
+          title="返回 JNClub 工作台"
+          aria-label="返回 JNClub 工作台"
+          @click="goBack"
+        >
+          <el-icon :size="16"><Back /></el-icon>
+          <span>返回</span>
+        </button>
+        <div class="brand">
+          <BrandLogo :size="38" />
+          <div class="brand-text">
+            <p class="brand-name">JNMusic</p>
+            <p class="brand-tag">深夜电台 · 一场没有主播的私人节目</p>
+          </div>
         </div>
       </div>
       <div class="marquee" aria-hidden="true">
@@ -182,11 +208,42 @@ if (typeof window !== 'undefined') {
   margin-bottom: 16px;
 }
 
+.brand-group {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-shrink: 0;
+}
+
 .brand {
   display: flex;
   align-items: center;
   gap: 14px;
 }
+
+/* 返回按钮：融入现有胶囊/描边语言，克制不抢戏 */
+.back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 12px 0 10px;
+  border-radius: 999px;
+  border: 1px solid var(--jn-hair-strong);
+  background: transparent;
+  color: var(--jn-ink-dim);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  cursor: pointer;
+  transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease, transform 0.15s;
+  white-space: nowrap;
+}
+.back-btn:hover {
+  color: var(--jn-accent);
+  border-color: var(--jn-accent);
+  background: var(--jn-accent-soft);
+}
+.back-btn:active { transform: translateX(-2px); }
 
 .brand-name {
   margin: 0;
