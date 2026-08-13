@@ -76,13 +76,17 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
 <template>
   <NDrawer v-model:show="props.show" :width="isMobileWidth()" placement="right" @update:show="(v: boolean) => !v && emit('close')">
     <div class="search-panel">
-      <!-- 标题 -->
+      <!-- 标题（图标放渐变外：JGradientText 走 text prop，slot 拼接对转发链不可靠） -->
       <div class="search-header">
-        <JGradientText :animation-speed="6" direction="horizontal" :colors="['var(--brand)', 'var(--brand-suppl)', 'var(--brand)']">
-          <span class="search-title">
-            <NIcon :component="Search" size="16" /> 全局搜索
-          </span>
-        </JGradientText>
+        <div class="search-title">
+          <NIcon :component="Search" size="16" class="search-title-icon" />
+          <JGradientText
+            text="全局搜索"
+            :animation-speed="6"
+            direction="horizontal"
+            :colors="['var(--brand)', 'var(--brand-suppl)', 'var(--brand)']"
+          />
+        </div>
         <span class="search-hint">Ctrl / ⌘ + K</span>
       </div>
 
@@ -195,6 +199,9 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
   font-size: 16px;
   font-weight: 700;
   color: var(--text-1);
+}
+.search-title-icon {
+  color: var(--brand);
 }
 .search-hint {
   font-size: var(--fs-xs);
