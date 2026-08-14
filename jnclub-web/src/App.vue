@@ -10,6 +10,11 @@ import CursorHost from './shared/components/CursorHost.vue'
 import CursorClickParticles from './shared/components/CursorClickParticles.vue'
 import CursorTrail from './shared/components/CursorTrail.vue'
 import ParticlesBackground from './shared/components/ParticlesBackground.vue'
+import { usePlatform } from './shared/composables/usePlatform'
+
+// 平台检测（Windows 性能优化）：尽早执行，首帧前把 data-platform 写到 <html>
+const { init: initPlatform } = usePlatform()
+initPlatform()
 
 const isDark = ref(false)
 const route = useRoute()

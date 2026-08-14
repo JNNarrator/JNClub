@@ -1,7 +1,7 @@
 /**
  * useCursorTrailEffect — 鼠标轨迹特效状态管理
- * 订阅 cursor.x/y 变化，追加轨迹点到环形缓冲区，
- * rAF 循环推进各点 age，空闲时自动停止。
+ * 订阅 cursor.x/y 变化，追加轨迹点到环形缓冲区。
+ * 不再管理自己的 rAF 循环，由 CursorHost 的统一动画循环驱动 updateTrail(dt)。
  */
 import { ref, watch } from 'vue'
 import { useCustomCursor } from './useCustomCursor'
@@ -18,29 +18,21 @@ const MIN_DISTANCE = 3 // 静止时不堆积点的距离阈值
 const AGE_SPEED = 1.8  // age 递增速率（越大越快淡出）
 
 const points = ref<TrailPoint[]>([])
-let rafId = 0
-let lastT = 0
 let hueCounter = 0
 /** 模块级 watch 只注册一次（首次调用），避免重复挂载时叠加监听 */
 let registered = false
 
-function onFrame(t: number) {
-  const dt = lastT ? Math.min((t - lastT) / 1000, 0.05) : 1 / 60
-  lastT = t
-  // 推进所有点的 age
+/**
+ * 由 CursorHost 的统一动画循环调用，推进所有轨迹点的 age
+ * @param dt 帧间隔（秒）
+ */
+function updateTrail(dt: number) {
+  if (points.value.length === 0) return
+  const clampedDt = Math.min(dt, 0.05)
   for (let i = points.value.length - 1; i >= 0; i--) {
-    points.value[i].age += AGE_SPEED * dt
+    points.value[i].age += AGE_SPEED * clampedDt
   }
-  // 移除 age >= 1 的点
   points.value = points.value.filter(p => p.age < 1)
-  if (points.value.length === 0) {
-    rafId = 0
-    return
-  }
-  // 有活跃点时继续循环
-  if (rafId) {
-    rafId = requestAnimationFrame(onFrame)
-  }
 }
 
 export function useCursorTrailEffect() {
@@ -73,10 +65,6 @@ export function useCursorTrailEffect() {
         if (points.value.length > MAX_POINTS) {
           points.value.shift()
         }
-        if (!rafId) {
-          lastT = 0
-          rafId = requestAnimationFrame(onFrame)
-        }
       },
       { flush: 'sync' },
     )
@@ -84,5 +72,6 @@ export function useCursorTrailEffect() {
 
   return {
     points,
+    updateTrail,
   }
 }

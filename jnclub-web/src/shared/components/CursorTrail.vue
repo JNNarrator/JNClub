@@ -2,10 +2,8 @@
 /**
  * CursorTrail.vue — 鼠标轨迹特效渲染
  * 挂载在 App.vue，与 CursorHost 同级（z-index:11000, pointer-events:none）。
- * 用 SVG polyline 连线 + circle 点渲染彩色拖尾，三种颜色模式：
- *   - rainbow：hue 递增，彩色渐变
- *   - brand：品牌粉色系，透明度随 age 衰减
- *   - pastel：粉彩色系轮换
+ * 用 SVG polyline 连线 + circle 点渲染彩色拖尾，三种颜色模式。
+ * 优化：circle 使用 transform translate 替代 cx/cy 属性，避免重排触发。
  */
 import { computed } from 'vue'
 import { useCustomCursor } from '../composables/useCustomCursor'
@@ -57,7 +55,6 @@ const strokeColor = computed(() => {
     aria-hidden="true"
   >
     <defs>
-      <!-- rainbow 渐变：12 色相 -->
       <linearGradient id="trail-grad-rainbow" x1="0%" y1="0%" x2="100%" y2="0%">
         <stop offset="0%" stop-color="hsl(0, 80%, 65%)" />
         <stop offset="16%" stop-color="hsl(60, 80%, 65%)" />
@@ -67,7 +64,6 @@ const strokeColor = computed(() => {
         <stop offset="83%" stop-color="hsl(300, 80%, 65%)" />
         <stop offset="100%" stop-color="hsl(360, 80%, 65%)" />
       </linearGradient>
-      <!-- pastel 渐变：柔和粉彩 -->
       <linearGradient id="trail-grad-pastel" x1="0%" y1="0%" x2="100%" y2="0%">
         <stop offset="0%" stop-color="hsl(340, 70%, 80%)" />
         <stop offset="25%" stop-color="hsl(20, 70%, 80%)" />
@@ -86,14 +82,13 @@ const strokeColor = computed(() => {
       stroke-linejoin="round"
       opacity="0.7"
     />
-    <!-- 各点粒子 -->
+    <!-- 各点粒子：使用 transform translate 替代 cx/cy，避免重排 -->
     <circle
       v-for="(p, i) in points"
       :key="i"
-      :cx="p.x"
-      :cy="p.y"
       :r="Math.max(1, 3.5 - p.age * 3)"
       :fill="pointColor(p, cursor.trailEffect.value)"
+      :style="{ transform: `translate(${p.x}px, ${p.y}px)` }"
     />
   </svg>
 </template>

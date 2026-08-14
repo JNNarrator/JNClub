@@ -1,16 +1,18 @@
 <script setup lang="ts">
 /**
  * CursorHost.vue — 全局自定义光标宿主（可爱光标，挂在 App.vue，全路由生效）
- * 两种风格（偏好 cursor.style 驱动）：
- *   - dot-halo：主圆点即时跟随 + 光环 rAF lerp 延迟追赶（弹性拖尾）；悬停放大变色，按下缩小
- *   - emoji：🐾 跟随（悬停可交互元素换 💗，按下换 ✨），同样 lerp 弹性
+ * 统一管理一个 rAF 循环，合并光环追赶 + 轨迹衰减 + 点击粒子物理。
  * 触屏(pointer:coarse)不渲染；prefers-reduced-motion 时禁弹性直接落位；输入框内隐藏露出 I-beam。
  * 启用时给 <html> 加 .custom-cursor-active → 全局 cursor:none（规则见 main.css）。
  */
 import { computed, onMounted, onBeforeUnmount } from 'vue'
 import { useCustomCursor } from '../composables/useCustomCursor'
+import { useCursorTrailEffect } from '../composables/useCursorTrailEffect'
+import { useCursorClickEffect } from '../composables/useCursorClickEffect'
 
 const cursor = useCustomCursor()
+const { points, updateTrail } = useCursorTrailEffect()
+const { particles, updateClickParticles } = useCursorClickEffect()
 
 /** 光环追赶速率：越大越跟手（时间无关阻尼，与刷新率解耦，60/30fps 手感一致） */
 const SMOOTHING = 18
@@ -23,8 +25,9 @@ const loop = (t: number) => {
   // 限制 dt 上限，避免切后台回前台时产生一次大幅跳变
   const dt = lastT ? Math.min((t - lastT) / 1000, 0.05) : 1 / 60
   lastT = t
+
+  // 1. 光环缓动追赶
   if (cursor.reducedMotion.value) {
-    // 减少动态：光环直接落位，不做弹性追赶
     cursor.haloX.value = cursor.x.value
     cursor.haloY.value = cursor.y.value
   } else {
@@ -32,6 +35,17 @@ const loop = (t: number) => {
     cursor.haloX.value += (cursor.x.value - cursor.haloX.value) * k
     cursor.haloY.value += (cursor.y.value - cursor.haloY.value) * k
   }
+
+  // 2. 轨迹点衰减（仅当有轨迹特效且有点时）
+  if (cursor.trailEffect.value !== 'none' && points.value.length > 0) {
+    updateTrail(dt)
+  }
+
+  // 3. 点击粒子物理（仅当有粒子时）
+  if (particles.value.length > 0) {
+    updateClickParticles(dt)
+  }
+
   raf = requestAnimationFrame(loop)
 }
 
@@ -95,7 +109,7 @@ onBeforeUnmount(() => {
         :style="{ transform: `translate3d(${cursor.haloX.value}px, ${cursor.haloY.value}px, 0)` }"
       />
     </template>
-    <!-- 风格二：emoji 跟随（外层 translate3d 定位，内层 span 做缩放动画避免覆盖定位） -->
+    <!-- 风格二：emoji 跟随 -->
     <div
       v-else-if="cursor.style.value === 'emoji'"
       class="cursor-emoji"
@@ -103,7 +117,7 @@ onBeforeUnmount(() => {
     >
       <span class="cursor-emoji-inner" :class="{ hovering: cursor.hovering.value, pressed: cursor.pressed.value }">{{ emoji }}</span>
     </div>
-    <!-- 风格三：十字准心（十字线 lerp 跟随 + 中心点即时） -->
+    <!-- 风格三：十字准心 -->
     <template v-else-if="cursor.style.value === 'crosshair'">
       <div class="cursor-crosshair" :class="{ pressed: cursor.pressed.value }" :style="crosshairStyle">
         <div class="crosshair-line crosshair-h" />
@@ -115,7 +129,7 @@ onBeforeUnmount(() => {
         :style="crosshairDotStyle"
       />
     </template>
-    <!-- 风格四：双层圆环（外环 lerp + 内环即时） -->
+    <!-- 风格四：双层圆环 -->
     <template v-else-if="cursor.style.value === 'ring'">
       <div
         class="cursor-ring-outer"
@@ -128,7 +142,7 @@ onBeforeUnmount(() => {
         :style="ringInnerStyle"
       />
     </template>
-    <!-- 风格五：星星光标（⭐ 跟随，悬停旋转放大，按下缩小） -->
+    <!-- 风格五：星星光标 -->
     <div
       v-else
       class="cursor-star"
@@ -146,7 +160,7 @@ onBeforeUnmount(() => {
 .cursor-host {
   position: fixed;
   inset: 0;
-  z-index: 11000; /* 高于项目内最高自定义浮层（悬浮大纲 10200） */
+  z-index: 11000;
   pointer-events: none;
 }
 
@@ -157,7 +171,7 @@ onBeforeUnmount(() => {
   left: 0;
   width: 12px;
   height: 12px;
-  margin: -6px 0 0 -6px; /* 居中 */
+  margin: -6px 0 0 -6px;
   border-radius: 50%;
   background: var(--brand);
   box-shadow: 0 0 8px color-mix(in srgb, var(--brand) 55%, transparent);
@@ -202,7 +216,7 @@ onBeforeUnmount(() => {
   background: color-mix(in srgb, var(--brand) 20%, transparent);
 }
 
-/* emoji 光标：外层定位（lerp 弹性），内层缩放动画 */
+/* emoji 光标 */
 .cursor-emoji {
   position: absolute;
   top: 0;
@@ -227,7 +241,7 @@ onBeforeUnmount(() => {
 .cursor-emoji-inner.hovering { transform: scale(1.25); }
 .cursor-emoji-inner.pressed { transform: scale(0.85); }
 
-/* 十字准心：十字线 + 中心点 */
+/* 十字准心 */
 .cursor-crosshair {
   position: absolute;
   top: 0;
