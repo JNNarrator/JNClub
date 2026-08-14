@@ -235,6 +235,9 @@ const goRegister = () => {
 .feature-card-wrap {
   opacity: 0;
   animation: welcome-fade-up .5s var(--ease) forwards;
+  /* 覆盖 vendor GlareHover 外层的 overflow-hidden：
+     否则卡片 hover 上飘 translateY(-4px) 时，顶部 4px 被外层裁剪，上边框看起来被切掉/挡住 */
+  overflow: visible;
 }
 .feature-card {
   padding: 24px 20px;
