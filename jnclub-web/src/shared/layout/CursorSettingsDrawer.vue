@@ -110,7 +110,7 @@ const trailOptions: { key: TrailEffectType; label: string; desc: string; color: 
       <div class="settings-section cursor-enable-section">
         <div class="section-label">启用自定义光标</div>
         <NSwitch :value="enabled" @update:value="selectEnabled" />
-        <span class="enable-hint">拖拽时自动显示系统光标；可手动关闭</span>
+        <span class="enable-hint">Windows 默认关闭以保跟手；拖拽时自动显示系统光标</span>
       </div>
 
       <div class="settings-section">

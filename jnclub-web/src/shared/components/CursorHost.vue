@@ -15,7 +15,7 @@ const { points, updateTrail } = useCursorTrailEffect()
 const { particles, updateClickParticles } = useCursorClickEffect()
 
 /** 光环追赶速率：越大越跟手（时间无关阻尼，与刷新率解耦，60/30fps 手感一致） */
-const SMOOTHING = 18
+const SMOOTHING = 30
 /** rAF 句柄 */
 let raf = 0
 /** 上一帧时间戳，用于计算 dt 做时间无关阻尼 */
@@ -25,6 +25,14 @@ const loop = (t: number) => {
   // 限制 dt 上限，避免切后台回前台时产生一次大幅跳变
   const dt = lastT ? Math.min((t - lastT) / 1000, 0.05) : 1 / 60
   lastT = t
+
+  // 未启用自定义光标时不推进任何特效，避免无谓的 rAF 负载
+  if (!cursor.enabled.value) {
+    cursor.haloX.value = cursor.x.value
+    cursor.haloY.value = cursor.y.value
+    raf = requestAnimationFrame(loop)
+    return
+  }
 
   // 1. 光环缓动追赶
   if (cursor.reducedMotion.value) {

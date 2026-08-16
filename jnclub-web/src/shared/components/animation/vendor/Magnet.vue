@@ -19,7 +19,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch, useTemplateRef } from 'vue';
+import { ref, computed, onMounted, onUnmounted, onBeforeUnmount, watch, useTemplateRef } from 'vue';
 
 interface Props {
   padding?: number;
@@ -51,8 +51,18 @@ const position = ref({ x: 0, y: 0 });
 
 const transitionStyle = computed(() => (isActive.value ? props.activeTransition : props.inactiveTransition));
 
-const handleMouseMove = (e: MouseEvent) => {
-  if (!magnetRef.value || props.disabled) return;
+/**
+ * 性能优化：把高频 mousemove 合并到 rAF 里处理，避免每个鼠标事件都调用
+ * getBoundingClientRect()。这在卡片/列表很多时能明显降低主线程压力。
+ */
+let raf = 0;
+let pendingEvent: MouseEvent | null = null;
+
+const processMove = () => {
+  raf = 0;
+  const e = pendingEvent;
+  pendingEvent = null;
+  if (!e || !magnetRef.value || props.disabled) return;
 
   const { left, top, width, height } = magnetRef.value.getBoundingClientRect();
   const centerX = left + width / 2;
@@ -72,21 +82,35 @@ const handleMouseMove = (e: MouseEvent) => {
   }
 };
 
+const handleMouseMove = (e: MouseEvent) => {
+  pendingEvent = e;
+  if (!raf) raf = requestAnimationFrame(processMove);
+};
+
+const reset = () => {
+  pendingEvent = null;
+  if (raf) {
+    cancelAnimationFrame(raf);
+    raf = 0;
+  }
+  position.value = { x: 0, y: 0 };
+  isActive.value = false;
+};
+
 onMounted(() => {
-  window.addEventListener('mousemove', handleMouseMove);
+  window.addEventListener('mousemove', handleMouseMove, { passive: true });
 });
 
 onUnmounted(() => {
   window.removeEventListener('mousemove', handleMouseMove);
 });
 
+onBeforeUnmount(reset);
+
 watch(
   () => props.disabled,
   newDisabled => {
-    if (newDisabled) {
-      position.value = { x: 0, y: 0 };
-      isActive.value = false;
-    }
+    if (newDisabled) reset();
   }
 );
 </script>

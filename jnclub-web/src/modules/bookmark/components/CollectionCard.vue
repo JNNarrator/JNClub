@@ -8,7 +8,6 @@ import { h, ref } from 'vue'
 import { NButton, NIcon, NDropdown, NEllipsis, NTag, useMessage } from 'naive-ui'
 import { Pencil, Trash2, EllipsisVertical, ExternalLink, FolderInput } from 'lucide-vue-next'
 import { openMenu } from '../../../shared/composables/useContextMenu'
-import { JMagnet } from '../../../shared/components/animation'
 import MoveItemModal from './MoveItemModal.vue'
 import axios from 'axios'
 import type { BookmarkItem } from './CollectionRow.vue'
@@ -114,16 +113,16 @@ const handleDropdown = (key: string) => {
         </NTag>
       </div>
 
-      <!-- 链接（底部唯一域名展示，去冗余，磁吸点缀） -->
-      <JMagnet :magnet-strength="4" :padding="90">
-        <a :href="bookmark.url" target="_blank" class="card-link jnclub-bouncy" @click.stop>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-          </svg>
-          {{ getDomain(bookmark.url) }}
-        </a>
-      </JMagnet>
+      <!-- 链接（底部唯一域名展示，去冗余）
+           注意：卡片列表不使用 JMagnet，避免每张卡挂一个全局 mousemove + getBoundingClientRect，
+           这是 Windows 高 DPI/高刷下“指针不跟手”的主要来源之一。 -->
+      <a :href="bookmark.url" target="_blank" class="card-link jnclub-bouncy" @click.stop>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+          <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+        </svg>
+        {{ getDomain(bookmark.url) }}
+      </a>
     </div>
 
     <!-- 移动到目录弹窗 -->

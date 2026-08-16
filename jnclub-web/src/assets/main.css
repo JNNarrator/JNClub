@@ -459,6 +459,7 @@ html.custom-cursor-active.dragging * {
 
 /* ---- Windows 平台性能优化（保留玻璃质感，但降低拖拽容器合成开销） ---- */
 /* 大尺寸拖拽/滚动容器：去掉昂贵 backdrop-filter，用半透明渐变 + 边框 + 阴影模拟玻璃 */
+html[data-platform="windows"] .side-nav,
 html[data-platform="windows"] .folder-column,
 html[data-platform="windows"] .collection-column {
   backdrop-filter: none !important;
@@ -471,8 +472,7 @@ html[data-platform="windows"] .collection-column {
     var(--glass-bg-trans) !important;
 }
 
-/* 小面积玻璃浮层/侧边栏：保留 blur + saturate，视觉更接近 macOS，同时成本可控 */
-html[data-platform="windows"] .side-nav,
+/* 小面积玻璃浮层：保留 blur + saturate，视觉更接近 macOS，同时成本可控 */
 html[data-platform="windows"] .glass-card,
 html[data-platform="windows"] .glass-card--modal,
 html[data-platform="windows"] .glass-header,
