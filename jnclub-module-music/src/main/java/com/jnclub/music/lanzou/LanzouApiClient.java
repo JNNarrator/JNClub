@@ -45,6 +45,8 @@ public class LanzouApiClient {
     private static final String UPLOAD_URL_PATH = "/html5up.php";
     private static final String MANAGEMENT_BASE = "/doupload.php";
     private static final String AJAXM_PATH = "/ajaxm.php";
+    /** 蓝奏云新版分享页密码/下载接口（旧版为 ajaxm.php，当前为 ajaxfile.php） */
+    private static final String AJAXFILE_PATH = "/ajaxfile.php";
     private static final String AJAX_PATH = "/ajax.php";
     private static final String FILE_MORE_AJAX_PATH = "/filemoreajax.php";
 
@@ -78,7 +80,7 @@ public class LanzouApiClient {
     private static final Pattern JS_DATA_PATTERN = Pattern.compile("data[:\\s]+(\\{[^}]+})");
     private static final Pattern JS_KV_PATTERN = Pattern.compile("'(.+?)':('?([^' },]*)'?)");
     private static final Pattern JS_VAR_FUNC_PATTERN = Pattern.compile("var\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*=\\s*['\"]?([^;'\"}]+)['\"]?;");
-    private static final Pattern FIND_FILE_ID_PATTERN = Pattern.compile("['\"]/ajaxm\\.php\\?file=(\\d+)['\"]");
+    private static final Pattern FIND_FILE_ID_PATTERN = Pattern.compile("['\"]/ajax(?:m|file)\\.php\\?file=(\\d+)['\"]");
 
     private static final Pattern FIND_DOWN_PAGE_PARAM = Pattern.compile("<iframe.*?src=\"([^\"]+)\"");
     /** 蓝奏云 CDN 直链 URL 中的真实过期时间戳参数：e=<epochSecondsHex> */
@@ -214,7 +216,10 @@ public class LanzouApiClient {
         return s.contains("login not") || s.contains("not login")
                 || s.contains("extract uid/vei failed")
                 || s.contains("missing cookie: phpdisk_info")
-                || s.contains("\"zt\":9");
+                || s.contains("session invalid")
+                || s.contains("\"zt\":9")
+                || s.contains("zt=9")
+                || s.contains("zt != 1");
     }
 
     // ==================== Cookie 持久化 ====================
@@ -462,6 +467,10 @@ public class LanzouApiClient {
      * 列出文件和文件夹（同时调用 task 5 和 task 47）
      */
     public LanzouPageResult listFiles(String folderId, int page) {
+        return withAutoRelogin(() -> listFilesInternal(folderId, page));
+    }
+
+    private LanzouPageResult listFilesInternal(String folderId, int page) {
         ensureUidVei();
         
         // 获取文件列表 (task 5)
@@ -472,8 +481,11 @@ public class LanzouApiClient {
         JsonObject filesRoot = gson.fromJson(filesBody, JsonObject.class);
         if (filesRoot == null || !"1".equals(str(filesRoot, "zt"))) {
             String ztVal = str(filesRoot, "zt");
-            log.warn("[lanzou] listFiles 失败: zt={}, 会话可能失效", ztVal.isEmpty() ? "null" : ztVal);
-            throw new LanzouSessionException("listFiles failed: zt != 1, session invalid: " + truncate(filesBody));
+            log.warn("[lanzou] listFiles 失败: zt={}", ztVal.isEmpty() ? "null" : ztVal);
+            if ("9".equals(ztVal)) {
+                throw new LanzouSessionException("session invalid: zt=9, body=" + truncate(filesBody));
+            }
+            throw new LanzouSessionException("listFiles failed: zt=" + ztVal + ", body=" + truncate(filesBody));
         }
         log.debug("[lanzou] listFiles 成功: 共 {} 个文件", filesRoot.has("text") ? filesRoot.get("text").getAsJsonArray().size() : 0);
         List<LanzouFile> files = parseFiles(filesRoot);
@@ -619,6 +631,10 @@ public class LanzouApiClient {
     // ==================== 直链 ====================
 
     public LanzouDirectLink directLink(String fileId, String fileName) {
+        return withAutoRelogin(() -> directLinkInternal(fileId, fileName));
+    }
+
+    private LanzouDirectLink directLinkInternal(String fileId, String fileName) {
         ensureUidVei();
         RequestBody body = new MultipartBody.Builder()
                 .setType(MultipartBody.FORM)
@@ -728,7 +744,7 @@ public class LanzouApiClient {
         if (requirePassword) {
             // 有密码表单 → 提取 down_p 函数
             String downPFunc = getJSFunctionByName(sharePageData, "down_p");
-            Map<String, String> param = htmlJsonToMap(downPFunc);
+            Map<String, String> param = htmlJsonToMap(downPFunc, sharePageData);
             param.put("p", ""); // 密码由调用者提供
             Matcher fileIdMatcher = FIND_FILE_ID_PATTERN.matcher(downPFunc);
             if (!fileIdMatcher.find()) {
@@ -736,8 +752,8 @@ public class LanzouApiClient {
             }
             String fileId = fileIdMatcher.group(1);
 
-            // POST ajaxm.php
-            String ajaxBody = requestPost(base + AJAXM_PATH + "?file=" + fileId, param);
+            // POST 分享下载接口（新版 ajaxfile.php / 旧版 ajaxm.php）
+            String ajaxBody = requestPost(shareAjaxUrl(base, downPFunc, fileId), param);
             JsonObject ajaxRoot = gson.fromJson(ajaxBody, JsonObject.class);
             String dom = str(ajaxRoot, "dom");
             String url = str(ajaxRoot, "url");
@@ -759,7 +775,7 @@ public class LanzouApiClient {
             if (!fileIdMatcher.find()) {
                 throw new LanzouSessionException("not find file id");
             }
-            String ajaxUrl = base + AJAXM_PATH + "?file=" + fileIdMatcher.group(1);
+            String ajaxUrl = shareAjaxUrl(base, nextPageData, fileIdMatcher.group(1));
             String ajaxBody = requestPost(ajaxUrl, param);
             JsonObject ajaxRoot = gson.fromJson(ajaxBody, JsonObject.class);
             String dom = str(ajaxRoot, "dom");
@@ -805,7 +821,7 @@ public class LanzouApiClient {
         }
 
         String downPFunc = getJSFunctionByName(sharePageData, "down_p");
-        Map<String, String> param = htmlJsonToMap(downPFunc);
+        Map<String, String> param = htmlJsonToMap(downPFunc, sharePageData);
         param.put("p", password);
         Matcher fileIdMatcher = FIND_FILE_ID_PATTERN.matcher(downPFunc);
         if (!fileIdMatcher.find()) {
@@ -813,7 +829,7 @@ public class LanzouApiClient {
         }
         String fileId = fileIdMatcher.group(1);
 
-        String ajaxBody = requestPost(base + AJAXM_PATH + "?file=" + fileId, param);
+        String ajaxBody = requestPost(shareAjaxUrl(base, downPFunc, fileId), param);
         JsonObject ajaxRoot = gson.fromJson(ajaxBody, JsonObject.class);
         String dom = str(ajaxRoot, "dom");
         String url = str(ajaxRoot, "url");
@@ -856,6 +872,10 @@ public class LanzouApiClient {
      * </ol>
      */
     public LanzouDirectLink getFileDownloadLink(String fileId) {
+        return withAutoRelogin(() -> getFileDownloadLinkInternal(fileId));
+    }
+
+    private LanzouDirectLink getFileDownloadLinkInternal(String fileId) {
         ensureUidVei();
         // Step 1: 获取文件分享信息
         String shareBody = douploadPost(Map.of("task", TASK_FILE_SHARE_INFO, "file_id", fileId));
@@ -883,11 +903,11 @@ public class LanzouApiClient {
 
         if (sharePageData.contains("pwdload") || sharePageData.contains("passwddiv")) {
             String downPFunc = getJSFunctionByName(sharePageData, "down_p");
-            Map<String, String> param = htmlJsonToMap(downPFunc);
+            Map<String, String> param = htmlJsonToMap(downPFunc, sharePageData);
             param.put("p", pwd);
             Matcher fm = FIND_FILE_ID_PATTERN.matcher(downPFunc);
             if (!fm.find()) throw new LanzouSessionException("not find file id in down_p");
-            String ajaxBody = requestPost(base + AJAXM_PATH + "?file=" + fm.group(1), param);
+            String ajaxBody = requestPost(shareAjaxUrl(base, downPFunc, fm.group(1)), param);
             JsonObject ajaxRoot = gson.fromJson(ajaxBody, JsonObject.class);
             refererBase = str(ajaxRoot, "dom") + "/file";
             downloadUrl = refererBase + "/" + str(ajaxRoot, "url");
@@ -899,7 +919,7 @@ public class LanzouApiClient {
             Map<String, String> param = htmlJsonToMap(nextPageData);
             Matcher fm = FIND_FILE_ID_PATTERN.matcher(nextPageData);
             if (!fm.find()) throw new LanzouSessionException("not find file id");
-            String ajaxBody = requestPost(base + AJAXM_PATH + "?file=" + fm.group(1), param);
+            String ajaxBody = requestPost(shareAjaxUrl(base, nextPageData, fm.group(1)), param);
             JsonObject ajaxRoot = gson.fromJson(ajaxBody, JsonObject.class);
             refererBase = str(ajaxRoot, "dom") + "/file";
             downloadUrl = refererBase + "/" + str(ajaxRoot, "url");
@@ -1107,16 +1127,46 @@ public class LanzouApiClient {
 
     /** doupload.php POST（带 uid/vei query），自动反爬 */
     private String douploadPost(Map<String, String> form) {
-        String base = properties.getBaseUrl().replaceAll("/+$", "");
-        String url = base + MANAGEMENT_BASE + "?uid=" + uid + "&vei=" + vei;
-        return requestPost(url, form);
+        String body = douploadPostRaw(requestPost(
+                managementUrl(),
+                form));
+        return body;
     }
 
     private String douploadPost(RequestBody body) {
         String base = properties.getBaseUrl().replaceAll("/+$", "");
         String url = base + MANAGEMENT_BASE + "?uid=" + uid + "&vei=" + vei;
         Request request = new Request.Builder().url(url).post(body).build();
-        return executeWithRetry(request);
+        return douploadPostRaw(executeWithRetry(request));
+    }
+
+    private String managementUrl() {
+        String base = properties.getBaseUrl().replaceAll("/+$", "");
+        return base + MANAGEMENT_BASE + "?uid=" + uid + "&vei=" + vei;
+    }
+
+    /**
+     * 蓝奏云管理接口统一以 zt=1 表示成功；zt=9 是明确的“未登录/会话失效”标记。
+     * 这里只对 zt=9 提前抛会话异常，避免把其他业务错误误报成会话过期。
+     */
+    private String douploadPostRaw(String body) {
+        if (body != null && body.trim().startsWith("{")) {
+            try {
+                JsonObject root = gson.fromJson(body, JsonObject.class);
+                if (root != null && "9".equals(str(root, "zt"))) {
+                    String info = str(root, "inf");
+                    if (info.isEmpty()) info = str(root, "info");
+                    throw new LanzouSessionException(
+                            "session invalid: zt=9" + (info.isEmpty() ? "" : ", " + info)
+                                    + ", body=" + truncate(body));
+                }
+            } catch (LanzouSessionException e) {
+                throw e;
+            } catch (Exception ignored) {
+                // 非 JSON 或解析失败交给上层原始逻辑处理
+            }
+        }
+        return body;
     }
 
     /** 执行请求并反爬重试。使用手动 sessionCookies 而非 OkHttp cookie jar（我们已移除 jar）。 */
@@ -1329,12 +1379,20 @@ public class LanzouApiClient {
 
     /** 从 HTML 中提取 data: {...} 并解析成 key-value */
     private static Map<String, String> htmlJsonToMap(String html) {
-        Matcher dataMatcher = JS_DATA_PATTERN.matcher(html);
+        return htmlJsonToMap(html, html);
+    }
+
+    /**
+     * 从 dataSource 中提取 data: {...}，变量解析时去 varSource 中查找。
+     * 新版蓝奏云把 sign 等参数定义在 down_p 函数外部，因此需要把整页 HTML 作为变量查找源。
+     */
+    private static Map<String, String> htmlJsonToMap(String dataSource, String varSource) {
+        Matcher dataMatcher = JS_DATA_PATTERN.matcher(dataSource);
         if (!dataMatcher.find()) {
             return new LinkedHashMap<>();
         }
         String dataStr = dataMatcher.group(1);
-        return jsonToMap(dataStr, html);
+        return jsonToMap(dataStr, varSource);
     }
 
     private static Map<String, String> jsonToMap(String data, String html) {
@@ -1355,10 +1413,25 @@ public class LanzouApiClient {
         return param;
     }
 
-    /** 查找 JS 变量值 */
+    /** 查找 JS 变量值（取最后一次非空赋值，避免页面里先用空串占位再赋真实值） */
     private static String findJSVarFunc(String key, String html) {
         Matcher m = Pattern.compile("var\\s+" + Pattern.quote(key) + "\\s*=\\s*['\"]?([^;'\"}]+)['\"]?;").matcher(html);
-        return m.find() ? m.group(1) : "";
+        String value = "";
+        while (m.find()) {
+            String candidate = m.group(1);
+            if (candidate != null && !candidate.isBlank()) {
+                value = candidate;
+            }
+        }
+        return value;
+    }
+
+    /** 按页面内容选择新版 ajaxfile.php 或旧版 ajaxm.php 分享下载接口 */
+    private static String shareAjaxUrl(String base, String pageData, String fileId) {
+        String endpoint = pageData != null && pageData.contains("ajaxfile.php")
+                ? AJAXFILE_PATH
+                : AJAXM_PATH;
+        return base + endpoint + "?file=" + fileId;
     }
 
     /** 按名称查找 JS 函数体 */

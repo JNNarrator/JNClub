@@ -7,6 +7,7 @@ import com.jnclub.common.cache.CacheService;
 import com.jnclub.music.common.PageResponse;
 import com.jnclub.music.common.enums.ErrorCode;
 import com.jnclub.music.common.exception.BusinessException;
+import com.jnclub.music.lanzou.LanzouSessionException;
 import com.jnclub.music.storage.MusicStorage;
 import com.jnclub.music.track.mapper.TrackMapper;
 import com.jnclub.music.track.domain.Track;
@@ -192,15 +193,7 @@ public class TrackServiceImpl implements TrackService {
             }
             return dto;
         } catch (Exception e) {
-            // 检测蓝奏云会话过期，返回特定错误码让前端显示提示
-            Throwable cause = e;
-            while (cause != null) {
-                if (cause instanceof com.jnclub.music.lanzou.LanzouSessionException) {
-                    throw new BusinessException(ErrorCode.LANZOU_SESSION_EXPIRED);
-                }
-                cause = cause.getCause();
-            }
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "获取播放链接失败: " + e.getMessage());
+            throw toLanzouBusinessException(e, "获取播放链接失败");
         }
     }
 
@@ -224,16 +217,8 @@ public class TrackServiceImpl implements TrackService {
             }
             return dto;
         } catch (Exception e) {
-            // 检测蓝奏云会话过期，返回特定错误码让前端显示提示
-            Throwable cause = e;
-            while (cause != null) {
-                if (cause instanceof com.jnclub.music.lanzou.LanzouSessionException) {
-                    throw new BusinessException(ErrorCode.LANZOU_SESSION_EXPIRED);
-                }
-                cause = cause.getCause();
-            }
             log.warn("强制刷新直链失败 trackId={}: {}", id, e.getMessage());
-            return null;
+            throw toLanzouBusinessException(e, "刷新直链失败");
         }
     }
 
@@ -306,14 +291,6 @@ public class TrackServiceImpl implements TrackService {
                         lyricsCacheMapper.insert(lc);
                     }
                 } catch (Exception e) {
-                    // 检测蓝奏云会话过期，返回特定错误码让前端显示提示
-                    Throwable cause = e;
-                    while (cause != null) {
-                        if (cause instanceof com.jnclub.music.lanzou.LanzouSessionException) {
-                            throw new BusinessException(ErrorCode.LANZOU_SESSION_EXPIRED);
-                        }
-                        cause = cause.getCause();
-                    }
                     log.warn("歌词缓存写入失败 trackId={}: {}", id, e.getMessage());
                 }
                 return lyrics;
@@ -474,14 +451,11 @@ public class TrackServiceImpl implements TrackService {
                 toWrite.put(id, entry);
                 changed = true;
             } catch (Exception e) {
-                // 检测蓝奏云会话过期，返回特定错误码让前端显示提示
-                Throwable cause = e;
-                while (cause != null) {
-                    if (cause instanceof com.jnclub.music.lanzou.LanzouSessionException) {
-                        throw new BusinessException(ErrorCode.LANZOU_SESSION_EXPIRED);
-                    }
-                    cause = cause.getCause();
+                BusinessException be = toLanzouBusinessException(e, "获取播放直链失败");
+                if (be.getErrorCode() == ErrorCode.LANZOU_SESSION_EXPIRED) {
+                    throw be;
                 }
+                log.warn("单曲直链不可用，跳过 trackId={}: {}", id, e.getMessage());
                 out.add(TrackWithUrlDTO.builder().trackId(id).name(pn.name()).artist(pn.artist())
                         .format(pn.format()).fileSize(sf.audioFile().size()).build());
             }
@@ -528,15 +502,7 @@ public class TrackServiceImpl implements TrackService {
         try (okhttp3.Response resp = sharedLyricsClient.newCall(req).execute()) {
             return resp.body() != null ? resp.body().string() : "";
         } catch (Exception e) {
-            // 检测蓝奏云会话过期，返回特定错误码让前端显示提示
-            Throwable cause = e;
-            while (cause != null) {
-                if (cause instanceof com.jnclub.music.lanzou.LanzouSessionException) {
-                    throw new BusinessException(ErrorCode.LANZOU_SESSION_EXPIRED);
-                }
-                cause = cause.getCause();
-            }
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "下载失败: " + e.getMessage());
+            throw toLanzouBusinessException(e, "下载失败");
         }
     }
 
@@ -568,6 +534,37 @@ public class TrackServiceImpl implements TrackService {
         if (instant == null) return OffsetDateTime.now().plusMinutes(45);
         return OffsetDateTime.ofInstant(instant.minusSeconds(30), ZoneOffset.UTC);
     }
+
+    /**
+     * 将蓝奏云异常转换为业务异常：
+     * 只有真正的“会话失效/未登录”才返回 LANZOU_SESSION_EXPIRED，
+     * 其他（分享链接失效、反爬、文件被取消分享等）返回 MEDIA_UNAVAILABLE 并记录真实原因，
+     * 避免把所有蓝奏云错误都误导成“会话过期”。
+     */
+    private static BusinessException toLanzouBusinessException(Throwable e, String fallback) {
+        Throwable cause = e;
+        while (cause != null) {
+            if (cause instanceof LanzouSessionException) {
+                String msg = cause.getMessage() == null ? "" : cause.getMessage().toLowerCase();
+                boolean expired = msg.contains("session invalid")
+                        || msg.contains("zt=9")
+                        || msg.contains("login not")
+                        || msg.contains("not login")
+                        || msg.contains("extract uid/vei failed")
+                        || msg.contains("missing cookie: phpdisk_info");
+                if (expired) {
+                    return new BusinessException(ErrorCode.LANZOU_SESSION_EXPIRED);
+                }
+                log.warn("蓝奏云非会话类错误: {}", cause.getMessage());
+                return new BusinessException(ErrorCode.MEDIA_UNAVAILABLE,
+                        "播放地址暂时不可用: " + cause.getMessage());
+            }
+            cause = cause.getCause();
+        }
+        log.warn("音乐直链获取失败: {}", e.getMessage(), e);
+        return new BusinessException(ErrorCode.MEDIA_UNAVAILABLE, fallback + ": " + e.getMessage());
+    }
+
     private static String requireTrackId(String trackId) {
         String s = trim(trackId);
         if (s.isEmpty()) throw new BusinessException(ErrorCode.INVALID_PARAMETER, "trackId 不能为空");
