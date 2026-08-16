@@ -5,7 +5,7 @@
  * 触屏(pointer:coarse)不渲染；prefers-reduced-motion 时禁弹性直接落位；输入框内隐藏露出 I-beam。
  * 启用时给 <html> 加 .custom-cursor-active → 全局 cursor:none（规则见 main.css）。
  */
-import { computed, onMounted, onBeforeUnmount } from 'vue'
+import { computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useCustomCursor } from '../composables/useCustomCursor'
 import { useCursorTrailEffect } from '../composables/useCursorTrailEffect'
 import { useCursorClickEffect } from '../composables/useCursorClickEffect'
@@ -77,9 +77,20 @@ const starStyle = computed(() => ({
   transform: `translate3d(${cursor.x.value}px, ${cursor.y.value}px, 0)`,
 }))
 
+const syncCursorClass = () => {
+  const root = document.documentElement
+  if (cursor.enabled.value) {
+    root.classList.add('custom-cursor-active')
+  } else {
+    root.classList.remove('custom-cursor-active')
+  }
+}
+
+watch(() => cursor.enabled.value, syncCursorClass)
+
 onMounted(() => {
   cursor.init()
-  document.documentElement.classList.add('custom-cursor-active')
+  syncCursorClass()
   raf = requestAnimationFrame(loop)
 })
 

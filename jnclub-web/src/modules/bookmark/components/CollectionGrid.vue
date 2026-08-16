@@ -9,6 +9,7 @@ import { NSpin } from 'naive-ui'
 import CollectionCard from './CollectionCard.vue'
 import type { BookmarkItem } from './CollectionRow.vue'
 import { useDraggableSort } from '../composables/useDraggableSort'
+import { useItemDragContext } from '../composables/useItemDragContext'
 
 defineProps<{
   bookmarks: BookmarkItem[]
@@ -23,6 +24,22 @@ const emit = defineEmits<{
 
 const visible = ref(false)
 const gridRef = ref<HTMLElement | null>(null)
+const { setDragging } = useItemDragContext()
+
+const handleDragStart = (e: DragEvent, item: BookmarkItem) => {
+  setDragging({
+    itemId: item.id,
+    module: 'bookmarks',
+    currentDirectoryId: item.directoryId ?? null,
+  })
+  if (e.dataTransfer) {
+    e.dataTransfer.effectAllowed = 'move'
+    try { e.dataTransfer.setData('text/plain', String(item.id)) } catch { /* 忽略 */ }
+  }
+}
+
+const handleDragEnd = () => setDragging(null)
+
 onMounted(() => {
   requestAnimationFrame(() => {
     visible.value = true
@@ -45,6 +62,9 @@ onMounted(() => { initSort() })
           :data-id="bk.id"
           class="grid-item-wrap"
           :style="{ '--i': i }"
+          draggable="true"
+          @dragstart="handleDragStart($event, bk)"
+          @dragend="handleDragEnd"
         >
           <CollectionCard :bookmark="bk" @refresh="emit('refresh')" @edit="emit('edit', $event)" />
         </div>

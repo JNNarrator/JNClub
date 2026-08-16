@@ -10,7 +10,6 @@ import { Pencil, Trash2, Eye, EllipsisVertical, StickyNote, Clock, FolderInput }
 import { formatDate } from '../composables/formatDate'
 import { stripMarkdown } from '../composables/stripMarkdown'
 import { openMenu } from '../../../shared/composables/useContextMenu'
-import { useItemDragContext } from '../composables/useItemDragContext'
 import MoveItemModal from './MoveItemModal.vue'
 import type { Note } from '../stores/note'
 
@@ -26,7 +25,6 @@ const emit = defineEmits<{
 }>()
 
 const showMoveModal = ref(false)
-const { setDragging } = useItemDragContext()
 
 const getSummary = (content: string | null) => {
   if (!content) return '暂无内容'
@@ -52,30 +50,12 @@ const handleDropdown = (key: string) => {
 const handleClick = () => {
   emit('preview', props.note)
 }
-
-/** 拖拽到目录树：写入跨容器上下文 */
-const handleDragStart = (e: DragEvent) => {
-  setDragging({
-    itemId: props.note.id,
-    module: 'notes',
-    currentDirectoryId: props.note.directoryId ?? null,
-  })
-  if (e.dataTransfer) {
-    e.dataTransfer.effectAllowed = 'move'
-    try { e.dataTransfer.setData('text/plain', String(props.note.id)) } catch { /* 忽略 */ }
-  }
-}
-
-const handleDragEnd = () => setDragging(null)
 </script>
 
 <template>
   <div
     class="note-card jnclub-bouncy"
-    draggable="true"
     @click="handleClick"
-    @dragstart="handleDragStart"
-    @dragend="handleDragEnd"
     @contextmenu.prevent="openMenu($event, dropdownOptions, handleDropdown)"
   >
     <!-- 顶部渐变装饰条 -->

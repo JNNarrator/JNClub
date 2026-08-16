@@ -9,6 +9,7 @@ import { NSpin } from 'naive-ui'
 import NoteCard from './NoteCard.vue'
 import type { Note } from '../stores/note'
 import { useDraggableSort } from '../composables/useDraggableSort'
+import { useItemDragContext } from '../composables/useItemDragContext'
 
 defineProps<{
   notes: Note[]
@@ -25,6 +26,22 @@ const emit = defineEmits<{
 
 const visible = ref(false)
 const gridRef = ref<HTMLElement | null>(null)
+const { setDragging } = useItemDragContext()
+
+const handleDragStart = (e: DragEvent, item: Note) => {
+  setDragging({
+    itemId: item.id,
+    module: 'notes',
+    currentDirectoryId: item.directoryId ?? null,
+  })
+  if (e.dataTransfer) {
+    e.dataTransfer.effectAllowed = 'move'
+    try { e.dataTransfer.setData('text/plain', String(item.id)) } catch { /* 忽略 */ }
+  }
+}
+
+const handleDragEnd = () => setDragging(null)
+
 onMounted(() => {
   requestAnimationFrame(() => { visible.value = true })
 })
@@ -45,6 +62,9 @@ onMounted(() => { initSort() })
           :data-id="note.id"
           class="grid-item-wrap"
           :style="{ '--i': i }"
+          draggable="true"
+          @dragstart="handleDragStart($event, note)"
+          @dragend="handleDragEnd"
         >
           <NoteCard
             :note="note"

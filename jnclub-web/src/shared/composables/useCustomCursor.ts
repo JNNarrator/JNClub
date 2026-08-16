@@ -88,7 +88,10 @@ function onOut(e: MouseEvent) {
 function init() {
   if (inited || disposed) return
   inited = true
-  cursorEnabled.value = !window.matchMedia('(pointer: coarse)').matches
+  const coarsePointer = window.matchMedia('(pointer: coarse)').matches
+  // 保留 Windows 自定义光标（美观）；拖拽时通过 .dragging 自动恢复系统光标
+  const defaultEnabled = !coarsePointer
+  cursorEnabled.value = prefs.get<boolean>('cursor.enabled', defaultEnabled)
   reducedMotion.value = window.matchMedia('(prefers-reduced-motion: reduce)').matches
   cursorStyle.value = prefs.get<CursorStyle>('cursor.style', 'dot-halo')
   cursorClickEffect.value = prefs.get<ClickEffectType>('cursor.clickEffect', 'none')
@@ -111,6 +114,12 @@ function destroy() {
   window.removeEventListener('mousedown', onDown)
   window.removeEventListener('mouseup', onUp)
   document.removeEventListener('mouseout', onOut)
+}
+
+/** 供设置抽屉调用：切换是否启用自定义光标 */
+function setEnabled(value: boolean) {
+  cursorEnabled.value = value
+  prefs.set('cursor.enabled', value)
 }
 
 /** 供设置抽屉调用：切换风格并持久化（后端 + localStorage） */
@@ -148,6 +157,7 @@ export function useCustomCursor() {
     reducedMotion,
     init,
     destroy,
+    setEnabled,
     setStyle,
     setClickEffect,
     setTrailEffect,

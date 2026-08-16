@@ -9,7 +9,6 @@ import { h, ref } from 'vue'
 import { NButton, NIcon, NDropdown, NEllipsis, NTag, useMessage } from 'naive-ui'
 import { Pencil, Trash2, Ellipsis, Clock, ExternalLink, FolderInput } from 'lucide-vue-next'
 import { openMenu } from '../../../shared/composables/useContextMenu'
-import { useItemDragContext } from '../composables/useItemDragContext'
 import MoveItemModal from './MoveItemModal.vue'
 import axios from 'axios'
 import { formatRelativeTime } from '../composables/formatDate'
@@ -36,7 +35,6 @@ const emit = defineEmits<{
 
 const message = useMessage()
 const showMoveModal = ref(false)
-const { setDragging } = useItemDragContext()
 
 const handleOpen = () => {
   window.open(props.bookmark.url, '_blank')
@@ -65,30 +63,12 @@ const handleDropdown = (key: string) => {
   else if (key === 'edit') emit('edit', props.bookmark)
   else if (key === 'delete') handleDelete()
 }
-
-/** 拖拽到目录树：写入跨容器上下文 */
-const handleDragStart = (e: DragEvent) => {
-  setDragging({
-    itemId: props.bookmark.id,
-    module: 'bookmarks',
-    currentDirectoryId: props.bookmark.directoryId ?? null,
-  })
-  if (e.dataTransfer) {
-    e.dataTransfer.effectAllowed = 'move'
-    try { e.dataTransfer.setData('text/plain', String(props.bookmark.id)) } catch { /* 忽略 */ }
-  }
-}
-
-const handleDragEnd = () => setDragging(null)
 </script>
 
 <template>
   <div
     class="collection-row"
-    draggable="true"
     @click="handleOpen"
-    @dragstart="handleDragStart"
-    @dragend="handleDragEnd"
     @contextmenu.prevent="openMenu($event, dropdownOptions, handleDropdown)"
   >
     <!-- favicon -->

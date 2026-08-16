@@ -8,6 +8,7 @@ import { NSpin } from 'naive-ui'
 import CollectionRow from './CollectionRow.vue'
 import type { BookmarkItem } from './CollectionRow.vue'
 import { useDraggableSort } from '../composables/useDraggableSort'
+import { useItemDragContext } from '../composables/useItemDragContext'
 
 defineProps<{
   bookmarks: BookmarkItem[]
@@ -23,6 +24,22 @@ const emit = defineEmits<{
 /* Stagger 渐入：每项延迟递增 */
 const visible = ref(false)
 const listRef = ref<HTMLElement | null>(null)
+const { setDragging } = useItemDragContext()
+
+const handleDragStart = (e: DragEvent, item: BookmarkItem) => {
+  setDragging({
+    itemId: item.id,
+    module: 'bookmarks',
+    currentDirectoryId: item.directoryId ?? null,
+  })
+  if (e.dataTransfer) {
+    e.dataTransfer.effectAllowed = 'move'
+    try { e.dataTransfer.setData('text/plain', String(item.id)) } catch { /* 忽略 */ }
+  }
+}
+
+const handleDragEnd = () => setDragging(null)
+
 onMounted(() => {
   requestAnimationFrame(() => {
     visible.value = true
@@ -45,6 +62,9 @@ onMounted(() => { initSort() })
           :data-id="bk.id"
           class="list-item-wrap"
           :style="{ '--i': i }"
+          draggable="true"
+          @dragstart="handleDragStart($event, bk)"
+          @dragend="handleDragEnd"
         >
           <CollectionRow :bookmark="bk" @refresh="emit('refresh')" @edit="emit('edit', $event)" />
         </div>

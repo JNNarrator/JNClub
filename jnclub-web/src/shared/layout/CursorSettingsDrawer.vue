@@ -5,7 +5,7 @@
  * 打开时重读偏好（后端水合后以后端为准）
  */
 import { ref, watch } from 'vue'
-import { NDrawer, NIcon } from 'naive-ui'
+import { NDrawer, NIcon, NSwitch } from 'naive-ui'
 import { MousePointer2, Sparkles, Zap, Route } from 'lucide-vue-next'
 import { useUserPreferences } from '../composables/useUserPreferences'
 import {
@@ -26,6 +26,7 @@ const emit = defineEmits<{
 const prefs = useUserPreferences()
 const cursor = useCustomCursor()
 
+const enabled = ref(true)
 const style = ref<CursorStyle>('dot-halo')
 const clickEffect = ref<ClickEffectType>('none')
 const trailEffect = ref<TrailEffectType>('none')
@@ -33,6 +34,7 @@ const trailEffect = ref<TrailEffectType>('none')
 /** 打开抽屉时重读偏好（后端水合后以后端为准） */
 watch(() => props.show, (v) => {
   if (v) {
+    enabled.value = cursor.enabled.value
     style.value = prefs.get<CursorStyle>('cursor.style', 'dot-halo')
     cursor.style.value = style.value
     clickEffect.value = prefs.get<ClickEffectType>('cursor.clickEffect', 'none')
@@ -41,6 +43,12 @@ watch(() => props.show, (v) => {
     cursor.trailEffect.value = trailEffect.value
   }
 })
+
+/** 切换自定义光标总开关 */
+const selectEnabled = (v: boolean) => {
+  enabled.value = v
+  cursor.setEnabled(v)
+}
 
 /** 选择即持久化并全局生效 */
 const selectStyle = (s: CursorStyle) => {
@@ -97,6 +105,12 @@ const trailOptions: { key: TrailEffectType; label: string; desc: string; color: 
           光标样式
         </div>
         <span class="settings-hint">选择喜欢的鼠标样式，实时生效</span>
+      </div>
+
+      <div class="settings-section cursor-enable-section">
+        <div class="section-label">启用自定义光标</div>
+        <NSwitch :value="enabled" @update:value="selectEnabled" />
+        <span class="enable-hint">拖拽时自动显示系统光标；可手动关闭</span>
       </div>
 
       <div class="settings-section">
@@ -229,6 +243,16 @@ const trailOptions: { key: TrailEffectType; label: string; desc: string; color: 
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.cursor-enable-section {
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+}
+.enable-hint {
+  font-size: 12px;
+  color: var(--text-3);
 }
 .section-label {
   font-size: 12px;

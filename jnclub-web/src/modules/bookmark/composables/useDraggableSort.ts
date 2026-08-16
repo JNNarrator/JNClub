@@ -31,9 +31,11 @@ export function useDraggableSort(
       dragClass: 'sortable-drag',
       onStart() {
         containerRef.value?.classList.add('sorting')
+        document.documentElement.classList.add('dragging')
       },
       onEnd(evt) {
         containerRef.value?.classList.remove('sorting')
+        document.documentElement.classList.remove('dragging')
         // 拖拽落定回弹动画（重播：先移除再强制重排后添加）
         if (evt.item) {
           const el = evt.item as HTMLElement
@@ -64,6 +66,7 @@ export function useDraggableSort(
   const destroy = () => {
     sortable?.destroy()
     sortable = null
+    document.documentElement.classList.remove('dragging')
   }
 
   onBeforeUnmount(destroy)
