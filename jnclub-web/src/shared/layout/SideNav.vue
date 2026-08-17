@@ -193,8 +193,6 @@ const showParticlesSettings = ref(false)
   background: var(--glass-bg-trans) !important;
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
-  /* 提前告知浏览器创建合成层，优化 Windows backdrop-filter 性能 */
-  will-change: backdrop-filter;
 }
 
 /* === Logo 区 === */

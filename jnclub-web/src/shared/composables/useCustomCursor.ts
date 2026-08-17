@@ -1,6 +1,5 @@
 import { ref } from 'vue'
 import { useUserPreferences } from './useUserPreferences'
-import { usePlatform } from './usePlatform'
 
 /**
  * useCustomCursor — 全局自定义光标单例状态（可爱光标）
@@ -90,10 +89,9 @@ function init() {
   if (inited || disposed) return
   inited = true
   const coarsePointer = window.matchMedia('(pointer: coarse)').matches
-  const platform = usePlatform()
-  // Windows 默认使用系统原生光标：DOM 自定义光标在高回报率/高刷下仍会引入合成延迟，
-  // 用户需要“可爱光标”时可从侧栏“光标样式”手动开启。
-  const defaultEnabled = !coarsePointer && platform.platform.value !== 'windows'
+  // 两平台默认一致启用自定义光标（触屏除外）；性能自适应由 FPS 看门狗（Step D）兜底，
+  // 不再按操作系统区分。
+  const defaultEnabled = !coarsePointer
   cursorEnabled.value = prefs.get<boolean>('cursor.enabled', defaultEnabled)
   reducedMotion.value = window.matchMedia('(prefers-reduced-motion: reduce)').matches
   cursorStyle.value = prefs.get<CursorStyle>('cursor.style', 'dot-halo')

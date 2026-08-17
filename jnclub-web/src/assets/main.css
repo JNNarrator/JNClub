@@ -457,11 +457,11 @@ html.custom-cursor-active.dragging * {
   cursor: grabbing !important;
 }
 
-/* ---- Windows 平台性能优化（保留玻璃质感，但降低拖拽容器合成开销） ---- */
-/* 大尺寸拖拽/滚动容器：去掉昂贵 backdrop-filter，用半透明渐变 + 边框 + 阴影模拟玻璃 */
-html[data-platform="windows"] .side-nav,
-html[data-platform="windows"] .folder-column,
-html[data-platform="windows"] .collection-column {
+/* ---- 大尺寸滚动/拖拽容器：跨平台一致，用半透明渐变 + 边框 + 阴影模拟玻璃 ----
+   大面积 backdrop-filter 在 Windows 合成器开销高，统一改为渐变玻璃，两平台体验一致 */
+.side-nav,
+.folder-column,
+.collection-column {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
   will-change: auto !important;
@@ -470,21 +470,6 @@ html[data-platform="windows"] .collection-column {
     radial-gradient(1200px 500px at 10% -10%, var(--glass-glow-top), transparent 60%),
     radial-gradient(900px 400px at 110% 120%, var(--glass-glow-bottom), transparent 60%),
     var(--glass-bg-trans) !important;
-}
-
-/* 小面积玻璃浮层：保留 blur + saturate，视觉更接近 macOS，同时成本可控 */
-html[data-platform="windows"] .glass-card,
-html[data-platform="windows"] .glass-card--modal,
-html[data-platform="windows"] .glass-header,
-html[data-platform="windows"] .glass-float,
-html[data-platform="windows"] .glass-panel,
-html[data-platform="windows"] .n-modal,
-html[data-platform="windows"] .n-dialog,
-html[data-platform="windows"] .n-drawer,
-html[data-platform="windows"] .n-popover {
-  backdrop-filter: blur(8px) saturate(160%) !important;
-  -webkit-backdrop-filter: blur(8px) saturate(160%) !important;
-  will-change: auto !important;
 }
 
 /* ---- Reduced motion ---- */

@@ -1,3 +1,4 @@
+import './gsap-setup'
 /**
  * vue-bits 动画适配层统一出口
  *

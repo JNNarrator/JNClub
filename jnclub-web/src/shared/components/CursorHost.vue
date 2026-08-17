@@ -22,17 +22,14 @@ let raf = 0
 let lastT = 0
 
 const loop = (t: number) => {
+  // 未启用自定义光标时彻底停掉 rAF，避免后台空转（Step C 性能优化）
+  if (!cursor.enabled.value) {
+    raf = 0
+    return
+  }
   // 限制 dt 上限，避免切后台回前台时产生一次大幅跳变
   const dt = lastT ? Math.min((t - lastT) / 1000, 0.05) : 1 / 60
   lastT = t
-
-  // 未启用自定义光标时不推进任何特效，避免无谓的 rAF 负载
-  if (!cursor.enabled.value) {
-    cursor.haloX.value = cursor.x.value
-    cursor.haloY.value = cursor.y.value
-    raf = requestAnimationFrame(loop)
-    return
-  }
 
   // 1. 光环缓动追赶
   if (cursor.reducedMotion.value) {
@@ -55,6 +52,19 @@ const loop = (t: number) => {
   }
 
   raf = requestAnimationFrame(loop)
+}
+
+/** 启停 rAF：禁用时彻底停止，启用时重新拉起（避免后台空转） */
+function startLoop() {
+  if (!cursor.enabled.value || raf) return
+  lastT = 0
+  raf = requestAnimationFrame(loop)
+}
+function stopLoop() {
+  if (raf) {
+    cancelAnimationFrame(raf)
+    raf = 0
+  }
 }
 
 /** emoji 模式文案：按下/悬停/默认 */
@@ -94,16 +104,19 @@ const syncCursorClass = () => {
   }
 }
 
-watch(() => cursor.enabled.value, syncCursorClass)
+watch(() => cursor.enabled.value, (v) => {
+  syncCursorClass()
+  if (v) startLoop()
+})
 
 onMounted(() => {
   cursor.init()
   syncCursorClass()
-  raf = requestAnimationFrame(loop)
+  startLoop()
 })
 
 onBeforeUnmount(() => {
-  cancelAnimationFrame(raf)
+  stopLoop()
   document.documentElement.classList.remove('custom-cursor-active')
   cursor.destroy()
 })

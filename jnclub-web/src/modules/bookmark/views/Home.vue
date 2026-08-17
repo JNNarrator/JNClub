@@ -921,7 +921,6 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
   -webkit-backdrop-filter: blur(var(--glass-blur));
   border: 1px solid var(--glass-border) !important;
   color: var(--text-2) !important;
-  will-change: backdrop-filter;
 }
 .io-export-btn:hover {
   color: var(--brand) !important;
@@ -972,7 +971,6 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
   border-radius: var(--radius-md);
   padding: 14px 12px;
   box-shadow: var(--shadow-1);
-  will-change: backdrop-filter;
   /* 隔离渲染边界，避免 backdrop-filter 影响兄弟元素合成 */
   contain: paint layout style;
 }
@@ -1047,7 +1045,6 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
   border-radius: var(--radius-md);
   padding: 18px 20px;
   box-shadow: var(--shadow-1);
-  will-change: backdrop-filter;
   contain: paint layout style;
 }
 
@@ -1073,7 +1070,6 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
   -webkit-backdrop-filter: blur(var(--glass-blur));
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-sm);
-  will-change: backdrop-filter;
 }
 .tag-chip {
   display: inline-flex;
@@ -1141,7 +1137,6 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
   background: var(--glass-bg-trans);
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
-  will-change: backdrop-filter;
 }
 .drawer-title {
   display: inline-flex;

@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { Motion, useAnimationFrame, useMotionValue, useTransform } from 'motion-v';
-import { computed, ref, watch } from 'vue';
+import { computed } from 'vue';
 
 interface ShinyTextProps {
   text: string;
@@ -26,110 +25,42 @@ const props = withDefaults(defineProps<ShinyTextProps>(), {
   yoyo: false,
   pauseOnHover: false,
   direction: 'left',
-  delay: 0
+  delay: 0,
 });
 
-const isPaused = ref(false);
-const progress = useMotionValue(0);
-const elapsedRef = ref(0);
-const lastTimeRef = ref<number | null>(null);
-const directionRef = ref(props.direction === 'left' ? 1 : -1);
-
-const animationDuration = computed(() => props.speed * 1000);
-const delayDuration = computed(() => props.delay * 1000);
-
-useAnimationFrame(time => {
-  if (props.disabled || isPaused.value) {
-    lastTimeRef.value = null;
-    return;
-  }
-
-  if (lastTimeRef.value === null) {
-    lastTimeRef.value = time;
-    return;
-  }
-
-  const deltaTime = time - lastTimeRef.value;
-  lastTimeRef.value = time;
-
-  elapsedRef.value += deltaTime;
-
-  // Animation goes from 0 to 100
-  if (props.yoyo) {
-    const cycleDuration = animationDuration.value + delayDuration.value;
-    const fullCycle = cycleDuration * 2;
-    const cycleTime = elapsedRef.value % fullCycle;
-
-    if (cycleTime < animationDuration.value) {
-      // Forward animation: 0 -> 100
-      const p = (cycleTime / animationDuration.value) * 100;
-      progress.set(directionRef.value === 1 ? p : 100 - p);
-    } else if (cycleTime < cycleDuration) {
-      // Delay at end
-      progress.set(directionRef.value === 1 ? 100 : 0);
-    } else if (cycleTime < cycleDuration + animationDuration.value) {
-      // Reverse animation: 100 -> 0
-      const reverseTime = cycleTime - cycleDuration;
-      const p = 100 - (reverseTime / animationDuration.value) * 100;
-      progress.set(directionRef.value === 1 ? p : 100 - p);
-    } else {
-      // Delay at start
-      progress.set(directionRef.value === 1 ? 0 : 100);
-    }
-  } else {
-    const cycleDuration = animationDuration.value + delayDuration.value;
-    const cycleTime = elapsedRef.value % cycleDuration;
-
-    if (cycleTime < animationDuration.value) {
-      // Animation phase: 0 -> 100
-      const p = (cycleTime / animationDuration.value) * 100;
-      progress.set(directionRef.value === 1 ? p : 100 - p);
-    } else {
-      // Delay phase - hold at end (shine off-screen)
-      progress.set(directionRef.value === 1 ? 100 : 0);
-    }
-  }
+/**
+ * CSS 化实现（替代原 motion-v useAnimationFrame 逐帧驱动）：
+ * 用浏览器原生 @keyframes 驱动 background-position 扫光，不再每个实例跑 rAF，
+ * 两平台渲染统一由浏览器调度，主线程零负载、行为一致。
+ * props 透传保持不变（业务侧用 JShinyText 无感）。
+ */
+const wrapperStyle = computed(() => {
+  const base = {
+    backgroundImage: `linear-gradient(${props.spread}deg, ${props.color} 0%, ${props.color} 35%, ${props.shineColor} 50%, ${props.color} 65%, ${props.color} 100%)`,
+    backgroundSize: '200% auto',
+    WebkitBackgroundClip: 'text',
+    backgroundClip: 'text',
+    WebkitTextFillColor: 'transparent',
+  } as Record<string, string | number>;
+  if (props.disabled) return base;
+  return {
+    ...base,
+    backgroundPosition: props.direction === 'right' ? '-50% center' : '150% center',
+    animationName: props.direction === 'right' ? 'j-shiny-sweep-right' : 'j-shiny-sweep-left',
+    animationDuration: `${props.speed}s`,
+    animationDelay: `${props.delay}s`,
+    animationTimingFunction: 'linear',
+    animationIterationCount: 'infinite',
+    animationDirection: props.yoyo ? 'alternate' : 'normal',
+  };
 });
-
-watch(
-  () => props.direction,
-  () => {
-    directionRef.value = props.direction === 'left' ? 1 : -1;
-    elapsedRef.value = 0;
-    progress.set(0);
-  },
-  {
-    immediate: true
-  }
-);
-
-const backgroundPosition = useTransform(progress, p => `${150 - p * 2}% center`);
-
-const handleMouseEnter = () => {
-  if (props.pauseOnHover) isPaused.value = true;
-};
-
-const handleMouseLeave = () => {
-  if (props.pauseOnHover) isPaused.value = false;
-};
-
-const gradientStyle = computed(() => ({
-  backgroundImage: `linear-gradient(${props.spread}deg, ${props.color} 0%, ${props.color} 35%, ${props.shineColor} 50%, ${props.color} 65%, ${props.color} 100%)`,
-  backgroundSize: '200% auto',
-  WebkitBackgroundClip: 'text',
-  backgroundClip: 'text',
-  WebkitTextFillColor: 'transparent'
-}));
 </script>
 
 <template>
-  <Motion
-    tag="span"
-    :class="['inline-block', className]"
-    :style="{ ...gradientStyle, backgroundPosition }"
-    @mouseenter="handleMouseEnter"
-    @mouseleave="handleMouseLeave"
+  <span
+    :class="['inline-block', 'j-shiny-text', className, pauseOnHover && !disabled ? 'j-shiny-pause' : '']"
+    :style="wrapperStyle"
   >
     {{ text }}
-  </Motion>
+  </span>
 </template>

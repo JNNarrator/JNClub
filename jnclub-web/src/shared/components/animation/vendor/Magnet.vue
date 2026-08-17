@@ -52,9 +52,32 @@ const position = ref({ x: 0, y: 0 });
 const transitionStyle = computed(() => (isActive.value ? props.activeTransition : props.inactiveTransition));
 
 /**
- * 性能优化：把高频 mousemove 合并到 rAF 里处理，避免每个鼠标事件都调用
- * getBoundingClientRect()。这在卡片/列表很多时能明显降低主线程压力。
+ * 性能优化：缓存 getBoundingClientRect，帧内不再读 DOM。
+ * 在挂载 / resize / scroll 时刷新，避免高频 mousemove 里触发布局读取
+ * （这是 Windows 高 DPI/高刷下指针不跟手的主要来源之一）。
  */
+let rect = { left: 0, top: 0, width: 0, height: 0 };
+let rectFresh = false;
+let ro: ResizeObserver | null = null;
+let scrollRaf = 0;
+
+const refreshRect = () => {
+  const el = magnetRef.value;
+  if (!el) return;
+  const r = el.getBoundingClientRect();
+  rect = { left: r.left, top: r.top, width: r.width, height: r.height };
+  rectFresh = true;
+};
+
+// rAF 合并 scroll/resize 刷新，避免高频事件重复读取
+const scheduleRectRefresh = () => {
+  if (scrollRaf) return;
+  scrollRaf = requestAnimationFrame(() => {
+    scrollRaf = 0;
+    refreshRect();
+  });
+};
+
 let raf = 0;
 let pendingEvent: MouseEvent | null = null;
 
@@ -62,16 +85,16 @@ const processMove = () => {
   raf = 0;
   const e = pendingEvent;
   pendingEvent = null;
-  if (!e || !magnetRef.value || props.disabled) return;
+  if (!e || props.disabled) return;
+  if (!rectFresh) refreshRect();
 
-  const { left, top, width, height } = magnetRef.value.getBoundingClientRect();
-  const centerX = left + width / 2;
-  const centerY = top + height / 2;
+  const centerX = rect.left + rect.width / 2;
+  const centerY = rect.top + rect.height / 2;
 
   const distX = Math.abs(centerX - e.clientX);
   const distY = Math.abs(centerY - e.clientY);
 
-  if (distX < width / 2 + props.padding && distY < height / 2 + props.padding) {
+  if (distX < rect.width / 2 + props.padding && distY < rect.height / 2 + props.padding) {
     isActive.value = true;
     const offsetX = (e.clientX - centerX) / props.magnetStrength;
     const offsetY = (e.clientY - centerY) / props.magnetStrength;
@@ -98,11 +121,22 @@ const reset = () => {
 };
 
 onMounted(() => {
+  refreshRect();
   window.addEventListener('mousemove', handleMouseMove, { passive: true });
+  window.addEventListener('resize', scheduleRectRefresh, { passive: true });
+  window.addEventListener('scroll', scheduleRectRefresh, { passive: true, capture: true });
+  if (typeof ResizeObserver !== 'undefined') {
+    ro = new ResizeObserver(scheduleRectRefresh);
+    if (magnetRef.value) ro.observe(magnetRef.value);
+  }
 });
 
 onUnmounted(() => {
   window.removeEventListener('mousemove', handleMouseMove);
+  window.removeEventListener('resize', scheduleRectRefresh);
+  window.removeEventListener('scroll', scheduleRectRefresh, { capture: true } as EventListenerOptions);
+  ro?.disconnect();
+  ro = null;
 });
 
 onBeforeUnmount(reset);

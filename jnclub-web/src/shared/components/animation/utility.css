@@ -47,3 +47,31 @@
 .backdrop-blur { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
 .transition-shadow { transition-property: box-shadow; }
 .duration-500 { transition-duration: 500ms; }
+
+/* ===== 跨平台 CSS 化动画（替代逐帧 JS rAF，浏览器原生调度） ===== */
+@keyframes j-shiny-sweep-left {
+  from { background-position: 150% center; }
+  to   { background-position: -50% center; }
+}
+@keyframes j-shiny-sweep-right {
+  from { background-position: -50% center; }
+  to   { background-position: 150% center; }
+}
+.j-shiny-pause:hover { animation-play-state: paused; }
+
+@keyframes j-grad-h {
+  from { background-position: 0% 50%; }
+  to   { background-position: 300% 50%; }
+}
+@keyframes j-grad-v {
+  from { background-position: 50% 0%; }
+  to   { background-position: 50% 300%; }
+}
+.j-grad-pause:hover { animation-play-state: paused; }
+
+/* ---- 能力自适应降级（FPS 看门狗写入 html[data-perf-tier]） ----
+   tier 2：关掉连续流光/渐变动画（保留入场/悬停等一次性动画） */
+html[data-perf-tier="2"] .j-shiny-text,
+html[data-perf-tier="2"] .j-grad {
+  animation: none !important;
+}

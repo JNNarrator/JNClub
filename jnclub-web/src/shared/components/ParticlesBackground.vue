@@ -9,6 +9,7 @@ import { computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import type { ISourceOptions } from '@tsparticles/engine'
 import { useParticlesSettings } from '../composables/useParticlesSettings'
+import { usePerfTier } from '../composables/usePerfTier'
 
 const props = defineProps<{
   isDark: boolean
@@ -16,12 +17,15 @@ const props = defineProps<{
 
 const route = useRoute()
 const settings = useParticlesSettings()
+const perf = usePerfTier()
 
 /** 排除页面：音乐、便签新建/查看（编辑+预览）、SSO 回调 */
 const EXCLUDED_ROUTES = new Set(['music', 'note-create', 'note-view', 'sso-callback'])
 const shouldShow = computed(() => {
   if (settings.style.value === 'none') return false
   if (settings.coarsePointer.value || settings.reducedMotion.value) return false
+  // FPS 看门狗降级：tier>=1 时关粒子（持续耗能效果）
+  if (perf.tier.value >= 1) return false
   return !EXCLUDED_ROUTES.has(route.name as string)
 })
 

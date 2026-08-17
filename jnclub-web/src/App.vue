@@ -11,10 +11,14 @@ import CursorClickParticles from './shared/components/CursorClickParticles.vue'
 import CursorTrail from './shared/components/CursorTrail.vue'
 import ParticlesBackground from './shared/components/ParticlesBackground.vue'
 import { usePlatform } from './shared/composables/usePlatform'
+import { usePerfTier } from './shared/composables/usePerfTier'
 
-// 平台检测（Windows 性能优化）：尽早执行，首帧前把 data-platform 写到 <html>
+// 平台检测：首帧前把 data-platform 写到 <html>，保留给遥测/排障（不再用于降级动画）
 const { init: initPlatform } = usePlatform()
 initPlatform()
+// 能力自适应 FPS 看门狗（替代平台分叉）：同一套代码，弱机自动降级
+const { init: initPerfTier } = usePerfTier()
+initPerfTier()
 
 const isDark = ref(false)
 const route = useRoute()
