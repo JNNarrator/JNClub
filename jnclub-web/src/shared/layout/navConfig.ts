@@ -25,7 +25,7 @@ export const NAV_META: Record<NavKey, Omit<NavDef, 'key'>> = {
   vault: { icon: KeyRound, label: '密码库', kind: 'module', target: '' },
   music: { icon: Music, label: '音乐', kind: 'route', target: '/music' },
   recycle: { icon: Trash2, label: '回收站', kind: 'route', target: '/recycle' },
-  extension: { icon: Puzzle, label: '浏览器插件', kind: 'route', target: '/extension' },
+  extension: { icon: Puzzle, label: '下载中心', kind: 'route', target: '/extension' },
 }
 
 /** 默认全量顺序（兼容旧 nav.order 缺失项时补齐） */

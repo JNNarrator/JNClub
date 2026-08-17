@@ -75,7 +75,7 @@ router.beforeEach(async (to, _from, next) => {
     return
   }
 
-  // 插件下载页：公开，无需登录
+  // 下载中心页：公开，无需登录
   if (to.name === 'extension') {
     next()
     return
@@ -111,7 +111,7 @@ router.beforeEach(async (to, _from, next) => {
 const TITLE_BY_NAME: Record<string, string> = {
   app: 'JNClub - 个人工作台',
   welcome: '欢迎 - JNClub',
-  extension: '浏览器插件 - JNClub',
+  extension: '下载中心 - JNClub',
   recycle: '回收站 - JNClub',
   music: '音乐 - JNClub',
   'note-create': '新建便签 - JNClub',
