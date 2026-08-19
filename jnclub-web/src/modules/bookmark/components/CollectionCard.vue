@@ -5,7 +5,7 @@
  * hover: 卡片抬升 + 品牌粉阴影
  */
 import { h, ref } from 'vue'
-import { NButton, NIcon, NDropdown, NEllipsis, NTag, useMessage } from 'naive-ui'
+import { NButton, NIcon, NDropdown, NEllipsis, NTag, useMessage, NCheckbox } from 'naive-ui'
 import { Pencil, Trash2, EllipsisVertical, ExternalLink, FolderInput } from 'lucide-vue-next'
 import { openMenu } from '../../../shared/composables/useContextMenu'
 import MoveItemModal from './MoveItemModal.vue'
@@ -14,11 +14,14 @@ import type { BookmarkItem } from './CollectionRow.vue'
 
 const props = defineProps<{
   bookmark: BookmarkItem
+  batchMode?: boolean
+  selected?: boolean
 }>()
 
 const emit = defineEmits<{
   refresh: []
   edit: [bookmark: BookmarkItem]
+  'toggle-select': []
 }>()
 
 const message = useMessage()
@@ -32,6 +35,11 @@ const getDomain = (url: string) => {
 const handleOpen = () => {
   window.open(props.bookmark.url, '_blank')
 }
+const onRootClick = () => {
+  if (props.batchMode) emit('toggle-select')
+  else handleOpen()
+}
+
 
 const handleDelete = async () => {
   try {
@@ -61,9 +69,12 @@ const handleDropdown = (key: string) => {
 <template>
   <div
     class="bookmark-card jnclub-bouncy"
-    @click="handleOpen"
+          @click="onRootClick"
     @contextmenu.prevent="openMenu($event, dropdownOptions, handleDropdown)"
   >
+      <div v-if="props.batchMode" class="batch-check" @click.stop="emit('toggle-select')">
+        <NCheckbox :checked="props.selected" @update:checked="emit('toggle-select')" size="small" />
+      </div>
     <!-- 顶部渐变装饰条 -->
     <div class="card-top-bar"></div>
 
@@ -265,5 +276,15 @@ const handleDropdown = (key: string) => {
 .more-btn:hover {
   color: var(--text-1);
   background: var(--hover-bg);
+}
+</style>
+<style scoped>
+.batch-check {
+  position: absolute;
+  top: 10px; left: 10px;
+  z-index: 5;
+  background: rgba(0,0,0,0.35);
+  border-radius: 6px;
+  padding: 2px;
 }
 </style>

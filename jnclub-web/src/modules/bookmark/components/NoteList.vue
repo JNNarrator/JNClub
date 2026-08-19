@@ -12,6 +12,8 @@ import { useDraggableSort } from '../composables/useDraggableSort'
 defineProps<{
   notes: Note[]
   loading?: boolean
+  batchMode?: boolean
+  selectedIds?: number[]
 }>()
 
 const emit = defineEmits<{
@@ -20,6 +22,7 @@ const emit = defineEmits<{
   delete: [note: Note]
   refresh: []
   sort: [orderedIds: number[]]
+  'toggle-select': [id: number]
 }>()
 
 const listRef = ref<HTMLElement | null>(null)
@@ -38,6 +41,9 @@ onMounted(() => { initSort() })
           :key="note.id"
           :data-id="note.id"
           :note="note"
+          :batch-mode="batchMode"
+          :selected="selectedIds?.includes(note.id)"
+          @toggle-select="emit('toggle-select', note.id)"
           @preview="(n: Note) => emit('preview', n)"
           @edit="(n: Note) => emit('edit', n)"
           @delete="(n: Note) => emit('delete', n)"

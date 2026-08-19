@@ -15,6 +15,7 @@ import com.jnclub.bookmark.mapper.DirectoryMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.net.URL;
 import java.util.LinkedHashMap;
@@ -199,6 +200,48 @@ public class BookmarkService extends ServiceImpl<BookmarkMapper, Bookmark> {
         // 软删除：进入回收站（保留标签关联，恢复后仍可见）
         bookmark.setDeleted(1);
         updateById(bookmark);
+        cacheService.evictByPrefix(CacheKey.bookmarkPrefix(userId));
+    }
+
+    /** 批量移动收藏（跳过已在该目录的项；type=1 目录校验） */
+    @Transactional
+    public void moveBookmarksBatch(List<Long> ids, Long directoryId) {
+        String userId = StpUtil.getLoginIdAsString();
+        if (directoryId == null) throw new BizException("请选择目标目录");
+        checkDirOwnership(directoryId, userId);
+        for (Long id : ids) {
+            Bookmark b = getById(id);
+            if (b == null || !b.getUserId().equals(userId)) continue;
+            if (b.getDirectoryId() != null && b.getDirectoryId().equals(directoryId)) continue;
+            b.setDirectoryId(directoryId);
+            updateById(b);
+        }
+        cacheService.evictByPrefix(CacheKey.bookmarkPrefix(userId));
+    }
+
+    /** 批量删除收藏（软删除进回收站） */
+    @Transactional
+    public void deleteBookmarksBatch(List<Long> ids) {
+        String userId = StpUtil.getLoginIdAsString();
+        for (Long id : ids) {
+            Bookmark b = getById(id);
+            if (b == null || !b.getUserId().equals(userId)
+                    || (b.getDeleted() != null && b.getDeleted() == 1)) continue;
+            b.setDeleted(1);
+            updateById(b);
+        }
+        cacheService.evictByPrefix(CacheKey.bookmarkPrefix(userId));
+    }
+
+    /** 批量设置标签（全量覆盖式，同 setRelations） */
+    @Transactional
+    public void setTagsBatch(List<Long> ids, List<String> tagNames) {
+        String userId = StpUtil.getLoginIdAsString();
+        for (Long id : ids) {
+            Bookmark b = getById(id);
+            if (b == null || !b.getUserId().equals(userId)) continue;
+            tagService.setRelations("bookmark", id, tagNames);
+        }
         cacheService.evictByPrefix(CacheKey.bookmarkPrefix(userId));
     }
 

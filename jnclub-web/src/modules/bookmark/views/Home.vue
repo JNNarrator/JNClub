@@ -6,7 +6,7 @@ import {
   NDrawer, NDrawerContent, NDropdown,
   useMessage, useDialog,
 } from 'naive-ui'
-import { Plus, FolderOpen, Link, Globe, RefreshCw, UploadCloud, Tag, Search, Download, Sun, Moon, CircleUser, LogOut } from 'lucide-vue-next'
+import { Plus, FolderOpen, Link, Globe, RefreshCw, UploadCloud, Tag, Search, Download, Sun, Moon, CircleUser, LogOut, CheckSquare, FolderInput, Tags, Trash2, X } from 'lucide-vue-next'
 import { useRouter, useRoute, type RouteLocationRaw } from 'vue-router'
 import { useDirectoryStore } from '../stores/directory'
 import { useBookmarkStore } from '../stores/bookmark'
@@ -122,6 +122,127 @@ const handleSearchJump = (module: 'bookmarks' | 'notes' | 'files' | 'vault' | 'm
   }
   pendingDirId.value = directoryId
   emit('module-change', module)
+}
+
+// ========== 批量操作（收藏 / 便签） ==========
+const batchMode = ref(false)
+const selectedIds = ref<number[]>([])
+
+const toggleBatchMode = (on: boolean) => {
+  batchMode.value = on
+  if (!on) selectedIds.value = []
+}
+const toggleSelect = (id: number) => {
+  const i = selectedIds.value.indexOf(id)
+  if (i >= 0) selectedIds.value.splice(i, 1)
+  else selectedIds.value.push(id)
+}
+const currentList = computed(() =>
+  props.activeModule === 'notes' ? noteStore.notes : bookmarkStore.bookmarks)
+const allSelected = computed(() =>
+  currentList.value.length > 0 && selectedIds.value.length === currentList.value.length)
+const toggleAll = () => {
+  if (allSelected.value) selectedIds.value = []
+  else selectedIds.value = currentList.value.map((i: any) => i.id)
+}
+
+// 切模块时退出多选
+watch(() => props.activeModule, () => toggleBatchMode(false))
+
+/** 批量移动到 */
+const batchDirOptions = ref<{ label: string; value: number }[]>([])
+const showBatchMove = ref(false)
+const batchMoveForm = ref({ directoryId: null as number | null })
+
+const loadBatchDirs = async () => {
+  const type = props.activeModule === 'bookmarks' ? 1 : 2
+  try {
+    const res = await axios.get('/api/directories', { params: { type } })
+    const flat: { label: string; value: number }[] = []
+    const walk = (dirs: any[], prefix: string) => {
+      for (const d of dirs) {
+        flat.push({ label: prefix + d.name, value: d.id })
+        if (d.children?.length) walk(d.children, prefix + d.name + ' / ')
+      }
+    }
+    walk(res.data.data || [], '')
+    batchDirOptions.value = flat
+  } catch { /* 静默 */ }
+}
+
+const openBatchMove = async () => {
+  await loadBatchDirs()
+  batchMoveForm.value = { directoryId: null }
+  showBatchMove.value = true
+}
+
+const submitBatchMove = async () => {
+  if (!batchMoveForm.value.directoryId) {
+    message.warning('请选择目标目录')
+    return
+  }
+  const url = props.activeModule === 'notes' ? '/api/notes/batch-move' : '/api/bookmarks/batch-move'
+  try {
+    await axios.put(url, { ids: selectedIds.value, directoryId: batchMoveForm.value.directoryId })
+    message.success(`已移动 ${selectedIds.value.length} 项`)
+    showBatchMove.value = false
+    finishBatch()
+  } catch (e: any) {
+    message.error(e.response?.data?.message || '移动失败')
+  }
+}
+
+/** 批量打标签（仅收藏） */
+const showBatchTags = ref(false)
+const batchTagOptions = ref<{ label: string; value: number }[]>([])
+const batchTagIds = ref<number[]>([])
+
+const openBatchTags = async () => {
+  const tags = await fetchTags('bookmark')
+  batchTagOptions.value = tags.map(t => ({ label: t.name, value: t.id }))
+  batchTagIds.value = []
+  showBatchTags.value = true
+}
+
+const submitBatchTags = async () => {
+  const names = batchTagOptions.value
+    .filter(o => batchTagIds.value.includes(o.value))
+    .map(o => o.label)
+  try {
+    await axios.put('/api/bookmarks/batch-tags', { ids: selectedIds.value, tagNames: names })
+    message.success(`已更新 ${selectedIds.value.length} 项标签`)
+    showBatchTags.value = false
+    finishBatch()
+  } catch (e: any) {
+    message.error(e.response?.data?.message || '打标签失败')
+  }
+}
+
+/** 批量删除（软删除进回收站） */
+const handleBatchDelete = () => {
+  if (!selectedIds.value.length) return
+  dialog.warning({
+    title: '批量删除',
+    content: `确定删除选中的 ${selectedIds.value.length} 项吗？删除后进入回收站，可在回收站恢复。`,
+    positiveText: '确定',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      const url = props.activeModule === 'notes' ? '/api/notes/batch' : '/api/bookmarks/batch'
+      try {
+        await axios.delete(url, { data: { ids: selectedIds.value } })
+        message.success(`已删除 ${selectedIds.value.length} 项`)
+        finishBatch()
+      } catch (e: any) {
+        message.error(e.response?.data?.message || '批量删除失败')
+      }
+    },
+  })
+}
+
+const finishBatch = () => {
+  toggleBatchMode(false)
+  loadData()
+  loadTags()
 }
 
 const selectedDirectoryId = ref<number | null>(null)
@@ -580,6 +701,16 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
         <NButton quaternary circle size="small" class="refresh-btn" @click="showSearch = true" title="搜索 (Ctrl/⌘+K)">
           <template #icon><NIcon :component="Search" size="16" /></template>
         </NButton>
+        <NButton
+          v-if="props.activeModule === 'bookmarks' || props.activeModule === 'notes'"
+          quaternary circle size="small"
+          class="refresh-btn"
+          :type="batchMode ? 'primary' : 'default'"
+          :title="batchMode ? '退出多选' : '多选'"
+          @click="toggleBatchMode(!batchMode)"
+        >
+          <template #icon><NIcon :component="CheckSquare" size="16" /></template>
+        </NButton>
         <ViewSwitcher v-if="props.activeModule === 'bookmarks' || props.activeModule === 'notes'" v-model="viewMode" />
         <NButton quaternary circle size="small" @click="handleRefresh" class="refresh-btn jnclub-bouncy" title="刷新">
           <template #icon><NIcon :component="RefreshCw" size="16" /></template>
@@ -704,12 +835,14 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
           <CollectionGrid
             v-if="props.activeModule === 'bookmarks' && viewMode === 'grid' && bookmarkStore.bookmarks.length > 0"
             :bookmarks="bookmarkStore.bookmarks"
+            :batch-mode="batchMode" :selected-ids="selectedIds" @toggle-select="toggleSelect"
             @refresh="loadData" @edit="handleEditBookmark" @sort="handleSort"
           />
           <!-- 收藏列表 -->
           <CollectionList
             v-else-if="props.activeModule === 'bookmarks' && viewMode === 'list' && bookmarkStore.bookmarks.length > 0"
             :bookmarks="bookmarkStore.bookmarks"
+            :batch-mode="batchMode" :selected-ids="selectedIds" @toggle-select="toggleSelect"
             @refresh="loadData" @edit="handleEditBookmark" @sort="handleSort"
           />
           <!-- 收藏空状态 -->
@@ -726,6 +859,7 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
           <NoteGrid
             v-else-if="props.activeModule === 'notes' && viewMode === 'grid' && noteStore.notes.length > 0"
             :notes="noteStore.notes" :loading="false"
+            :batch-mode="batchMode" :selected-ids="selectedIds" @toggle-select="toggleSelect"
             @preview="handlePreviewNote" @edit="handleEditNote" @delete="handleDeleteNote"
             @refresh="loadData" @sort="handleSort"
           />
@@ -733,6 +867,7 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
           <NoteList
             v-else-if="props.activeModule === 'notes' && viewMode === 'list' && noteStore.notes.length > 0"
             :notes="noteStore.notes" :loading="false"
+            :batch-mode="batchMode" :selected-ids="selectedIds" @toggle-select="toggleSelect"
             @preview="handlePreviewNote" @edit="handleEditNote" @delete="handleDeleteNote"
             @refresh="loadData" @sort="handleSort"
           />
@@ -765,11 +900,60 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
             </div>
           </Transition>
         </NSpin>
+
+        <!-- 批量操作条（收藏/便签） -->
+        <Transition name="batch-up">
+          <div v-if="batchMode && selectedIds.length" class="batch-bar">
+            <span class="batch-info">已选 {{ selectedIds.length }} 项</span>
+            <NButton size="small" quaternary @click="toggleAll">
+              {{ allSelected ? '取消全选' : '全选' }}
+            </NButton>
+            <NButton v-if="props.activeModule === 'bookmarks'" size="small" type="primary" secondary @click="openBatchTags">
+              <template #icon><NIcon :component="Tags" size="14" /></template>
+              打标签
+            </NButton>
+            <NButton size="small" type="primary" secondary @click="openBatchMove">
+              <template #icon><NIcon :component="FolderInput" size="14" /></template>
+              移动到
+            </NButton>
+            <NButton size="small" type="error" secondary @click="handleBatchDelete">
+              <template #icon><NIcon :component="Trash2" size="14" /></template>
+              删除
+            </NButton>
+            <NButton size="small" quaternary @click="toggleBatchMode(false)">
+              <template #icon><NIcon :component="X" size="14" /></template>
+              取消
+            </NButton>
+          </div>
+        </Transition>
       </div>
     </div>
 
     <!-- 全局搜索抽屉 -->
     <SearchDrawer :show="showSearch" @close="showSearch = false" @jump="handleSearchJump" />
+
+    <!-- 批量移动到弹窗 -->
+    <NModal v-model:show="showBatchMove" preset="dialog" :title="`移动到（${selectedIds.length} 项）`">
+      <NForm style="margin-top: 12px;">
+        <NFormItem label="目标目录">
+          <NSelect v-model:value="batchMoveForm.directoryId" :options="batchDirOptions" placeholder="选择目录" filterable clearable />
+        </NFormItem>
+      </NForm>
+      <template #action>
+        <NButton @click="showBatchMove = false">取消</NButton>
+        <NButton type="primary" @click="submitBatchMove">确定</NButton>
+      </template>
+    </NModal>
+
+    <!-- 批量打标签弹窗（收藏） -->
+    <NModal v-model:show="showBatchTags" preset="dialog" :title="`打标签（${selectedIds.length} 项）`">
+      <p class="jn-hint" style="margin: 0 0 10px;">将覆盖所选收藏的现有标签（全量设置）。</p>
+      <NSelect v-model:value="batchTagIds" :options="batchTagOptions" multiple filterable placeholder="选择或输入标签" />
+      <template #action>
+        <NButton @click="showBatchTags = false">取消</NButton>
+        <NButton type="primary" @click="submitBatchTags">确定</NButton>
+      </template>
+    </NModal>
 
     <!-- 用户信息弹窗 -->
     <NModal v-model:show="showProfileModal" preset="dialog" title="用户信息">
@@ -1242,5 +1426,39 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
   color: var(--text-2);
   font-size: var(--fs-base);
   line-height: 2;
+}
+/* 批量操作条（收藏/便签） */
+.batch-bar {
+  position: sticky;
+  bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 10px 16px;
+  background: var(--glass-bg-trans);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--glass-shadow);
+}
+.batch-info {
+  flex: 1;
+  font-size: var(--fs-md);
+  color: var(--text-2);
+}
+.batch-up-enter-active {
+  transition: opacity 0.22s var(--ease), transform 0.22s var(--ease-bouncy);
+}
+.batch-up-enter-from {
+  opacity: 0;
+  transform: translateY(14px);
+}
+.batch-up-leave-active {
+  transition: opacity 0.15s var(--ease);
+}
+.batch-up-leave-to {
+  opacity: 0;
 }
 </style>

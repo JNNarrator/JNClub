@@ -62,4 +62,37 @@ public class BookmarkController {
         bookmarkService.updateSortOrder(sortList);
         return R.ok();
     }
+
+    /** 批量移动：body { ids[], directoryId } */
+    @PutMapping("/batch-move")
+    public R<Void> batchMove(@RequestBody Map<String, Object> body) {
+        List<Long> ids = parseIds(body.get("ids"));
+        Long directoryId = body.get("directoryId") == null
+                ? null : Long.parseLong(String.valueOf(body.get("directoryId")));
+        bookmarkService.moveBookmarksBatch(ids, directoryId);
+        return R.ok();
+    }
+
+    /** 批量删除（软删除进回收站）：body { ids[] } */
+    @DeleteMapping("/batch")
+    public R<Void> batchDelete(@RequestBody Map<String, Object> body) {
+        bookmarkService.deleteBookmarksBatch(parseIds(body.get("ids")));
+        return R.ok();
+    }
+
+    /** 批量设置标签（全量覆盖）：body { ids[], tagNames[] } */
+    @PutMapping("/batch-tags")
+    public R<Void> batchTags(@RequestBody Map<String, Object> body) {
+        List<Long> ids = parseIds(body.get("ids"));
+        @SuppressWarnings("unchecked")
+        List<String> tagNames = (List<String>) body.get("tagNames");
+        bookmarkService.setTagsBatch(ids, tagNames);
+        return R.ok();
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Long> parseIds(Object raw) {
+        if (raw == null) return List.of();
+        return ((List<Object>) raw).stream().map(v -> Long.parseLong(String.valueOf(v))).toList();
+    }
 }

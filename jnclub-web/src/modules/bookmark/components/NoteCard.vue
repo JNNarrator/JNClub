@@ -5,7 +5,7 @@
  * hover: 卡片抬升 + 品牌粉阴影
  */
 import { h, ref } from 'vue'
-import { NButton, NIcon, NDropdown, NEllipsis, NTag } from 'naive-ui'
+import { NButton, NIcon, NDropdown, NEllipsis, NTag, NCheckbox } from 'naive-ui'
 import { Pencil, Trash2, Eye, EllipsisVertical, StickyNote, Clock, FolderInput } from 'lucide-vue-next'
 import { formatDate } from '../composables/formatDate'
 import { stripMarkdown } from '../composables/stripMarkdown'
@@ -15,12 +15,15 @@ import type { Note } from '../stores/note'
 
 const props = defineProps<{
   note: Note
+  batchMode?: boolean
+  selected?: boolean
 }>()
 
 const emit = defineEmits<{
   preview: [note: Note]
   edit: [note: Note]
   delete: [note: Note]
+  'toggle-select': []
   refresh: []
 }>()
 
@@ -50,14 +53,22 @@ const handleDropdown = (key: string) => {
 const handleClick = () => {
   emit('preview', props.note)
 }
+const onRootClick = () => {
+  if (props.batchMode) emit('toggle-select')
+  else handleClick()
+}
+
 </script>
 
 <template>
   <div
     class="note-card jnclub-bouncy"
-    @click="handleClick"
+          @click="onRootClick"
     @contextmenu.prevent="openMenu($event, dropdownOptions, handleDropdown)"
   >
+      <div v-if="props.batchMode" class="batch-check" @click.stop="emit('toggle-select')">
+        <NCheckbox :checked="props.selected" @update:checked="emit('toggle-select')" size="small" />
+      </div>
     <!-- 顶部渐变装饰条 -->
     <div class="card-top-bar"></div>
 
@@ -238,5 +249,15 @@ const handleClick = () => {
 .more-btn:hover {
   color: var(--text-1);
   background: var(--hover-bg);
+}
+</style>
+<style scoped>
+.batch-check {
+  position: absolute;
+  top: 10px; left: 10px;
+  z-index: 5;
+  background: rgba(0,0,0,0.35);
+  border-radius: 6px;
+  padding: 2px;
 }
 </style>

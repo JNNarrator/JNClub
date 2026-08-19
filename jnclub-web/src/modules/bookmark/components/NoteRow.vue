@@ -5,7 +5,7 @@
  * hover 浅底，整行可点=进入预览
  */
 import { h, ref } from 'vue'
-import { NButton, NIcon, NDropdown, NEllipsis, NTag } from 'naive-ui'
+import { NButton, NIcon, NDropdown, NEllipsis, NTag, NCheckbox } from 'naive-ui'
 import { Pencil, Trash2, Eye, Ellipsis, StickyNote, Clock, FolderInput } from 'lucide-vue-next'
 import { formatRelativeTime } from '../composables/formatDate'
 import { stripMarkdown } from '../composables/stripMarkdown'
@@ -16,12 +16,15 @@ import type { Note } from '../stores/note'
 
 const props = defineProps<{
   note: Note
+  batchMode?: boolean
+  selected?: boolean
 }>()
 
 const emit = defineEmits<{
   preview: [note: Note]
   edit: [note: Note]
   delete: [note: Note]
+  'toggle-select': []
   refresh: []
 }>()
 
@@ -52,6 +55,11 @@ const handleDropdown = (key: string) => {
 const handleClick = () => {
   emit('preview', props.note)
 }
+const onRootClick = () => {
+  if (props.batchMode) emit('toggle-select')
+  else handleClick()
+}
+
 
 /** 拖拽到目录树：写入跨容器上下文 */
 const handleDragStart = (e: DragEvent) => {
@@ -72,12 +80,15 @@ const handleDragEnd = () => setDragging(null)
 <template>
   <div
     class="note-row"
-    draggable="true"
-    @click="handleClick"
+          draggable="true"
+    @click="onRootClick"
     @dragstart="handleDragStart"
     @dragend="handleDragEnd"
     @contextmenu.prevent="openMenu($event, dropdownOptions, handleDropdown)"
   >
+      <div v-if="props.batchMode" class="batch-check" @click.stop="emit('toggle-select')">
+        <NCheckbox :checked="props.selected" @update:checked="emit('toggle-select')" size="small" />
+      </div>
     <!-- 文档图标 -->
     <div class="row-icon">
       <NIcon :component="StickyNote" size="18" color="var(--text-3)" />
@@ -213,4 +224,14 @@ const handleDragEnd = () => setDragging(null)
   transition: color var(--dur) var(--ease);
 }
 .more-btn:hover { color: var(--text-1); background: var(--hover-bg); }
+</style>
+<style scoped>
+.batch-check {
+  position: absolute;
+  top: 10px; left: 10px;
+  z-index: 5;
+  background: rgba(0,0,0,0.35);
+  border-radius: 6px;
+  padding: 2px;
+}
 </style>

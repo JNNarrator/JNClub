@@ -144,6 +144,36 @@ public class NoteService extends ServiceImpl<NoteMapper, Note> {
         cacheService.evictByPrefix(CacheKey.notePrefix(userId));
     }
 
+    /** 批量移动便签（跳过已在该目录的项；type=2 目录校验） */
+    @Transactional
+    public void moveNotesBatch(List<Long> ids, Long directoryId) {
+        String userId = StpUtil.getLoginIdAsString();
+        if (directoryId == null) throw new BizException("请选择目标目录");
+        checkDirOwnership(directoryId, userId);
+        for (Long id : ids) {
+            Note n = getById(id);
+            if (n == null || !n.getUserId().equals(userId)) continue;
+            if (n.getDirectoryId() != null && n.getDirectoryId().equals(directoryId)) continue;
+            n.setDirectoryId(directoryId);
+            updateById(n);
+        }
+        cacheService.evictByPrefix(CacheKey.notePrefix(userId));
+    }
+
+    /** 批量删除便签（软删除进回收站） */
+    @Transactional
+    public void deleteNotesBatch(List<Long> ids) {
+        String userId = StpUtil.getLoginIdAsString();
+        for (Long id : ids) {
+            Note n = getById(id);
+            if (n == null || !n.getUserId().equals(userId)
+                    || (n.getDeleted() != null && n.getDeleted() == 1)) continue;
+            n.setDeleted(1);
+            updateById(n);
+        }
+        cacheService.evictByPrefix(CacheKey.notePrefix(userId));
+    }
+
     /** 目标目录归属 + type 校验（便签目录 type=2，模式同 CloudDiskService.checkDirOwnership） */
     private void checkDirOwnership(Long directoryId, String userId) {
         Directory dir = directoryMapper.selectById(directoryId);

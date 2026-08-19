@@ -13,12 +13,15 @@ import { useItemDragContext } from '../composables/useItemDragContext'
 defineProps<{
   bookmarks: BookmarkItem[]
   loading?: boolean
+  batchMode?: boolean
+  selectedIds?: number[]
 }>()
 
 const emit = defineEmits<{
   refresh: []
   edit: [bookmark: BookmarkItem]
   sort: [orderedIds: number[]]
+  'toggle-select': [id: number]
 }>()
 
 /* Stagger 渐入：每项延迟递增 */
@@ -66,7 +69,7 @@ onMounted(() => { initSort() })
           @dragstart="handleDragStart($event, bk)"
           @dragend="handleDragEnd"
         >
-          <CollectionRow :bookmark="bk" @refresh="emit('refresh')" @edit="emit('edit', $event)" />
+          <CollectionRow :bookmark="bk" @refresh="emit('refresh')" @edit="emit('edit', $event)"  :batch-mode="batchMode" :selected="selectedIds?.includes(bk.id)" @toggle-select="emit('toggle-select', bk.id)" />
         </div>
       </div>
     </NSpin>
