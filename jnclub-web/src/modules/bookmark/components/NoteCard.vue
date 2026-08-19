@@ -6,7 +6,7 @@
  */
 import { h, ref } from 'vue'
 import { NButton, NIcon, NDropdown, NEllipsis, NTag, NCheckbox } from 'naive-ui'
-import { Pencil, Trash2, Eye, EllipsisVertical, StickyNote, Clock, FolderInput, Link2 } from 'lucide-vue-next'
+import { Pencil, Trash2, Eye, EllipsisVertical, StickyNote, Clock, FolderInput, Link2, Share2 } from 'lucide-vue-next'
 import { formatDate } from '../composables/formatDate'
 import { stripMarkdown } from '../composables/stripMarkdown'
 import { openMenu } from '../../../shared/composables/useContextMenu'
@@ -85,6 +85,9 @@ const onRootClick = () => {
 
         <!-- 操作菜单 hover 出现 -->
         <div class="card-actions" @click.stop>
+          <NButton quaternary circle size="tiny" class="more-btn" title="分享" @click="showShare = true">
+            <template #icon><NIcon :component="Share2" size="15" /></template>
+          </NButton>
           <NDropdown :options="dropdownOptions" @select="handleDropdown" placement="bottom-end">
             <NButton quaternary circle size="tiny" class="more-btn">
               <template #icon>

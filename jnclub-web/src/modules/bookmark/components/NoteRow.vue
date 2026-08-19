@@ -6,10 +6,11 @@
  */
 import { h, ref } from 'vue'
 import { NButton, NIcon, NDropdown, NEllipsis, NTag, NCheckbox } from 'naive-ui'
-import { Pencil, Trash2, Eye, Ellipsis, StickyNote, Clock, FolderInput } from 'lucide-vue-next'
+import { Pencil, Trash2, Eye, Ellipsis, StickyNote, Clock, FolderInput, Link2, Share2 } from 'lucide-vue-next'
 import { formatRelativeTime } from '../composables/formatDate'
 import { stripMarkdown } from '../composables/stripMarkdown'
 import { openMenu } from '../../../shared/composables/useContextMenu'
+import ShareModal from './ShareModal.vue'
 import { useItemDragContext } from '../composables/useItemDragContext'
 import MoveItemModal from './MoveItemModal.vue'
 import type { Note } from '../stores/note'
@@ -29,6 +30,7 @@ const emit = defineEmits<{
 }>()
 
 const showMoveModal = ref(false)
+const showShare = ref(false)
 const { setDragging } = useItemDragContext()
 
 const getSummary = (content: string | null) => {
@@ -41,6 +43,7 @@ const getSummary = (content: string | null) => {
 const dropdownOptions = [
   { label: '预览', key: 'preview', icon: () => h(NIcon, null, { default: () => h(Eye) }) },
   { label: '移动到…', key: 'move', icon: () => h(NIcon, null, { default: () => h(FolderInput) }) },
+  { label: '分享', key: 'share', icon: () => h(NIcon, null, { default: () => h(Link2) }) },
   { label: '编辑', key: 'edit', icon: () => h(NIcon, null, { default: () => h(Pencil) }) },
   { label: '删除', key: 'delete', icon: () => h(NIcon, null, { default: () => h(Trash2) }) },
 ]
@@ -48,6 +51,7 @@ const dropdownOptions = [
 const handleDropdown = (key: string) => {
   if (key === 'preview') emit('preview', props.note)
   else if (key === 'move') showMoveModal.value = true
+  else if (key === 'share') showShare.value = true
   else if (key === 'edit') emit('edit', props.note)
   else if (key === 'delete') emit('delete', props.note)
 }
@@ -119,6 +123,9 @@ const handleDragEnd = () => setDragging(null)
 
     <!-- 操作菜单 -->
     <div class="row-actions" @click.stop>
+      <NButton quaternary circle size="tiny" class="more-btn" title="分享" @click="showShare = true">
+        <template #icon><NIcon :component="Share2" size="16" /></template>
+      </NButton>
       <NDropdown :options="dropdownOptions" @select="handleDropdown" placement="bottom-end">
         <NButton quaternary circle size="tiny" class="more-btn">
           <template #icon>
@@ -135,6 +142,14 @@ const handleDragEnd = () => setDragging(null)
       :targets="[{ id: note.id, name: note.title }]"
       :current-directory-id="note.directoryId ?? null"
       @refresh="emit('refresh')"
+    />
+
+    <ShareModal
+      :show="showShare"
+      ref-type="note"
+      :ref-id="note.id"
+      :name="note.title || '未命名便签'"
+      @update:show="(v: boolean) => (showShare = v)"
     />
   </div>
 </template>
