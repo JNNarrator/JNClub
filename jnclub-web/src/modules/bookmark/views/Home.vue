@@ -124,6 +124,28 @@ const handleSearchJump = (module: 'bookmarks' | 'notes' | 'files' | 'vault' | 'm
   emit('module-change', module)
 }
 
+/** 命令面板快捷动作 */
+const handleCommand = (key: string) => {
+  const nav: Record<string, 'bookmarks' | 'notes' | 'files' | 'vault'> = {
+    'module.bookmarks': 'bookmarks',
+    'module.notes': 'notes',
+    'module.files': 'files',
+    'module.vault': 'vault',
+  }
+  switch (key) {
+    case 'note.new': emit('module-change', 'notes'); break
+    case 'bookmark.new': emit('module-change', 'bookmarks'); break
+    case 'vault.lock': useVaultStore().lock(); break
+    case 'theme.toggle': emit('toggle-theme'); break
+    case 'module.music': router.push('/music'); break
+    case 'go.recycle': router.push('/recycle'); break
+    case 'go.overview': router.push('/overview'); break
+    case 'go.extension': router.push('/extension'); break
+    default:
+      if (nav[key]) emit('module-change', nav[key])
+  }
+}
+
 // ========== 批量操作（收藏 / 便签） ==========
 const batchMode = ref(false)
 const selectedIds = ref<number[]>([])
@@ -930,7 +952,7 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
     </div>
 
     <!-- 全局搜索抽屉 -->
-    <SearchDrawer :show="showSearch" @close="showSearch = false" @jump="handleSearchJump" />
+    <SearchDrawer :show="showSearch" @close="showSearch = false" @jump="handleSearchJump" @action="handleCommand" />
 
     <!-- 批量移动到弹窗 -->
     <NModal v-model:show="showBatchMove" preset="dialog" :title="`移动到（${selectedIds.length} 项）`">

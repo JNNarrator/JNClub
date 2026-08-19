@@ -4,9 +4,9 @@
  * 收藏(标题+URL) / 便签(标题+内容摘要) / 云盘(文件名) 分组展示
  * 点击结果 → 切到对应模块并选中目录
  */
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import { NDrawer, NInput, NIcon, NEmpty, NSpin, NEllipsis } from 'naive-ui'
-import { Search, Bookmark, StickyNote, FileText, KeyRound, Tag, Music, ArrowRight } from 'lucide-vue-next'
+import { Search, Bookmark, StickyNote, FileText, KeyRound, Tag, Music, ArrowRight, Lock, Moon, Trash2, LayoutDashboard, Puzzle, Plus } from 'lucide-vue-next'
 import axios from 'axios'
 import { JGradientText } from '../../../shared/components/animation'
 
@@ -18,6 +18,7 @@ const emit = defineEmits<{
   close: []
   /** 跳转：切模块 + 选目录（music 直接开播放器，无目录） */
   'jump': [module: 'bookmarks' | 'notes' | 'files' | 'vault' | 'music', directoryId: number | null]
+  'action': [key: string]
 }>()
 
 const keyword = ref('')
@@ -73,6 +74,37 @@ const handleJump = (module: 'bookmarks' | 'notes' | 'files' | 'vault' | 'music',
   emit('jump', module, directoryId)
 }
 
+/* ─── 快捷动作命令 ─── */
+interface CommandAction {
+  key: string
+  label: string
+  icon: any
+  group: string
+}
+const COMMANDS: CommandAction[] = [
+  { key: 'note.new', label: '新建便签', icon: Plus, group: '操作' },
+  { key: 'bookmark.new', label: '新建收藏', icon: Plus, group: '操作' },
+  { key: 'vault.lock', label: '锁定密码库', icon: Lock, group: '操作' },
+  { key: 'theme.toggle', label: '切换主题', icon: Moon, group: '操作' },
+  { key: 'module.bookmarks', label: '收藏夹', icon: Bookmark, group: '导航' },
+  { key: 'module.notes', label: '便签', icon: StickyNote, group: '导航' },
+  { key: 'module.files', label: '云盘', icon: FileText, group: '导航' },
+  { key: 'module.vault', label: '密码库', icon: KeyRound, group: '导航' },
+  { key: 'module.music', label: '音乐', icon: Music, group: '导航' },
+  { key: 'go.overview', label: '概览看板', icon: LayoutDashboard, group: '导航' },
+  { key: 'go.recycle', label: '回收站', icon: Trash2, group: '导航' },
+  { key: 'go.extension', label: '下载中心', icon: Puzzle, group: '导航' },
+]
+const filteredCommands = computed(() => {
+  const q = keyword.value.trim().toLowerCase()
+  if (!q) return COMMANDS
+  return COMMANDS.filter(c => c.label.toLowerCase().includes(q) || c.key.toLowerCase().includes(q))
+})
+const runCommand = (key: string) => {
+  emit('close')
+  emit('action', key)
+}
+
 /** 高亮渲染：按后端返回的 {field, ranges:[[s,e]]} 把命中词包 <mark>（防注入转义） */
 function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
@@ -103,7 +135,7 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
         <div class="search-title">
           <NIcon :component="Search" size="16" class="search-title-icon" />
           <JGradientText
-            text="全局搜索"
+            text="命令面板"
             :animation-speed="6"
             direction="horizontal"
             :colors="['var(--brand)', 'var(--brand-suppl)', 'var(--brand)']"
@@ -124,9 +156,24 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
         <template #prefix><NIcon :component="Search" size="16" /></template>
       </NInput>
 
+      <!-- 命令区 -->
+      <div v-if="filteredCommands.length" class="cmd-section">
+        <div class="cmd-subtitle">快捷操作</div>
+        <div class="cmd-list">
+          <button
+            v-for="c in filteredCommands" :key="c.key"
+            type="button" class="cmd-item jnclub-bouncy" @click="runCommand(c.key)"
+          >
+            <NIcon :component="c.icon" size="15" class="cmd-ic" />
+            <span class="cmd-label">{{ c.label }}</span>
+            <span class="cmd-group">{{ c.group }}</span>
+          </button>
+        </div>
+      </div>
+
       <NSpin :show="loading" class="search-spin">
         <!-- 空输入 -->
-        <NEmpty v-if="!keyword.trim()" description="输入关键词搜索收藏 / 便签 / 文件 / 密码 / 音乐" class="search-empty" />
+        <NEmpty v-if="!keyword.trim()" description="输入内容关键词搜索，或执行上方快捷操作" class="search-empty" />
 
         <!-- 无结果 -->
         <div v-else-if="searched && total() === 0" class="no-result">
@@ -407,4 +454,21 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
     opacity: 1;
   }
 }
+.cmd-section { display: flex; flex-direction: column; gap: 6px; }
+.cmd-subtitle { font-size: var(--fs-xs); color: var(--text-3); letter-spacing: 0.05em; }
+.cmd-list { display: flex; flex-direction: column; gap: 4px; }
+.cmd-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 12px;
+  border: none; border-radius: var(--radius-sm);
+  background: transparent; cursor: pointer;
+  font-family: inherit; font-size: var(--fs-md);
+  color: var(--text-1);
+  text-align: left;
+  transition: background var(--dur) var(--ease);
+}
+.cmd-item:hover { background: var(--glass-chip-bg); }
+.cmd-ic { color: var(--brand); flex-shrink: 0; }
+.cmd-label { flex: 1; }
+.cmd-group { font-size: var(--fs-xs); color: var(--text-3); }
 </style>
