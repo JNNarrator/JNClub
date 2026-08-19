@@ -10,7 +10,7 @@ import {
   NDropdown, NCheckbox, NModal, NInput, NSelect, NForm, NFormItem,
 } from 'naive-ui'
 import EmptyState from './EmptyState.vue'
-import { Pause, Play, Download, Trash2, FileText, Pencil, FolderInput, Ellipsis, X } from 'lucide-vue-next'
+import { Pause, Play, Download, Trash2, FileText, Pencil, FolderInput, Ellipsis, X, Eye, Archive } from 'lucide-vue-next'
 import { useCloudDiskStore, type DiskFile } from '../stores/clouddisk'
 import { useChunkedUpload } from '../composables/useChunkedUpload'
 import { useDraggableSort } from '../composables/useDraggableSort'
@@ -97,6 +97,46 @@ const handleDownload = (file: DiskFile) => {
   // 用浏览器打开下载接口（响应头含 Content-Disposition，恢复原始文件名）
   window.open(`/api/clouddisk/files/${file.id}/download`, '_blank')
 }
+
+/** 批量打包下载 zip */
+const handleBatchDownload = () => {
+  if (!selectedIds.value.length) return
+  window.open(`/api/clouddisk/files/download-batch?ids=${selectedIds.value.join(',')}`, '_blank')
+}
+
+/* ─── 在线预览（图片 / 文本 / PDF，复用 /api/files 只读代理） ─── */
+const IMAGE_RE = /\.(png|jpe?g|gif|webp|svg|avif|bmp)$/i
+const TEXT_RE = /\.(txt|md|json|js|mjs|ts|css|html|htm|xml|log|csv|properties|yaml|yml|sql|java|py|sh|ini)$/i
+const PDF_RE = /\.pdf$/i
+
+const preview = ref<{ file: DiskFile; kind: 'image' | 'pdf' | 'text'; text?: string } | null>(null)
+const previewTextLoading = ref(false)
+
+const openPreview = async (file: DiskFile) => {
+  const name = file.originalName || ''
+  if (PDF_RE.test(name)) {
+    preview.value = { file, kind: 'pdf' }
+    return
+  }
+  if (IMAGE_RE.test(name)) {
+    preview.value = { file, kind: 'image' }
+    return
+  }
+  if (TEXT_RE.test(name)) {
+    preview.value = { file, kind: 'text' }
+    previewTextLoading.value = true
+    try {
+      const res = await axios.get(file.url, { responseType: 'text' })
+      preview.value = { file, kind: 'text', text: typeof res.data === 'string' ? res.data : JSON.stringify(res.data, null, 2) }
+    } catch {
+      preview.value = { file, kind: 'text', text: '（预览内容加载失败，请下载查看）' }
+    } finally { previewTextLoading.value = false }
+    return
+  }
+  message.info('该类型暂不支持预览，请下载查看')
+}
+
+const closePreview = () => { preview.value = null }
 
 const handleDelete = (file: DiskFile) => {
   dialog.warning({
@@ -260,6 +300,7 @@ const handleBatchDelete = () => {
 
 /** 行下拉菜单 */
 const rowMenu = () => [
+  { label: '预览', key: 'preview', icon: () => h(NIcon, null, { default: () => h(Eye) }) },
   { label: '下载', key: 'download', icon: () => h(NIcon, null, { default: () => h(Download) }) },
   { label: '重命名', key: 'rename', icon: () => h(NIcon, null, { default: () => h(Pencil) }) },
   { label: '移动到', key: 'move', icon: () => h(NIcon, null, { default: () => h(FolderInput) }) },
@@ -267,7 +308,8 @@ const rowMenu = () => [
 ]
 
 const handleRowMenu = (key: string, file: DiskFile) => {
-  if (key === 'download') handleDownload(file)
+  if (key === 'preview') openPreview(file)
+  else if (key === 'download') handleDownload(file)
   else if (key === 'rename') openRename(file)
   else if (key === 'move') openMove(file)
   else if (key === 'delete') handleDelete(file)
@@ -389,7 +431,7 @@ const fileKindColor = (name: string) => FILE_KINDS.find(k => k.re.test(name))?.c
               />
               <div class="file-icon"><NIcon :component="FileText" size="20" :style="{ color: fileKindColor(file.originalName) }" /></div>
               <div class="file-main">
-                <div class="file-name" :title="file.originalName">{{ file.originalName }}</div>
+                <div class="file-name previewable" :title="file.originalName" @click="openPreview(file)">{{ file.originalName }}</div>
                 <div class="file-meta">{{ diskStore.formatSize(file.size) }}</div>
               </div>
               <div class="file-actions">
@@ -412,6 +454,10 @@ const fileKindColor = (name: string) => FILE_KINDS.find(k => k.re.test(name))?.c
               <NButton size="small" type="primary" secondary @click="openBatchMove">
                 <template #icon><NIcon :component="FolderInput" size="14" /></template>
                 移动到
+              </NButton>
+              <NButton size="small" type="primary" @click="handleBatchDownload">
+                <template #icon><NIcon :component="Archive" size="14" /></template>
+                打包下载
               </NButton>
               <NButton size="small" type="error" secondary @click="handleBatchDelete">
                 <template #icon><NIcon :component="Trash2" size="14" /></template>
@@ -438,6 +484,34 @@ const fileKindColor = (name: string) => FILE_KINDS.find(k => k.re.test(name))?.c
         <NButton @click="showRenameModal = false">取消</NButton>
         <NButton type="primary" @click="submitRename">确定</NButton>
       </template>
+    </NModal>
+
+    <!-- 在线预览弹窗 -->
+    <NModal
+      v-model:show="preview !== null"
+      :style="{ width: preview?.kind === 'pdf' ? 'min(900px, 92vw)' : 'min(560px, 92vw)' }"
+      :bordered="false"
+      @after-leave="closePreview"
+    >
+      <div v-if="preview" class="preview-card">
+        <div class="preview-head">
+          <span class="preview-name" :title="preview.file.originalName">{{ preview.file.originalName }}</span>
+          <NButton quaternary circle size="small" @click="closePreview">
+            <template #icon><NIcon :component="X" size="15" /></template>
+          </NButton>
+        </div>
+        <div v-if="preview.kind === 'image'" class="preview-body preview-image">
+          <img :src="preview.file.url" :alt="preview.file.originalName" />
+        </div>
+        <div v-else-if="preview.kind === 'pdf'" class="preview-body preview-pdf">
+          <iframe :src="preview.file.url" />
+        </div>
+        <div v-else class="preview-body preview-text">
+          <NSpin :show="previewTextLoading">
+            <pre>{{ preview.text || '' }}</pre>
+          </NSpin>
+        </div>
+      </div>
     </NModal>
 
     <!-- 移动到弹窗 -->
@@ -563,6 +637,56 @@ const fileKindColor = (name: string) => FILE_KINDS.find(k => k.re.test(name))?.c
   display: flex;
   gap: 4px;
   flex-shrink: 0;
+}
+
+/* 文件名可预览 */
+.file-name.previewable { cursor: pointer; }
+.file-name.previewable:hover { color: var(--brand); }
+
+/* 预览弹窗 */
+.preview-card {
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.preview-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.preview-name {
+  font-size: var(--fs-base);
+  font-weight: 600;
+  color: var(--text-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.preview-body {
+  max-height: 70vh;
+  overflow: auto;
+  background: #111;
+}
+.preview-image {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+}
+.preview-image img { max-width: 100%; max-height: 65vh; border-radius: var(--radius-xs); }
+.preview-pdf iframe { width: 100%; height: 70vh; border: none; display: block; }
+.preview-text pre {
+  margin: 0;
+  padding: 14px 16px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  line-height: 1.6;
+  color: var(--text-1);
+  white-space: pre-wrap;
+  word-break: break-all;
 }
 
 /* 批量操作条 */

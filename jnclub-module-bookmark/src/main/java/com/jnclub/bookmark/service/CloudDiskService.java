@@ -466,6 +466,16 @@ public class CloudDiskService {
         return record;
     }
 
+    /** 按 ids 批量取文件（校验归属当前用户），供打包下载等场景 */
+    public List<FileRecord> listFilesByIds(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) return List.of();
+        String userId = userId();
+        return fileMapper.selectList(new LambdaQueryWrapper<FileRecord>()
+                .eq(FileRecord::getUserId, userId)
+                .eq(FileRecord::getDeleted, 0)
+                .in(FileRecord::getId, ids));
+    }
+
     // ============================================================
     // 定时清理孤儿临时目录（中断/失败残留）
     // ============================================================

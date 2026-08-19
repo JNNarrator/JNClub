@@ -19,8 +19,13 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 /**
  * 云盘控制器 — 分片上传 / 断点续传 / 文件列表 / 删除 / 下载
@@ -178,6 +183,63 @@ public class CloudDiskController {
         try (OutputStream out = response.getOutputStream()) {
             out.write(dufsResp.bodyBytes());
         }
+    }
+
+    /**
+     * 批量打包下载：多选文件 → 单个 zip 流（重复文件名自动加序号）
+     * GET /api/clouddisk/files/download-batch?ids=1,2,3
+     */
+    @GetMapping("/files/download-batch")
+    public void downloadBatch(@RequestParam("ids") List<Long> ids,
+                              HttpServletResponse response) throws IOException {
+        List<FileRecord> records = cloudDiskService.listFilesByIds(ids);
+        if (records.isEmpty()) {
+            response.sendError(404);
+            return;
+        }
+        String zipName = "jnclub-disk-" + LocalDate.now() + ".zip";
+        String encoded = URLEncoder.encode(zipName, StandardCharsets.UTF_8).replace("+", "%20");
+        response.setContentType("application/zip");
+        response.setHeader("Content-Disposition", "attachment; filename*=UTF-8''" + encoded);
+
+        Set<String> used = new HashSet<>();
+        try (ZipOutputStream zos = new ZipOutputStream(response.getOutputStream())) {
+            for (FileRecord r : records) {
+                String dufsUrl = dufsBaseUrl + "/" + r.getStoredKey();
+                var req = HttpRequest.get(dufsUrl);
+                if (dufsUser != null && !dufsUser.isBlank()) {
+                    String auth = dufsUser + ":" + dufsPass;
+                    req.header("Authorization", "Basic " + Base64.encode(auth.getBytes(StandardCharsets.UTF_8)));
+                }
+                HttpResponse dufsResp = req.execute();
+                if (dufsResp.getStatus() != 200) {
+                    log.warn("云盘打包下载 dufs 失败: status={} key={}", dufsResp.getStatus(), r.getStoredKey());
+                    continue;
+                }
+                String name = uniqueName(r.getOriginalName(), used);
+                zos.putNextEntry(new ZipEntry(name));
+                zos.write(dufsResp.bodyBytes());
+                zos.closeEntry();
+            }
+        }
+    }
+
+    /** zip 内重名文件加序号：a.txt / a (1).txt */
+    private String uniqueName(String original, Set<String> used) {
+        String base = original == null || original.isBlank() ? "file" : original;
+        String candidate = base;
+        int i = 1;
+        while (used.contains(candidate)) {
+            int dot = base.lastIndexOf('.');
+            if (dot > 0) {
+                candidate = base.substring(0, dot) + " (" + i + ")" + base.substring(dot);
+            } else {
+                candidate = base + " (" + i + ")";
+            }
+            i++;
+        }
+        used.add(candidate);
+        return candidate;
     }
 
     /** 健康检查用：清理孤儿临时目录（可选，供运维手动触发） */
