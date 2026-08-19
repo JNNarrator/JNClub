@@ -488,10 +488,10 @@ const fileKindColor = (name: string) => FILE_KINDS.find(k => k.re.test(name))?.c
 
     <!-- 在线预览弹窗 -->
     <NModal
-      v-model:show="preview !== null"
+      :show="preview !== null"
       :style="{ width: preview?.kind === 'pdf' ? 'min(900px, 92vw)' : 'min(560px, 92vw)' }"
       :bordered="false"
-      @after-leave="closePreview"
+      @update:show="(v: boolean) => { if (!v) closePreview() }"
     >
       <div v-if="preview" class="preview-card">
         <div class="preview-head">

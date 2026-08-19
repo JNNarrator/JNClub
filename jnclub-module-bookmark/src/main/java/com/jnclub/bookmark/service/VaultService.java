@@ -9,9 +9,11 @@ import com.jnclub.bookmark.crypto.VaultCrypto;
 import com.jnclub.bookmark.entity.Vault;
 import com.jnclub.bookmark.entity.VaultMeta;
 import com.jnclub.bookmark.entity.Directory;
+import com.jnclub.bookmark.entity.VaultTotp;
 import com.jnclub.bookmark.mapper.VaultMapper;
 import com.jnclub.bookmark.mapper.VaultMetaMapper;
 import com.jnclub.bookmark.mapper.DirectoryMapper;
+import com.jnclub.bookmark.mapper.VaultTotpMapper;
 import com.jnclub.common.exception.BizException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -19,11 +21,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 
 /**
  * 密码库服务 — 主密钥加密存储 + CRUD + 软删除（回收站）+ 密码健康检查
@@ -44,10 +49,13 @@ public class VaultService extends ServiceImpl<VaultMapper, Vault> {
     private final VaultMetaMapper vaultMetaMapper;
 
     private final DirectoryMapper directoryMapper;
+    private final VaultTotpMapper vaultTotpMapper;
 
-    public VaultService(VaultMetaMapper vaultMetaMapper, DirectoryMapper directoryMapper) {
+    public VaultService(VaultMetaMapper vaultMetaMapper, DirectoryMapper directoryMapper,
+                        VaultTotpMapper vaultTotpMapper) {
         this.vaultMetaMapper = vaultMetaMapper;
         this.directoryMapper = directoryMapper;
+        this.vaultTotpMapper = vaultTotpMapper;
     }
 
     /** 主密钥空闲过期（毫秒）：30 分钟 */
@@ -467,4 +475,110 @@ public class VaultService extends ServiceImpl<VaultMapper, Vault> {
         }
         if (!toUpdate.isEmpty()) updateBatchById(toUpdate);
     }
+
+    // ============================================================
+    // TOTP 双因素（种子用主密钥 AES 加密落 t_vault_totp，仅解锁态可用）
+    // ============================================================
+
+    /** 保存 / 更新 TOTP 种子（需已解锁）：body = { secret } */
+    @Transactional
+    public void saveTotp(Long vaultId, String secret) {
+        requireUnlocked(StpUtil.getLoginIdAsString());
+        Vault v = requireOwnedVault(vaultId);
+        if (secret == null || secret.isBlank()) {
+            throw new BizException("TOTP 种子不能为空");
+        }
+        byte[] key = currentKey(StpUtil.getLoginIdAsString());
+        String cipher = VaultCrypto.encrypt(key, secret.trim());
+        VaultTotp totp = vaultTotpMapper.selectById(vaultId);
+        if (totp == null) {
+            totp = new VaultTotp();
+            totp.setVaultId(vaultId);
+            totp.setSecret(cipher);
+            vaultTotpMapper.insert(totp);
+        } else {
+            totp.setSecret(cipher);
+            totp.setUpdateTime(LocalDateTime.now());
+            vaultTotpMapper.updateById(totp);
+        }
+    }
+
+    /** 读取并生成当前 TOTP 验证码（需已解锁）：{ totp, remaining } */
+    public Map<String, Object> getTotp(Long vaultId) {
+        String userId = StpUtil.getLoginIdAsString();
+        requireUnlocked(userId);
+        requireOwnedVault(vaultId);
+        VaultTotp totp = vaultTotpMapper.selectById(vaultId);
+        if (totp == null || totp.getSecret() == null || totp.getSecret().isBlank()) {
+            throw new BizException("该条目未设置 TOTP");
+        }
+        byte[] key = currentKey(userId);
+        String secret = VaultCrypto.decrypt(key, totp.getSecret());
+        long now = System.currentTimeMillis();
+        Map<String, Object> r = new HashMap<>();
+        r.put("totp", generateTotp(secret, now / 1000));
+        r.put("remaining", 30 - (now / 1000) % 30);
+        return r;
+    }
+
+    /** 删除 TOTP（需已解锁） */
+    @Transactional
+    public void deleteTotp(Long vaultId) {
+        requireUnlocked(StpUtil.getLoginIdAsString());
+        requireOwnedVault(vaultId);
+        vaultTotpMapper.deleteById(vaultId);
+    }
+
+    /** 校验条目归属当前用户 */
+    private Vault requireOwnedVault(Long id) {
+        Vault v = getById(id);
+        String userId = StpUtil.getLoginIdAsString();
+        if (v == null || !v.getUserId().equals(userId)) {
+            throw new BizException("条目不存在");
+        }
+        return v;
+    }
+
+    /** RFC6238 TOTP：HMAC-SHA1，6 位，30s 步长（种子按标准 Base32 解码） */
+    public static String generateTotp(String base32Secret, long timeSeconds) {
+        long counter = timeSeconds / 30;
+        byte[] key = base32Decode(base32Secret);
+        byte[] msg = new byte[8];
+        for (int i = 7; i >= 0; i--) {
+            msg[i] = (byte) (counter & 0xff);
+            counter >>= 8;
+        }
+        try {
+            Mac mac = Mac.getInstance("HmacSHA1");
+            mac.init(new SecretKeySpec(key, "HmacSHA1"));
+            byte[] hash = mac.doFinal(msg);
+            int offset = hash[hash.length - 1] & 0x0f;
+            int binary = ((hash[offset] & 0x7f) << 24)
+                    | ((hash[offset + 1] & 0xff) << 16)
+                    | ((hash[offset + 2] & 0xff) << 8)
+                    | (hash[offset + 3] & 0xff);
+            int otp = binary % 1_000_000;
+            return String.format("%06d", otp);
+        } catch (Exception e) {
+            throw new BizException("TOTP 计算失败");
+        }
+    }
+
+    /** Base32 解码（RFC 4648，忽略空白与 = 填充） */
+    private static byte[] base32Decode(String input) {
+        final String ALPHA = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+        String clean = input.toUpperCase().replaceAll("[^A-Z2-7]", "");
+        int bits = 0, value = 0;
+        java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+        for (int i = 0; i < clean.length(); i++) {
+            value = (value << 5) | ALPHA.indexOf(clean.charAt(i));
+            bits += 5;
+            if (bits >= 8) {
+                out.write((value >> (bits - 8)) & 0xff);
+                bits -= 8;
+            }
+        }
+        return out.toByteArray();
+    }
+
 }

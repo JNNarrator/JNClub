@@ -4,12 +4,12 @@
  * 主密钥体系：未设置 → 设置引导；已设置未解锁 → 锁定面板；已解锁 → 条目列表
  * 健康检查：弱/重复密码角标（仅提示不拦截）
  */
-import { ref, computed, watch, onMounted, h } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, h } from 'vue'
 import {
-  NButton, NIcon, NSpin, NTag, NInput, NDropdown, useMessage, useDialog,
+  NButton, NIcon, NSpin, NTag, NInput, NDropdown, NModal, useMessage, useDialog,
 } from 'naive-ui'
 import {
-  KeyRound, Plus, Pencil, Trash2, Copy, User, Lock, Unlock, ShieldAlert, RotateCcw, Ellipsis, FolderInput,
+  KeyRound, Plus, Pencil, Trash2, Copy, User, Lock, Unlock, ShieldAlert, RotateCcw, Ellipsis, FolderInput, ShieldCheck,
 } from 'lucide-vue-next'
 import { useVaultStore, type VaultItem } from '../stores/vault'
 import { useUserStore } from '../../../shared/stores/user'
@@ -21,6 +21,7 @@ import PasswordRevealPopover from './PasswordRevealPopover.vue'
 import EmptyState from './EmptyState.vue'
 import MoveItemModal from './MoveItemModal.vue'
 import { copyText } from '../../../shared/utils/clipboard'
+import axios from 'axios'
 
 const props = defineProps<{
   directoryId: number | null
@@ -264,6 +265,108 @@ const { init: initSort } = useDraggableSort(listRef, (ids) => {
   emit('sort', ids.map(Number))
 })
 
+
+// ========== 自动锁定（空闲 5 分钟自动锁库） ==========
+const AUTO_LOCK_MS = 5 * 60 * 1000
+let idleTimer: ReturnType<typeof setTimeout> | null = null
+const resetIdleTimer = () => {
+  if (idleTimer) clearTimeout(idleTimer)
+  idleTimer = setTimeout(() => {
+    if (vaultStore.masterStatus.unlocked) {
+      message.info('长时间未操作，密码库已自动锁定')
+      vaultStore.lock()
+    }
+  }, AUTO_LOCK_MS)
+}
+const IDLE_EVENTS = ['pointerdown', 'keydown', 'wheel', 'touchstart'] as const
+const bindIdle = () => {
+  resetIdleTimer()
+  IDLE_EVENTS.forEach(ev => window.addEventListener(ev, resetIdleTimer, { passive: true }))
+}
+const unbindIdle = () => {
+  if (idleTimer) clearTimeout(idleTimer)
+  IDLE_EVENTS.forEach(ev => window.removeEventListener(ev, resetIdleTimer))
+}
+watch(unlocked, (u) => { if (u) bindIdle(); else unbindIdle() })
+onUnmounted(unbindIdle)
+
+// ========== TOTP 双因素 ==========
+const showTotpModal = ref(false)
+const totpItem = ref<VaultItem | null>(null)
+const totpState = ref<'loading' | 'code' | 'setup'>('loading')
+const totpCode = ref('')
+const totpRemaining = ref(0)
+const totpSecret = ref('')
+const totpBusy = ref(false)
+let totpTimer: ReturnType<typeof setInterval> | null = null
+
+const openTotp = async (item: VaultItem) => {
+  totpItem.value = item
+  showTotpModal.value = true
+  await loadTotp()
+}
+const loadTotp = async () => {
+  if (!totpItem.value) return
+  totpState.value = 'loading'
+  try {
+    const res = await axios.get(`/api/vault/${totpItem.value.id}/totp`)
+    if (res.data.code === 200) {
+      totpCode.value = res.data.data.totp
+      totpRemaining.value = res.data.data.remaining
+      totpState.value = 'code'
+      startTotpCountdown()
+      return
+    }
+    totpState.value = 'setup'
+  } catch {
+    totpState.value = 'setup'
+  }
+}
+const startTotpCountdown = () => {
+  if (totpTimer) clearInterval(totpTimer)
+  totpTimer = setInterval(() => {
+    totpRemaining.value--
+    if (totpRemaining.value <= 0) loadTotp()
+  }, 1000)
+}
+const saveTotp = async () => {
+  if (!totpItem.value || !totpSecret.value.trim()) {
+    message.warning('请输入 TOTP 种子')
+    return
+  }
+  totpBusy.value = true
+  try {
+    await axios.put(`/api/vault/${totpItem.value.id}/totp`, { secret: totpSecret.value.trim() })
+    message.success('TOTP 已保存')
+    await loadTotp()
+  } catch (e: any) {
+    message.error(e.response?.data?.message || '保存失败')
+  } finally { totpBusy.value = false }
+}
+const deleteTotp = () => {
+  if (!totpItem.value) return
+  dialog.warning({
+    title: '删除 TOTP',
+    content: '确定删除该条目的 TOTP 双因素设置吗？',
+    positiveText: '删除',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      try {
+        await axios.delete(`/api/vault/${totpItem.value!.id}/totp`)
+        message.success('已删除')
+        closeTotp()
+      } catch (e: any) {
+        message.error(e.response?.data?.message || '删除失败')
+      }
+    },
+  })
+}
+const closeTotp = () => {
+  if (totpTimer) clearInterval(totpTimer)
+  totpTimer = null
+  showTotpModal.value = false
+}
+
 onMounted(async () => {
   await vaultStore.fetchMasterStatus()
   if (unlocked.value) await load()
@@ -396,6 +499,9 @@ defineExpose({ openCreate })
             </div>
             <div class="item-actions">
               <PasswordRevealPopover :item="item" />
+              <NButton quaternary circle size="small" title="TOTP 验证码" @click="openTotp(item)">
+                <template #icon><NIcon :component="ShieldCheck" size="16" /></template>
+              </NButton>
               <NButton quaternary circle size="small" title="复制密码" @click="copyPwd(item)">
                 <template #icon><NIcon :component="Copy" size="16" /></template>
               </NButton>
@@ -434,6 +540,37 @@ defineExpose({ openCreate })
       :current-directory-id="moveTarget?.directoryId ?? null"
       @refresh="load"
     />
+
+    <!-- TOTP 双因素弹窗 -->
+    <NModal v-model:show="showTotpModal" preset="card" :title="totpItem ? `TOTP 验证码 · ${totpItem.name}` : 'TOTP'" style="width: 400px" :bordered="false" @close="closeTotp">
+      <div class="totp-body">
+        <div v-if="totpState === 'loading'" class="totp-loading">加载中…</div>
+
+        <template v-else-if="totpState === 'code'">
+          <div class="totp-code" :class="{ 'totp-code-warn': totpRemaining <= 5 }">{{ totpCode }}</div>
+          <div class="totp-remaining">
+            <div class="totp-ring" :style="{ '--r': (totpRemaining / 30) * 360 + 'deg' }" />
+            <span>{{ totpRemaining }}s 后刷新</span>
+          </div>
+          <p class="totp-tip">验证码每 30 秒自动刷新，用于该站点二次验证。</p>
+          <div class="totp-actions">
+            <NButton size="small" quaternary @click="loadTotp">
+              <template #icon><NIcon :component="RotateCcw" size="14" /></template>
+              立即刷新
+            </NButton>
+            <NButton size="small" type="error" secondary @click="deleteTotp">删除 TOTP</NButton>
+          </div>
+        </template>
+
+        <template v-else>
+          <p class="totp-tip">输入该站点的 TOTP 种子（Base32，通常在开启两步验证时提供），保存后即可生成动态验证码。</p>
+          <NInput v-model:value="totpSecret" placeholder="如 JBSWY3DPEHPK3PXP" size="large" class="totp-secret-input" @keyup.enter="saveTotp" />
+          <div class="totp-actions">
+            <NButton type="primary" :loading="totpBusy" @click="saveTotp">保存并生成</NButton>
+          </div>
+        </template>
+      </div>
+    </NModal>
 
     <!-- 遗忘重置：二次确认（输入确认码 RESET） -->
     <NModal v-model:show="showResetModal" preset="dialog" title="确认重置密码库">
@@ -720,4 +857,30 @@ defineExpose({ openCreate })
   border-radius: 6px;
   letter-spacing: 1px;
 }
+.totp-body { display: flex; flex-direction: column; gap: 14px; align-items: center; }
+.totp-loading { color: var(--text-3); font-size: var(--fs-sm); padding: 20px 0; }
+.totp-code {
+  font-family: var(--font-mono);
+  font-size: 44px;
+  font-weight: 700;
+  letter-spacing: 8px;
+  color: var(--brand);
+  padding: 8px 0;
+  transition: color 0.2s;
+}
+.totp-code-warn { color: var(--danger); }
+.totp-remaining {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+}
+.totp-ring {
+  width: 12px; height: 12px; border-radius: 50%;
+  background: conic-gradient(var(--brand) var(--r, 360deg), var(--glass-chip-bg) 0);
+}
+.totp-tip { font-size: var(--fs-sm); color: var(--text-3); text-align: center; line-height: 1.6; margin: 0; }
+.totp-secret-input { width: 100%; }
+.totp-actions { display: flex; gap: 10px; justify-content: center; align-items: center; }
 </style>

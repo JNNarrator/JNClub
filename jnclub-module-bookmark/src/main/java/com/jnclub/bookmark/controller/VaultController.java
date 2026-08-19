@@ -111,4 +111,24 @@ public class VaultController {
     public R<Map<String, Object>> checkHealth() {
         return R.ok(vaultService.checkHealth());
     }
+
+    /** 保存 / 更新 TOTP 种子（需解锁）：body = { secret } */
+    @PutMapping("/{id}/totp")
+    public R<Void> saveTotp(@PathVariable Long id, @RequestBody Map<String, String> body) {
+        vaultService.saveTotp(id, body.get("secret"));
+        return R.ok();
+    }
+
+    /** 读取并生成当前 TOTP 验证码（需解锁）：{ totp, remaining } */
+    @GetMapping("/{id}/totp")
+    public R<Map<String, Object>> getTotp(@PathVariable Long id) {
+        return R.ok(vaultService.getTotp(id));
+    }
+
+    /** 删除 TOTP（需解锁） */
+    @DeleteMapping("/{id}/totp")
+    public R<Void> deleteTotp(@PathVariable Long id) {
+        vaultService.deleteTotp(id);
+        return R.ok();
+    }
 }
