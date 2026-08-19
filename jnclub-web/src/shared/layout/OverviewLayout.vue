@@ -1,17 +1,16 @@
 <script setup lang="ts">
 /**
- * RecycleLayout.vue — 回收站主壳
- * 套用与主界面一致的壳：MainLayout（左侧导航/移动端 TabBar）+ 毛玻璃顶栏（面包屑「JNClub/回收站」+ 刷新/主题/返回）
- * 解决 /recycle 独立路由原本无壳、与其他模块版式不一致的问题
+ * OverviewLayout.vue — 概览看板主壳
+ * 套用与主界面一致的壳：MainLayout（左侧导航/移动端 TabBar）+ 毛玻璃顶栏（面包屑「JNClub/概览」+ 主题/返回）
  */
 import { NIcon, NButton, NBreadcrumb, NBreadcrumbItem } from 'naive-ui'
-import { RefreshCw, Sun, Moon, ArrowLeft } from 'lucide-vue-next'
+import { Sun, Moon, ArrowLeft } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
-import { ref } from 'vue'
 import MainLayout from './MainLayout.vue'
-import RecycleView from '../../modules/bookmark/views/RecycleView.vue'
+import DashboardView from '../views/DashboardView.vue'
 import HelpDrawer from '../components/HelpDrawer.vue'
 import { useAppShortcuts } from '../composables/useAppShortcuts'
+import { ref } from 'vue'
 
 const { isDark } = defineProps<{
   isDark: boolean
@@ -23,11 +22,7 @@ const emit = defineEmits<{
 
 const router = useRouter()
 
-/** 顶栏刷新计数：递增触发 RecycleView 重新拉取 */
-const refreshTick = ref(0)
-const handleRefresh = () => { refreshTick.value++ }
-
-/** 回收站内点左侧模块：跳回主界面并切换到对应模块（AppWrapper 从 URL query.module 定位） */
+/** 概览内点左侧模块：跳回主界面并切换到对应模块 */
 const handleModuleChange = (module: 'bookmarks' | 'notes' | 'files' | 'vault') => {
   router.push({ path: '/', query: { module } })
 }
@@ -35,7 +30,7 @@ const handleModuleChange = (module: 'bookmarks' | 'notes' | 'files' | 'vault') =
 /** 快捷键帮助面板 */
 const showHelp = ref(false)
 
-/** 全局快捷键（回收站壳同样生效：模块切换/主题/锁定密码库/帮助） */
+/** 全局快捷键（概览壳同样生效） */
 useAppShortcuts({
   onToggleTheme: () => emit('toggle-theme'),
   onModuleChange: handleModuleChange,
@@ -44,23 +39,17 @@ useAppShortcuts({
 </script>
 
 <template>
-  <MainLayout
-    :is-dark="isDark"
-    :active-module="'bookmarks'"
-    @module-change="handleModuleChange"
-  >    <div class="recycle-page">
-      <!-- 毛玻璃顶栏（与 Home 顶栏同款） -->
+  <MainLayout :is-dark="isDark" :active-module="'bookmarks'" @module-change="handleModuleChange">
+    <div class="overview-page">
+      <!-- 毛玻璃顶栏（与 Home 同款） -->
       <header class="home-header glass-header">
         <div class="header-left">
           <NBreadcrumb class="jnclub-breadcrumb">
             <NBreadcrumbItem @click="router.push('/')">JNClub</NBreadcrumbItem>
-            <NBreadcrumbItem class="breadcrumb-current">回收站</NBreadcrumbItem>
+            <NBreadcrumbItem class="breadcrumb-current">概览</NBreadcrumbItem>
           </NBreadcrumb>
         </div>
         <div class="header-right">
-          <NButton quaternary circle size="small" class="refresh-btn jnclub-bouncy" title="刷新" @click="handleRefresh">
-            <template #icon><NIcon :component="RefreshCw" size="16" /></template>
-          </NButton>
           <button type="button" class="theme-toggle-btn jnclub-bouncy" title="切换暗色模式" @click="emit('toggle-theme')">
             <NIcon :component="isDark ? Sun : Moon" size="16" />
           </button>
@@ -70,9 +59,8 @@ useAppShortcuts({
         </div>
       </header>
 
-      <!-- 主体：毛玻璃面板（与 Home 的 collection-column / recycle-body 同风格） -->
-      <div class="recycle-body">
-        <RecycleView :refresh="refreshTick" />
+      <div class="overview-body">
+        <DashboardView />
       </div>
     </div>
 
@@ -81,7 +69,7 @@ useAppShortcuts({
 </template>
 
 <style scoped>
-.recycle-page {
+.overview-page {
   position: relative;
   height: 100%;
   display: flex;
@@ -142,8 +130,8 @@ useAppShortcuts({
   color: var(--text-1);
 }
 
-/* === 主体：与 Home 的 collection-column 玻璃面板同风格 === */
-.recycle-body {
+/* === 主体 === */
+.overview-body {
   flex: 1;
   min-height: 0;
   width: 100%;
@@ -161,36 +149,22 @@ useAppShortcuts({
   box-shadow: var(--glass-shadow);
 }
 
-/* === 移动端适配（<768px），与 Home 一致 === */
+/* === 移动端适配 === */
 @media (max-width: 767px) {
   .home-header {
     padding: 0 12px;
     height: 52px;
     gap: 8px;
   }
-  .recycle-body {
+  .overview-body {
     margin: 0;
     padding: 12px;
   }
   .header-right {
     gap: 6px;
   }
-  .header-right :deep(.n-button) {
-    min-width: 40px;
-    height: 40px;
-  }
-  .header-right :deep(.n-button) span {
-    display: none;
-  }
   .jnclub-breadcrumb :deep(.n-breadcrumb-item__link) {
     font-size: var(--fs-sm);
-    max-width: 90px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .recycle-body {
-    padding-bottom: 12px;
   }
 }
 </style>

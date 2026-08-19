@@ -45,4 +45,25 @@ public class RecycleController {
     public R<Integer> clear(@RequestParam String type) {
         return R.ok(recycleService.clear(type));
     }
+
+    /** 获取自动清理配置（保留天数） */
+    @GetMapping("/config")
+    public R<Map<String, Integer>> config() {
+        return R.ok(Map.of("keepDays", recycleService.getEffectiveKeepDays()));
+    }
+
+    /** 更新自动清理配置（保留天数，7~180） */
+    @PutMapping("/config")
+    public R<Void> updateConfig(@RequestBody Map<String, Object> body) {
+        Object v = body.get("keepDays");
+        if (v == null) throw new com.jnclub.common.exception.BizException("keepDays 必填");
+        recycleService.updateKeepDays(Integer.parseInt(String.valueOf(v)));
+        return R.ok();
+    }
+
+    /** 手动立即清理（返回各类型清理计数） */
+    @PostMapping("/clean")
+    public R<Map<String, Integer>> clean() {
+        return R.ok(recycleService.cleanNow());
+    }
 }

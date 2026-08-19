@@ -5,9 +5,11 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.jnclub.bookmark.entity.Bookmark;
 import com.jnclub.bookmark.entity.FileRecord;
 import com.jnclub.bookmark.entity.Note;
+import com.jnclub.bookmark.entity.UserPreference;
 import com.jnclub.bookmark.mapper.BookmarkMapper;
 import com.jnclub.bookmark.mapper.FileMapper;
 import com.jnclub.bookmark.mapper.NoteMapper;
+import com.jnclub.bookmark.mapper.UserPreferenceMapper;
 import com.jnclub.common.cache.CacheKey;
 import com.jnclub.common.cache.RedisLock;
 import com.jnclub.common.exception.BizException;
@@ -41,16 +43,82 @@ public class RecycleService {
     private final NoteMapper noteMapper;
     private final FileMapper fileMapper;
     private final com.jnclub.bookmark.mapper.VaultMapper vaultMapper;
+    private final UserPreferenceMapper userPreferenceMapper;
 
     private final RedisLock redisLock;
 
     private static final Duration SCHEDULED_LOCK_TTL = Duration.ofMinutes(10);
 
-    /** 回收站保留天数，默认 30 天 */
+    /** 回收站保留天数，默认 30 天（可经 t_user_preference 系统键覆盖，见 getEffectiveKeepDays） */
     @Value("${jnclub.recycle.keep-days:30}")
     private int keepDays;
 
+    /** 系统级偏好保留用户（全局配置，非真实 SSO 用户） */
+    private static final String SYSTEM_USER = "__system__";
+    private static final String PREF_KEY_KEEP_DAYS = "recycle.keepDays";
+    private static final int KEEP_DAYS_MIN = 7;
+    private static final int KEEP_DAYS_MAX = 180;
+
     private static final List<String> VALID_TYPES = List.of("bookmark", "note", "file", "vault");
+
+    // ============================================================
+    // 配置（保留天数：t_user_preference 系统键覆盖，yml 默认兜底）
+    // ============================================================
+
+    /** 读取生效的保留天数（系统偏好覆盖 > yml 默认） */
+    public int getEffectiveKeepDays() {
+        UserPreference p = userPreferenceMapper.selectOne(new LambdaQueryWrapper<UserPreference>()
+                .eq(UserPreference::getUserId, SYSTEM_USER)
+                .eq(UserPreference::getPrefKey, PREF_KEY_KEEP_DAYS));
+        if (p != null && p.getPrefValue() != null) {
+            try {
+                int v = Integer.parseInt(p.getPrefValue().trim());
+                if (v >= KEEP_DAYS_MIN && v <= KEEP_DAYS_MAX) return v;
+            } catch (NumberFormatException ignored) {
+                // 脏数据回退默认
+            }
+        }
+        return keepDays;
+    }
+
+    /** 更新保留天数（校验 7~180） */
+    @Transactional
+    public void updateKeepDays(int days) {
+        if (days < KEEP_DAYS_MIN || days > KEEP_DAYS_MAX) {
+            throw new BizException("保留天数需在 " + KEEP_DAYS_MIN + "~" + KEEP_DAYS_MAX + " 天之间");
+        }
+        UserPreference p = userPreferenceMapper.selectOne(new LambdaQueryWrapper<UserPreference>()
+                .eq(UserPreference::getUserId, SYSTEM_USER)
+                .eq(UserPreference::getPrefKey, PREF_KEY_KEEP_DAYS));
+        if (p == null) {
+            p = new UserPreference();
+            p.setUserId(SYSTEM_USER);
+            p.setPrefKey(PREF_KEY_KEEP_DAYS);
+            p.setPrefValue(String.valueOf(days));
+            userPreferenceMapper.insert(p);
+        } else {
+            p.setPrefValue(String.valueOf(days));
+            userPreferenceMapper.updateById(p);
+        }
+        log.info("回收站保留天数更新为 {} 天", days);
+    }
+
+    /** 手动立即清理（加锁防与定时任务并发），返回各类型清理计数 */
+    public Map<String, Integer> cleanNow() {
+        String lockKey = CacheKey.lock("scheduled", "recycle-clean");
+        String token = redisLock.tryLock(lockKey, SCHEDULED_LOCK_TTL);
+        if (token == null) {
+            throw new BizException("清理任务正在进行中，请稍后再试");
+        }
+        try {
+            return cleanExpired();
+        } catch (Exception e) {
+            log.error("手动清理回收站失败", e);
+            throw new BizException("清理失败：" + e.getMessage());
+        } finally {
+            redisLock.unlock(lockKey, token);
+        }
+    }
 
     // ============================================================
     // 查询
@@ -150,7 +218,7 @@ public class RecycleService {
      * 清理超过保留天数的回收站条目（全用户，无登录态；启动与定时任务调用）
      */
     public Map<String, Integer> cleanExpired() {
-        LocalDateTime cutoff = LocalDateTime.now().minusDays(keepDays);
+        LocalDateTime cutoff = LocalDateTime.now().minusDays(getEffectiveKeepDays());
         int bookmark = 0, note = 0, file = 0, vault = 0;
 
         List<Bookmark> bookmarks = bookmarkMapper.selectList(new LambdaQueryWrapper<Bookmark>()

@@ -6,12 +6,12 @@
  */
 import { ref, onMounted, watch } from 'vue'
 import {
-  NButton, NIcon, NSpin, NEmpty, NTabs, NTabPane,
+  NButton, NIcon, NSpin, NEmpty, NTabs, NTabPane, NModal, NInputNumber,
   useMessage, useDialog,
 } from 'naive-ui'
-import { Trash2, RotateCcw, Eraser, Clock } from 'lucide-vue-next'
+import { Trash2, RotateCcw, Eraser, Clock, Settings2, Zap } from 'lucide-vue-next'
 import axios from 'axios'
-import { formatRelativeTime } from '../composables/formatDate'
+import { formatRelativeTime, formatDate } from '../composables/formatDate'
 
 const props = defineProps<{ refresh?: number }>()
 
@@ -28,6 +28,84 @@ const typeLabels: Record<RecycleType, string> = {
   note: '便签',
   file: '云盘文件',
   vault: '密码',
+}
+
+/* ─── 自动清理配置 ─── */
+const keepDays = ref(30)
+const showConfigModal = ref(false)
+const newKeepDays = ref<number | null>(30)
+const cleaning = ref(false)
+
+const fetchConfig = async () => {
+  try {
+    const res = await axios.get('/api/recycle/config')
+    if (res.data.code === 200) {
+      keepDays.value = res.data.data?.keepDays ?? 30
+      newKeepDays.value = keepDays.value
+    }
+  } catch { /* 后端未升级时用默认值 */ }
+}
+
+const saveConfig = async () => {
+  if (!newKeepDays.value) return
+  try {
+    await axios.put('/api/recycle/config', { keepDays: newKeepDays.value })
+    keepDays.value = newKeepDays.value
+    showConfigModal.value = false
+    message.success(`已更新：超过 ${keepDays.value} 天自动清理`)
+  } catch (e: any) {
+    message.error(e.response?.data?.message || '保存失败')
+  }
+}
+
+const manualClean = () => {
+  dialog.warning({
+    title: '立即清理',
+    content: `立即彻底删除超过 ${keepDays.value} 天的回收站条目？此操作不可恢复。`,
+    positiveText: '清理',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      cleaning.value = true
+      try {
+        const res = await axios.post('/api/recycle/clean')
+        if (res.data.code === 200) {
+          const c = res.data.data || {}
+          const parts: string[] = []
+          if (c.bookmark) parts.push(`收藏 ${c.bookmark}`)
+          if (c.note) parts.push(`便签 ${c.note}`)
+          if (c.file) parts.push(`文件 ${c.file}`)
+          if (c.vault) parts.push(`密码 ${c.vault}`)
+          message.success(parts.length ? `已清理：${parts.join('、')}` : '没有需要清理的条目')
+          fetchItems()
+        }
+      } catch (e: any) {
+        message.error(e.response?.data?.message || '清理失败')
+      } finally { cleaning.value = false }
+    },
+  })
+}
+
+/** 条目到期自动删除时间 = 删除时间 + keepDays */
+const expiresAt = (item: any): Date | null => {
+  const t = item.createTime
+  if (t == null) return null
+  let ms: number | null = null
+  if (Array.isArray(t)) {
+    const [y, m = 1, d = 1, h = 0, min = 0, s = 0] = t as number[]
+    ms = new Date(y, m - 1, d, h, min, s).getTime()
+  } else if (typeof t === 'number') {
+    ms = t
+  } else if (typeof t === 'string') {
+    const n = Number(t)
+    ms = Number.isFinite(n) && n > 0 ? n : (isNaN(Date.parse(t)) ? null : Date.parse(t))
+  }
+  if (ms == null) return null
+  return new Date(ms + keepDays.value * 86400000)
+}
+
+const isExpired = (item: any): boolean => {
+  const d = expiresAt(item)
+  return !!d && d.getTime() < Date.now()
 }
 
 const fetchItems = async () => {
@@ -115,11 +193,28 @@ const clearAll = () => {
   })
 }
 
-onMounted(fetchItems)
+onMounted(() => { fetchItems(); fetchConfig() })
 </script>
 
 <template>
   <div>
+    <!-- 自动清理信息条 -->
+    <div class="recycle-config-bar">
+      <span class="config-text">
+        超过 <b class="config-days">{{ keepDays }}</b> 天的条目自动彻底删除（每日 03:40）
+      </span>
+      <div class="config-actions">
+        <NButton size="tiny" quaternary class="config-btn" @click="showConfigModal = true">
+          <template #icon><NIcon :component="Settings2" size="13" /></template>
+          设置
+        </NButton>
+        <NButton size="tiny" class="config-btn clean-now" :loading="cleaning" @click="manualClean">
+          <template #icon><NIcon :component="Zap" size="13" /></template>
+          立即清理
+        </NButton>
+      </div>
+    </div>
+
     <div class="recycle-toolbar">
       <NTabs v-model:value="activeType" type="line" class="recycle-tabs" @update:value="onTabChange">
         <NTabPane name="bookmark" tab="收藏" />
@@ -145,6 +240,9 @@ onMounted(fetchItems)
                 <NIcon :component="Clock" size="12" />
                 {{ formatRelativeTime(item.createTime) }}
               </span>
+              <span v-if="expiresAt(item)" class="item-expire" :class="{ expired: isExpired(item) }">
+                {{ isExpired(item) ? '已到期可清' : '保留至 ' + formatDate(String(expiresAt(item)!.getTime())) }}
+              </span>
             </div>
           </div>
           <div class="item-actions">
@@ -160,10 +258,79 @@ onMounted(fetchItems)
         </div>
       </div>
     </NSpin>
+
+    <!-- 自动清理设置弹窗 -->
+    <NModal v-model:show="showConfigModal" preset="card" title="回收站自动清理设置" style="width: 380px" :bordered="false">
+      <p class="config-tip">超过保留天数的回收站条目将被自动彻底删除（每日 03:40 执行，多实例互斥）。</p>
+      <div class="config-form">
+        <NInputNumber v-model:value="newKeepDays" :min="7" :max="180" class="config-input" />
+        <span class="config-unit">天</span>
+        <NButton type="primary" size="small" class="config-save" :disabled="!newKeepDays" @click="saveConfig">
+          保存
+        </NButton>
+      </div>
+    </NModal>
   </div>
 </template>
 
 <style scoped>
+/* 自动清理信息条 */
+.recycle-config-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 14px;
+  margin-bottom: 8px;
+  background: var(--glass-bg-trans);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+}
+.config-text {
+  font-size: var(--fs-sm);
+  color: var(--glass-text-secondary);
+}
+.config-days { color: var(--brand); font-weight: 600; }
+.config-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.config-btn {
+  border-radius: var(--radius-pill) !important;
+  height: 24px;
+  font-size: var(--fs-sm);
+}
+.clean-now {
+  background: var(--glass-bg-trans) !important;
+  border: 1px solid rgba(245, 72, 92, 0.4) !important;
+  color: #ff8a97 !important;
+}
+.config-tip {
+  font-size: var(--fs-sm);
+  color: var(--glass-text-secondary);
+  margin-bottom: 12px;
+  line-height: 1.6;
+}
+.config-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.config-input { width: 120px; }
+.config-unit { font-size: var(--fs-sm); color: var(--text-2); }
+.config-save { border-radius: var(--radius-pill); }
+
+.item-expire {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  font-size: var(--fs-sm);
+  color: var(--glass-text-tertiary);
+}
+.item-expire.expired {
+  color: #ff8a97;
+  font-weight: 500;
+}
+
 .recycle-toolbar {
   display: flex;
   align-items: center;
@@ -286,6 +453,15 @@ onMounted(fetchItems)
 
 /* 移动端（<768px） */
 @media (max-width: 767px) {
+  .recycle-config-bar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+  .config-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
   .recycle-toolbar {
     flex-direction: column;
     align-items: flex-start;

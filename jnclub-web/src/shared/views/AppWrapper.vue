@@ -9,6 +9,8 @@ import { useRoute, useRouter } from 'vue-router'
 import MainLayout from '../layout/MainLayout.vue'
 import Home from '../../modules/bookmark/views/Home.vue'
 import RecycleView from '../../modules/bookmark/views/RecycleView.vue'
+import HelpDrawer from '../components/HelpDrawer.vue'
+import { useAppShortcuts } from '../composables/useAppShortcuts'
 import { useUserPreferences } from '../composables/useUserPreferences'
 
 defineProps<{
@@ -28,6 +30,9 @@ const prefs = useUserPreferences()
 
 /** 回收站独立路由：同样进入主布局壳（侧边栏/移动端 TabBar 保持），仅内容区不同 */
 const isRecycle = computed(() => route.name === 'recycle')
+
+/** 快捷键帮助面板 */
+const showHelp = ref(false)
 
 /** 从 URL query.module 读取合法模块；无则回退偏好/默认 */
 const moduleFromUrl = (): ModuleKey => {
@@ -57,6 +62,13 @@ watch(() => route.query.module, (m) => {
 onMounted(() => {
   prefs.load()
 })
+
+/** 全局快捷键：模块切换 / 主题 / 锁定密码库 / 帮助（放在 handleModuleChange 定义之后） */
+useAppShortcuts({
+  onToggleTheme: () => emit('toggle-theme'),
+  onModuleChange: handleModuleChange,
+  onOpenHelp: () => { showHelp.value = true },
+})
 </script>
 
 <template>
@@ -68,5 +80,7 @@ onMounted(() => {
   >
     <RecycleView v-if="isRecycle" />
     <Home v-else :active-module="activeModule" :is-dark="isDark" @module-change="handleModuleChange" @toggle-theme="emit('toggle-theme')" />
+
+    <HelpDrawer :show="showHelp" @close="showHelp = false" />
   </MainLayout>
 </template>

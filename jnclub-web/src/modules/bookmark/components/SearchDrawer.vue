@@ -6,7 +6,7 @@
  */
 import { ref, watch } from 'vue'
 import { NDrawer, NInput, NIcon, NEmpty, NSpin, NEllipsis } from 'naive-ui'
-import { Search, Bookmark, StickyNote, FileText, ArrowRight } from 'lucide-vue-next'
+import { Search, Bookmark, StickyNote, FileText, KeyRound, Tag, Music, ArrowRight } from 'lucide-vue-next'
 import axios from 'axios'
 import { JGradientText } from '../../../shared/components/animation'
 
@@ -16,8 +16,8 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   close: []
-  /** 跳转：切模块 + 选目录 */
-  'jump': [module: 'bookmarks' | 'notes' | 'files', directoryId: number | null]
+  /** 跳转：切模块 + 选目录（music 直接开播放器，无目录） */
+  'jump': [module: 'bookmarks' | 'notes' | 'files' | 'vault' | 'music', directoryId: number | null]
 }>()
 
 const keyword = ref('')
@@ -27,14 +27,17 @@ const result = ref<{
   bookmarks: any[]
   notes: any[]
   files: any[]
-}>({ bookmarks: [], notes: [], files: [] })
+  vault: any[]
+  tags: any[]
+  tracks: any[]
+}>({ bookmarks: [], notes: [], files: [], vault: [], tags: [], tracks: [] })
 
 let timer: ReturnType<typeof setTimeout> | null = null
 
 watch(() => props.show, (v) => {
   if (v) {
     keyword.value = ''
-    result.value = { bookmarks: [], notes: [], files: [] }
+    result.value = { bookmarks: [], notes: [], files: [], vault: [], tags: [], tracks: [] }
     searched.value = false
   }
 })
@@ -42,7 +45,7 @@ watch(() => props.show, (v) => {
 const doSearch = async () => {
   const kw = keyword.value.trim()
   if (!kw) {
-    result.value = { bookmarks: [], notes: [], files: [] }
+    result.value = { bookmarks: [], notes: [], files: [], vault: [], tags: [], tracks: [] }
     searched.value = false
     return
   }
@@ -50,7 +53,7 @@ const doSearch = async () => {
   try {
     const res = await axios.get('/api/search', { params: { keyword: kw, limit: 20 } })
     if (res.data.code === 200) {
-      result.value = res.data.data || { bookmarks: [], notes: [], files: [] }
+      result.value = res.data.data || { bookmarks: [], notes: [], files: [], vault: [], tags: [], tracks: [] }
       searched.value = true
     }
   } catch { /* 静默 */ }
@@ -63,10 +66,29 @@ const onInput = () => {
 }
 
 const total = () => result.value.bookmarks.length + result.value.notes.length + result.value.files.length
+  + result.value.vault.length + result.value.tags.length + result.value.tracks.length
 
-const handleJump = (module: 'bookmarks' | 'notes' | 'files', directoryId: number | null) => {
+const handleJump = (module: 'bookmarks' | 'notes' | 'files' | 'vault' | 'music', directoryId: number | null) => {
   emit('close')
   emit('jump', module, directoryId)
+}
+
+/** 高亮渲染：按后端返回的 {field, ranges:[[s,e]]} 把命中词包 <mark>（防注入转义） */
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+}
+function highlightText(text: string, highlights: any[], field: string): string {
+  if (!text) return ''
+  const h = (highlights || []).find((x: any) => x.field === field)
+  if (!h || !h.ranges?.length) return escapeHtml(text)
+  let html = ''
+  let last = 0
+  for (const [s, e] of h.ranges) {
+    html += escapeHtml(text.slice(last, s)) + '<mark class="hl-mark">' + escapeHtml(text.slice(s, e)) + '</mark>'
+    last = e
+  }
+  html += escapeHtml(text.slice(last))
+  return html
 }
 
 /** 移动端抽屉全宽（NDrawer width 支持 number 或字符串，'100%' 在窄屏生效） */
@@ -94,7 +116,7 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
       <NInput
         v-model:value="keyword"
         size="large"
-        placeholder="搜索收藏、便签、文件…"
+        placeholder="搜索收藏 / 便签 / 文件 / 密码 / 音乐…"
         clearable
         @input="onInput"
         @keyup.enter="doSearch"
@@ -104,7 +126,7 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
 
       <NSpin :show="loading" class="search-spin">
         <!-- 空输入 -->
-        <NEmpty v-if="!keyword.trim()" description="输入关键词搜索收藏 / 便签 / 文件" class="search-empty" />
+        <NEmpty v-if="!keyword.trim()" description="输入关键词搜索收藏 / 便签 / 文件 / 密码 / 音乐" class="search-empty" />
 
         <!-- 无结果 -->
         <div v-else-if="searched && total() === 0" class="no-result">
@@ -127,7 +149,7 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
               <img v-if="b.icon" :src="b.icon" class="item-icon" @error="(e: Event) => ((e.target as HTMLImageElement).style.display = 'none')" />
               <NIcon v-else :component="Bookmark" size="15" class="item-fallback" />
               <div class="item-main">
-                <NEllipsis class="item-title">{{ b.title || b.url }}</NEllipsis>
+                <div class="item-title hl-text" v-html="highlightText(b.title || b.url, b.highlights, b.title ? 'title' : 'url')" />
                 <NEllipsis class="item-sub">{{ b.url }}</NEllipsis>
               </div>
               <ArrowRight :size="14" class="item-arrow" />
@@ -147,7 +169,7 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
             >
               <NIcon :component="StickyNote" size="15" class="item-fallback" />
               <div class="item-main">
-                <NEllipsis class="item-title">{{ n.title || '无标题' }}</NEllipsis>
+                <div class="item-title hl-text" v-html="highlightText(n.title || '无标题', n.highlights, 'title')" />
                 <NEllipsis v-if="n.excerpt" class="item-sub">{{ n.excerpt }}</NEllipsis>
               </div>
               <ArrowRight :size="14" class="item-arrow" />
@@ -167,8 +189,68 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
             >
               <NIcon :component="FileText" size="15" class="item-fallback" />
               <div class="item-main">
-                <NEllipsis class="item-title">{{ f.originalName }}</NEllipsis>
+                <div class="item-title hl-text" v-html="highlightText(f.originalName, f.highlights, 'originalName')" />
                 <span class="item-size">{{ f.size ? `${(f.size / 1024 / 1024).toFixed(1)} MB` : '' }}</span>
+              </div>
+              <ArrowRight :size="14" class="item-arrow" />
+            </div>
+          </div>
+
+          <!-- 密码库（仅标题，安全） -->
+          <div v-if="result.vault.length" class="result-group">
+            <div class="group-title">
+              <NIcon :component="KeyRound" size="14" /> 密码库
+              <span class="group-count">{{ result.vault.length }}</span>
+            </div>
+            <div
+              v-for="(v, idx) in result.vault" :key="v.id"
+              class="result-item jnclub-bouncy" @click="handleJump('vault', v.directoryId)"
+              :style="{ animationDelay: `${Math.min(idx * 35, 300)}ms` }"
+            >
+              <NIcon :component="KeyRound" size="15" class="item-fallback" />
+              <div class="item-main">
+                <div class="item-title hl-text" v-html="highlightText(v.name, v.highlights, 'name')" />
+                <span class="item-sub">密码库条目</span>
+              </div>
+              <ArrowRight :size="14" class="item-arrow" />
+            </div>
+          </div>
+
+          <!-- 标签 -->
+          <div v-if="result.tags.length" class="result-group">
+            <div class="group-title">
+              <NIcon :component="Tag" size="14" /> 标签
+              <span class="group-count">{{ result.tags.length }}</span>
+            </div>
+            <div
+              v-for="(t, idx) in result.tags" :key="t.id"
+              class="result-item jnclub-bouncy" @click="handleJump('bookmarks', null)"
+              :style="{ animationDelay: `${Math.min(idx * 35, 300)}ms` }"
+            >
+              <NIcon :component="Tag" size="15" class="item-fallback" />
+              <div class="item-main">
+                <div class="item-title hl-text" v-html="highlightText(t.name, t.highlights, 'name')" />
+                <span class="item-sub">{{ t.count || 0 }} 条关联</span>
+              </div>
+              <ArrowRight :size="14" class="item-arrow" />
+            </div>
+          </div>
+
+          <!-- 音乐曲目 -->
+          <div v-if="result.tracks.length" class="result-group">
+            <div class="group-title">
+              <NIcon :component="Music" size="14" /> 音乐
+              <span class="group-count">{{ result.tracks.length }}</span>
+            </div>
+            <div
+              v-for="(t, idx) in result.tracks" :key="t.trackId"
+              class="result-item jnclub-bouncy" @click="handleJump('music', null)"
+              :style="{ animationDelay: `${Math.min(idx * 35, 300)}ms` }"
+            >
+              <NIcon :component="Music" size="15" class="item-fallback" />
+              <div class="item-main">
+                <div class="item-title hl-text" v-html="highlightText(t.name, t.highlights, 'name')" />
+                <span class="item-sub">{{ t.artist }}</span>
               </div>
               <ArrowRight :size="14" class="item-arrow" />
             </div>
@@ -280,6 +362,17 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
   font-size: var(--fs-md);
   font-weight: 500;
   color: var(--text-1);
+}
+.hl-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hl-mark {
+  background: var(--brand-soft);
+  color: var(--brand);
+  border-radius: 2px;
+  padding: 0 1px;
 }
 .item-sub {
   font-size: var(--fs-sm);

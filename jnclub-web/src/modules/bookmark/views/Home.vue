@@ -31,6 +31,7 @@ import { openMenu } from '../../../shared/composables/useContextMenu'
 import type { ViewMode } from '../components/ViewSwitcher.vue'
 import axios from 'axios'
 import { useUserPreferences } from '../../../shared/composables/useUserPreferences'
+import { useKeyboardShortcut } from '../../../shared/composables/useKeyboardShortcut'
 import { fetchTags, setRefTags, type TagItem } from '../composables/tags'
 import { exportMarkdown, downloadFile } from '../composables/markdownIO'
 
@@ -109,16 +110,16 @@ const showSearch = ref(false)
 /** 搜索结果跳转：切模块后待选中的目录 */
 const pendingDirId = ref<number | null>(null)
 
-const onSearchKeydown = (e: KeyboardEvent) => {
-  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-    e.preventDefault()
-    showSearch.value = true
-  }
-}
-onMounted(() => window.addEventListener('keydown', onSearchKeydown))
-onBeforeUnmount(() => window.removeEventListener('keydown', onSearchKeydown))
+// 搜索快捷键走全局注册中心（与 ⌘1~5 / ⌘⇧T 同一引擎；Home 挂载期间生效，输入框内也响应）
+useKeyboardShortcut('search', { mods: ['mod'], key: 'k' }, () => {
+  showSearch.value = true
+}, { skipWhenEditing: true })
 
-const handleSearchJump = (module: 'bookmarks' | 'notes' | 'files', directoryId: number | null) => {
+const handleSearchJump = (module: 'bookmarks' | 'notes' | 'files' | 'vault' | 'music', directoryId: number | null) => {
+  if (module === 'music') {
+    router.push('/music')
+    return
+  }
   pendingDirId.value = directoryId
   emit('module-change', module)
 }

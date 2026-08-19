@@ -35,6 +35,12 @@ const router = createRouter({
       name: 'note-view',
       component: () => import('../../modules/bookmark/views/NoteEditorPage.vue'),
     },
+    // 概览看板（套用主壳：MainLayout 侧栏/TabBar + 顶栏）
+    {
+      path: '/overview',
+      name: 'overview',
+      component: () => import('../layout/OverviewLayout.vue'),
+    },
     // 回收站独立页面（套用与主界面一致的壳：MainLayout 侧栏/TabBar + 模块顶栏）
     {
       path: '/recycle',
@@ -111,6 +117,7 @@ router.beforeEach(async (to, _from, next) => {
 const TITLE_BY_NAME: Record<string, string> = {
   app: 'JNClub - 个人工作台',
   welcome: '欢迎 - JNClub',
+  overview: '概览 - JNClub',
   extension: '下载中心 - JNClub',
   recycle: '回收站 - JNClub',
   music: '音乐 - JNClub',
