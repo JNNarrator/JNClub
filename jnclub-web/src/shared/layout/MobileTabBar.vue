@@ -50,9 +50,9 @@ const handleTab = (tab: NavDef) => {
   emit('module-change', tab.key as 'bookmarks' | 'notes' | 'files' | 'vault')
 }
 
-/** 激活态：模块按 activeModule，路由按 route.name（与 key 同名） */
+/** 激活态：模块按 activeModule（仅主应用页 / 生效，避免与概览/回收站等路由页同时高亮），路由按 route.name（与 key 同名） */
 const isActive = (tab: NavDef) => {
-  if (tab.kind === 'module') return props.activeModule === tab.key
+  if (tab.kind === 'module') return route.name === 'app' && props.activeModule === tab.key
   return route.name === tab.key
 }
 </script>

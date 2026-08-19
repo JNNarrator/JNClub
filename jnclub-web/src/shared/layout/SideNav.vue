@@ -94,9 +94,9 @@ const handleNavClick = (item: NavDef) => {
   router.push(item.target)
 }
 
-/** 激活态：模块按 activeModule，路由按 route.name（与 key 同名） */
+/** 激活态：模块按 activeModule（仅主应用页 / 生效，避免与概览/回收站等路由页同时高亮），路由按 route.name（与 key 同名） */
 const isActive = (item: NavDef) => {
-  if (item.kind === 'module') return props.activeModule === item.key
+  if (item.kind === 'module') return route.name === 'app' && props.activeModule === item.key
   return route.name === item.key
 }
 
