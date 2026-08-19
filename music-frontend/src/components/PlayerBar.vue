@@ -11,6 +11,7 @@ import {
   RefreshRight,
   Mute,
   Loading,
+  Document,
 } from '@element-plus/icons-vue'
 import { usePlayerStore, type PlayMode } from '../stores/player'
 import { useUiStore } from '../stores/ui'
@@ -45,6 +46,7 @@ const modeMeta = computed(() => MODE_META[player.mode])
 const showPrevTooltip = ref(false)
 const showNextTooltip = ref(false)
 const showModeTooltip = ref(false)
+const showLyricsTooltip = ref(false)
 
 // Progress drag
 const isDragging = ref(false)
@@ -218,6 +220,21 @@ function onCapsuleClick() {
             <span v-if="player.mode === 'one'" class="badge">1</span>
           </button>
           <div v-if="showModeTooltip" class="tooltip">{{ modeMeta.label }}</div>
+        </div>
+
+        <div class="tooltip-wrapper"
+             @mouseenter="showLyricsTooltip = true"
+             @mouseleave="showLyricsTooltip = false">
+          <button
+            class="ctl-btn lyrics-btn"
+            :class="{ 'lyrics-on': ui.showLyricsPanel }"
+            :disabled="!player.currentTrack"
+            aria-label="歌词"
+            @click.stop="ui.openLyricsPanel()"
+          >
+            <el-icon :size="16"><Document /></el-icon>
+          </button>
+          <div v-if="showLyricsTooltip" class="tooltip">歌词</div>
         </div>
       </div>
 
@@ -424,6 +441,7 @@ function onCapsuleClick() {
 .ctl-btn:disabled { opacity: 0.3; cursor: default; }
 
 .mode-btn.active { color: var(--jn-accent); }
+.lyrics-btn.lyrics-on { color: var(--jn-accent); }
 .mode-btn .badge {
   position: absolute;
   top: 4px; right: 4px;

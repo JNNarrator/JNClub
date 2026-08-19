@@ -4,6 +4,7 @@ import { ElIcon } from 'element-plus'
 import { Sunny, Moon, Download, Back } from '@element-plus/icons-vue'
 import TrackList from './components/TrackList.vue'
 import PlayerBar from './components/PlayerBar.vue'
+import LyricsPanel from './components/LyricsPanel.vue'
 const PlayerPage = defineAsyncComponent(() => import('./components/PlayerPage.vue'))
 import BrandLogo from './components/BrandLogo.vue'
 import LanzouAuthPanel from './components/LanzouAuthPanel.vue'
@@ -146,6 +147,7 @@ if (typeof window !== 'undefined') {
 
     <PlayerBar />
     <PlayerPage />
+    <LyricsPanel />
   </div>
 </template>
 
