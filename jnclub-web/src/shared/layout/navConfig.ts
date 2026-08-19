@@ -43,6 +43,21 @@ export function normalizeNavKeys(arr: any[]): NavKey[] {
 /** 补齐缺失的默认导航项（防旧数据缺项导致入口消失） */
 export function completeOrder(keys: NavKey[]): NavKey[] {
   const present = new Set<NavKey>(keys)
-  DEFAULT_ORDER.forEach(k => { if (!present.has(k)) keys.push(k) })
-  return keys
+  const result = [...keys]
+  for (const k of DEFAULT_ORDER) {
+    if (present.has(k)) continue
+    // 锚点插入：放在第一个「默认序位于 k 之后」的现存项前面，
+    // 既保持 DEFAULT_ORDER 的相对位置（如概览始终在最前），又不破坏用户自定义的相对顺序
+    const anchor = DEFAULT_ORDER.indexOf(k)
+    let pos = result.length
+    for (let i = 0; i < result.length; i++) {
+      if (DEFAULT_ORDER.indexOf(result[i]) > anchor) {
+        pos = i
+        break
+      }
+    }
+    result.splice(pos, 0, k)
+    present.add(k)
+  }
+  return result
 }

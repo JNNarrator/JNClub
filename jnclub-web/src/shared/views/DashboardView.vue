@@ -221,7 +221,7 @@ const quickActions = [
 .dash {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 20px;
 }
 .dash-head {
   display: flex;
@@ -242,17 +242,25 @@ const quickActions = [
 .dash-error { padding-top: 60px; }
 
 /* 统计卡片 */
+/* 统计卡片：固定列数（6/3/2），避免 auto-fill 出现参差末行（如 5+1 孤卡） */
 .stat-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 14px;
+}
+@media (min-width: 700px) and (max-width: 1279px) {
+  .stat-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 699px) {
+  .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 .stat-card {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 6px;
-  padding: 16px;
+  gap: 8px;
+  min-height: 112px;
+  padding: 18px;
   background: var(--glass-bg-trans);
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
@@ -276,6 +284,7 @@ const quickActions = [
 .stat-warn .stat-icon { background: rgba(245, 72, 92, 0.16); color: #ff8a97; }
 .stat-value {
   font-size: 26px; font-weight: 800; color: var(--text-1); line-height: 1.1;
+  margin-top: auto;
 }
 .stat-label {
   display: inline-flex; align-items: center; gap: 6px;
@@ -293,13 +302,13 @@ const quickActions = [
 .mid-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: 14px;
 }
 @media (max-width: 900px) {
   .mid-grid { grid-template-columns: 1fr; }
 }
 .panel {
-  padding: 16px;
+  padding: 18px;
   background: var(--glass-bg-trans);
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
@@ -308,7 +317,7 @@ const quickActions = [
   box-shadow: var(--glass-shadow);
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 .panel-title {
   display: flex;
@@ -376,7 +385,7 @@ const quickActions = [
 .recent-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
+  gap: 14px;
 }
 @media (max-width: 900px) {
   .recent-grid { grid-template-columns: 1fr; }
