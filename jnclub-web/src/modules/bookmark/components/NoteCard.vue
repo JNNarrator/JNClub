@@ -6,11 +6,12 @@
  */
 import { h, ref } from 'vue'
 import { NButton, NIcon, NDropdown, NEllipsis, NTag, NCheckbox } from 'naive-ui'
-import { Pencil, Trash2, Eye, EllipsisVertical, StickyNote, Clock, FolderInput } from 'lucide-vue-next'
+import { Pencil, Trash2, Eye, EllipsisVertical, StickyNote, Clock, FolderInput, Link2 } from 'lucide-vue-next'
 import { formatDate } from '../composables/formatDate'
 import { stripMarkdown } from '../composables/stripMarkdown'
 import { openMenu } from '../../../shared/composables/useContextMenu'
 import MoveItemModal from './MoveItemModal.vue'
+import ShareModal from './ShareModal.vue'
 import type { Note } from '../stores/note'
 
 const props = defineProps<{
@@ -28,6 +29,7 @@ const emit = defineEmits<{
 }>()
 
 const showMoveModal = ref(false)
+const showShare = ref(false)
 
 const getSummary = (content: string | null) => {
   if (!content) return '暂无内容'
@@ -40,12 +42,14 @@ const dropdownOptions = [
   { label: '预览', key: 'preview', icon: () => h(NIcon, null, { default: () => h(Eye) }) },
   { label: '移动到…', key: 'move', icon: () => h(NIcon, null, { default: () => h(FolderInput) }) },
   { label: '编辑', key: 'edit', icon: () => h(NIcon, null, { default: () => h(Pencil) }) },
+  { label: '分享', key: 'share', icon: () => h(NIcon, null, { default: () => h(Link2) }) },
   { label: '删除', key: 'delete', icon: () => h(NIcon, null, { default: () => h(Trash2) }) },
 ]
 
 const handleDropdown = (key: string) => {
   if (key === 'preview') emit('preview', props.note)
   else if (key === 'move') showMoveModal.value = true
+  else if (key === 'share') showShare.value = true
   else if (key === 'edit') emit('edit', props.note)
   else if (key === 'delete') emit('delete', props.note)
 }
@@ -124,6 +128,14 @@ const onRootClick = () => {
       :targets="[{ id: note.id, name: note.title }]"
       :current-directory-id="note.directoryId ?? null"
       @refresh="emit('refresh')"
+    />
+
+    <ShareModal
+      :show="showShare"
+      ref-type="note"
+      :ref-id="note.id"
+      :name="note.title || '未命名便签'"
+      @update:show="(v: boolean) => (showShare = v)"
     />
   </div>
 </template>

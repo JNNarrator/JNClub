@@ -6,9 +6,10 @@
  */
 import { h, ref } from 'vue'
 import { NButton, NIcon, NDropdown, NEllipsis, NTag, useMessage, NCheckbox } from 'naive-ui'
-import { Pencil, Trash2, EllipsisVertical, ExternalLink, FolderInput } from 'lucide-vue-next'
+import { Pencil, Trash2, EllipsisVertical, ExternalLink, FolderInput, Link2 } from 'lucide-vue-next'
 import { openMenu } from '../../../shared/composables/useContextMenu'
 import MoveItemModal from './MoveItemModal.vue'
+import ShareModal from './ShareModal.vue'
 import axios from 'axios'
 import type { BookmarkItem } from './CollectionRow.vue'
 
@@ -27,6 +28,7 @@ const emit = defineEmits<{
 const message = useMessage()
 const imgError = ref(false)
 const showMoveModal = ref(false)
+const showShare = ref(false)
 
 const getDomain = (url: string) => {
   try { return new URL(url).hostname } catch { return url }
@@ -54,6 +56,7 @@ const handleDelete = async () => {
 const dropdownOptions = [
   { label: '打开', key: 'open', icon: () => h(NIcon, null, { default: () => h(ExternalLink) }) },
   { label: '移动到…', key: 'move', icon: () => h(NIcon, null, { default: () => h(FolderInput) }) },
+  { label: '分享', key: 'share', icon: () => h(NIcon, null, { default: () => h(Link2) }) },
   { label: '编辑', key: 'edit', icon: () => h(NIcon, null, { default: () => h(Pencil) }) },
   { label: '删除', key: 'delete', icon: () => h(NIcon, null, { default: () => h(Trash2) }) },
 ]
@@ -61,6 +64,7 @@ const dropdownOptions = [
 const handleDropdown = (key: string) => {
   if (key === 'open') handleOpen()
   else if (key === 'move') showMoveModal.value = true
+  else if (key === 'share') showShare.value = true
   else if (key === 'edit') emit('edit', props.bookmark)
   else if (key === 'delete') handleDelete()
 }
@@ -143,6 +147,14 @@ const handleDropdown = (key: string) => {
       :targets="[{ id: bookmark.id, name: bookmark.title }]"
       :current-directory-id="bookmark.directoryId ?? null"
       @refresh="emit('refresh')"
+    />
+
+    <ShareModal
+      :show="showShare"
+      ref-type="bookmark"
+      :ref-id="bookmark.id"
+      :name="bookmark.title || bookmark.url"
+      @update:show="(v: boolean) => (showShare = v)"
     />
   </div>
 </template>

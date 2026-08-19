@@ -21,7 +21,9 @@ public class WebMvcConfig implements WebMvcConfigurer {
             SaRouter.match("/**")
                     .notMatch("/sso/login", "/sso/logout", "/sso/register", "/static/**", "/api/files/**",
                             // 音乐模块保持匿名：/music/** 被路径重写为 /api/v1/**，两个前缀均放行
-                            "/music/**", "/api/v1/**")
+                            "/music/**", "/api/v1/**",
+                            // 公开分享：/api/share/** 放行，需登录的方法在控制器内手动 checkLogin
+                            "/api/share/**")
                     .check(r -> StpUtil.checkLogin());
         })).addPathPatterns("/**");
     }

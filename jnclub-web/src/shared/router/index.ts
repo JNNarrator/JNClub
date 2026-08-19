@@ -20,6 +20,11 @@ const router = createRouter({
       component: () => import('../views/ExtensionPage.vue'),
     },
     {
+      path: '/share/:token',
+      name: 'share',
+      component: () => import('../views/ShareView.vue'),
+    },
+    {
       path: '/sso/login',
       name: 'sso-callback',
       component: () => import('../views/SsoCallback.vue'),
@@ -87,6 +92,12 @@ router.beforeEach(async (to, _from, next) => {
     return
   }
 
+  // 公开分享页：免登录查看
+  if (to.name === 'share') {
+    next()
+    return
+  }
+
   // SSO 登录失败
   if (to.query.error) {
     next({ name: 'sso-callback', query: { error: to.query.error } })
@@ -119,6 +130,7 @@ const TITLE_BY_NAME: Record<string, string> = {
   welcome: '欢迎 - JNClub',
   overview: '概览 - JNClub',
   extension: '下载中心 - JNClub',
+  share: '分享 - JNClub',
   recycle: '回收站 - JNClub',
   music: '音乐 - JNClub',
   'note-create': '新建便签 - JNClub',

@@ -466,6 +466,15 @@ public class CloudDiskService {
         return record;
     }
 
+    /** 按 id 取文件记录（不校验当前用户归属；仅公开分享流内部使用，勿直接对外） */
+    public FileRecord getFileById(Long id) {
+        FileRecord record = fileMapper.selectById(id);
+        if (record == null) {
+            throw new BizException(404, "文件不存在");
+        }
+        return record;
+    }
+
     /** 按 ids 批量取文件（校验归属当前用户），供打包下载等场景 */
     public List<FileRecord> listFilesByIds(List<Long> ids) {
         if (ids == null || ids.isEmpty()) return List.of();

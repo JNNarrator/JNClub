@@ -10,7 +10,8 @@ import {
   NDropdown, NCheckbox, NModal, NInput, NSelect, NForm, NFormItem,
 } from 'naive-ui'
 import EmptyState from './EmptyState.vue'
-import { Pause, Play, Download, Trash2, FileText, Pencil, FolderInput, Ellipsis, X, Eye, Archive } from 'lucide-vue-next'
+import ShareModal from './ShareModal.vue'
+import { Pause, Play, Download, Trash2, FileText, Pencil, FolderInput, Ellipsis, X, Eye, Archive, Link2 } from 'lucide-vue-next'
 import { useCloudDiskStore, type DiskFile } from '../stores/clouddisk'
 import { useChunkedUpload } from '../composables/useChunkedUpload'
 import { useDraggableSort } from '../composables/useDraggableSort'
@@ -192,6 +193,8 @@ const toggleAll = () => {
 
 /** 重命名 */
 const showRenameModal = ref(false)
+const showShare = ref(false)
+const shareTarget = ref<DiskFile | null>(null)
 const renameTarget = ref<DiskFile | null>(null)
 const renameForm = ref({ name: '' })
 
@@ -304,11 +307,13 @@ const rowMenu = () => [
   { label: '下载', key: 'download', icon: () => h(NIcon, null, { default: () => h(Download) }) },
   { label: '重命名', key: 'rename', icon: () => h(NIcon, null, { default: () => h(Pencil) }) },
   { label: '移动到', key: 'move', icon: () => h(NIcon, null, { default: () => h(FolderInput) }) },
+  { label: '分享', key: 'share', icon: () => h(NIcon, null, { default: () => h(Link2) }) },
   { label: '删除', key: 'delete', icon: () => h(NIcon, null, { default: () => h(Trash2) }) },
 ]
 
 const handleRowMenu = (key: string, file: DiskFile) => {
   if (key === 'preview') openPreview(file)
+  else if (key === 'share') { shareTarget.value = file; showShare.value = true }
   else if (key === 'download') handleDownload(file)
   else if (key === 'rename') openRename(file)
   else if (key === 'move') openMove(file)
@@ -515,6 +520,15 @@ const fileKindColor = (name: string) => FILE_KINDS.find(k => k.re.test(name))?.c
     </NModal>
 
     <!-- 移动到弹窗 -->
+    <ShareModal
+      v-if="shareTarget"
+      :show="showShare"
+      ref-type="file"
+      :ref-id="shareTarget.id"
+      :name="shareTarget.originalName"
+      @update:show="(v: boolean) => (showShare = v)"
+    />
+
     <NModal v-model:show="showMoveModal" preset="dialog" :title="`移动到${moveTargets.length > 1 ? `（${moveTargets.length} 个文件）` : ''}`">
       <NForm style="margin-top: 12px;">
         <NFormItem label="目标目录">
