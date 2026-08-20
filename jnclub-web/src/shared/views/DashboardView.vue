@@ -223,7 +223,7 @@ const quickActions = [
 .dash {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 40px;
 }
 .dash-head {
   display: flex;
@@ -244,15 +244,13 @@ const quickActions = [
 .dash-error { padding-top: 60px; }
 
 /* 统计卡片 */
-/* 统计卡片：固定列数（3/2，超宽屏 6），避免 auto-fill 出现参差末行（如 5+1 孤卡）；
-   常规屏（含笔记本）用 3 列×2 行，卡片宽裕不拥挤；≥1600px 超宽屏恢复 6 列一览 */
+/* 统计卡片：固定列数（3/2），任何宽度都不超过 3 列，避免卡片过窄拥挤；
+   ≤699px 移动端降为 2 列 */
 .stat-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
-}
-@media (min-width: 1600px) {
-  .stat-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  column-gap: 20px;
+  row-gap: 20px;
 }
 @media (max-width: 699px) {
   .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -260,21 +258,22 @@ const quickActions = [
 .stat-card {
   display: flex;
   align-items: center;
-  gap: 16px;
-  min-height: 96px;
-  padding: 20px;
+  gap: 18px;
+  min-height: 112px;
+  padding: 24px;
   background: var(--glass-bg-trans);
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid var(--glass-border);
+  border: 1px solid var(--glass-chip-border);
   border-radius: var(--radius-md);
-  box-shadow: var(--glass-shadow);
+  box-shadow: var(--shadow-1), var(--glass-shadow);
   cursor: pointer;
-  transition: border-color var(--dur) var(--ease), transform var(--dur) var(--ease);
+  transition: border-color var(--dur) var(--ease), transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
   text-align: left;
 }
 .stat-card:hover {
   border-color: var(--brand);
+  box-shadow: var(--shadow-2), var(--glass-shadow);
   transform: translateY(-2px);
 }
 .stat-card.stat-warn { border-color: rgba(245, 72, 92, 0.45); }
@@ -285,19 +284,19 @@ const quickActions = [
   min-width: 0;
 }
 .stat-icon {
-  width: 40px; height: 40px; border-radius: 12px;
+  width: 44px; height: 44px; border-radius: 14px;
   flex-shrink: 0;
   background: var(--brand-soft); color: var(--brand);
   display: flex; align-items: center; justify-content: center;
 }
 .stat-warn .stat-icon { background: rgba(245, 72, 92, 0.16); color: #ff8a97; }
 .stat-value {
-  font-size: 30px; font-weight: 800; color: var(--text-1); line-height: 1.1;
+  font-size: 32px; font-weight: 800; color: var(--text-1); line-height: 1.1;
   white-space: nowrap;
 }
 .stat-label {
   display: inline-flex; align-items: center; gap: 6px;
-  font-size: var(--fs-sm); color: var(--glass-text-secondary);
+  font-size: var(--fs-md); color: var(--glass-text-secondary);
 }
 .stat-warn-dot {
   width: 7px; height: 7px; border-radius: 50%;
@@ -322,22 +321,23 @@ const quickActions = [
 .mid-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  column-gap: 28px;
+  row-gap: 32px;
 }
 @media (max-width: 900px) {
   .mid-grid { grid-template-columns: 1fr; }
 }
 .panel {
-  padding: 20px;
+  padding: 24px;
   background: var(--glass-bg-trans);
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid var(--glass-border);
+  border: 1px solid var(--glass-chip-border);
   border-radius: var(--radius-md);
-  box-shadow: var(--glass-shadow);
+  box-shadow: var(--shadow-1), var(--glass-shadow);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 18px;
 }
 .panel-title {
   display: flex;
@@ -362,8 +362,8 @@ const quickActions = [
 }
 
 /* 磁盘条 */
-.disk-list { display: flex; flex-direction: column; gap: 8px; }
-.disk-row { display: flex; flex-direction: column; gap: 4px; }
+.disk-list { display: flex; flex-direction: column; gap: 12px; }
+.disk-row { display: flex; flex-direction: column; gap: 6px; }
 .disk-info {
   display: flex; align-items: center; justify-content: space-between;
   font-size: var(--fs-sm);
@@ -385,7 +385,7 @@ const quickActions = [
 }
 
 /* 密码库健康 */
-.vault-health { display: flex; flex-direction: column; gap: 8px; }
+.vault-health { display: flex; flex-direction: column; gap: 12px; }
 .health-row {
   display: flex; align-items: center; justify-content: space-between;
   font-size: var(--fs-sm);
@@ -405,15 +405,16 @@ const quickActions = [
 .recent-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
+  column-gap: 24px;
+  row-gap: 32px;
 }
 @media (max-width: 900px) {
   .recent-grid { grid-template-columns: 1fr; }
 }
-.recent-list { display: flex; flex-direction: column; gap: 4px; }
+.recent-list { display: flex; flex-direction: column; gap: 8px; }
 .recent-item {
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
-  padding: 7px 10px;
+  padding: 10px 12px;
   border-radius: var(--radius-sm);
   transition: background var(--dur) var(--ease);
 }

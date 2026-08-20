@@ -137,7 +137,7 @@ useAppShortcuts({
   width: 100%;
   max-width: 1560px;
   margin: 0 auto;
-  padding: 20px 24px;
+  padding: 24px 28px;
   overflow-y: auto;
   background:
     radial-gradient(1200px 500px at 10% -10%, var(--glass-glow-top), transparent 60%),
