@@ -16,6 +16,9 @@ import com.jnclub.bookmark.mapper.VaultMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
+import java.time.YearMonth;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -174,5 +177,65 @@ public class StatsService {
         health.put("entries", vaults.size());
         health.put("duplicateCount", duplicate);
         return health;
+    }
+
+    /**
+     * 近 N 月各模块新增趋势（默认 6，上限 12）。
+     * 返回按时间升序的月份列表：{ month:"yyyy-MM", bookmarks, notes, files, vault }（含全 0 月份）
+     */
+    public List<Map<String, Object>> trend(int months) {
+        String userId = StpUtil.getLoginIdAsString();
+        int n = Math.max(1, Math.min(12, months));
+
+        YearMonth now = YearMonth.now();
+        Map<String, int[]> agg = new LinkedHashMap<>(); // month -> [bookmarks, notes, files, vault]
+        List<String> keys = new ArrayList<>();
+        for (int i = n - 1; i >= 0; i--) {
+            String key = now.minusMonths(i).toString();
+            keys.add(key);
+            agg.put(key, new int[4]);
+        }
+
+        for (Bookmark b : bookmarkMapper.selectList(new LambdaQueryWrapper<Bookmark>()
+                .eq(Bookmark::getUserId, userId).eq(Bookmark::getDeleted, 0)
+                .select(Bookmark::getCreateTime))) {
+            bucket(agg, b.getCreateTime(), 0);
+        }
+        for (Note note : noteMapper.selectList(new LambdaQueryWrapper<Note>()
+                .eq(Note::getUserId, userId).eq(Note::getDeleted, 0)
+                .select(Note::getCreateTime))) {
+            bucket(agg, note.getCreateTime(), 1);
+        }
+        for (FileRecord f : fileMapper.selectList(new LambdaQueryWrapper<FileRecord>()
+                .eq(FileRecord::getUserId, userId).eq(FileRecord::getDeleted, 0)
+                .select(FileRecord::getCreateTime))) {
+            bucket(agg, f.getCreateTime(), 2);
+        }
+        for (Vault v : vaultMapper.selectList(new LambdaQueryWrapper<Vault>()
+                .eq(Vault::getUserId, userId).eq(Vault::getDeleted, 0)
+                .select(Vault::getCreateTime))) {
+            bucket(agg, v.getCreateTime(), 3);
+        }
+
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (String key : keys) {
+            int[] c = agg.get(key);
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("month", key);
+            row.put("bookmarks", c[0]);
+            row.put("notes", c[1]);
+            row.put("files", c[2]);
+            row.put("vault", c[3]);
+            result.add(row);
+        }
+        return result;
+    }
+
+    /** 按月份（yyyy-MM）把 createTime 计入对应桶（越界月份忽略） */
+    private void bucket(Map<String, int[]> agg, LocalDateTime createTime, int idx) {
+        if (createTime == null) return;
+        String key = createTime.format(DateTimeFormatter.ofPattern("yyyy-MM"));
+        int[] c = agg.get(key);
+        if (c != null) c[idx]++;
     }
 }

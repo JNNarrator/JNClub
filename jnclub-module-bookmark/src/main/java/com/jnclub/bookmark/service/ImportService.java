@@ -144,6 +144,92 @@ public class ImportService {
     }
 
     // ============================================================
+    // 便签 JSON 导入（全量备份恢复用）
+    // 格式：{ app:"JNClub", type:"notes", directories:[...], notes:[{title,content,directoryId,sortOrder,pinned,archived,tags:[...]}] }
+    // ============================================================
+
+    @Transactional
+    public Map<String, Object> importNotesJson(String jsonContent, String mode) {
+        String userId = StpUtil.getLoginIdAsString();
+        JSONObject payload;
+        try {
+            payload = JSONUtil.parseObj(jsonContent);
+        } catch (Exception e) {
+            throw new BizException("便签数据解析失败，请确认为备份文件");
+        }
+        if (!"JNClub".equals(payload.getStr("app")) || !"notes".equals(payload.getStr("type"))) {
+            throw new BizException("不是 JNClub 便签数据");
+        }
+
+        if ("replace".equalsIgnoreCase(mode)) {
+            clearUserNotes(userId);
+        }
+
+        // 建目录：type=2 便签目录，按名复用；两轮处理保证子目录 parentId 映射正确
+        Map<String, Long> idMap = new HashMap<>();
+        JSONArray dirs = payload.containsKey("directories") ? payload.getJSONArray("directories") : new JSONArray();
+        for (Object o : dirs) {
+            JSONObject d = (JSONObject) o;
+            Long parentId = d.getLong("parentId");
+            boolean parentInBackup = parentId != null && hasDirId(dirs, parentId);
+            if (parentId == null || !parentInBackup) {
+                Long newId = findOrCreateDir(userId, null, d.getStr("name"), d.getStr("icon"),
+                        d.getInt("sortOrder", 0), 2);
+                idMap.put(String.valueOf(d.getLong("id")), newId);
+            }
+        }
+        for (Object o : dirs) {
+            JSONObject d = (JSONObject) o;
+            Long parentId = d.getLong("parentId");
+            boolean parentInBackup = parentId != null && hasDirId(dirs, parentId);
+            if (parentId != null && parentInBackup) {
+                Long parentNewId = idMap.get(String.valueOf(parentId));
+                Long newId = findOrCreateDir(userId, parentNewId, d.getStr("name"), d.getStr("icon"),
+                        d.getInt("sortOrder", 0), 2);
+                idMap.put(String.valueOf(d.getLong("id")), newId);
+            }
+        }
+
+        // 导入便签
+        JSONArray notes = payload.containsKey("notes") ? payload.getJSONArray("notes") : new JSONArray();
+        int imported = 0, skipped = 0;
+        for (Object o : notes) {
+            JSONObject n = (JSONObject) o;
+            String title = n.getStr("title");
+            if (title == null || title.isBlank()) { skipped++; continue; }
+            Long directoryId = idMap.get(String.valueOf(n.getLong("directoryId")));
+            if (directoryId == null) directoryId = findOrCreateDir(userId, null, "未分类", null, 0, 2);
+            if ("merge".equalsIgnoreCase(mode) && existsNote(userId, directoryId, title.trim())) {
+                skipped++;
+                continue;
+            }
+
+            Note note = new Note();
+            note.setUserId(userId);
+            note.setDirectoryId(directoryId);
+            note.setTitle(title.trim());
+            note.setContent(n.getStr("content", ""));
+            note.setSortOrder(n.getInt("sortOrder", 0));
+            note.setPinned(n.getInt("pinned", 0));
+            note.setArchived(n.getInt("archived", 0));
+            noteMapper.insert(note);
+
+            JSONArray tags = n.containsKey("tags") ? n.getJSONArray("tags") : new JSONArray();
+            if (!tags.isEmpty()) {
+                List<String> tagNames = new ArrayList<>();
+                for (Object t : tags) tagNames.add(String.valueOf(t));
+                tagService.setRelations("note", note.getId(), tagNames);
+            }
+            imported++;
+        }
+
+        cacheService.evictByPrefix(CacheKey.notePrefix(userId));
+        cacheService.evictByPrefix(CacheKey.dirPrefix(userId));
+        cacheService.evictByPrefix(CacheKey.tagPrefix(userId));
+        return Map.of("imported", imported, "skipped", skipped);
+    }
+
+    // ============================================================
     // 浏览器书签 HTML 导入（Chrome/Edge 导出格式）
     // ============================================================
 

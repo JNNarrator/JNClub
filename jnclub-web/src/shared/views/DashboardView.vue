@@ -7,13 +7,14 @@ import { ref, computed, onMounted } from 'vue'
 import { NIcon, NSpin, NEmpty, NButton } from 'naive-ui'
 import {
   Bookmark, StickyNote, Cloud, KeyRound, Tag, Trash2, HardDrive,
-  ShieldCheck, AlertTriangle, ArrowRight, LayoutDashboard, RefreshCw, Download, Upload,
+  ShieldCheck, AlertTriangle, ArrowRight, LayoutDashboard, RefreshCw, Download, Upload, Database, TrendingUp,
 } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
 import { formatRelativeTime } from '../../modules/bookmark/composables/formatDate'
 import ExportModal from '../../modules/bookmark/components/ExportModal.vue'
 import ImportModal from '../../modules/bookmark/components/ImportModal.vue'
+import FullBackupModal from '../../modules/bookmark/components/FullBackupModal.vue'
 
 interface StatsSummary {
   counts: {
@@ -43,6 +44,7 @@ const error = ref(false)
 const data = ref<StatsSummary | null>(null)
 const showExport = ref(false)
 const showImport = ref(false)
+const showBackup = ref(false)
 
 const fetchSummary = async () => {
   loading.value = true
@@ -55,7 +57,65 @@ const fetchSummary = async () => {
   finally { loading.value = false }
 }
 
-onMounted(fetchSummary)
+/* ─── 数据趋势 ─── */
+interface TrendPoint {
+  month: string
+  bookmarks: number
+  notes: number
+  files: number
+  vault: number
+}
+const trendData = ref<TrendPoint[]>([])
+
+const TREND_SERIES: Array<{ key: keyof Omit<TrendPoint, 'month'>; label: string; color: string }> = [
+  { key: 'bookmarks', label: '收藏', color: '#7c5cff' },
+  { key: 'notes', label: '便签', color: '#2f9df7' },
+  { key: 'files', label: '云盘', color: '#0fbf8c' },
+  { key: 'vault', label: '密码库', color: '#f0a13a' },
+]
+
+const fetchTrend = async () => {
+  try {
+    const res = await axios.get('/api/stats/trend', { params: { months: 6 } })
+    if (res.data.code === 200) trendData.value = res.data.data
+  } catch { /* 趋势失败不影响主看板 */ }
+}
+
+/** 趋势图最大刻度值（取 4 个系列最大值向上取整，至少 1） */
+const trendMax = computed(() => {
+  const all = trendData.value.flatMap((p) => TREND_SERIES.map((s) => p[s.key] ?? 0))
+  const max = Math.max(...all, 1)
+  // 圆整到友好刻度（1/2/5 × 10^n）
+  if (max <= 1) return 1
+  const pow = Math.pow(10, Math.floor(Math.log10(max)))
+  const norm = max / pow
+  const step = norm <= 1 ? 1 : norm <= 2 ? 2 : norm <= 5 ? 5 : 10
+  return step * pow
+})
+
+const trendTotal = computed(() => {
+  const totals: Record<string, number> = { bookmarks: 0, notes: 0, files: 0, vault: 0 }
+  for (const p of trendData.value) {
+    for (const s of TREND_SERIES) totals[s.key] += p[s.key] ?? 0
+  }
+  return totals
+})
+
+/** 柱高百分比（相对最大值） */
+function trendBarHeight(v: number): string {
+  return `${Math.max(2, (v / trendMax.value) * 100)}%`
+}
+
+/** 月份短标签：2025-03 → 3月 */
+function monthLabel(month: string): string {
+  const m = month.split('-')[1]
+  return m ? `${Number(m)}月` : month
+}
+
+onMounted(() => {
+  fetchSummary()
+  fetchTrend()
+})
 
 /* ─── 统计卡片 ─── */
 const statCards = computed(() => {
@@ -102,6 +162,10 @@ const quickActions = [
         <span>数据概览</span>
       </div>
       <div class="dash-actions">
+        <NButton size="tiny" quaternary class="dash-backup" @click="showBackup = true">
+          <template #icon><NIcon :component="Database" size="13" /></template>
+          全量备份
+        </NButton>
         <NButton size="tiny" quaternary class="dash-export" @click="showExport = true">
           <template #icon><NIcon :component="Download" size="13" /></template>
           数据导出
@@ -110,7 +174,7 @@ const quickActions = [
           <template #icon><NIcon :component="Upload" size="13" /></template>
           数据导入
         </NButton>
-        <NButton size="tiny" quaternary class="dash-refresh" :loading="loading" @click="fetchSummary">
+        <NButton size="tiny" quaternary class="dash-refresh" :loading="loading" @click="fetchSummary; fetchTrend()">
           <template #icon><NIcon :component="RefreshCw" size="13" /></template>
           刷新
         </NButton>
@@ -119,6 +183,7 @@ const quickActions = [
 
     <ExportModal v-model:show="showExport" />
     <ImportModal v-model:show="showImport" @imported="fetchSummary" />
+    <FullBackupModal v-model:show="showBackup" @imported="fetchSummary" />
 
     <NSpin :show="loading" class="dash-spin">
       <div v-if="error && !data" class="dash-error">
@@ -139,6 +204,46 @@ const quickActions = [
               <div class="stat-label">{{ c.label }}<span v-if="c.warn" class="stat-warn-dot" /></div>
             </div>
           </button>
+        </div>
+
+        <!-- 数据趋势 -->
+        <div class="panel trend-panel">
+          <div class="panel-title">
+            <NIcon :component="TrendingUp" size="15" class="panel-title-icon" /> 数据趋势 · 近 6 个月
+            <span class="trend-legend">
+              <span v-for="s in TREND_SERIES" :key="s.key" class="trend-legend-item">
+                <i class="trend-dot" :style="{ background: s.color }" />
+                {{ s.label }} <b>{{ trendTotal[s.key] }}</b>
+              </span>
+            </span>
+          </div>
+          <div v-if="!trendData.length" class="panel-empty">暂无数据</div>
+          <div v-else class="trend-chart">
+            <!-- 网格线（5 档） -->
+            <div class="trend-grid-lines">
+              <div v-for="i in 5" :key="i" class="trend-grid-line" :style="{ bottom: `${((i - 1) / 4) * 100}%` }" />
+            </div>
+            <!-- 柱组 -->
+            <div class="trend-bars">
+              <div v-for="p in trendData" :key="p.month" class="trend-group">
+                <div class="trend-group-bars">
+                  <div
+                    v-for="s in TREND_SERIES" :key="s.key"
+                    class="trend-bar"
+                    :style="{ height: trendBarHeight(p[s.key] ?? 0), background: s.color }"
+                    :title="`${p.month} ${s.label}：${p[s.key] ?? 0}`"
+                  />
+                </div>
+                <span class="trend-month">{{ monthLabel(p.month) }}</span>
+              </div>
+            </div>
+            <!-- Y 轴刻度 -->
+            <div class="trend-y-axis">
+              <span v-for="i in 5" :key="i" class="trend-y-label" :style="{ bottom: `${((i - 1) / 4) * 100}%` }">
+                {{ Math.round((trendMax * (i - 1)) / 4) }}
+              </span>
+            </div>
+          </div>
         </div>
 
         <!-- 磁盘占用 + 密码库健康 -->
@@ -463,4 +568,92 @@ const quickActions = [
   font-size: var(--fs-xs); color: var(--text-3);
 }
 .quick-arrow { color: var(--text-3); }
+
+/* 数据趋势 */
+.trend-panel { min-height: 200px; }
+.trend-legend {
+  margin-left: auto;
+  display: flex; align-items: center; flex-wrap: wrap; gap: 12px;
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  font-weight: 400;
+}
+.trend-legend-item {
+  display: inline-flex; align-items: center; gap: 4px;
+  white-space: nowrap;
+}
+.trend-legend-item b { color: var(--text-2); font-weight: 600; }
+.trend-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  display: inline-block;
+}
+.trend-chart {
+  position: relative;
+  height: 180px;
+  padding-left: 34px;
+}
+.trend-grid-lines {
+  position: absolute;
+  inset: 0 0 0 34px;
+  pointer-events: none;
+}
+.trend-grid-line {
+  position: absolute;
+  left: 0; right: 0;
+  border-top: 1px dashed var(--glass-border);
+}
+.trend-bars {
+  position: absolute;
+  inset: 0 0 0 34px;
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
+}
+.trend-group {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  min-width: 0;
+}
+.trend-group-bars {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 4px;
+}
+.trend-bar {
+  width: 9px;
+  max-width: 14px;
+  border-radius: 3px 3px 1px 1px;
+  min-height: 2px;
+  transition: height 400ms var(--ease-bouncy);
+  opacity: 0.92;
+}
+.trend-bar:hover { opacity: 1; }
+.trend-month {
+  text-align: center;
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  white-space: nowrap;
+}
+.trend-y-axis {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 26px;
+  pointer-events: none;
+}
+.trend-y-label {
+  position: absolute;
+  right: 0;
+  transform: translateY(50%);
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+}
+@media (max-width: 699px) {
+  .trend-bars { gap: 6px; }
+  .trend-bar { width: 7px; }
+}
 </style>

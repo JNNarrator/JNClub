@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
-import { NModal, NButton, NIcon, NInput, NSlider, useMessage } from 'naive-ui'
-import { Lock, Eye, EyeOff, RefreshCw, X } from 'lucide-vue-next'
+import { ref, computed, watch } from 'vue'
+import { NModal, NButton, NIcon, NInput, NSlider, NCheckbox, NSwitch, useMessage } from 'naive-ui'
+import { Lock, Eye, EyeOff, RefreshCw, X, Copy } from 'lucide-vue-next'
 import { useVaultStore } from '../stores/vault'
+import { generatePassword, passwordStrength, DEFAULT_PASSWORD_OPTIONS } from '../../../shared/utils/password'
 
 const props = defineProps<{
   show: boolean
@@ -21,8 +22,11 @@ const message = useMessage()
 
 const form = ref({ name: '', username: '', password: '', url: '', notes: '' })
 const showPwd = ref(false)
-const pwdLength = ref(16)
+const pwdOpts = ref({ ...DEFAULT_PASSWORD_OPTIONS })
 const saving = ref(false)
+
+/** 当前输入密码强度 */
+const strength = computed(() => passwordStrength(form.value.password))
 
 // 每次打开时重置表单（编辑回填非密码字段，密码留空=保持不变）
 watch(() => props.show, (v) => {
@@ -36,17 +40,22 @@ watch(() => props.show, (v) => {
     notes: init.notes || '',
   }
   showPwd.value = false
-  pwdLength.value = 16
+  pwdOpts.value = { ...DEFAULT_PASSWORD_OPTIONS }
 })
 
 const generatePwd = () => {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%^&*()_+-='
-  const arr = new Uint32Array(pwdLength.value)
-  crypto.getRandomValues(arr)
-  let pwd = ''
-  for (let i = 0; i < pwdLength.value; i++) pwd += chars[arr[i] % chars.length]
-  form.value.password = pwd
+  form.value.password = generatePassword({ ...pwdOpts.value })
   showPwd.value = true
+}
+
+const copyPwd = async () => {
+  if (!form.value.password) { message.warning('请先生成密码'); return }
+  try {
+    await navigator.clipboard.writeText(form.value.password)
+    message.success('密码已复制')
+  } catch {
+    message.error('复制失败，请手动复制')
+  }
 }
 
 const submit = async () => {
@@ -115,6 +124,20 @@ const onShowChange = (v: boolean) => emit('update:show', v)
               <NButton quaternary circle size="small" @click="showPwd = !showPwd">
                 <template #icon><NIcon :component="showPwd ? EyeOff : Eye" size="16" /></template>
               </NButton>
+              <NButton quaternary circle size="small" title="复制密码" @click="copyPwd">
+                <template #icon><NIcon :component="Copy" size="16" /></template>
+              </NButton>
+            </div>
+            <!-- 强度条 -->
+            <div class="strength-row" v-if="form.password">
+              <div class="strength-track">
+                <div
+                  class="strength-fill"
+                  :class="`strength-${strength.level}`"
+                  :style="{ width: `${Math.max(4, strength.score)}%` }"
+                />
+              </div>
+              <span class="strength-label" :class="`strength-${strength.level}`">{{ strength.label }} {{ strength.score }}</span>
             </div>
           </div>
           <div class="field">
@@ -122,24 +145,42 @@ const onShowChange = (v: boolean) => emit('update:show', v)
             <NInput v-model:value="form.username" placeholder="用户名 / 邮箱 / 卡号" clearable />
           </div>
           <div class="field">
-            <label class="field-label">密码长度</label>
-            <div class="slider-row">
-              <NSlider v-model:value="pwdLength" :min="6" :max="64" :step="1" class="pwd-slider" />
-              <span class="length-badge">{{ pwdLength }}</span>
-            </div>
-          </div>
-          <div class="field">
             <label class="field-label">站点地址</label>
             <NInput v-model:value="form.url" placeholder="https://…（可选）" clearable />
           </div>
-          <div class="field">
-            <label class="field-label">&nbsp;</label>
-            <NButton class="gen-btn glass-pill-btn" @click="generatePwd">
-              <template #icon><NIcon :component="RefreshCw" size="14" /></template>
+        </div>
+
+        <!-- 密码生成器 -->
+        <div class="generator glass-chip">
+          <div class="generator-head">
+            <span class="generator-title">
+              <NIcon :component="RefreshCw" size="13" /> 密码生成器
+            </span>
+            <NButton size="tiny" type="primary" secondary class="gen-btn" @click="generatePwd">
+              <template #icon><NIcon :component="RefreshCw" size="13" /></template>
               随机生成
             </NButton>
           </div>
+          <div class="generator-body">
+            <div class="gen-row">
+              <span class="gen-label">长度</span>
+              <NSlider v-model:value="pwdOpts.length" :min="6" :max="64" :step="1" class="pwd-slider" />
+              <span class="length-badge">{{ pwdOpts.length }}</span>
+            </div>
+            <div class="gen-row gen-chars">
+              <NCheckbox v-model:checked="pwdOpts.upper">大写</NCheckbox>
+              <NCheckbox v-model:checked="pwdOpts.lower">小写</NCheckbox>
+              <NCheckbox v-model:checked="pwdOpts.digits">数字</NCheckbox>
+              <NCheckbox v-model:checked="pwdOpts.symbols">符号</NCheckbox>
+              <span class="gen-sep" />
+              <NSwitch v-model:value="pwdOpts.excludeAmbiguous" size="small">
+                <template #checked>排除易混淆</template>
+                <template #unchecked>排除易混淆</template>
+              </NSwitch>
+            </div>
+          </div>
         </div>
+
         <div class="field">
           <label class="field-label">备注</label>
           <NInput v-model:value="form.notes" type="textarea" :rows="3" placeholder="备注（可选）" clearable />
@@ -245,6 +286,87 @@ const onShowChange = (v: boolean) => emit('update:show', v)
 /* ghost 取消按钮 */
 .ghost-btn {
   border-radius: var(--radius-sm);
+}
+
+/* ─── 强度条 ─── */
+.strength-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+.strength-track {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--glass-input-bg);
+  border: 1px solid var(--glass-input-border);
+  overflow: hidden;
+}
+.strength-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 240ms var(--ease-bouncy);
+}
+.strength-fill.strength-weak { background: #ef5b6b; }
+.strength-fill.strength-medium { background: #f0a13a; }
+.strength-fill.strength-strong { background: #37c978; }
+.strength-label {
+  font-size: var(--fs-xs, 12px);
+  font-weight: 600;
+  white-space: nowrap;
+  min-width: 52px;
+  text-align: right;
+}
+.strength-label.strength-weak { color: #ef5b6b; }
+.strength-label.strength-medium { color: #f0a13a; }
+.strength-label.strength-strong { color: #37c978; }
+
+/* ─── 密码生成器 ─── */
+.generator {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+  margin: 4px 0 16px;
+  border-radius: var(--radius-sm);
+  background: var(--glass-chip-bg);
+  border: 1px solid var(--glass-chip-border);
+}
+.generator-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.generator-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--glass-text-secondary);
+}
+.generator-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.gen-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.gen-label {
+  font-size: var(--fs-sm);
+  color: var(--glass-text-secondary);
+  min-width: 28px;
+}
+.gen-chars {
+  flex-wrap: wrap;
+}
+.gen-sep {
+  flex: 1;
 }
 
 /* 移动端：弹窗贴边、表单单列 */

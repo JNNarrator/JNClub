@@ -49,7 +49,7 @@ public class ExportService {
         this.cloudDiskService = cloudDiskService;
     }
 
-    /** 导出收藏（JSON）：目录树 + 收藏（含标签） */
+    /** 导出收藏（JSON）：目录（扁平含 parentId，供导入无损还原层级）+ 收藏（含标签） */
     public String exportBookmarksJson() {
         String userId = StpUtil.getLoginIdAsString();
         try {
@@ -58,7 +58,10 @@ public class ExportService {
             payload.put("type", "bookmarks");
             payload.put("exportedAt", LocalDate.now().toString());
             payload.put("userId", userId);
-            payload.put("directories", directoryService.getDirectoryTree(1));
+            payload.put("directories", directoryService.list(new LambdaQueryWrapper<Directory>()
+                    .eq(Directory::getUserId, userId)
+                    .eq(Directory::getType, 1)
+                    .orderByAsc(Directory::getSortOrder)));
             payload.put("bookmarks", buildBookmarksWithTags(userId));
             return JSONUtil.toJsonPrettyStr(payload);
         } catch (Exception e) {

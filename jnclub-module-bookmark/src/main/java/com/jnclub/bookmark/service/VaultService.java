@@ -594,10 +594,25 @@ public class VaultService extends ServiceImpl<VaultMapper, Vault> {
      * @return 加密备份字符串：base64(salt):hex(cipher)
      */
     public String exportBackup(String backupPassword) {
-        String userId = StpUtil.getLoginIdAsString();
         if (backupPassword == null || backupPassword.length() < 8) {
             throw new BizException("备份密码至少 8 位");
         }
+        cn.hutool.json.JSONObject payload = buildBackupPayload();
+        try {
+            String json = cn.hutool.json.JSONUtil.toJsonPrettyStr(payload);
+            // 备份密钥派生
+            String salt = VaultCrypto.generateSalt();
+            byte[] backupKey = VaultCrypto.deriveKey(backupPassword, salt, VaultCrypto.PBKDF2_ITERATIONS);
+            String cipher = VaultCrypto.encrypt(backupKey, json);
+            return salt + ":" + cipher;
+        } catch (Exception e) {
+            throw new BizException("备份导出失败: " + e.getMessage());
+        }
+    }
+
+    /** 构建密码库备份明文载荷（含解密后的密码明文，调用方负责加密），供单独备份与全量备份复用 */
+    public cn.hutool.json.JSONObject buildBackupPayload() {
+        String userId = StpUtil.getLoginIdAsString();
         requireUnlockedOrLegacy(userId);
 
         byte[] currentKey = currentKey(userId);
@@ -641,24 +656,14 @@ public class VaultService extends ServiceImpl<VaultMapper, Vault> {
             entryList.add(m);
         }
 
-        Map<String, Object> payload = new HashMap<>();
-        payload.put("app", "JNClub");
-        payload.put("type", "vault-backup");
-        payload.put("version", 1);
-        payload.put("exportedAt", LocalDateTime.now().toString());
-        payload.put("directories", dirList);
-        payload.put("entries", entryList);
-
-        try {
-            String json = cn.hutool.json.JSONUtil.toJsonPrettyStr(payload);
-            // 备份密钥派生
-            String salt = VaultCrypto.generateSalt();
-            byte[] backupKey = VaultCrypto.deriveKey(backupPassword, salt, VaultCrypto.PBKDF2_ITERATIONS);
-            String cipher = VaultCrypto.encrypt(backupKey, json);
-            return salt + ":" + cipher;
-        } catch (Exception e) {
-            throw new BizException("备份导出失败: " + e.getMessage());
-        }
+        cn.hutool.json.JSONObject payload = cn.hutool.json.JSONUtil.createObj();
+        payload.set("app", "JNClub");
+        payload.set("type", "vault-backup");
+        payload.set("version", 1);
+        payload.set("exportedAt", LocalDateTime.now().toString());
+        payload.set("directories", dirList);
+        payload.set("entries", entryList);
+        return payload;
     }
 
     /**
@@ -671,7 +676,6 @@ public class VaultService extends ServiceImpl<VaultMapper, Vault> {
      */
     @Transactional
     public Map<String, Object> importBackup(String backupPassword, String backupContent, String mode) {
-        String userId = StpUtil.getLoginIdAsString();
         if (backupPassword == null || backupContent == null) {
             throw new BizException("缺少备份密码或备份内容");
         }
@@ -696,6 +700,24 @@ public class VaultService extends ServiceImpl<VaultMapper, Vault> {
             if (!"vault-backup".equals(payload.getStr("type"))) {
                 throw new BizException("不是有效的密码库备份文件");
             }
+            return restoreVaultPayload(payload, mode);
+        } catch (BizException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new BizException("备份导入失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 从明文载荷恢复密码库（合并/替换），供备份导入与全量备份恢复复用。
+     * 载荷结构：{ directories:[{id,parentId,name,icon,sortOrder}], entries:[{directoryId,name,username,password(明文),url,notes,sortOrder,deleted,createTime}] }
+     *
+     * @return 导入统计 { imported, skipped }
+     */
+    @Transactional
+    public Map<String, Object> restoreVaultPayload(cn.hutool.json.JSONObject payload, String mode) {
+        String userId = StpUtil.getLoginIdAsString();
+        try {
             List<cn.hutool.json.JSONObject> dirs = payload.containsKey("directories")
                     ? payload.getJSONArray("directories").toList(cn.hutool.json.JSONObject.class)
                     : List.of();

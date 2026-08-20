@@ -22,6 +22,7 @@ CLAUDE.md
 .scripts/
 scripts/
 *.local.json
+.dsh-vision-toolkit/
 
 # Logs
 *.log

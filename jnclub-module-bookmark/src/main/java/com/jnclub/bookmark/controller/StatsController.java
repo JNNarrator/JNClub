@@ -5,8 +5,10 @@ import com.jnclub.common.model.R;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -23,5 +25,11 @@ public class StatsController {
     @GetMapping("/summary")
     public R<Map<String, Object>> summary() {
         return R.ok(statsService.summary());
+    }
+
+    /** 近 N 月新增趋势：{ month, bookmarks, notes, files, vault }[] */
+    @GetMapping("/trend")
+    public R<List<Map<String, Object>>> trend(@RequestParam(defaultValue = "6") int months) {
+        return R.ok(statsService.trend(months));
     }
 }
