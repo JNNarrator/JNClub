@@ -117,8 +117,10 @@ const quickActions = [
             @click="router.push(c.to)"
           >
             <div class="stat-icon"><NIcon :component="c.icon" size="20" /></div>
-            <div class="stat-value">{{ c.value }}</div>
-            <div class="stat-label">{{ c.label }}<span v-if="c.warn" class="stat-warn-dot" /></div>
+            <div class="stat-text">
+              <div class="stat-value">{{ c.value }}</div>
+              <div class="stat-label">{{ c.label }}<span v-if="c.warn" class="stat-warn-dot" /></div>
+            </div>
           </button>
         </div>
 
@@ -221,7 +223,7 @@ const quickActions = [
 .dash {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 24px;
 }
 .dash-head {
   display: flex;
@@ -242,25 +244,25 @@ const quickActions = [
 .dash-error { padding-top: 60px; }
 
 /* 统计卡片 */
-/* 统计卡片：固定列数（6/3/2），避免 auto-fill 出现参差末行（如 5+1 孤卡） */
+/* 统计卡片：固定列数（3/2，超宽屏 6），避免 auto-fill 出现参差末行（如 5+1 孤卡）；
+   常规屏（含笔记本）用 3 列×2 行，卡片宽裕不拥挤；≥1600px 超宽屏恢复 6 列一览 */
 .stat-grid {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
 }
-@media (min-width: 700px) and (max-width: 1279px) {
-  .stat-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (min-width: 1600px) {
+  .stat-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 }
 @media (max-width: 699px) {
   .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 .stat-card {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 8px;
-  min-height: 112px;
-  padding: 18px;
+  align-items: center;
+  gap: 16px;
+  min-height: 96px;
+  padding: 20px;
   background: var(--glass-bg-trans);
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
@@ -276,15 +278,22 @@ const quickActions = [
   transform: translateY(-2px);
 }
 .stat-card.stat-warn { border-color: rgba(245, 72, 92, 0.45); }
+.stat-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
 .stat-icon {
-  width: 36px; height: 36px; border-radius: 10px;
+  width: 40px; height: 40px; border-radius: 12px;
+  flex-shrink: 0;
   background: var(--brand-soft); color: var(--brand);
   display: flex; align-items: center; justify-content: center;
 }
 .stat-warn .stat-icon { background: rgba(245, 72, 92, 0.16); color: #ff8a97; }
 .stat-value {
-  font-size: 26px; font-weight: 800; color: var(--text-1); line-height: 1.1;
-  margin-top: auto;
+  font-size: 30px; font-weight: 800; color: var(--text-1); line-height: 1.1;
+  white-space: nowrap;
 }
 .stat-label {
   display: inline-flex; align-items: center; gap: 6px;
@@ -297,18 +306,29 @@ const quickActions = [
 @keyframes dash-blink {
   50% { opacity: 0.3; }
 }
+@media (max-width: 699px) {
+  /* 移动端窄卡：改回纵向排布，避免横向挤压 */
+  .stat-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    min-height: 124px;
+  }
+  .stat-icon { width: 36px; height: 36px; border-radius: 10px; }
+  .stat-value { font-size: 26px; }
+}
 
 /* 中排双栏 */
 .mid-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 14px;
+  gap: 16px;
 }
 @media (max-width: 900px) {
   .mid-grid { grid-template-columns: 1fr; }
 }
 .panel {
-  padding: 18px;
+  padding: 20px;
   background: var(--glass-bg-trans);
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
@@ -385,7 +405,7 @@ const quickActions = [
 .recent-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 14px;
+  gap: 16px;
 }
 @media (max-width: 900px) {
   .recent-grid { grid-template-columns: 1fr; }
@@ -406,8 +426,8 @@ const quickActions = [
 
 /* 快捷入口 */
 .quick-bar {
-  display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
-  padding: 12px 16px;
+  display: flex; align-items: center; flex-wrap: wrap; gap: 10px;
+  padding: 14px 18px;
   background: var(--glass-bg-trans);
   border: 1px dashed var(--glass-border);
   border-radius: var(--radius-md);
