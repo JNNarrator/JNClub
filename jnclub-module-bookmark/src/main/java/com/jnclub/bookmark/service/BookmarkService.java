@@ -365,4 +365,127 @@ public class BookmarkService extends ServiceImpl<BookmarkMapper, Bookmark> {
     private String cleanTitle(String title) {
         return title == null ? null : title.replaceAll("\\s+", " ").trim();
     }
+
+    // ============================================================
+    // 收藏失效检测（死链检测）：HEAD 探测 + 状态落库 + 限速
+    // ============================================================
+
+    /**
+     * 检测当前用户全部收藏的链接可用性。
+     * 串行 + 每次间隔（避免触发目标站反爬/被封），状态写 t_bookmark.check_status。
+     * 返回 { total, ok, dead, error, deadList }
+     */
+    public Map<String, Object> checkDeadLinks() {
+        String userId = StpUtil.getLoginIdAsString();
+        List<Bookmark> bookmarks = list(new LambdaQueryWrapper<Bookmark>()
+                .eq(Bookmark::getUserId, userId)
+                .eq(Bookmark::getDeleted, 0));
+        if (bookmarks.isEmpty()) {
+            return Map.of("total", 0, "ok", 0, "dead", 0, "error", 0, "deadList", List.of());
+        }
+
+        int ok = 0, dead = 0, error = 0;
+        List<Map<String, Object>> deadList = new java.util.ArrayList<>();
+        for (Bookmark b : bookmarks) {
+            int status = probeUrl(b.getUrl());
+            if (status == 1) ok++;
+            else if (status == 2) {
+                dead++;
+                Map<String, Object> item = new LinkedHashMap<>();
+                item.put("id", b.getId());
+                item.put("title", b.getTitle());
+                item.put("url", b.getUrl());
+                deadList.add(item);
+            } else {
+                error++;
+            }
+            b.setCheckStatus(status);
+            b.setCheckedAt(java.time.LocalDateTime.now());
+            updateById(b);
+            // 限速：每请求间隔 120ms，平衡速度与被封风险
+            try { Thread.sleep(120); } catch (InterruptedException ignored) { Thread.currentThread().interrupt(); break; }
+        }
+
+        cacheService.evictByPrefix(CacheKey.bookmarkPrefix(userId));
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("total", bookmarks.size());
+        result.put("ok", ok);
+        result.put("dead", dead);
+        result.put("error", error);
+        result.put("deadList", deadList);
+        return result;
+    }
+
+    /** 失效收藏列表（check_status=2） */
+    public List<Map<String, Object>> listDeadLinks() {
+        String userId = StpUtil.getLoginIdAsString();
+        List<Bookmark> dead = list(new LambdaQueryWrapper<Bookmark>()
+                .eq(Bookmark::getUserId, userId)
+                .eq(Bookmark::getDeleted, 0)
+                .eq(Bookmark::getCheckStatus, 2)
+                .orderByDesc(Bookmark::getCheckedAt));
+        List<Map<String, Object>> result = new java.util.ArrayList<>();
+        for (Bookmark b : dead) {
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("id", b.getId());
+            item.put("title", b.getTitle());
+            item.put("url", b.getUrl());
+            item.put("checkedAt", String.valueOf(b.getCheckedAt()));
+            result.add(item);
+        }
+        return result;
+    }
+
+    /** 批量删除失效收藏（真正删除；回收站保留） */
+    @Transactional
+    public int deleteDeadLinks(List<Long> ids) {
+        String userId = StpUtil.getLoginIdAsString();
+        int count = 0;
+        for (Long id : ids) {
+            Bookmark b = getById(id);
+            if (b != null && b.getUserId().equals(userId) && b.getCheckStatus() != null && b.getCheckStatus() == 2) {
+                removeById(id);
+                tagService.deleteRelationsByRef("bookmark", id, userId);
+                count++;
+            }
+        }
+        cacheService.evictByPrefix(CacheKey.bookmarkPrefix(userId));
+        return count;
+    }
+
+    /**
+     * 探测单个 URL：返回 1=正常 2=失效 0=无法判断（网络错误/超时）
+     * HEAD 优先，部分站点不支持 HEAD 则回退 GET（不下载 body）
+     */
+    private int probeUrl(String url) {
+        if (url == null || url.isBlank()) return 0;
+        try {
+            // 1) HEAD
+            try (HttpResponse resp = HttpRequest.head(url)
+                    .timeout(10_000)
+                    .header("User-Agent", UA)
+                    .header("Accept-Language", "zh-CN,zh;q=0.9")
+                    .execute()) {
+                int code = resp.getStatus();
+                if (code >= 200 && code < 400) return 1;
+                if (code >= 400) return 2;
+                return 0;
+            } catch (Exception e) {
+                // 2) HEAD 失败（部分站点拒绝）→ GET 只读状态
+                try (HttpResponse resp = HttpRequest.get(url)
+                        .timeout(10_000)
+                        .header("User-Agent", UA)
+                        .header("Accept", "*/*")
+                        .execute()) {
+                    int code = resp.getStatus();
+                    if (code >= 200 && code < 400) return 1;
+                    if (code >= 400) return 2;
+                    return 0;
+                }
+            }
+        } catch (Exception e) {
+            log.debug("收藏链接探测失败 {}: {}", url, e.getMessage());
+            return 2; // 网络不可达视为失效
+        }
+    }
 }

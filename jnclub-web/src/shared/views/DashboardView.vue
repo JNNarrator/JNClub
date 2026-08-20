@@ -7,12 +7,13 @@ import { ref, computed, onMounted } from 'vue'
 import { NIcon, NSpin, NEmpty, NButton } from 'naive-ui'
 import {
   Bookmark, StickyNote, Cloud, KeyRound, Tag, Trash2, HardDrive,
-  ShieldCheck, AlertTriangle, ArrowRight, LayoutDashboard, RefreshCw, Download,
+  ShieldCheck, AlertTriangle, ArrowRight, LayoutDashboard, RefreshCw, Download, Upload,
 } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
 import { formatRelativeTime } from '../../modules/bookmark/composables/formatDate'
 import ExportModal from '../../modules/bookmark/components/ExportModal.vue'
+import ImportModal from '../../modules/bookmark/components/ImportModal.vue'
 
 interface StatsSummary {
   counts: {
@@ -41,6 +42,7 @@ const loading = ref(true)
 const error = ref(false)
 const data = ref<StatsSummary | null>(null)
 const showExport = ref(false)
+const showImport = ref(false)
 
 const fetchSummary = async () => {
   loading.value = true
@@ -104,6 +106,10 @@ const quickActions = [
           <template #icon><NIcon :component="Download" size="13" /></template>
           数据导出
         </NButton>
+        <NButton size="tiny" quaternary class="dash-import" @click="showImport = true">
+          <template #icon><NIcon :component="Upload" size="13" /></template>
+          数据导入
+        </NButton>
         <NButton size="tiny" quaternary class="dash-refresh" :loading="loading" @click="fetchSummary">
           <template #icon><NIcon :component="RefreshCw" size="13" /></template>
           刷新
@@ -112,6 +118,7 @@ const quickActions = [
     </div>
 
     <ExportModal v-model:show="showExport" />
+    <ImportModal v-model:show="showImport" @imported="fetchSummary" />
 
     <NSpin :show="loading" class="dash-spin">
       <div v-if="error && !data" class="dash-error">
@@ -256,6 +263,7 @@ const quickActions = [
 }
 .dash-refresh { border-radius: var(--radius-pill); }
 .dash-export { border-radius: var(--radius-pill); color: var(--brand); }
+.dash-import { border-radius: var(--radius-pill); color: var(--brand); }
 .dash-spin { min-height: 240px; }
 .dash-error { padding-top: 60px; }
 

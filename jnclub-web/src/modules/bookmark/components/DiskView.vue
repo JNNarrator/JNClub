@@ -105,12 +105,14 @@ const handleBatchDownload = () => {
   window.open(`/api/clouddisk/files/download-batch?ids=${selectedIds.value.join(',')}`, '_blank')
 }
 
-/* ─── 在线预览（图片 / 文本 / PDF，复用 /api/files 只读代理） ─── */
+/* ─── 在线预览（图片 / 文本 / PDF / 音视频，复用 /api/files 只读代理，Range 流式） ─── */
 const IMAGE_RE = /\.(png|jpe?g|gif|webp|svg|avif|bmp)$/i
 const TEXT_RE = /\.(txt|md|json|js|mjs|ts|css|html|htm|xml|log|csv|properties|yaml|yml|sql|java|py|sh|ini)$/i
 const PDF_RE = /\.pdf$/i
+const AUDIO_RE = /\.(mp3|m4a|aac|wav|flac|ogg|oga|opus)$/i
+const VIDEO_RE = /\.(mp4|m4v|webm|mov|mkv|avi)$/i
 
-const preview = ref<{ file: DiskFile; kind: 'image' | 'pdf' | 'text'; text?: string } | null>(null)
+const preview = ref<{ file: DiskFile; kind: 'image' | 'pdf' | 'text' | 'audio' | 'video'; text?: string } | null>(null)
 const previewTextLoading = ref(false)
 
 const openPreview = async (file: DiskFile) => {
@@ -121,6 +123,14 @@ const openPreview = async (file: DiskFile) => {
   }
   if (IMAGE_RE.test(name)) {
     preview.value = { file, kind: 'image' }
+    return
+  }
+  if (AUDIO_RE.test(name)) {
+    preview.value = { file, kind: 'audio' }
+    return
+  }
+  if (VIDEO_RE.test(name)) {
+    preview.value = { file, kind: 'video' }
     return
   }
   if (TEXT_RE.test(name)) {
@@ -494,7 +504,7 @@ const fileKindColor = (name: string) => FILE_KINDS.find(k => k.re.test(name))?.c
     <!-- 在线预览弹窗 -->
     <NModal
       :show="preview !== null"
-      :style="{ width: preview?.kind === 'pdf' ? 'min(900px, 92vw)' : 'min(560px, 92vw)' }"
+      :style="{ width: preview?.kind === 'pdf' || preview?.kind === 'video' ? 'min(900px, 92vw)' : 'min(560px, 92vw)' }"
       :bordered="false"
       @update:show="(v: boolean) => { if (!v) closePreview() }"
     >
@@ -510,6 +520,12 @@ const fileKindColor = (name: string) => FILE_KINDS.find(k => k.re.test(name))?.c
         </div>
         <div v-else-if="preview.kind === 'pdf'" class="preview-body preview-pdf">
           <iframe :src="preview.file.url" />
+        </div>
+        <div v-else-if="preview.kind === 'audio'" class="preview-body preview-media">
+          <audio :src="preview.file.url" controls autoplay class="preview-audio" />
+        </div>
+        <div v-else-if="preview.kind === 'video'" class="preview-body preview-media">
+          <video :src="preview.file.url" controls autoplay class="preview-video" />
         </div>
         <div v-else class="preview-body preview-text">
           <NSpin :show="previewTextLoading">
@@ -692,6 +708,23 @@ const fileKindColor = (name: string) => FILE_KINDS.find(k => k.re.test(name))?.c
 }
 .preview-image img { max-width: 100%; max-height: 65vh; border-radius: var(--radius-xs); }
 .preview-pdf iframe { width: 100%; height: 70vh; border: none; display: block; }
+.preview-media {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  min-height: 120px;
+}
+.preview-audio {
+  width: 100%;
+  max-width: 480px;
+}
+.preview-video {
+  width: 100%;
+  max-height: 68vh;
+  border-radius: var(--radius-xs);
+  background: #000;
+}
 .preview-text pre {
   margin: 0;
   padding: 14px 16px;

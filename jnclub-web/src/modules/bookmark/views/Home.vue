@@ -6,7 +6,7 @@ import {
   NDrawer, NDrawerContent, NDropdown,
   useMessage, useDialog,
 } from 'naive-ui'
-import { Plus, FolderOpen, Link, Globe, RefreshCw, UploadCloud, Tag, Search, Download, Sun, Moon, CircleUser, LogOut, CheckSquare, FolderInput, Tags, Trash2, X, Archive } from 'lucide-vue-next'
+import { Plus, FolderOpen, Link, Globe, RefreshCw, UploadCloud, Tag, Search, Download, Sun, Moon, CircleUser, LogOut, CheckSquare, FolderInput, Tags, Trash2, X, Archive, ShieldAlert } from 'lucide-vue-next'
 import { useRouter, useRoute, type RouteLocationRaw } from 'vue-router'
 import { useDirectoryStore } from '../stores/directory'
 import { useBookmarkStore } from '../stores/bookmark'
@@ -23,6 +23,7 @@ import NoteGrid from '../components/NoteGrid.vue'
 import NoteList from '../components/NoteList.vue'
 import DiskView from '../components/DiskView.vue'
 import VaultView from '../components/VaultView.vue'
+import DeadLinkModal from '../components/DeadLinkModal.vue'
 import ViewSwitcher from '../components/ViewSwitcher.vue'
 import TagPicker from '../components/TagPicker.vue'
 import SearchDrawer from '../components/SearchDrawer.vue'
@@ -349,6 +350,8 @@ const availableTags = ref<TagItem[]>([])
 const activeTagId = ref<number | null>(null)
 /** 便签归档视图开关 */
 const notesArchived = ref(false)
+/** 收藏失效检测弹窗 */
+const showDeadLink = ref(false)
 /** TagPicker 保存触发计数 */
 const tagSaveTrigger = ref(0)
 
@@ -789,6 +792,17 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
             新建收藏
           </NButton>
           <NButton
+            v-if="props.activeModule === 'bookmarks'"
+            size="small"
+            class="io-export-btn jnclub-bouncy"
+            :disabled="!bookmarkStore.bookmarks.length"
+            title="检测全部收藏链接是否失效（死链检测）"
+            @click="showDeadLink = true"
+          >
+            <template #icon><NIcon :component="ShieldAlert" size="15" /></template>
+            检测失效
+          </NButton>
+          <NButton
             v-if="props.activeModule === 'notes'"
             class="btn-new jnclub-bouncy-slow"
             @click="handleCreateNote"
@@ -1081,6 +1095,9 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
 
     <!-- 全局右键菜单宿主 -->
     <ContextMenuHost />
+
+    <!-- 收藏失效检测弹窗 -->
+    <DeadLinkModal v-model:show="showDeadLink" @cleaned="handleRefresh" />
   </div>
 </template>
 

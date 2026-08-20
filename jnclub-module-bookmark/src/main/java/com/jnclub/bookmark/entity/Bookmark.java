@@ -32,4 +32,10 @@ public class Bookmark {
 
     /** 软删除标记：0正常 1回收站 */
     private Integer deleted;
+
+    /** 失效检测状态：0未检测 1正常 2失效 */
+    private Integer checkStatus;
+
+    /** 最近失效检测时间 */
+    private LocalDateTime checkedAt;
 }

@@ -90,6 +90,29 @@ public class BookmarkController {
         return R.ok();
     }
 
+    // ============================================================
+    // 收藏失效检测（死链）
+    // ============================================================
+
+    /** 检测全部收藏链接可用性（串行+限速，耗时随收藏数增长） */
+    @PostMapping("/check-dead")
+    public R<Map<String, Object>> checkDeadLinks() {
+        return R.ok(bookmarkService.checkDeadLinks());
+    }
+
+    /** 失效收藏列表 */
+    @GetMapping("/dead")
+    public R<List<Map<String, Object>>> listDeadLinks() {
+        return R.ok(bookmarkService.listDeadLinks());
+    }
+
+    /** 删除失效收藏（真正删除）：body { ids[] } */
+    @PostMapping("/delete-dead")
+    public R<Map<String, Object>> deleteDeadLinks(@RequestBody Map<String, Object> body) {
+        int count = bookmarkService.deleteDeadLinks(parseIds(body.get("ids")));
+        return R.ok(Map.of("deleted", count));
+    }
+
     @SuppressWarnings("unchecked")
     private List<Long> parseIds(Object raw) {
         if (raw == null) return List.of();
