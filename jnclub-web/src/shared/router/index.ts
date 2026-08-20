@@ -58,6 +58,12 @@ const router = createRouter({
       name: 'music',
       component: () => import('../views/Music.vue'),
     },
+    // 待办清单独立页面（套用与主界面一致的壳：MainLayout 侧栏/TabBar + 模块顶栏）
+    {
+      path: '/todos',
+      name: 'todos',
+      component: () => import('../layout/TodoLayout.vue'),
+    },
   ],
 })
 
@@ -132,6 +138,7 @@ const TITLE_BY_NAME: Record<string, string> = {
   extension: '下载中心 - JNClub',
   share: '分享 - JNClub',
   recycle: '回收站 - JNClub',
+  todos: '待办 - JNClub',
   music: '音乐 - JNClub',
   'note-create': '新建便签 - JNClub',
   'note-view': '便签 - JNClub',

@@ -3,11 +3,12 @@
  * DashboardView.vue — 概览数据看板
  * 统计卡片（收藏/便签/文件/密码/标签/回收站）+ 磁盘占用 + 密码库指纹健康 + 最近动态 + 快捷入口
  */
-import { ref, computed, onMounted } from 'vue'
-import { NIcon, NSpin, NEmpty, NButton } from 'naive-ui'
+import { ref, computed, onMounted, watch } from 'vue'
+import { NIcon, NSpin, NEmpty, NButton, NDrawer, NSwitch } from 'naive-ui'
 import {
   Bookmark, StickyNote, Cloud, KeyRound, Tag, Trash2, HardDrive,
   ShieldCheck, AlertTriangle, ArrowRight, LayoutDashboard, RefreshCw, Download, Upload, Database, TrendingUp,
+  ListTodo, Settings2, GripVertical, Sparkles,
 } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
@@ -36,6 +37,7 @@ interface StatsSummary {
     files: Array<{ id: number; originalName: string; size: number; createTime: string }>
   }
   vault: { entries: number; duplicateCount: number }
+  todos: { active: number; dueToday: number; overdue: number }
 }
 
 const router = useRouter()
@@ -152,6 +154,94 @@ const quickActions = [
   { label: '回收站', to: '/recycle', icon: Trash2 },
   { label: '音乐', to: '/music', icon: LayoutDashboard },
 ]
+
+/* ─── 首页自定义布局 ─── */
+import { useUserPreferences } from '../composables/useUserPreferences'
+import { useDraggableSort } from '../../modules/bookmark/composables/useDraggableSort'
+
+const prefs = useUserPreferences()
+
+type DashSection = 'greet' | 'stat' | 'trend' | 'disk' | 'vault' | 'todo' | 'recent' | 'quick'
+
+const DASH_SECTIONS: Array<{ key: DashSection; label: string; icon: any }> = [
+  { key: 'greet', label: '问候与日期', icon: Sparkles },
+  { key: 'stat', label: '统计卡片', icon: LayoutDashboard },
+  { key: 'trend', label: '数据趋势', icon: TrendingUp },
+  { key: 'disk', label: '云盘占用', icon: HardDrive },
+  { key: 'vault', label: '密码库健康', icon: ShieldCheck },
+  { key: 'todo', label: '今日待办', icon: ListTodo },
+  { key: 'recent', label: '最近动态', icon: Bookmark },
+  { key: 'quick', label: '快捷入口', icon: ArrowRight },
+]
+
+const DEFAULT_DASH_ORDER: DashSection[] = DASH_SECTIONS.map(s => s.key)
+
+const dashOrder = ref<DashSection[]>(prefs.get<DashSection[]>('dash.order', DEFAULT_DASH_ORDER))
+const dashHidden = ref<DashSection[]>(prefs.get<DashSection[]>('dash.hidden', []))
+
+const orderOf = (key: DashSection) => {
+  const idx = dashOrder.value.indexOf(key)
+  return idx < 0 ? DEFAULT_DASH_ORDER.indexOf(key) : idx
+}
+const visible = (key: DashSection) => !dashHidden.value.includes(key)
+
+/** 布局编辑器 */
+const showLayout = ref(false)
+const layoutListRef = ref<HTMLElement | null>(null)
+const { init: initLayoutSort } = useDraggableSort(layoutListRef, (ordered) => {
+  dashOrder.value = ordered as DashSection[]
+  prefs.set('dash.order', dashOrder.value)
+})
+
+watch(showLayout, (v) => {
+  if (v) {
+    // 等待 DOM 渲染后再初始化拖拽
+    setTimeout(() => initLayoutSort(), 50)
+  }
+})
+
+const toggleSection = (key: DashSection) => {
+  const set = new Set(dashHidden.value)
+  if (set.has(key)) set.delete(key)
+  else set.add(key)
+  dashHidden.value = [...set]
+  prefs.set('dash.hidden', dashHidden.value)
+}
+
+const resetLayout = () => {
+  dashOrder.value = [...DEFAULT_DASH_ORDER]
+  dashHidden.value = []
+  prefs.set('dash.order', dashOrder.value)
+  prefs.set('dash.hidden', dashHidden.value)
+}
+
+/* ─── 问候 ─── */
+const greeting = computed(() => {
+  const h = new Date().getHours()
+  if (h < 5) return '夜深了'
+  if (h < 9) return '早上好'
+  if (h < 12) return '上午好'
+  if (h < 14) return '中午好'
+  if (h < 18) return '下午好'
+  return '晚上好'
+})
+const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六']
+const dateText = computed(() => {
+  const d = new Date()
+  return `${d.getMonth() + 1}月${d.getDate()}日 星期${WEEKDAYS[d.getDay()]}`
+})
+const QUOTES = [
+  '日拱一卒，功不唐捐。',
+  '种一棵树最好的时间是十年前，其次是现在。',
+  '少即是多，慢即是快。',
+  '把今天过好，就是对未来最好的准备。',
+  '志之所趋，无远弗届。',
+  '不积跬步，无以至千里。',
+]
+const quoteText = computed(() => QUOTES[new Date().getDate() % QUOTES.length])
+
+/* 今日待办跳转 */
+const goTodos = () => router.push('/todos')
 </script>
 
 <template>
@@ -162,6 +252,10 @@ const quickActions = [
         <span>数据概览</span>
       </div>
       <div class="dash-actions">
+        <NButton size="tiny" quaternary class="dash-layout" @click="showLayout = true">
+          <template #icon><NIcon :component="Settings2" size="13" /></template>
+          布局
+        </NButton>
         <NButton size="tiny" quaternary class="dash-backup" @click="showBackup = true">
           <template #icon><NIcon :component="Database" size="13" /></template>
           全量备份
@@ -191,23 +285,64 @@ const quickActions = [
       </div>
 
       <template v-else-if="data">
-        <!-- 统计卡片 -->
-        <div class="stat-grid">
-          <button
-            v-for="c in statCards" :key="c.key"
-            type="button" class="stat-card jnclub-bouncy" :class="{ 'stat-warn': c.warn }"
-            @click="router.push(c.to)"
-          >
-            <div class="stat-icon"><NIcon :component="c.icon" size="20" /></div>
-            <div class="stat-text">
-              <div class="stat-value">{{ c.value }}</div>
-              <div class="stat-label">{{ c.label }}<span v-if="c.warn" class="stat-warn-dot" /></div>
+        <!-- 问候与日期 -->
+        <div v-if="visible('greet')" class="dash-section" :style="{ order: orderOf('greet') }">
+          <div class="greet-card glass-card--modal">
+            <div class="greet-main">
+              <span class="greet-emoji">{{ greeting === '夜深了' ? '🌙' : '👋' }}</span>
+              <div class="greet-text">
+                <div class="greet-title">{{ greeting }}，欢迎回来</div>
+                <div class="greet-date">{{ dateText }}</div>
+              </div>
             </div>
-          </button>
+            <div class="greet-quote">「{{ quoteText }}」</div>
+          </div>
+        </div>
+
+        <!-- 统计卡片 -->
+        <div v-if="visible('stat')" class="dash-section" :style="{ order: orderOf('stat') }">
+          <div class="stat-grid">
+            <button
+              v-for="c in statCards" :key="c.key"
+              type="button" class="stat-card jnclub-bouncy" :class="{ 'stat-warn': c.warn }"
+              @click="router.push(c.to)"
+            >
+              <div class="stat-icon"><NIcon :component="c.icon" size="20" /></div>
+              <div class="stat-text">
+                <div class="stat-value">{{ c.value }}</div>
+                <div class="stat-label">{{ c.label }}<span v-if="c.warn" class="stat-warn-dot" /></div>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        <!-- 今日待办 -->
+        <div v-if="visible('todo')" class="dash-section" :style="{ order: orderOf('todo') }">
+          <div class="panel todo-panel" @click="goTodos">
+            <div class="panel-title">
+              <NIcon :component="ListTodo" size="15" class="panel-title-icon" /> 今日待办
+              <span class="panel-sub" v-if="data.todos">进行中 {{ data.todos.active }} · 今日到期 {{ data.todos.dueToday }} · 已逾期 {{ data.todos.overdue }}</span>
+            </div>
+            <div class="todo-summary">
+              <div class="todo-summary-item" :class="{ 'todo-summary-warn': data.todos.dueToday > 0 }">
+                <b>{{ data.todos.dueToday }}</b><span>今日到期</span>
+              </div>
+              <div class="todo-summary-item" :class="{ 'todo-summary-danger': data.todos.overdue > 0 }">
+                <b>{{ data.todos.overdue }}</b><span>已逾期</span>
+              </div>
+              <div class="todo-summary-item">
+                <b>{{ data.todos.active }}</b><span>进行中</span>
+              </div>
+              <div class="todo-summary-go">
+                去处理 <NIcon :component="ArrowRight" size="13" />
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- 数据趋势 -->
-        <div class="panel trend-panel">
+        <div v-if="visible('trend')" class="dash-section" :style="{ order: orderOf('trend') }">
+          <div class="panel trend-panel">
           <div class="panel-title">
             <NIcon :component="TrendingUp" size="15" class="panel-title-icon" /> 数据趋势 · 近 6 个月
             <span class="trend-legend">
@@ -245,10 +380,12 @@ const quickActions = [
             </div>
           </div>
         </div>
+        </div>
 
         <!-- 磁盘占用 + 密码库健康 -->
-        <div class="mid-grid">
-          <div class="panel">
+        <div v-if="visible('disk') || visible('vault')" class="dash-section" :style="{ order: orderOf('disk') }">
+          <div class="mid-grid">
+            <div v-if="visible('disk')" class="panel">
             <div class="panel-title">
               <NIcon :component="HardDrive" size="15" class="panel-title-icon" /> 云盘占用
               <span class="panel-sub">{{ data.disk.fileCount }} 个文件 · {{ fmtSize(diskTotal) }}</span>
@@ -267,7 +404,7 @@ const quickActions = [
             </div>
           </div>
 
-          <div class="panel">
+          <div v-if="visible('vault')" class="panel">
             <div class="panel-title">
               <NIcon :component="ShieldCheck" size="15" class="panel-title-icon" /> 密码库健康
             </div>
@@ -289,55 +426,80 @@ const quickActions = [
             </div>
           </div>
         </div>
+        </div>
 
         <!-- 最近动态 -->
-        <div class="recent-grid">
-          <div class="panel">
-            <div class="panel-title"><NIcon :component="Bookmark" size="15" class="panel-title-icon" /> 最近收藏</div>
-            <div v-if="!data.recent.bookmarks.length" class="panel-empty">暂无收藏</div>
-            <div v-else class="recent-list">
-              <div v-for="b in data.recent.bookmarks" :key="b.id" class="recent-item">
-                <span class="recent-title">{{ b.title || b.url }}</span>
-                <span class="recent-time">{{ formatRelativeTime(b.createTime) }}</span>
+        <div v-if="visible('recent')" class="dash-section" :style="{ order: orderOf('recent') }">
+          <div class="recent-grid">
+            <div class="panel">
+              <div class="panel-title"><NIcon :component="Bookmark" size="15" class="panel-title-icon" /> 最近收藏</div>
+              <div v-if="!data.recent.bookmarks.length" class="panel-empty">暂无收藏</div>
+              <div v-else class="recent-list">
+                <div v-for="b in data.recent.bookmarks" :key="b.id" class="recent-item">
+                  <span class="recent-title">{{ b.title || b.url }}</span>
+                  <span class="recent-time">{{ formatRelativeTime(b.createTime) }}</span>
+                </div>
               </div>
             </div>
-          </div>
-          <div class="panel">
-            <div class="panel-title"><NIcon :component="StickyNote" size="15" class="panel-title-icon" /> 最近便签</div>
-            <div v-if="!data.recent.notes.length" class="panel-empty">暂无便签</div>
-            <div v-else class="recent-list">
-              <div v-for="n in data.recent.notes" :key="n.id" class="recent-item">
-                <span class="recent-title">{{ n.title || '无标题' }}</span>
-                <span class="recent-time">{{ formatRelativeTime(n.createTime) }}</span>
+            <div class="panel">
+              <div class="panel-title"><NIcon :component="StickyNote" size="15" class="panel-title-icon" /> 最近便签</div>
+              <div v-if="!data.recent.notes.length" class="panel-empty">暂无便签</div>
+              <div v-else class="recent-list">
+                <div v-for="n in data.recent.notes" :key="n.id" class="recent-item">
+                  <span class="recent-title">{{ n.title || '无标题' }}</span>
+                  <span class="recent-time">{{ formatRelativeTime(n.createTime) }}</span>
+                </div>
               </div>
             </div>
-          </div>
-          <div class="panel">
-            <div class="panel-title"><NIcon :component="Cloud" size="15" class="panel-title-icon" /> 最近文件</div>
-            <div v-if="!data.recent.files.length" class="panel-empty">暂无文件</div>
-            <div v-else class="recent-list">
-              <div v-for="f in data.recent.files" :key="f.id" class="recent-item">
-                <span class="recent-title">{{ f.originalName }}</span>
-                <span class="recent-time">{{ formatRelativeTime(f.createTime) }}</span>
+            <div class="panel">
+              <div class="panel-title"><NIcon :component="Cloud" size="15" class="panel-title-icon" /> 最近文件</div>
+              <div v-if="!data.recent.files.length" class="panel-empty">暂无文件</div>
+              <div v-else class="recent-list">
+                <div v-for="f in data.recent.files" :key="f.id" class="recent-item">
+                  <span class="recent-title">{{ f.originalName }}</span>
+                  <span class="recent-time">{{ formatRelativeTime(f.createTime) }}</span>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
         <!-- 快捷入口 -->
-        <div class="quick-bar">
-          <NButton
-            v-for="q in quickActions" :key="q.label"
-            size="small" class="quick-btn jnclub-bouncy" @click="router.push(q.to)"
-          >
-            <template #icon><NIcon :component="q.icon" size="15" /></template>
-            {{ q.label }}
-          </NButton>
-          <span class="quick-hint">快捷入口</span>
-          <NIcon :component="ArrowRight" size="13" class="quick-arrow" />
+        <div v-if="visible('quick')" class="dash-section" :style="{ order: orderOf('quick') }">
+          <div class="quick-bar">
+            <NButton
+              v-for="q in quickActions" :key="q.label"
+              size="small" class="quick-btn jnclub-bouncy" @click="router.push(q.to)"
+            >
+              <template #icon><NIcon :component="q.icon" size="15" /></template>
+              {{ q.label }}
+            </NButton>
+            <span class="quick-hint">快捷入口</span>
+            <NIcon :component="ArrowRight" size="13" class="quick-arrow" />
+          </div>
         </div>
       </template>
     </NSpin>
+
+    <!-- 布局编辑器 -->
+    <NDrawer v-model:show="showLayout" placement="right" :width="320">
+      <div class="layout-editor">
+        <div class="layout-title">首页布局</div>
+        <p class="layout-hint">拖拽排序，开关控制显示/隐藏，偏好会自动保存到云端。</p>
+        <div ref="layoutListRef" class="layout-list">
+          <div v-for="s in DASH_SECTIONS" :key="s.key" :data-id="s.key" class="layout-item">
+            <NIcon :component="GripVertical" size="15" class="layout-grip" />
+            <NIcon :component="s.icon" size="15" class="layout-item-icon" />
+            <span class="layout-item-label">{{ s.label }}</span>
+            <NSwitch :value="!dashHidden.includes(s.key)" size="small" @update:value="() => toggleSection(s.key)" />
+          </div>
+        </div>
+        <div class="layout-foot">
+          <NButton size="small" quaternary @click="resetLayout">恢复默认</NButton>
+          <NButton size="small" type="primary" secondary @click="showLayout = false">完成</NButton>
+        </div>
+      </div>
+    </NDrawer>
   </div>
 </template>
 
@@ -655,5 +817,98 @@ const quickActions = [
 @media (max-width: 699px) {
   .trend-bars { gap: 6px; }
   .trend-bar { width: 7px; }
+}
+
+/* 问候卡片 */
+.greet-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 22px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(120deg, var(--brand-soft), transparent 60%), var(--glass-bg-trans);
+  border: 1px solid var(--glass-chip-border);
+  box-shadow: var(--shadow-1), var(--glass-shadow);
+  flex-wrap: wrap;
+}
+.greet-main {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.greet-emoji { font-size: 30px; }
+.greet-text { display: flex; flex-direction: column; gap: 2px; }
+.greet-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-1);
+}
+.greet-date { font-size: var(--fs-sm); color: var(--glass-text-secondary); }
+.greet-quote {
+  font-size: var(--fs-sm);
+  color: var(--glass-text-secondary);
+  font-style: italic;
+  text-align: right;
+}
+
+/* 今日待办面板 */
+.todo-panel { cursor: pointer; transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease); }
+.todo-panel:hover { border-color: var(--brand); box-shadow: var(--shadow-2), var(--glass-shadow); }
+.todo-summary {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.todo-summary-item {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: var(--fs-sm);
+  color: var(--text-3);
+}
+.todo-summary-item b {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--text-1);
+}
+.todo-summary-item.todo-summary-warn b { color: #f0a13a; }
+.todo-summary-item.todo-summary-danger b { color: #ef5b6b; }
+.todo-summary-go {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-sm);
+  color: var(--brand);
+  font-weight: 600;
+}
+
+/* 布局编辑器 */
+.layout-editor { display: flex; flex-direction: column; gap: 14px; padding: 16px; }
+.layout-title { font-size: 16px; font-weight: 700; color: var(--text-1); }
+.layout-hint { font-size: var(--fs-sm); color: var(--text-3); line-height: 1.6; }
+.layout-list { display: flex; flex-direction: column; gap: 6px; }
+.layout-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--glass-chip-bg);
+  border: 1px solid var(--glass-chip-border);
+  border-radius: var(--radius-sm);
+  cursor: grab;
+}
+.layout-item:active { cursor: grabbing; }
+.layout-grip { color: var(--text-3); }
+.layout-item-icon { color: var(--brand); }
+.layout-item-label { flex: 1; font-size: var(--fs-md); color: var(--text-1); }
+.layout-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 6px;
 }
 </style>

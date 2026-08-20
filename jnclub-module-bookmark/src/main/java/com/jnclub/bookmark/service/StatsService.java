@@ -6,16 +6,19 @@ import com.jnclub.bookmark.entity.Bookmark;
 import com.jnclub.bookmark.entity.Directory;
 import com.jnclub.bookmark.entity.FileRecord;
 import com.jnclub.bookmark.entity.Note;
+import com.jnclub.bookmark.entity.Todo;
 import com.jnclub.bookmark.entity.Vault;
 import com.jnclub.bookmark.mapper.BookmarkMapper;
 import com.jnclub.bookmark.mapper.DirectoryMapper;
 import com.jnclub.bookmark.mapper.FileMapper;
 import com.jnclub.bookmark.mapper.NoteMapper;
 import com.jnclub.bookmark.mapper.TagMapper;
+import com.jnclub.bookmark.mapper.TodoMapper;
 import com.jnclub.bookmark.mapper.VaultMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
@@ -40,8 +43,9 @@ public class StatsService {
     private final VaultMapper vaultMapper;
     private final TagMapper tagMapper;
     private final DirectoryMapper directoryMapper;
+    private final TodoMapper todoMapper;
 
-    /** 概览摘要：数量 / 磁盘 / 最近动态 / 密码库指纹健康 */
+    /** 概览摘要：数量 / 磁盘 / 最近动态 / 密码库指纹健康 / 待办概览 */
     public Map<String, Object> summary() {
         String userId = StpUtil.getLoginIdAsString();
         Map<String, Object> result = new LinkedHashMap<>();
@@ -49,7 +53,23 @@ public class StatsService {
         result.put("disk", disk(userId));
         result.put("recent", recent(userId));
         result.put("vault", vaultHealth(userId));
+        result.put("todos", todoCounts(userId));
         return result;
+    }
+
+    /** 待办概览：进行中 / 今日到期 / 已逾期 */
+    private Map<String, Object> todoCounts(String userId) {
+        LocalDate today = LocalDate.now();
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("active", todoMapper.selectCount(new LambdaQueryWrapper<Todo>()
+                .eq(Todo::getUserId, userId).eq(Todo::getDeleted, 0).eq(Todo::getCompleted, 0)));
+        m.put("dueToday", todoMapper.selectCount(new LambdaQueryWrapper<Todo>()
+                .eq(Todo::getUserId, userId).eq(Todo::getDeleted, 0).eq(Todo::getCompleted, 0)
+                .eq(Todo::getDueDate, today)));
+        m.put("overdue", todoMapper.selectCount(new LambdaQueryWrapper<Todo>()
+                .eq(Todo::getUserId, userId).eq(Todo::getDeleted, 0).eq(Todo::getCompleted, 0)
+                .lt(Todo::getDueDate, today)));
+        return m;
     }
 
     /** 各模块数量 + 回收站待清理数 */

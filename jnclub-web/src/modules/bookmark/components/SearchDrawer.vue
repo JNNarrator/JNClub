@@ -33,6 +33,26 @@ const result = ref<{
   tracks: any[]
 }>({ bookmarks: [], notes: [], files: [], vault: [], tags: [], tracks: [] })
 
+/* ─── 搜索历史（localStorage，最多 10 条） ─── */
+const HISTORY_KEY = 'jn-search-history'
+const history = ref<string[]>([])
+const loadHistory = () => {
+  try {
+    history.value = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]')
+  } catch { history.value = [] }
+}
+const pushHistory = (kw: string) => {
+  const arr = history.value.filter(h => h !== kw)
+  arr.unshift(kw)
+  history.value = arr.slice(0, 10)
+  try { localStorage.setItem(HISTORY_KEY, JSON.stringify(history.value)) } catch { /* 忽略 */ }
+}
+const clearHistory = () => {
+  history.value = []
+  try { localStorage.removeItem(HISTORY_KEY) } catch { /* 忽略 */ }
+}
+loadHistory()
+
 let timer: ReturnType<typeof setTimeout> | null = null
 
 watch(() => props.show, (v) => {
@@ -40,6 +60,7 @@ watch(() => props.show, (v) => {
     keyword.value = ''
     result.value = { bookmarks: [], notes: [], files: [], vault: [], tags: [], tracks: [] }
     searched.value = false
+    loadHistory()
   }
 })
 
@@ -56,9 +77,15 @@ const doSearch = async () => {
     if (res.data.code === 200) {
       result.value = res.data.data || { bookmarks: [], notes: [], files: [], vault: [], tags: [], tracks: [] }
       searched.value = true
+      pushHistory(kw)
     }
   } catch { /* 静默 */ }
   finally { loading.value = false }
+}
+
+const searchByHistory = (kw: string) => {
+  keyword.value = kw
+  doSearch()
 }
 
 const onInput = () => {
@@ -155,6 +182,20 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
       >
         <template #prefix><NIcon :component="Search" size="16" /></template>
       </NInput>
+
+      <!-- 搜索历史（空输入时展示） -->
+      <div v-if="!keyword.trim() && history.length" class="history-section">
+        <div class="history-head">
+          <span class="history-title">最近搜索</span>
+          <button type="button" class="history-clear" @click="clearHistory">清空</button>
+        </div>
+        <div class="history-chips">
+          <button
+            v-for="h in history" :key="h"
+            type="button" class="history-chip jnclub-bouncy" @click="searchByHistory(h)"
+          >{{ h }}</button>
+        </div>
+      </div>
 
       <!-- 命令区 -->
       <div v-if="filteredCommands.length" class="cmd-section">
@@ -456,6 +497,30 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
 }
 .cmd-section { display: flex; flex-direction: column; gap: 6px; }
 .cmd-subtitle { font-size: var(--fs-xs); color: var(--text-3); letter-spacing: 0.05em; }
+
+/* 搜索历史 */
+.history-section { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.history-head {
+  display: flex; align-items: center; justify-content: space-between;
+}
+.history-title { font-size: var(--fs-xs); color: var(--text-3); letter-spacing: 0.05em; }
+.history-clear {
+  font-size: var(--fs-xs); color: var(--text-3);
+  background: none; border: none; cursor: pointer;
+}
+.history-clear:hover { color: var(--brand); }
+.history-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.history-chip {
+  padding: 4px 12px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--glass-chip-border);
+  background: var(--glass-chip-bg);
+  color: var(--glass-chip-text);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+  transition: border-color var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+.history-chip:hover { border-color: var(--brand); color: var(--brand); }
 .cmd-list { display: flex; flex-direction: column; gap: 4px; }
 .cmd-item {
   display: flex; align-items: center; gap: 10px;

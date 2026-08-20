@@ -127,12 +127,13 @@ public class SearchService {
             return m;
         }).toList();
 
-        // 密码库：仅标题（不触碰密文，安全边界）
+        // 密码库：名称 + 账号 + 站点 + 备注（密文密码不触碰，安全边界）
         List<Vault> vaults = vaultMapper.selectList(new LambdaQueryWrapper<Vault>()
                 .eq(Vault::getUserId, userId)
                 .eq(Vault::getDeleted, 0)
                 .and(w -> {
-                    for (String t : terms) w.like(Vault::getName, t);
+                    for (String t : terms) w.and(x -> x.like(Vault::getName, t).or().like(Vault::getUsername, t)
+                            .or().like(Vault::getUrl, t).or().like(Vault::getNotes, t));
                 })
                 .orderByDesc(Vault::getCreateTime)
                 .last("LIMIT " + size));
@@ -140,8 +141,14 @@ public class SearchService {
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("id", v.getId());
             m.put("name", v.getName());
+            m.put("username", v.getUsername());
+            m.put("url", v.getUrl());
             m.put("directoryId", v.getDirectoryId());
-            m.put("highlights", buildHighlights(Map.of("name", v.getName()), terms));
+            m.put("highlights", buildHighlights(Map.of(
+                    "name", v.getName(),
+                    "username", v.getUsername(),
+                    "url", v.getUrl(),
+                    "notes", v.getNotes()), terms));
             return m;
         }).toList();
 
