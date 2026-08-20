@@ -3,13 +3,16 @@ package com.jnclub.bookmark.service;
 import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.jnclub.bookmark.entity.Note;
+import com.jnclub.bookmark.entity.NoteVersion;
 import com.jnclub.bookmark.entity.Directory;
 import com.jnclub.bookmark.mapper.NoteMapper;
+import com.jnclub.bookmark.mapper.NoteVersionMapper;
 import com.jnclub.bookmark.mapper.DirectoryMapper;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.jnclub.common.cache.CacheKey;
 import com.jnclub.common.cache.CacheService;
 import com.jnclub.common.exception.BizException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,8 +22,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 便签服务 — 标题自动派生 + 图片认领 + 批量排序
+ * 便签服务 — 标题自动派生 + 图片认领 + 批量排序 + 置顶/归档/历史版本
  */
+@Slf4j
 @Service
 public class NoteService extends ServiceImpl<NoteMapper, Note> {
 
@@ -36,8 +40,35 @@ public class NoteService extends ServiceImpl<NoteMapper, Note> {
     @Autowired
     private DirectoryMapper directoryMapper;
 
+    @Autowired
+    private NoteVersionMapper noteVersionMapper;
+
     public List<Note> getNotes(Long directoryId, Long tagId) {
+        return getNotes(directoryId, tagId, false);
+    }
+
+    /**
+     * 获取便签列表
+     *
+     * @param directoryId 目录ID
+     * @param tagId       标签ID（可选）
+     * @param archived    归档视图：true 时返回该用户全部已归档便签（跨目录），false 只返回正常便签
+     */
+    public List<Note> getNotes(Long directoryId, Long tagId, boolean archived) {
         String userId = StpUtil.getLoginIdAsString();
+        if (archived) {
+            // 归档视图：全部已归档便签，置顶优先、时间倒序
+            List<Note> notes = list(new LambdaQueryWrapper<Note>()
+                    .eq(Note::getUserId, userId)
+                    .eq(Note::getDeleted, 0)
+                    .eq(Note::getArchived, 1)
+                    .orderByDesc(Note::getPinned)
+                    .orderByDesc(Note::getUpdateTime));
+            notes.forEach(n -> n.setTitle(deriveDisplayTitle(n.getTitle(), n.getContent())));
+            return notes;
+        }
+
+        // 正常视图：置顶优先，其余按 sort_order
         List<Note> notes;
         if (tagId != null) {
             List<Long> refIds = tagService.listRefIdsByTag("note", tagId, userId);
@@ -46,7 +77,9 @@ public class NoteService extends ServiceImpl<NoteMapper, Note> {
                     .eq(Note::getDirectoryId, directoryId)
                     .eq(Note::getUserId, userId)
                     .eq(Note::getDeleted, 0)
+                    .eq(Note::getArchived, 0)
                     .in(Note::getId, refIds)
+                    .orderByDesc(Note::getPinned)
                     .orderByAsc(Note::getSortOrder));
         } else {
             // 无标签过滤：走 Redis 旁路缓存（列表含派生标题，读开销大）
@@ -57,6 +90,8 @@ public class NoteService extends ServiceImpl<NoteMapper, Note> {
                     .eq(Note::getDirectoryId, directoryId)
                     .eq(Note::getUserId, userId)
                     .eq(Note::getDeleted, 0)
+                    .eq(Note::getArchived, 0)
+                    .orderByDesc(Note::getPinned)
                     .orderByAsc(Note::getSortOrder));
             for (Note note : notes) {
                 note.setTitle(deriveDisplayTitle(note.getTitle(), note.getContent()));
@@ -101,14 +136,57 @@ public class NoteService extends ServiceImpl<NoteMapper, Note> {
             throw new RuntimeException("便签不存在");
         }
 
-        existing.setTitle(note.getTitle());
-        existing.setContent(note.getContent());
+        // 内容/标题变化时保存历史版本快照（内容不同才存）
+        String oldTitle = existing.getTitle();
+        String oldContent = existing.getContent();
+        String newTitle = note.getTitle();
+        String newContent = note.getContent();
+        boolean contentChanged = !equalsNullable(oldContent, newContent) || !equalsNullable(oldTitle, newTitle);
+        if (contentChanged) {
+            saveVersionSnapshot(existing, userId);
+        }
+
+        existing.setTitle(newTitle);
+        existing.setContent(newContent);
         existing.setTitle(deriveDisplayTitle(existing.getTitle(), existing.getContent()));
 
         updateById(existing);
 
         assetCleanService.claimAssets(existing.getId(), existing.getContent());
         cacheService.evictByPrefix(CacheKey.notePrefix(userId));
+    }
+
+    private boolean equalsNullable(String a, String b) {
+        if (a == null && b == null) return true;
+        if (a == null || b == null) return false;
+        return a.equals(b);
+    }
+
+    /** 保存便签当前状态为历史版本快照（版本号自增） */
+    private void saveVersionSnapshot(Note note, String userId) {
+        try {
+            NoteVersion v = new NoteVersion();
+            v.setNoteId(note.getId());
+            v.setUserId(userId);
+            v.setTitle(note.getTitle());
+            v.setContent(note.getContent());
+            Integer maxVersion = noteVersionMapper.selectCount(new LambdaQueryWrapper<NoteVersion>()
+                    .eq(NoteVersion::getNoteId, note.getId())).intValue();
+            v.setVersionNo(maxVersion + 1);
+            noteVersionMapper.insert(v);
+
+            // 只保留最近 50 个版本，防止无限膨胀
+            List<NoteVersion> all = noteVersionMapper.selectList(new LambdaQueryWrapper<NoteVersion>()
+                    .eq(NoteVersion::getNoteId, note.getId())
+                    .orderByDesc(NoteVersion::getVersionNo));
+            if (all.size() > 50) {
+                List<Long> toDelete = new ArrayList<>();
+                for (int i = 50; i < all.size(); i++) toDelete.add(all.get(i).getId());
+                noteVersionMapper.deleteBatchIds(toDelete);
+            }
+        } catch (Exception e) {
+            log.warn("保存便签版本快照失败 noteId={}: {}", note.getId(), e.getMessage());
+        }
     }
 
     @Transactional
@@ -244,6 +322,89 @@ public class NoteService extends ServiceImpl<NoteMapper, Note> {
             updateBatchById(toUpdate);
         }
         cacheService.evictByPrefix(CacheKey.notePrefix(userId));
+    }
+
+    // ============================================================
+    // 置顶 / 归档 / 历史版本
+    // ============================================================
+
+    /** 置顶/取消置顶 */
+    @Transactional
+    public void setPinned(Long id, boolean pinned) {
+        String userId = StpUtil.getLoginIdAsString();
+        Note note = requireOwnedNote(id, userId);
+        note.setPinned(pinned ? 1 : 0);
+        updateById(note);
+        cacheService.evictByPrefix(CacheKey.notePrefix(userId));
+    }
+
+    /** 归档/取消归档 */
+    @Transactional
+    public void setArchived(Long id, boolean archived) {
+        String userId = StpUtil.getLoginIdAsString();
+        Note note = requireOwnedNote(id, userId);
+        note.setArchived(archived ? 1 : 0);
+        // 归档时自动取消置顶
+        if (archived) note.setPinned(0);
+        updateById(note);
+        cacheService.evictByPrefix(CacheKey.notePrefix(userId));
+    }
+
+    /** 历史版本列表（版本号倒序，不含完整内容以减负） */
+    public List<Map<String, Object>> listVersions(Long id) {
+        String userId = StpUtil.getLoginIdAsString();
+        requireOwnedNote(id, userId);
+        List<NoteVersion> versions = noteVersionMapper.selectList(new LambdaQueryWrapper<NoteVersion>()
+                .eq(NoteVersion::getNoteId, id)
+                .orderByDesc(NoteVersion::getVersionNo));
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (NoteVersion v : versions) {
+            Map<String, Object> item = new java.util.HashMap<>();
+            item.put("id", v.getId());
+            item.put("versionNo", v.getVersionNo());
+            item.put("title", v.getTitle());
+            item.put("createTime", v.getCreateTime());
+            result.add(item);
+        }
+        return result;
+    }
+
+    /** 历史版本详情（含完整内容） */
+    public NoteVersion getVersion(Long noteId, Long versionId) {
+        String userId = StpUtil.getLoginIdAsString();
+        requireOwnedNote(noteId, userId);
+        NoteVersion v = noteVersionMapper.selectById(versionId);
+        if (v == null || !v.getNoteId().equals(noteId)) {
+            throw new BizException("版本不存在");
+        }
+        return v;
+    }
+
+    /** 回滚到指定版本：当前状态先存快照，再覆盖为指定版本内容 */
+    @Transactional
+    public void restoreVersion(Long noteId, Long versionId) {
+        String userId = StpUtil.getLoginIdAsString();
+        Note note = requireOwnedNote(noteId, userId);
+        NoteVersion v = noteVersionMapper.selectById(versionId);
+        if (v == null || !v.getNoteId().equals(noteId)) {
+            throw new BizException("版本不存在");
+        }
+        // 回滚前保存当前状态快照（防误回滚丢失）
+        saveVersionSnapshot(note, userId);
+        note.setTitle(v.getTitle());
+        note.setContent(v.getContent());
+        note.setTitle(deriveDisplayTitle(note.getTitle(), note.getContent()));
+        updateById(note);
+        cacheService.evictByPrefix(CacheKey.notePrefix(userId));
+    }
+
+    /** 校验便签归属当前用户 */
+    private Note requireOwnedNote(Long id, String userId) {
+        Note note = getById(id);
+        if (note == null || !note.getUserId().equals(userId)) {
+            throw new BizException("便签不存在");
+        }
+        return note;
     }
 
     private String deriveDisplayTitle(String title, String content) {

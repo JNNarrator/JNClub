@@ -131,4 +131,22 @@ public class VaultController {
         vaultService.deleteTotp(id);
         return R.ok();
     }
+
+    // ============================================================
+    // 加密备份
+    // ============================================================
+
+    /** 导出加密备份：body { password } → 返回加密备份字符串 */
+    @PostMapping("/backup/export")
+    public R<Map<String, Object>> exportBackup(@RequestBody Map<String, String> body) {
+        String backup = vaultService.exportBackup(body.get("password"));
+        return R.ok(Map.of("content", backup));
+    }
+
+    /** 导入加密备份：body { content, password, mode: merge|replace } */
+    @PostMapping("/backup/import")
+    public R<Map<String, Object>> importBackup(@RequestBody Map<String, String> body) {
+        String mode = body.getOrDefault("mode", "merge");
+        return R.ok(vaultService.importBackup(body.get("password"), body.get("content"), mode));
+    }
 }

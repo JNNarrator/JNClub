@@ -25,6 +25,12 @@ public class Note {
 
     private Integer sortOrder;
 
+    /** 置顶标记：0否 1是 */
+    private Integer pinned;
+
+    /** 归档标记：0正常 1已归档 */
+    private Integer archived;
+
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
 

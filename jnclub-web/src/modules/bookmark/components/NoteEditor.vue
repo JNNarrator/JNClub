@@ -8,13 +8,14 @@
  */
 import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { NButton, NIcon, NInput, NModal, NSwitch, useMessage, useDialog } from 'naive-ui'
-import { Keyboard, ArrowLeft, CheckCircle2, CloudOff, LoaderCircle, Download, Upload } from 'lucide-vue-next'
+import { Keyboard, ArrowLeft, CheckCircle2, CloudOff, LoaderCircle, Download, Upload, History } from 'lucide-vue-next'
 import { MdEditor, MdPreview, type ExposeParam, type ToolbarNames, type HeadList } from 'md-editor-v3'
 import 'md-editor-v3/lib/style.css'
 import 'md-editor-v3/lib/preview.css'
 import axios from 'axios'
 import type { Note } from '../stores/note'
 import TagPicker from './TagPicker.vue'
+import NoteVersionsModal from './NoteVersionsModal.vue'
 import { extractDataUris, dataUriToFile, uploadImage, downloadFile, exportMarkdown } from '../composables/markdownIO'
 
 /** md-editor-v3 实例 id（MdEditor 与 MdCatalog 通过它联动） */
@@ -38,6 +39,7 @@ const mdEditor = ref<ExposeParam | null>(null)
 /** 只读模式：查看已有便签默认只读，新建默认可编辑 */
 const readonlyMode = ref(props.note ? props.note.id !== 0 : true)
 const isViewNote = computed(() => !!props.note && props.note.id !== 0)
+const showVersions = ref(false)
 
 /** 移动端检测：窄屏默认关闭分屏预览（md-editor-v3 preview 为内部状态，经 expose preview(false) 切换） */
 const isMobile = ref(false)
@@ -477,6 +479,12 @@ defineExpose({ hasUnsavedChanges })
       <NButton quaternary circle size="small" class="io-btn" title="导入 Markdown" @click="handleImportClick">
         <template #icon><NIcon :component="Upload" size="16" /></template>
       </NButton>
+      <NButton
+        v-if="isViewNote"
+        quaternary circle size="small" class="io-btn" title="历史版本" @click="showVersions = true"
+      >
+        <template #icon><NIcon :component="History" size="16" /></template>
+      </NButton>
       <input
         ref="mdFileInput"
         type="file"
@@ -625,6 +633,14 @@ defineExpose({ hasUnsavedChanges })
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
     <span>大纲</span>
   </button>
+
+  <!-- 历史版本弹窗 -->
+  <NoteVersionsModal
+    v-model:show="showVersions"
+    :note-id="isViewNote ? props.note!.id : null"
+    :note-title="title || props.note?.title || ''"
+    @restored="handleRequestClose"
+  />
 </div>
 </template>
 

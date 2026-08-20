@@ -581,4 +581,256 @@ public class VaultService extends ServiceImpl<VaultMapper, Vault> {
         return out.toByteArray();
     }
 
+    // ============================================================
+    // 加密备份：导出（解密后按备份密码重加密）/ 导入（解密后按主密钥重加密入库）
+    // 备份文件格式：base64(salt) + ":" + hex(AES-CBC(PBKDF2(备份密码,salt) 加密的 JSON))
+    // ============================================================
+
+    /**
+     * 导出加密备份（需已解锁或未设置主密钥）：
+     * 将全部条目（含回收站）解密为明文 → 组织 JSON → 用备份密码派生密钥加密
+     *
+     * @param backupPassword 备份密码（至少 8 位）
+     * @return 加密备份字符串：base64(salt):hex(cipher)
+     */
+    public String exportBackup(String backupPassword) {
+        String userId = StpUtil.getLoginIdAsString();
+        if (backupPassword == null || backupPassword.length() < 8) {
+            throw new BizException("备份密码至少 8 位");
+        }
+        requireUnlockedOrLegacy(userId);
+
+        byte[] currentKey = currentKey(userId);
+        List<Vault> all = list(new LambdaQueryWrapper<Vault>().eq(Vault::getUserId, userId));
+
+        // 目录（type=5，密码库目录，含层级）
+        List<Directory> dirs = directoryMapper.selectList(new LambdaQueryWrapper<Directory>()
+                .eq(Directory::getUserId, userId)
+                .eq(Directory::getType, 5));
+
+        List<Map<String, Object>> dirList = new ArrayList<>();
+        for (Directory d : dirs) {
+            Map<String, Object> m = new HashMap<>();
+            m.put("id", d.getId());
+            m.put("parentId", d.getParentId());
+            m.put("name", d.getName());
+            m.put("icon", d.getIcon());
+            m.put("sortOrder", d.getSortOrder());
+            dirList.add(m);
+        }
+
+        List<Map<String, Object>> entryList = new ArrayList<>();
+        for (Vault v : all) {
+            Map<String, Object> m = new HashMap<>();
+            m.put("directoryId", v.getDirectoryId());
+            m.put("name", v.getName());
+            m.put("username", v.getUsername());
+            m.put("url", v.getUrl());
+            m.put("notes", v.getNotes());
+            m.put("sortOrder", v.getSortOrder());
+            m.put("deleted", v.getDeleted());
+            m.put("createTime", String.valueOf(v.getCreateTime()));
+            // 解密密码明文（兼容损坏条目跳过）
+            if (v.getPassword() != null && !v.getPassword().isBlank()) {
+                try {
+                    m.put("password", decryptWith(currentKey, v.getPassword()));
+                } catch (Exception e) {
+                    log.warn("备份导出条目密码解密失败 id={}: {}", v.getId(), e.getMessage());
+                }
+            }
+            entryList.add(m);
+        }
+
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("app", "JNClub");
+        payload.put("type", "vault-backup");
+        payload.put("version", 1);
+        payload.put("exportedAt", LocalDateTime.now().toString());
+        payload.put("directories", dirList);
+        payload.put("entries", entryList);
+
+        try {
+            String json = cn.hutool.json.JSONUtil.toJsonPrettyStr(payload);
+            // 备份密钥派生
+            String salt = VaultCrypto.generateSalt();
+            byte[] backupKey = VaultCrypto.deriveKey(backupPassword, salt, VaultCrypto.PBKDF2_ITERATIONS);
+            String cipher = VaultCrypto.encrypt(backupKey, json);
+            return salt + ":" + cipher;
+        } catch (Exception e) {
+            throw new BizException("备份导出失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 导入加密备份：解密 → 按 mode 合并或替换 → 重新按当前主密钥加密入库
+     *
+     * @param backupPassword 备份密码
+     * @param backupContent  加密备份字符串（base64(salt):hex(cipher)）
+     * @param mode           merge=合并（按 name+username 去重跳过）/ replace=先清空再导入
+     * @return 导入统计 { imported, skipped }
+     */
+    @Transactional
+    public Map<String, Object> importBackup(String backupPassword, String backupContent, String mode) {
+        String userId = StpUtil.getLoginIdAsString();
+        if (backupPassword == null || backupContent == null) {
+            throw new BizException("缺少备份密码或备份内容");
+        }
+        // 解密
+        String json;
+        try {
+            int idx = backupContent.indexOf(':');
+            if (idx <= 0) throw new BizException("备份文件格式不正确");
+            String salt = backupContent.substring(0, idx);
+            String cipher = backupContent.substring(idx + 1);
+            byte[] backupKey = VaultCrypto.deriveKey(backupPassword, salt, VaultCrypto.PBKDF2_ITERATIONS);
+            json = VaultCrypto.decrypt(backupKey, cipher);
+            if (json == null) throw new BizException("备份密码不正确或文件已损坏");
+        } catch (BizException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new BizException("备份解密失败: " + e.getMessage());
+        }
+
+        try {
+            cn.hutool.json.JSONObject payload = cn.hutool.json.JSONUtil.parseObj(json);
+            if (!"vault-backup".equals(payload.getStr("type"))) {
+                throw new BizException("不是有效的密码库备份文件");
+            }
+            List<cn.hutool.json.JSONObject> dirs = payload.containsKey("directories")
+                    ? payload.getJSONArray("directories").toList(cn.hutool.json.JSONObject.class)
+                    : List.of();
+            List<cn.hutool.json.JSONObject> entries = payload.containsKey("entries")
+                    ? payload.getJSONArray("entries").toList(cn.hutool.json.JSONObject.class)
+                    : List.of();
+
+            if ("replace".equalsIgnoreCase(mode)) {
+                // 清空现有：全部条目（含回收站）+ type=5 目录
+                List<Vault> all = list(new LambdaQueryWrapper<Vault>().eq(Vault::getUserId, userId));
+                if (!all.isEmpty()) {
+                    removeBatchByIds(all.stream().map(Vault::getId).toList());
+                }
+                List<Directory> oldDirs = directoryMapper.selectList(new LambdaQueryWrapper<Directory>()
+                        .eq(Directory::getUserId, userId).eq(Directory::getType, 5));
+                for (Directory d : oldDirs) directoryMapper.deleteById(d.getId());
+            }
+
+            // 建目录：旧 id → 新 id 映射（先建一级，再建子级保证 parentId 有效）
+            Map<String, Long> idMap = new HashMap<>();
+            // 第一轮：parentId 为空或未在备份中的目录
+            for (cn.hutool.json.JSONObject d : dirs) {
+                Object pid = d.get("parentId");
+                boolean parentInBackup = pid != null && dirs.stream().anyMatch(x -> String.valueOf(x.get("id")).equals(String.valueOf(pid)));
+                if (pid == null || !parentInBackup) {
+                    Long newId = createVaultDir(userId, null, d.getStr("name"), d.getStr("icon"), d.getInt("sortOrder", 0));
+                    idMap.put(String.valueOf(d.get("id")), newId);
+                }
+            }
+            // 第二轮：子目录
+            for (cn.hutool.json.JSONObject d : dirs) {
+                Object pid = d.get("parentId");
+                boolean parentInBackup = pid != null && dirs.stream().anyMatch(x -> String.valueOf(x.get("id")).equals(String.valueOf(pid)));
+                if (pid != null && parentInBackup) {
+                    Long parentNewId = idMap.get(String.valueOf(pid));
+                    Long newId = createVaultDir(userId, parentNewId, d.getStr("name"), d.getStr("icon"), d.getInt("sortOrder", 0));
+                    idMap.put(String.valueOf(d.get("id")), newId);
+                }
+            }
+
+            // 导入条目（需要主密钥：已设置主密钥需解锁，未设置用配置密钥）
+            requireUnlockedOrLegacy(userId);
+            byte[] key = currentKey(userId);
+            int imported = 0, skipped = 0;
+            for (cn.hutool.json.JSONObject e : entries) {
+                String name = e.getStr("name");
+                if (name == null || name.isBlank()) continue;
+                Long directoryId = idMap.get(String.valueOf(e.get("directoryId")));
+                if (directoryId == null) {
+                    // 原目录不在备份中：跳过
+                    skipped++;
+                    continue;
+                }
+                if ("merge".equalsIgnoreCase(mode) && existsVault(userId, directoryId, name, e.getStr("username"))) {
+                    skipped++;
+                    continue;
+                }
+                Vault v = new Vault();
+                v.setUserId(userId);
+                v.setDirectoryId(directoryId);
+                v.setName(name);
+                v.setUsername(e.getStr("username", ""));
+                v.setUrl(e.getStr("url", ""));
+                v.setNotes(e.getStr("notes", ""));
+                v.setSortOrder(e.getInt("sortOrder", 0));
+                v.setDeleted(e.getInt("deleted", 0));
+                String plainPwd = e.getStr("password");
+                if (plainPwd != null && !plainPwd.isBlank()) {
+                    v.setPassword(encryptWith(key, plainPwd));
+                    v.setPasswordFingerprint(VaultCrypto.fingerprint(plainPwd));
+                }
+                save(v);
+                imported++;
+            }
+
+            Map<String, Object> result = new HashMap<>();
+            result.put("imported", imported);
+            result.put("skipped", skipped);
+            return result;
+        } catch (BizException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new BizException("备份导入失败: " + e.getMessage());
+        }
+    }
+
+    /** 未设置主密钥（兼容旧数据）也可导出/导入；已设置需解锁 */
+    private void requireUnlockedOrLegacy(String userId) {
+        if (getMeta(userId) != null && !sessions.containsKey(userId)) {
+            throw new BizException("密码库已锁定，请先输入主密钥解锁");
+        }
+    }
+
+    private boolean existsVault(String userId, Long directoryId, String name, String username) {
+        return count(new LambdaQueryWrapper<Vault>()
+                .eq(Vault::getUserId, userId)
+                .eq(Vault::getDirectoryId, directoryId)
+                .eq(Vault::getName, name)
+                .eq(Vault::getUsername, username == null ? "" : username)) > 0;
+    }
+
+    private Long createVaultDir(String userId, Long parentId, String name, String icon, int sortOrder) {
+        if (name == null || name.isBlank()) name = "未命名";
+        // merge 模式：同名同父目录已存在则复用（避免重复导入产生重复目录/条目）
+        LambdaQueryWrapper<Directory> qw = new LambdaQueryWrapper<Directory>()
+                .eq(Directory::getUserId, userId)
+                .eq(Directory::getType, 5)
+                .eq(Directory::getName, name);
+        if (parentId == null) qw.isNull(Directory::getParentId);
+        else qw.eq(Directory::getParentId, parentId);
+        Directory existing = directoryMapper.selectOne(qw);
+        if (existing != null) {
+            return existing.getId();
+        }
+        Directory d = new Directory();
+        d.setUserId(userId);
+        d.setParentId(parentId);
+        d.setName(name);
+        d.setIcon(icon);
+        d.setType(5);
+        d.setSortOrder(sortOrder);
+        directoryMapper.insert(d);
+        return d.getId();
+    }
+
+    private String str(Object o) {
+        return o == null ? "" : String.valueOf(o);
+    }
+
+    private int intOr(Object o, int def) {
+        try {
+            return o == null ? def : Integer.parseInt(String.valueOf(o));
+        } catch (Exception e) {
+            return def;
+        }
+    }
+
 }

@@ -485,6 +485,14 @@ public class CloudDiskService {
                 .in(FileRecord::getId, ids));
     }
 
+    /** 当前用户全部正常文件，供导出备份清单使用 */
+    public List<FileRecord> listAllByUser(String userId) {
+        return fileMapper.selectList(new LambdaQueryWrapper<FileRecord>()
+                .eq(FileRecord::getUserId, userId)
+                .eq(FileRecord::getDeleted, 0)
+                .orderByAsc(FileRecord::getDirectoryId));
+    }
+
     // ============================================================
     // 定时清理孤儿临时目录（中断/失败残留）
     // ============================================================

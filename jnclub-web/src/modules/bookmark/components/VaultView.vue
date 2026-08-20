@@ -9,7 +9,7 @@ import {
   NButton, NIcon, NSpin, NTag, NInput, NDropdown, NModal, useMessage, useDialog,
 } from 'naive-ui'
 import {
-  KeyRound, Plus, Pencil, Trash2, Copy, User, Lock, Unlock, ShieldAlert, RotateCcw, Ellipsis, FolderInput, ShieldCheck,
+  KeyRound, Plus, Pencil, Trash2, Copy, User, Lock, Unlock, ShieldAlert, RotateCcw, Ellipsis, FolderInput, ShieldCheck, Archive,
 } from 'lucide-vue-next'
 import { useVaultStore, type VaultItem } from '../stores/vault'
 import { useUserStore } from '../../../shared/stores/user'
@@ -20,6 +20,7 @@ import PasswordEditorModal from './PasswordEditorModal.vue'
 import PasswordRevealPopover from './PasswordRevealPopover.vue'
 import EmptyState from './EmptyState.vue'
 import MoveItemModal from './MoveItemModal.vue'
+import VaultBackupModal from './VaultBackupModal.vue'
 import { copyText } from '../../../shared/utils/clipboard'
 import axios from 'axios'
 
@@ -39,6 +40,7 @@ const userStore = useUserStore()
 
 const showMoveModal = ref(false)
 const moveTarget = ref<VaultItem | null>(null)
+const showBackupModal = ref(false)
 const { setDragging } = useItemDragContext()
 
 const configured = computed(() => vaultStore.masterStatus.configured)
@@ -454,6 +456,10 @@ defineExpose({ openCreate })
           <template #icon><NIcon :component="Plus" size="15" /></template>
           新建条目
         </NButton>
+        <NButton size="small" quaternary title="加密备份（导出/导入）" @click="showBackupModal = true">
+          <template #icon><NIcon :component="Archive" size="14" /></template>
+          备份
+        </NButton>
         <NButton size="small" quaternary class="lock-now" title="锁定密码库" @click="doLock">
           <template #icon><NIcon :component="Lock" size="14" /></template>
           锁定
@@ -591,6 +597,9 @@ defineExpose({ openCreate })
         <NButton type="error" :loading="resetBusy" @click="confirmReset">确认重置</NButton>
       </template>
     </NModal>
+
+    <!-- 加密备份弹窗 -->
+    <VaultBackupModal v-model:show="showBackupModal" @imported="load" />
   </div>
 </template>
 

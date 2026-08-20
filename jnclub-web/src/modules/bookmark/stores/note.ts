@@ -12,6 +12,8 @@ export interface Note {
   sortOrder: number
   createTime: string
   updateTime: string
+  pinned?: number
+  archived?: number
   tags?: string[]
 }
 
@@ -20,11 +22,11 @@ export const useNoteStore = defineStore('note', () => {
   const loading = ref(false)
   const currentNote = ref<Note | null>(null)
 
-  const fetchNotes = async (directoryId: number, tagId?: number | null) => {
+  const fetchNotes = async (directoryId: number, tagId?: number | null, archived?: boolean) => {
     loading.value = true
     try {
       const res = await axios.get('/api/notes', {
-        params: tagId ? { directoryId, tagId } : { directoryId }
+        params: { directoryId, ...(tagId ? { tagId } : {}), ...(archived ? { archived: true } : {}) }
       })
       if (res.data.code === 200) {
         notes.value = res.data.data || []
@@ -79,6 +81,33 @@ export const useNoteStore = defineStore('note', () => {
     throw new Error(res.data.message || '排序失败')
   }
 
+  const setPinned = async (id: number, pinned: boolean) => {
+    const res = await axios.put(`/api/notes/${id}/pin`, { pinned })
+    if (res.data.code !== 200) throw new Error(res.data.message || '操作失败')
+  }
+
+  const setArchived = async (id: number, archived: boolean) => {
+    const res = await axios.put(`/api/notes/${id}/archive`, { archived })
+    if (res.data.code !== 200) throw new Error(res.data.message || '操作失败')
+  }
+
+  const fetchVersions = async (id: number): Promise<any[]> => {
+    const res = await axios.get(`/api/notes/${id}/versions`)
+    if (res.data.code === 200) return res.data.data || []
+    throw new Error(res.data.message || '获取版本失败')
+  }
+
+  const fetchVersionDetail = async (id: number, versionId: number): Promise<any> => {
+    const res = await axios.get(`/api/notes/${id}/versions/${versionId}`)
+    if (res.data.code === 200) return res.data.data
+    throw new Error(res.data.message || '获取版本详情失败')
+  }
+
+  const restoreVersion = async (id: number, versionId: number) => {
+    const res = await axios.put(`/api/notes/${id}/restore-version`, { versionId })
+    if (res.data.code !== 200) throw new Error(res.data.message || '回滚失败')
+  }
+
   return {
     notes,
     loading,
@@ -89,5 +118,10 @@ export const useNoteStore = defineStore('note', () => {
     updateNote,
     deleteNote,
     updateSortOrder,
+    setPinned,
+    setArchived,
+    fetchVersions,
+    fetchVersionDetail,
+    restoreVersion,
   }
 })

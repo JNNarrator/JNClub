@@ -20,12 +20,13 @@ public class NoteController {
     private final NoteService noteService;
 
     /**
-     * 获取目录下的便签列表（tagId 可选：按标签筛选）
+     * 便签列表（archived=true 时返回全部已归档便签，跨目录）
      */
     @GetMapping
     public R<List<Note>> getNotes(@RequestParam Long directoryId,
-                                  @RequestParam(required = false) Long tagId) {
-        return R.ok(noteService.getNotes(directoryId, tagId));
+                                  @RequestParam(required = false) Long tagId,
+                                  @RequestParam(defaultValue = "false") boolean archived) {
+        return R.ok(noteService.getNotes(directoryId, tagId, archived));
     }
 
     /**
@@ -79,6 +80,44 @@ public class NoteController {
     @PutMapping("/sort")
     public R<Void> updateSortOrder(@RequestBody List<Map<String, Object>> sortList) {
         noteService.updateSortOrder(sortList);
+        return R.ok();
+    }
+
+    /** 置顶/取消置顶：body { pinned } */
+    @PutMapping("/{id}/pin")
+    public R<Void> setPinned(@PathVariable Long id, @RequestBody Map<String, Object> body) {
+        boolean pinned = body.get("pinned") != null && Boolean.parseBoolean(String.valueOf(body.get("pinned")));
+        noteService.setPinned(id, pinned);
+        return R.ok();
+    }
+
+    /** 归档/取消归档：body { archived } */
+    @PutMapping("/{id}/archive")
+    public R<Void> setArchived(@PathVariable Long id, @RequestBody Map<String, Object> body) {
+        boolean archived = body.get("archived") != null && Boolean.parseBoolean(String.valueOf(body.get("archived")));
+        noteService.setArchived(id, archived);
+        return R.ok();
+    }
+
+    /** 历史版本列表 */
+    @GetMapping("/{id}/versions")
+    public R<List<Map<String, Object>>> listVersions(@PathVariable Long id) {
+        return R.ok(noteService.listVersions(id));
+    }
+
+    /** 历史版本详情（含完整内容） */
+    @GetMapping("/{id}/versions/{versionId}")
+    public R<Object> getVersion(@PathVariable Long id, @PathVariable Long versionId) {
+        return R.ok(noteService.getVersion(id, versionId));
+    }
+
+    /** 回滚到指定版本 */
+    @PutMapping("/{id}/restore-version")
+    public R<Void> restoreVersion(@PathVariable Long id, @RequestBody Map<String, Object> body) {
+        Long versionId = body.get("versionId") == null
+                ? null : Long.parseLong(String.valueOf(body.get("versionId")));
+        if (versionId == null) throw new RuntimeException("缺少 versionId");
+        noteService.restoreVersion(id, versionId);
         return R.ok();
     }
 

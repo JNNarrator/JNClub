@@ -7,11 +7,12 @@ import { ref, computed, onMounted } from 'vue'
 import { NIcon, NSpin, NEmpty, NButton } from 'naive-ui'
 import {
   Bookmark, StickyNote, Cloud, KeyRound, Tag, Trash2, HardDrive,
-  ShieldCheck, AlertTriangle, ArrowRight, LayoutDashboard, RefreshCw,
+  ShieldCheck, AlertTriangle, ArrowRight, LayoutDashboard, RefreshCw, Download,
 } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
 import { formatRelativeTime } from '../../modules/bookmark/composables/formatDate'
+import ExportModal from '../../modules/bookmark/components/ExportModal.vue'
 
 interface StatsSummary {
   counts: {
@@ -39,6 +40,7 @@ const router = useRouter()
 const loading = ref(true)
 const error = ref(false)
 const data = ref<StatsSummary | null>(null)
+const showExport = ref(false)
 
 const fetchSummary = async () => {
   loading.value = true
@@ -97,11 +99,19 @@ const quickActions = [
         <NIcon :component="LayoutDashboard" size="18" class="dash-title-icon" />
         <span>数据概览</span>
       </div>
-      <NButton size="tiny" quaternary class="dash-refresh" :loading="loading" @click="fetchSummary">
-        <template #icon><NIcon :component="RefreshCw" size="13" /></template>
-        刷新
-      </NButton>
+      <div class="dash-actions">
+        <NButton size="tiny" quaternary class="dash-export" @click="showExport = true">
+          <template #icon><NIcon :component="Download" size="13" /></template>
+          数据导出
+        </NButton>
+        <NButton size="tiny" quaternary class="dash-refresh" :loading="loading" @click="fetchSummary">
+          <template #icon><NIcon :component="RefreshCw" size="13" /></template>
+          刷新
+        </NButton>
+      </div>
     </div>
+
+    <ExportModal v-model:show="showExport" />
 
     <NSpin :show="loading" class="dash-spin">
       <div v-if="error && !data" class="dash-error">
@@ -239,7 +249,13 @@ const quickActions = [
   color: var(--text-1);
 }
 .dash-title-icon { color: var(--brand); }
+.dash-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 .dash-refresh { border-radius: var(--radius-pill); }
+.dash-export { border-radius: var(--radius-pill); color: var(--brand); }
 .dash-spin { min-height: 240px; }
 .dash-error { padding-top: 60px; }
 

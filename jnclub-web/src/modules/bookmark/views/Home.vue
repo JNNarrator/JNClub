@@ -6,7 +6,7 @@ import {
   NDrawer, NDrawerContent, NDropdown,
   useMessage, useDialog,
 } from 'naive-ui'
-import { Plus, FolderOpen, Link, Globe, RefreshCw, UploadCloud, Tag, Search, Download, Sun, Moon, CircleUser, LogOut, CheckSquare, FolderInput, Tags, Trash2, X } from 'lucide-vue-next'
+import { Plus, FolderOpen, Link, Globe, RefreshCw, UploadCloud, Tag, Search, Download, Sun, Moon, CircleUser, LogOut, CheckSquare, FolderInput, Tags, Trash2, X, Archive } from 'lucide-vue-next'
 import { useRouter, useRoute, type RouteLocationRaw } from 'vue-router'
 import { useDirectoryStore } from '../stores/directory'
 import { useBookmarkStore } from '../stores/bookmark'
@@ -347,6 +347,8 @@ const topLevelDirs = computed(() =>
 const availableTags = ref<TagItem[]>([])
 /** 当前选中标签 id（null=全部） */
 const activeTagId = ref<number | null>(null)
+/** 便签归档视图开关 */
+const notesArchived = ref(false)
 /** TagPicker 保存触发计数 */
 const tagSaveTrigger = ref(0)
 
@@ -467,17 +469,17 @@ const handleDirectorySelect = async (id: number) => {
 }
 
 const loadData = async () => {
-  if (!selectedDirectoryId.value) return
+  if (!selectedDirectoryId.value && !notesArchived.value) return
   loading.value = true
   try {
     if (props.activeModule === 'bookmarks') {
-      await bookmarkStore.fetchBookmarks(selectedDirectoryId.value, activeTagId.value)
+      await bookmarkStore.fetchBookmarks(selectedDirectoryId.value!, activeTagId.value)
     } else if (props.activeModule === 'notes') {
-      await noteStore.fetchNotes(selectedDirectoryId.value, activeTagId.value)
+      await noteStore.fetchNotes(selectedDirectoryId.value ?? 0, activeTagId.value, notesArchived.value)
     } else if (props.activeModule === 'files') {
-      await cloudDiskStore.fetchFiles(selectedDirectoryId.value)
+      await cloudDiskStore.fetchFiles(selectedDirectoryId.value!)
     } else {
-      await vaultStore.fetchItems(selectedDirectoryId.value)
+      await vaultStore.fetchItems(selectedDirectoryId.value!)
     }
   } finally { loading.value = false }
 }
@@ -804,6 +806,16 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
           >
             <template #icon><NIcon :component="Download" size="15" /></template>
             导出全部
+          </NButton>
+          <NButton
+            v-if="props.activeModule === 'notes'"
+            size="small"
+            :class="['archived-toggle', notesArchived ? 'archived-active' : '']"
+            :title="notesArchived ? '返回正常便签' : '查看已归档便签'"
+            @click="notesArchived = !notesArchived; loadData()"
+          >
+            <template #icon><NIcon :component="Archive" size="15" /></template>
+            {{ notesArchived ? '返回' : '归档' }}
           </NButton>
           <NButton
             v-if="props.activeModule === 'files'"
@@ -1135,6 +1147,23 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
 }
 .io-export-btn[disabled] {
   opacity: 0.45;
+}
+
+/* 归档视图切换 */
+.archived-toggle {
+  border-radius: var(--radius-pill) !important;
+  background: var(--glass-bg-trans) !important;
+  border: 1px solid var(--glass-border) !important;
+  color: var(--text-2) !important;
+}
+.archived-toggle:hover {
+  color: var(--brand) !important;
+  border-color: var(--brand) !important;
+}
+.archived-toggle.archived-active {
+  color: var(--brand) !important;
+  border-color: var(--brand) !important;
+  background: var(--brand-soft) !important;
 }
 
 /* === 主体 === */

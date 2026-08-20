@@ -4,16 +4,16 @@
  * 文档图标 + 标题(--text-1, 非链接蓝) + 摘要 + 更新时间 + 操作菜单
  * hover 浅底，整行可点=进入预览
  */
-import { h, ref } from 'vue'
-import { NButton, NIcon, NDropdown, NEllipsis, NTag, NCheckbox } from 'naive-ui'
-import { Pencil, Trash2, Eye, Ellipsis, StickyNote, Clock, FolderInput, Link2, Share2 } from 'lucide-vue-next'
+import { computed, h, ref } from 'vue'
+import { NButton, NIcon, NDropdown, NEllipsis, NTag, NCheckbox, useMessage } from 'naive-ui'
+import { Pencil, Trash2, Eye, Ellipsis, StickyNote, Clock, FolderInput, Link2, Share2, Pin, PinOff, Archive } from 'lucide-vue-next'
 import { formatRelativeTime } from '../composables/formatDate'
 import { stripMarkdown } from '../composables/stripMarkdown'
 import { openMenu } from '../../../shared/composables/useContextMenu'
 import ShareModal from './ShareModal.vue'
 import { useItemDragContext } from '../composables/useItemDragContext'
 import MoveItemModal from './MoveItemModal.vue'
-import type { Note } from '../stores/note'
+import { useNoteStore, type Note } from '../stores/note'
 
 const props = defineProps<{
   note: Note
@@ -29,6 +29,9 @@ const emit = defineEmits<{
   refresh: []
 }>()
 
+const message = useMessage()
+const noteStore = useNoteStore()
+
 const showMoveModal = ref(false)
 const showShare = ref(false)
 const { setDragging } = useItemDragContext()
@@ -40,19 +43,38 @@ const getSummary = (content: string | null) => {
   return plain.length > 80 ? plain.substring(0, 80) + '…' : plain
 }
 
-const dropdownOptions = [
-  { label: '预览', key: 'preview', icon: () => h(NIcon, null, { default: () => h(Eye) }) },
-  { label: '移动到…', key: 'move', icon: () => h(NIcon, null, { default: () => h(FolderInput) }) },
-  { label: '分享', key: 'share', icon: () => h(NIcon, null, { default: () => h(Link2) }) },
-  { label: '编辑', key: 'edit', icon: () => h(NIcon, null, { default: () => h(Pencil) }) },
-  { label: '删除', key: 'delete', icon: () => h(NIcon, null, { default: () => h(Trash2) }) },
-]
+const dropdownOptions = computed(() => {
+  const isPinned = (props.note.pinned ?? 0) === 1
+  return [
+    { label: '预览', key: 'preview', icon: () => h(NIcon, null, { default: () => h(Eye) }) },
+    { label: isPinned ? '取消置顶' : '置顶', key: 'pin', icon: () => h(NIcon, null, { default: () => h(isPinned ? PinOff : Pin) }) },
+    { label: '移动到…', key: 'move', icon: () => h(NIcon, null, { default: () => h(FolderInput) }) },
+    { label: '分享', key: 'share', icon: () => h(NIcon, null, { default: () => h(Link2) }) },
+    { label: '编辑', key: 'edit', icon: () => h(NIcon, null, { default: () => h(Pencil) }) },
+    { label: '归档', key: 'archive', icon: () => h(NIcon, null, { default: () => h(Archive) }) },
+    { label: '删除', key: 'delete', icon: () => h(NIcon, null, { default: () => h(Trash2) }) },
+  ]
+})
 
-const handleDropdown = (key: string) => {
+const handleDropdown = async (key: string) => {
   if (key === 'preview') emit('preview', props.note)
   else if (key === 'move') showMoveModal.value = true
   else if (key === 'share') showShare.value = true
   else if (key === 'edit') emit('edit', props.note)
+  else if (key === 'pin') {
+    try {
+      await noteStore.setPinned(props.note.id, (props.note.pinned ?? 0) !== 1)
+      message.success((props.note.pinned ?? 0) !== 1 ? '已置顶' : '已取消置顶')
+      emit('refresh')
+    } catch (e: any) { message.error(e.message || '操作失败') }
+  }
+  else if (key === 'archive') {
+    try {
+      await noteStore.setArchived(props.note.id, true)
+      message.success('已归档')
+      emit('refresh')
+    } catch (e: any) { message.error(e.message || '操作失败') }
+  }
   else if (key === 'delete') emit('delete', props.note)
 }
 
@@ -101,6 +123,9 @@ const handleDragEnd = () => setDragging(null)
     <!-- 标题 + 摘要 -->
     <div class="row-main">
       <div class="row-title">
+        <span v-if="(note.pinned ?? 0) === 1" class="pin-badge" title="已置顶">
+          <NIcon :component="Pin" size="12" />
+        </span>
         <NEllipsis :tooltip="{ width: 400 }">
           {{ note.title || '无标题' }}
         </NEllipsis>
@@ -191,6 +216,21 @@ const handleDragEnd = () => setDragging(null)
   font-size: var(--fs-base);
   font-weight: 600;
   color: var(--text-1); /* 非链接蓝 */
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.pin-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 5px;
+  background: var(--brand-soft);
+  color: var(--brand);
+  flex-shrink: 0;
 }
 .row-summary {
   font-size: var(--fs-sm);
