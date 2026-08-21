@@ -7,8 +7,8 @@
  * 扩展（highlight.js 等）走 unpkg CDN 按需加载
  */
 import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
-import { NButton, NIcon, NInput, NModal, NSwitch, useMessage, useDialog } from 'naive-ui'
-import { Keyboard, ArrowLeft, CheckCircle2, CloudOff, LoaderCircle, Download, Upload, History } from 'lucide-vue-next'
+import { NButton, NIcon, NInput, NModal, NSwitch, NSpin, useMessage, useDialog } from 'naive-ui'
+import { Keyboard, ArrowLeft, CheckCircle2, CloudOff, LoaderCircle, Download, Upload, History, LayoutTemplate, Link2 } from 'lucide-vue-next'
 import { MdEditor, MdPreview, type ExposeParam, type ToolbarNames, type HeadList } from 'md-editor-v3'
 import 'md-editor-v3/lib/style.css'
 import 'md-editor-v3/lib/preview.css'
@@ -30,6 +30,7 @@ const emit = defineEmits<{
   close: []
   saved: [note: Note]
   deleted: [note: Note]
+  'jump-note': [id: number]
 }>()
 
 const message = useMessage()
@@ -47,12 +48,16 @@ const checkMobile = () => { isMobile.value = window.innerWidth < 768 }
 onMounted(() => {
   checkMobile()
   window.addEventListener('resize', checkMobile)
+  document.addEventListener('click', handleDocClick)
   if (isMobile.value) {
     outlineVisible.value = false // 窄屏大纲默认收起，避免遮挡编辑区
     nextTick(() => mdEditor.value?.togglePreview(false))
   }
 })
-onBeforeUnmount(() => window.removeEventListener('resize', checkMobile))
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', checkMobile)
+  document.removeEventListener('click', handleDocClick)
+})
 
 const content = ref('')
 const title = ref('')
@@ -168,9 +173,127 @@ const saveState = ref<'idle' | 'dirty' | 'saving' | 'saved'>('idle')
 const lastSavedAt = ref('')
 const formatTime = (d: Date) => d.toTimeString().slice(0, 8)
 
-/** 字数/行数统计 */
-const charCount = computed(() => content.value.length)
+/** 字数统计：去 Markdown 符号后，中文按字 + 英文/数字按词；阅读时长按 300 字/分钟 */
+const wordStats = computed(() => {
+  const raw = content.value
+  const plain = raw
+    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/`[^`]*`/g, ' ')
+    .replace(/\[\[[^\]]+\]\]/g, ' ')
+    .replace(/[#>*_~\-\[\]()!|]/g, ' ')
+    .replace(/\s+/g, ' ')
+  const cjk = (plain.match(/[\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff]/g) || []).length
+  const latin = (plain.replace(/[\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff]/g, ' ').match(/[A-Za-z0-9]+/g) || []).length
+  const words = cjk + latin
+  return { words, minutes: Math.max(1, Math.ceil(words / 300)) }
+})
 const lineCount = computed(() => (content.value ? content.value.split('\n').length : 0))
+
+/* ─── 双链 [[笔记名]] ─── */
+/** md-editor-v3 sanitize 回调：把 [[标题]] 渲染为可点击链接（标题做 HTML 转义） */
+const sanitizeNoteLinks = (html: string): string => {
+  if (!html || !html.includes('[[')) return html
+  return html.replace(/\[\[([^\]\n]+?)\]\]/g, (_m, t: string) => {
+    const esc = escapeHtml(t.trim())
+    return `<a href="#" class="note-link" data-note-title="${esc}">[[${esc}]]</a>`
+  })
+}
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+}
+
+/** 文档级点击委托：命中 a.note-link → 按标题解析便签并跳转 */
+const handleDocClick = async (e: MouseEvent) => {
+  const target = e.target as HTMLElement
+  const link = target.closest?.('a.note-link') as HTMLAnchorElement | null
+  if (!link) return
+  e.preventDefault()
+  const noteTitle = link.dataset.noteTitle || ''
+  if (!noteTitle) return
+  try {
+    const res = await axios.get('/api/notes/resolve', { params: { title: noteTitle } })
+    const note = res.data?.data
+    if (res.data?.code === 200 && note?.id) {
+      emit('jump-note', note.id)
+    } else {
+      message.info(`未找到便签「${noteTitle}」——新建同名便签后双链自动生效`)
+    }
+  } catch {
+    message.error('双链解析失败')
+  }
+}
+
+/* ─── 反向链接面板 ─── */
+const backlinks = ref<Array<{ id: number; title: string; directoryId: number; snippet: string }>>([])
+const backlinksLoading = ref(false)
+const backlinksOpen = ref(true)
+let backlinkReqSeq = 0
+const fetchBacklinks = async () => {
+  if (!isViewNote.value || !props.note) { backlinks.value = []; return }
+  const seq = ++backlinkReqSeq
+  backlinksLoading.value = true
+  try {
+    const res = await axios.get(`/api/notes/${props.note.id}/backlinks`)
+    if (seq === backlinkReqSeq) backlinks.value = res.data?.data || []
+  } catch {
+    if (seq === backlinkReqSeq) backlinks.value = []
+  } finally {
+    if (seq === backlinkReqSeq) backlinksLoading.value = false
+  }
+}
+watch(() => props.note?.id, () => {
+  nextTick(fetchBacklinks)
+}, { immediate: true })
+
+/* ─── 便签模板 ─── */
+const todayStr = new Date().toISOString().slice(0, 10)
+interface NoteTemplate { key: string; label: string; icon: string; content: string }
+const NOTE_TEMPLATES: NoteTemplate[] = [
+  {
+    key: 'meeting', label: '会议记录', icon: '📋',
+    content: `# 会议记录\n\n**时间**：\n**参会人**：\n**主题**：\n\n## 议程\n\n- \n\n## 决议\n\n- \n\n## 待办\n\n- [ ] `,
+  },
+  {
+    key: 'diary', label: '日记', icon: '📖',
+    content: `# ${todayStr} 日记\n\n## 今天做了什么\n\n\n## 感受与思考\n\n\n## 明天计划\n\n- `,
+  },
+  {
+    key: 'weekly', label: '周报', icon: '📊',
+    content: `# 周报\n\n**周期**：\n\n## 本周完成\n\n- \n\n## 数据与产出\n\n- \n\n## 下周计划\n\n- \n\n## 风险与求助\n\n- `,
+  },
+  {
+    key: 'book', label: '读书笔记', icon: '📚',
+    content: `# 读书笔记\n\n**书名**：\n**作者**：\n**读完日期**：\n\n## 内容概要\n\n\n## 金句摘录\n\n> \n\n## 我的思考\n\n`,
+  },
+  {
+    key: 'checklist', label: '清单', icon: '✅',
+    content: `## 清单\n\n- [ ] \n- [ ] \n- [ ] `,
+  },
+]
+const showTemplatePicker = ref(false)
+const applyTemplate = (t: NoteTemplate) => {
+  if (content.value.trim()) {
+    dialog.warning({
+      title: '应用模板',
+      content: '当前内容将被模板覆盖，确定继续？',
+      positiveText: '确定',
+      negativeText: '取消',
+      onPositiveClick: () => {
+        content.value = t.content
+        if (!title.value.trim()) title.value = t.label
+        showTemplatePicker.value = false
+        saveState.value = 'dirty'
+        hasUnsavedChanges.value = true
+      },
+    })
+    return
+  }
+  content.value = t.content
+  if (!title.value.trim()) title.value = t.label
+  showTemplatePicker.value = false
+  saveState.value = 'dirty'
+  hasUnsavedChanges.value = true
+}
 
 /** 底部状态文字：最后修改时间 */
 const statusTimeText = computed(() => {
@@ -470,6 +593,22 @@ defineExpose({ hasUnsavedChanges })
         <span class="mode-toggle-label" :class="{ active: !readonlyMode }">编辑</span>
         <NSwitch :value="!readonlyMode" size="small" @update:value="toggleReadonly" />
       </div>
+      <div class="template-wrap">
+        <NButton quaternary circle size="small" title="使用模板" @click="showTemplatePicker = !showTemplatePicker">
+          <template #icon><NIcon :component="LayoutTemplate" size="16" /></template>
+        </NButton>
+        <!-- 模板下拉菜单 -->
+        <div v-if="showTemplatePicker" class="template-menu glass-card--modal">
+          <div class="template-menu-title">选择模板</div>
+          <button
+            v-for="t in NOTE_TEMPLATES" :key="t.key"
+            type="button" class="template-item jnclub-bouncy" @click="applyTemplate(t)"
+          >
+            <span class="template-icon">{{ t.icon }}</span>
+            <span class="template-label">{{ t.label }}</span>
+          </button>
+        </div>
+      </div>
       <NButton quaternary circle size="small" title="快捷键帮助" @click="showHelp = true">
         <template #icon><NIcon :component="Keyboard" size="16" /></template>
       </NButton>
@@ -529,9 +668,10 @@ defineExpose({ hasUnsavedChanges })
           :theme="isDark ? 'dark' : 'light'"
           language="zh-CN"
           :toolbars="toolbars"
-          :placeholder="'支持 Markdown 语法，试试输入 # 标题，或 ** 加粗'"
+          :placeholder="'支持 Markdown 语法，试试输入 # 标题，或 ** 加粗；输入 [[笔记名]] 创建双链'"
           :no-upload-img="false"
           :auto-detect-code="true"
+          :sanitize="sanitizeNoteLinks"
           :on-upload-img="handleUploadImg"
           :on-save="handleEditorSave"
           :on-change="handleEditorInput"
@@ -543,6 +683,7 @@ defineExpose({ hasUnsavedChanges })
           :id="EDITOR_ID + '-preview'"
           :model-value="content"
           :theme="isDark ? 'dark' : 'light'"
+          :sanitize="sanitizeNoteLinks"
           :on-get-catalog="handleCatalog"
           class="md-preview-wrap"
         />
@@ -553,10 +694,35 @@ defineExpose({ hasUnsavedChanges })
         <div class="guide-card">
           <div class="guide-title">直接开始写作…</div>
           <div class="guide-tip">
-            支持 Markdown 语法 · 试试输入 <code># 标题</code> 或 <code>**加粗**</code>
+            支持 Markdown 语法 · 试试输入 <code># 标题</code> 或 <code>**加粗**</code>；输入 <code>[[笔记名]]</code> 创建双链
           </div>
           <button type="button" class="guide-help" @click="showHelp = true">查看快捷键帮助 →</button>
         </div>
+      </div>
+    </div>
+
+    <!-- 反向链接：引用当前便签标题的其他便签 -->
+    <div v-if="isViewNote" class="backlinks-panel">
+      <button type="button" class="backlinks-head jnclub-bouncy" @click="backlinksOpen = !backlinksOpen">
+        <NIcon :component="Link2" size="13" />
+        <span>反向链接</span>
+        <span class="backlinks-count">{{ backlinks.length }}</span>
+        <span class="backlinks-toggle">{{ backlinksOpen ? '收起' : '展开' }}</span>
+      </button>
+      <div v-if="backlinksOpen" class="backlinks-body">
+        <NSpin :show="backlinksLoading" size="small">
+          <div v-if="!backlinks.length && !backlinksLoading" class="backlinks-empty">
+            还没有便签引用「{{ props.note?.title }}」。在任意便签中输入
+            <code>[[{{ props.note?.title }}]]</code> 即可建立双链。
+          </div>
+          <button
+            v-for="b in backlinks" :key="b.id"
+            type="button" class="backlink-item jnclub-bouncy" @click="emit('jump-note', b.id)"
+          >
+            <span class="backlink-title">{{ b.title }}</span>
+            <span class="backlink-snippet">{{ b.snippet }}</span>
+          </button>
+        </NSpin>
       </div>
     </div>
 
@@ -565,7 +731,7 @@ defineExpose({ hasUnsavedChanges })
       <div class="statusbar-left">
         <span v-if="readonlyMode" class="statusbar-hint">只读模式 · 打开右侧「编辑」开关解锁</span>
         <template v-else>
-          <span class="statusbar-stats">{{ charCount }} 字符 · {{ lineCount }} 行</span>
+          <span class="statusbar-stats">{{ wordStats.words }} 字 · 约 {{ wordStats.minutes }} 分钟 · {{ lineCount }} 行</span>
           <span v-if="statusTimeText" class="statusbar-time" :class="'time-' + saveState">{{ statusTimeText }}</span>
         </template>
       </div>
@@ -690,6 +856,137 @@ defineExpose({ hasUnsavedChanges })
 }
 :deep(.editor-title-input .n-input__placeholder) {
   color: var(--text-4);
+}
+
+/* 模板下拉菜单 */
+.template-wrap { position: relative; display: inline-flex; }
+.template-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 30;
+  width: 200px;
+  padding: 10px;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-2), var(--glass-shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.template-menu-title {
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  letter-spacing: 0.05em;
+  padding: 2px 6px 6px;
+}
+.template-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: var(--fs-md);
+  color: var(--text-1);
+  text-align: left;
+  transition: background var(--dur) var(--ease);
+}
+.template-item:hover { background: var(--glass-chip-bg); }
+.template-icon { font-size: 16px; }
+.template-label { font-weight: 500; }
+
+/* 反向链接面板 */
+.backlinks-panel {
+  flex-shrink: 0;
+  border-top: 1px solid var(--glass-border);
+  background: var(--glass-bg-trans);
+}
+.backlinks-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 8px 16px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: var(--fs-sm);
+  color: var(--glass-text-secondary);
+  text-align: left;
+}
+.backlinks-head:hover { color: var(--text-1); }
+.backlinks-count {
+  min-width: 18px;
+  text-align: center;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--glass-chip-text);
+  background: var(--glass-chip-bg);
+  border: 1px solid var(--glass-chip-border);
+  border-radius: var(--radius-pill);
+  padding: 0 6px;
+}
+.backlinks-toggle { margin-left: auto; font-size: var(--fs-xs); }
+.backlinks-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 16px 10px;
+}
+.backlinks-empty {
+  font-size: var(--fs-sm);
+  color: var(--text-3);
+  padding: 8px 4px;
+  line-height: 1.6;
+}
+.backlinks-empty code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.9em;
+  color: var(--brand);
+  background: var(--brand-soft);
+  border-radius: 4px;
+  padding: 1px 4px;
+}
+.backlink-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px solid var(--glass-chip-border);
+  border-radius: var(--radius-sm);
+  background: var(--glass-chip-bg);
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  transition: border-color var(--dur) var(--ease);
+}
+.backlink-item:hover { border-color: var(--brand); }
+.backlink-title {
+  font-size: var(--fs-md);
+  font-weight: 600;
+  color: var(--text-1);
+}
+.backlink-snippet {
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 双链链接样式（md 预览内 a.note-link） */
+:deep(.note-link) {
+  color: var(--brand);
+  text-decoration: none;
+  border-bottom: 1px dashed var(--brand);
+  cursor: pointer;
+}
+:deep(.note-link:hover) {
+  background: var(--brand-soft);
 }
 
 /* 标签行 */

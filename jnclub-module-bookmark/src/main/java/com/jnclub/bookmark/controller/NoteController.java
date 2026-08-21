@@ -38,6 +38,22 @@ public class NoteController {
     }
 
     /**
+     * 按标题解析便签（双链跳转 [[标题]] 用；返回 data=null 表示不存在）
+     */
+    @GetMapping("/resolve")
+    public R<Note> resolve(@RequestParam String title) {
+        return R.ok(noteService.resolveByTitle(title));
+    }
+
+    /**
+     * 反向链接：引用当前便签标题 [[标题]] 的其他便签
+     */
+    @GetMapping("/{id}/backlinks")
+    public R<List<Map<String, Object>>> backlinks(@PathVariable Long id) {
+        return R.ok(noteService.backlinks(id));
+    }
+
+    /**
      * 新建便签
      */
     @PostMapping

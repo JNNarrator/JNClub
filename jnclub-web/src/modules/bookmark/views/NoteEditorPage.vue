@@ -4,7 +4,7 @@
  * 路由：/notes/new（新建，query.directoryId 指定目录）与 /notes/:id（查看，页内编辑/分栏/预览切换）
  * 复用 NoteEditor.vue（md-editor-v3 markdown 编辑器：分屏编辑预览/自动保存/图片上传/快捷键帮助）
  */
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { NSpin, NEmpty, NButton, NSelect, useMessage } from 'naive-ui'
 import NoteEditor from '../components/NoteEditor.vue'
@@ -47,6 +47,21 @@ const onPickDirectory = (id: number) => {
   if (note.value) note.value.directoryId = id
 }
 
+/** 加载便签详情（按 id 拉取最新内容） */
+const loadNote = async (id: number) => {
+  loading.value = true
+  try {
+    if (!id) throw new Error('便签 ID 无效')
+    await noteStore.fetchNoteDetail(id)
+    note.value = noteStore.currentNote ? { ...noteStore.currentNote } : null
+    if (!note.value) message.warning('便签不存在或已删除')
+  } catch (e: any) {
+    message.error(e?.message || '获取便签失败')
+  } finally {
+    loading.value = false
+  }
+}
+
 onMounted(async () => {
   if (isNew.value) {
     // 新建：本地草稿，首次保存时 POST 创建
@@ -66,20 +81,19 @@ onMounted(async () => {
     }
     return
   }
-  // 编辑：拉取最新内容
-  loading.value = true
-  try {
-    const id = Number(route.params.id as string)
-    if (!id) throw new Error('便签 ID 无效')
-    await noteStore.fetchNoteDetail(id)
-    note.value = noteStore.currentNote ? { ...noteStore.currentNote } : null
-    if (!note.value) message.warning('便签不存在或已删除')
-  } catch (e: any) {
-    message.error(e?.message || '获取便签失败')
-  } finally {
-    loading.value = false
-  }
+  await loadNote(Number(route.params.id as string))
 })
+
+/** 双链跳转 / 反向链接点击：路由切到目标便签（watch 触发重新加载） */
+watch(() => route.params.id, (id) => {
+  if (isNew.value) return
+  if (id) loadNote(Number(id as string))
+})
+
+const handleJumpNote = (id: number) => {
+  if (isNew.value) return
+  router.push({ name: 'note-view', params: { id } })
+}
 
 /** 保存成功：更新引用；新建便签保存后把 URL 纠正为查看态，避免刷新丢失 */
 const handleSaved = (updated: Note) => {
@@ -126,6 +140,7 @@ const handleDeleted = () => {
         @close="handleClose"
         @saved="handleSaved"
         @deleted="handleDeleted"
+        @jump-note="handleJumpNote"
       />
       <div v-else-if="!loading" class="page-error">
         <NEmpty description="便签不存在或已删除" />

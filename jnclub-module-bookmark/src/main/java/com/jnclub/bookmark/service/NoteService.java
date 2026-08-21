@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -114,6 +115,55 @@ public class NoteService extends ServiceImpl<NoteMapper, Note> {
         }
         note.setTitle(deriveDisplayTitle(note.getTitle(), note.getContent()));
         return note;
+    }
+
+    /** 按标题精确解析（双链跳转 [[标题]] 用）；返回 null 表示不存在 */
+    public Note resolveByTitle(String title) {
+        String userId = StpUtil.getLoginIdAsString();
+        if (title == null || title.isBlank()) return null;
+        return getOne(new LambdaQueryWrapper<Note>()
+                .eq(Note::getUserId, userId)
+                .eq(Note::getDeleted, 0)
+                .eq(Note::getTitle, title.trim())
+                .last("LIMIT 1"));
+    }
+
+    /** 反向链接：内容中引用「当前便签标题 [[标题]]」的其他便签（不含自己） */
+    public List<Map<String, Object>> backlinks(Long id) {
+        String userId = StpUtil.getLoginIdAsString();
+        Note self = getById(id);
+        if (self == null || !self.getUserId().equals(userId)
+                || self.getTitle() == null || self.getTitle().isBlank()) {
+            return List.of();
+        }
+        String title = self.getTitle().trim();
+        List<Note> refs = list(new LambdaQueryWrapper<Note>()
+                .eq(Note::getUserId, userId)
+                .eq(Note::getDeleted, 0)
+                .ne(Note::getId, id)
+                .like(Note::getContent, "[[" + title + "]]")
+                .orderByDesc(Note::getUpdateTime));
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (Note n : refs) {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("id", n.getId());
+            m.put("title", n.getTitle());
+            m.put("directoryId", n.getDirectoryId());
+            m.put("snippet", snippetAround(n.getContent(), "[[" + title + "]]", 60));
+            out.add(m);
+        }
+        return out;
+    }
+
+    /** 截取命中串周边文本作为摘要 */
+    private String snippetAround(String content, String needle, int radius) {
+        if (content == null || content.isBlank()) return "";
+        int idx = content.indexOf(needle);
+        if (idx < 0) return "";
+        int from = Math.max(0, idx - radius);
+        int to = Math.min(content.length(), idx + needle.length() + radius);
+        String plain = content.substring(from, to).replaceAll("\\s+", " ").trim();
+        return (from > 0 ? "…" : "") + plain + (to < content.length() ? "…" : "");
     }
 
     @Transactional
