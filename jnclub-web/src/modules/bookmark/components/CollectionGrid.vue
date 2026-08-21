@@ -21,6 +21,7 @@ defineProps<{
 const emit = defineEmits<{
   refresh: []
   edit: [bookmark: BookmarkItem]
+  read: [bookmark: BookmarkItem]
   sort: [orderedIds: number[]]
   'toggle-select': [id: number]
 }>()
@@ -69,7 +70,7 @@ onMounted(() => { initSort() })
           @dragstart="handleDragStart($event, bk)"
           @dragend="handleDragEnd"
         >
-          <CollectionCard :bookmark="bk" @refresh="emit('refresh')" @edit="emit('edit', $event)"  :batch-mode="batchMode" :selected="selectedIds?.includes(bk.id)" @toggle-select="emit('toggle-select', bk.id)" />
+          <CollectionCard :bookmark="bk" @refresh="emit('refresh')" @edit="emit('edit', $event)" @read="emit('read', $event)"  :batch-mode="batchMode" :selected="selectedIds?.includes(bk.id)" @toggle-select="emit('toggle-select', bk.id)" />
         </div>
       </div>
     </NSpin>

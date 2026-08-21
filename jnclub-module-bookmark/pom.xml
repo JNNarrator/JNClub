@@ -48,6 +48,13 @@
             <artifactId>caffeine</artifactId>
         </dependency>
 
+        <!-- 收藏阅读模式：网页正文提取与 HTML 清洗 -->
+        <dependency>
+            <groupId>org.jsoup</groupId>
+            <artifactId>jsoup</artifactId>
+            <version>1.17.2</version>
+        </dependency>
+
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>

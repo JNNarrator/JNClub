@@ -6,7 +6,7 @@
  */
 import { h, ref } from 'vue'
 import { NButton, NIcon, NDropdown, NEllipsis, NTag, useMessage, NCheckbox } from 'naive-ui'
-import { Pencil, Trash2, EllipsisVertical, ExternalLink, FolderInput, Link2 } from 'lucide-vue-next'
+import { Pencil, Trash2, EllipsisVertical, ExternalLink, FolderInput, Link2, BookOpen } from 'lucide-vue-next'
 import { openMenu } from '../../../shared/composables/useContextMenu'
 import MoveItemModal from './MoveItemModal.vue'
 import ShareModal from './ShareModal.vue'
@@ -22,6 +22,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   refresh: []
   edit: [bookmark: BookmarkItem]
+  read: [bookmark: BookmarkItem]
   'toggle-select': []
 }>()
 
@@ -55,6 +56,7 @@ const handleDelete = async () => {
 
 const dropdownOptions = [
   { label: '打开', key: 'open', icon: () => h(NIcon, null, { default: () => h(ExternalLink) }) },
+  { label: '阅读模式', key: 'read', icon: () => h(NIcon, null, { default: () => h(BookOpen) }) },
   { label: '移动到…', key: 'move', icon: () => h(NIcon, null, { default: () => h(FolderInput) }) },
   { label: '分享', key: 'share', icon: () => h(NIcon, null, { default: () => h(Link2) }) },
   { label: '编辑', key: 'edit', icon: () => h(NIcon, null, { default: () => h(Pencil) }) },
@@ -63,6 +65,7 @@ const dropdownOptions = [
 
 const handleDropdown = (key: string) => {
   if (key === 'open') handleOpen()
+  else if (key === 'read') emit('read', props.bookmark)
   else if (key === 'move') showMoveModal.value = true
   else if (key === 'share') showShare.value = true
   else if (key === 'edit') emit('edit', props.bookmark)

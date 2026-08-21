@@ -23,6 +23,9 @@ public class FileRecord {
 
     private String storedKey;
 
+    /** 文件内容 MD5（重复检测用；上传时计算，旧文件懒计算回填） */
+    private String contentHash;
+
     private String url;
 
     private Long size;

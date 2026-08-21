@@ -1,6 +1,7 @@
 package com.jnclub.bookmark.service;
 
 import cn.hutool.core.codec.Base64;
+import cn.hutool.crypto.SecureUtil;
 import cn.hutool.http.HttpRequest;
 import cn.hutool.http.HttpResponse;
 import cn.hutool.json.JSONObject;
@@ -270,12 +271,13 @@ public class CloudDiskService {
             throw new BizException("文件保存失败，请稍后重试");
         }
 
-        // 4. 入库
+        // 4. 入库（含内容 MD5，供重复检测）
         FileRecord record = new FileRecord();
         record.setDirectoryId(directoryId);
         record.setUserId(userId);
         record.setOriginalName(filename);
         record.setStoredKey(storedKey);
+        record.setContentHash(SecureUtil.md5(merged.toFile()));
         record.setUrl("/api/files" + storedKey);
         record.setSize(totalSize);
         record.setMime(mime);
@@ -305,6 +307,78 @@ public class CloudDiskService {
                 .eq(FileRecord::getDeleted, 0)
                 .orderByAsc(FileRecord::getSortOrder)
                 .orderByDesc(FileRecord::getCreateTime));
+    }
+
+    /**
+     * 重复文件检测：按内容 MD5 分组返回重复组（组内 ≥2 条）。
+     * 旧文件（content_hash 为空）懒计算：≤50MB 从 dufs 拉取算 MD5 并回填。
+     */
+    public List<Map<String, Object>> dedup() {
+        String userId = userId();
+        List<FileRecord> files = fileMapper.selectList(new LambdaQueryWrapper<FileRecord>()
+                .eq(FileRecord::getUserId, userId)
+                .eq(FileRecord::getDeleted, 0));
+        Map<String, List<FileRecord>> byHash = new LinkedHashMap<>();
+        for (FileRecord f : files) {
+            String hash = f.getContentHash();
+            if (hash == null || hash.isBlank()) {
+                hash = computeHashLazy(f);
+            }
+            if (hash == null || hash.isBlank()) continue;
+            byHash.computeIfAbsent(hash, k -> new ArrayList<>()).add(f);
+        }
+
+        List<Map<String, Object>> groups = new ArrayList<>();
+        byHash.forEach((hash, list) -> {
+            if (list.size() < 2) return;
+            List<Map<String, Object>> items = new ArrayList<>();
+            long totalSize = 0;
+            for (FileRecord f : list) {
+                Map<String, Object> m = new LinkedHashMap<>();
+                m.put("id", f.getId());
+                m.put("originalName", f.getOriginalName());
+                m.put("size", f.getSize());
+                m.put("mime", f.getMime());
+                m.put("directoryId", f.getDirectoryId());
+                m.put("createTime", String.valueOf(f.getCreateTime()));
+                items.add(m);
+                totalSize += f.getSize() == null ? 0 : f.getSize();
+            }
+            Map<String, Object> group = new LinkedHashMap<>();
+            group.put("hash", hash);
+            group.put("count", list.size());
+            group.put("totalSize", totalSize);
+            group.put("items", items);
+            groups.add(group);
+        });
+        groups.sort((a, b) -> Long.compare((Long) b.get("count"), (Long) a.get("count")));
+        return groups;
+    }
+
+    /** 懒计算文件 MD5（从 dufs 拉取；>50MB 跳过返回 null） */
+    private String computeHashLazy(FileRecord f) {
+        try {
+            long size = f.getSize() == null ? 0 : f.getSize();
+            if (size > 50L * 1024 * 1024) return null;
+            HttpRequest req = HttpRequest.get(dufsBaseUrl + f.getStoredKey()).timeout(15000);
+            if (dufsUser != null && !dufsUser.isBlank()) {
+                String auth = dufsUser + ":" + dufsPass;
+                req.header("Authorization", "Basic " + Base64.encode(auth.getBytes(StandardCharsets.UTF_8)));
+            }
+            try (HttpResponse res = req.execute()) {
+                if (res.getStatus() != 200) return null;
+                byte[] bytes = res.bodyBytes();
+                String hash = cn.hutool.crypto.digest.DigestUtil.md5Hex(bytes);
+                FileRecord update = new FileRecord();
+                update.setId(f.getId());
+                update.setContentHash(hash);
+                fileMapper.updateById(update);
+                return hash;
+            }
+        } catch (Exception e) {
+            log.warn("懒计算文件MD5失败 id={}: {}", f.getId(), e.getMessage());
+            return null;
+        }
     }
 
     /**

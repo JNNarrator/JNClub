@@ -2,7 +2,9 @@ package com.jnclub.bookmark.controller;
 
 import com.jnclub.bookmark.entity.Bookmark;
 import com.jnclub.bookmark.service.BookmarkService;
+import com.jnclub.bookmark.service.ReadService;
 import com.jnclub.common.model.R;
+import cn.hutool.json.JSONObject;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,6 +17,7 @@ import java.util.Map;
 public class BookmarkController {
 
     private final BookmarkService bookmarkService;
+    private final ReadService readService;
 
     @GetMapping
     public R<List<Bookmark>> getBookmarks(@RequestParam Long directoryId,
@@ -34,6 +37,22 @@ public class BookmarkController {
     public R<Map<String, String>> preview(@RequestParam String url) {
         Map<String, String> meta = bookmarkService.fetchPageMeta(url);
         return meta != null ? R.ok(meta) : R.fail("无法获取网页信息");
+    }
+
+    /**
+     * 阅读模式：抓取网页正文（服务端提取 + 清洗），返回 { success, url, title, content }
+     */
+    @GetMapping("/read")
+    public R<JSONObject> read(@RequestParam String url) {
+        return R.ok(readService.readArticle(url));
+    }
+
+    /**
+     * 重复收藏检测：按规范化 URL 分组返回重复组
+     */
+    @PostMapping("/dedup")
+    public R<List<Map<String, Object>>> dedup() {
+        return R.ok(bookmarkService.listDuplicates());
     }
 
     @PutMapping("/{id}")

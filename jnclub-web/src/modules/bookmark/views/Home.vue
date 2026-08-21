@@ -24,6 +24,7 @@ import NoteList from '../components/NoteList.vue'
 import DiskView from '../components/DiskView.vue'
 import VaultView from '../components/VaultView.vue'
 import DeadLinkModal from '../components/DeadLinkModal.vue'
+import ReadingModal from '../components/ReadingModal.vue'
 import ViewSwitcher from '../components/ViewSwitcher.vue'
 import TagPicker from '../components/TagPicker.vue'
 import SearchDrawer from '../components/SearchDrawer.vue'
@@ -563,6 +564,14 @@ const handleEditBookmark = (bookmark: any) => {
   showCreateModal.value = true
 }
 
+/** 收藏阅读模式 */
+const readingUrl = ref('')
+const showReading = ref(false)
+const handleReadBookmark = (bookmark: any) => {
+  readingUrl.value = bookmark?.url || ''
+  showReading.value = true
+}
+
 const handleCreate = async () => {
   if (!createBookmarkForm.value.url.trim()) { message.warning('请输入网址'); return }
   if (!isValidUrl(createBookmarkForm.value.url.trim())) { message.warning('请输入正确的网址'); return }
@@ -884,14 +893,14 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
             v-if="props.activeModule === 'bookmarks' && viewMode === 'grid' && bookmarkStore.bookmarks.length > 0"
             :bookmarks="bookmarkStore.bookmarks"
             :batch-mode="batchMode" :selected-ids="selectedIds" @toggle-select="toggleSelect"
-            @refresh="loadData" @edit="handleEditBookmark" @sort="handleSort"
+            @refresh="loadData" @edit="handleEditBookmark" @read="handleReadBookmark" @sort="handleSort"
           />
           <!-- 收藏列表 -->
           <CollectionList
             v-else-if="props.activeModule === 'bookmarks' && viewMode === 'list' && bookmarkStore.bookmarks.length > 0"
             :bookmarks="bookmarkStore.bookmarks"
             :batch-mode="batchMode" :selected-ids="selectedIds" @toggle-select="toggleSelect"
-            @refresh="loadData" @edit="handleEditBookmark" @sort="handleSort"
+            @refresh="loadData" @edit="handleEditBookmark" @read="handleReadBookmark" @sort="handleSort"
           />
           <!-- 收藏空状态 -->
           <EmptyState
@@ -1098,6 +1107,7 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
 
     <!-- 收藏失效检测弹窗 -->
     <DeadLinkModal v-model:show="showDeadLink" @cleaned="handleRefresh" />
+    <ReadingModal v-model:show="showReading" :url="readingUrl" />
   </div>
 </template>
 

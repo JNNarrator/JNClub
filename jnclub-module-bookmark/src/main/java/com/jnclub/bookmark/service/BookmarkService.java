@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -181,6 +182,55 @@ public class BookmarkService extends ServiceImpl<BookmarkMapper, Bookmark> {
     }
 
     /** 目标目录归属 + type 校验（收藏夹目录 type=1，模式同 CloudDiskService.checkDirOwnership） */
+    /** 重复收藏检测：按规范化 URL 分组返回重复组（组内 ≥2 条） */
+    public List<Map<String, Object>> listDuplicates() {
+        String userId = StpUtil.getLoginIdAsString();
+        List<Bookmark> bookmarks = list(new LambdaQueryWrapper<Bookmark>()
+                .eq(Bookmark::getUserId, userId)
+                .eq(Bookmark::getDeleted, 0));
+        Map<String, List<Bookmark>> byKey = new LinkedHashMap<>();
+        for (Bookmark b : bookmarks) {
+            String key = normalizeUrl(b.getUrl());
+            if (key.isEmpty()) continue;
+            byKey.computeIfAbsent(key, k -> new ArrayList<>()).add(b);
+        }
+
+        List<Map<String, Object>> groups = new ArrayList<>();
+        byKey.forEach((key, list) -> {
+            if (list.size() < 2) return;
+            List<Map<String, Object>> items = new ArrayList<>();
+            for (Bookmark b : list) {
+                Map<String, Object> m = new LinkedHashMap<>();
+                m.put("id", b.getId());
+                m.put("title", b.getTitle());
+                m.put("url", b.getUrl());
+                m.put("icon", b.getIcon());
+                m.put("directoryId", b.getDirectoryId());
+                items.add(m);
+            }
+            Map<String, Object> group = new LinkedHashMap<>();
+            group.put("url", list.get(0).getUrl());
+            group.put("normalized", key);
+            group.put("count", list.size());
+            group.put("items", items);
+            groups.add(group);
+        });
+        groups.sort((a, b) -> Integer.compare((Integer) b.get("count"), (Integer) a.get("count")));
+        return groups;
+    }
+
+    /** URL 规范化：去协议 → 去 www. → 去尾斜杠 → 去锚点（统一小写） */
+    private String normalizeUrl(String url) {
+        if (url == null) return "";
+        String u = url.trim().toLowerCase();
+        int hash = u.indexOf('#');
+        if (hash >= 0) u = u.substring(0, hash);
+        u = u.replaceFirst("^https?://", "");
+        u = u.replaceFirst("^www\\.", "");
+        while (u.endsWith("/")) u = u.substring(0, u.length() - 1);
+        return u;
+    }
+
     private void checkDirOwnership(Long directoryId, String userId) {
         Directory dir = directoryMapper.selectById(directoryId);
         if (dir == null || !dir.getUserId().equals(userId)) {

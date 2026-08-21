@@ -122,6 +122,12 @@ public class CloudDiskController {
         return R.ok();
     }
 
+    /** 重复文件检测：按内容 MD5 分组（旧文件懒计算并回填哈希） */
+    @PostMapping("/files/dedup")
+    public R<List<Map<String, Object>>> dedup() {
+        return R.ok(cloudDiskService.dedup());
+    }
+
     /** 重命名文件（仅改显示名，不动 dufs 物理路径） */
     @PutMapping("/files/{id}/rename")
     public R<Void> renameFile(@PathVariable Long id, @RequestBody Map<String, String> body) {

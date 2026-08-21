@@ -8,7 +8,7 @@ import { NIcon, NSpin, NEmpty, NButton, NDrawer, NSwitch } from 'naive-ui'
 import {
   Bookmark, StickyNote, Cloud, KeyRound, Tag, Trash2, HardDrive,
   ShieldCheck, AlertTriangle, ArrowRight, LayoutDashboard, RefreshCw, Download, Upload, Database, TrendingUp,
-  ListTodo, Settings2, GripVertical, Sparkles,
+  ListTodo, Settings2, GripVertical, Sparkles, ScanSearch,
 } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
@@ -16,6 +16,7 @@ import { formatRelativeTime } from '../../modules/bookmark/composables/formatDat
 import ExportModal from '../../modules/bookmark/components/ExportModal.vue'
 import ImportModal from '../../modules/bookmark/components/ImportModal.vue'
 import FullBackupModal from '../../modules/bookmark/components/FullBackupModal.vue'
+import DedupModal from '../../modules/bookmark/components/DedupModal.vue'
 
 interface StatsSummary {
   counts: {
@@ -47,6 +48,7 @@ const data = ref<StatsSummary | null>(null)
 const showExport = ref(false)
 const showImport = ref(false)
 const showBackup = ref(false)
+const showDedup = ref(false)
 
 const fetchSummary = async () => {
   loading.value = true
@@ -268,6 +270,10 @@ const goTodos = () => router.push('/todos')
           <template #icon><NIcon :component="Upload" size="13" /></template>
           数据导入
         </NButton>
+        <NButton size="tiny" quaternary class="dash-dedup" @click="showDedup = true">
+          <template #icon><NIcon :component="ScanSearch" size="13" /></template>
+          查重
+        </NButton>
         <NButton size="tiny" quaternary class="dash-refresh" :loading="loading" @click="fetchSummary; fetchTrend()">
           <template #icon><NIcon :component="RefreshCw" size="13" /></template>
           刷新
@@ -278,6 +284,7 @@ const goTodos = () => router.push('/todos')
     <ExportModal v-model:show="showExport" />
     <ImportModal v-model:show="showImport" @imported="fetchSummary" />
     <FullBackupModal v-model:show="showBackup" @imported="fetchSummary" />
+    <DedupModal v-model:show="showDedup" @changed="fetchSummary" />
 
     <NSpin :show="loading" class="dash-spin">
       <div v-if="error && !data" class="dash-error">
