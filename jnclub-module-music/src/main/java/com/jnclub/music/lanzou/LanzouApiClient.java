@@ -651,26 +651,38 @@ public class LanzouApiClient {
     }
 
     /**
-     * 从蓝奏云 CDN 直链 URL 中解析真实的过期时间（e=<epochSecondsHex>）。
-     * <p>若解析不到则回退为 now+4h（与旧逻辑一致），保证直链写入缓存时不会过早失效。</p>
+     * 估算蓝奏云 CDN 直链的过期时间。
+     * <p>实测（2026-08-22）：直链 URL 中的 {@code e} 参数是链接的<b>生成时间</b>（epoch 秒，hex），
+     * 并非过期时间；蓝奏云直链有效期约 45 分钟（从生成时间起算，见 TrackServiceImpl 中
+     * MUSIC_URLS_TTL 的注释）。若把 e 当成过期时间，会在取链瞬间因 e≈now 触发
+     * "已过期"回退，进而用 now+4h 缓存一条 45 分钟后必然失效的死链。
+     * <p>处理策略：expiry = e + 45min；若 e 指向未来（兼容旧版把 e 当过期时间的语义），
+     * 与 now+45min 取较小者；若计算出的过期时间已过（如蓝奏云复用了更早生成的链接），
+     * 直接返回 now，让上层立即重新取链。</p>
      */
-    static Instant resolveRealExpiry(String downUrl) {
+    public static Instant resolveRealExpiry(String downUrl) {
         if (downUrl != null) {
             Matcher m = DIRECT_URL_EXPIRY_PATTERN.matcher(downUrl);
             if (m.find()) {
                 try {
                     long epoch = Long.parseLong(m.group(1), 16);
-                    Instant expiry = Instant.ofEpochSecond(epoch);
-                    // 防御：解析出的过期时间若早于当前时间，说明参数异常，回退保守值
-                    if (expiry.isAfter(Instant.now())) {
-                        return expiry;
+                    Instant createdAt = Instant.ofEpochSecond(epoch);
+                    Instant now = Instant.now();
+                    Instant expiry = createdAt.plus(Duration.ofMinutes(45));
+                    // 兼容旧语义：e 若指向未来（曾被当作过期时间），不超 now+45min
+                    Instant cap = now.plus(Duration.ofMinutes(45));
+                    if (expiry.isAfter(cap)) expiry = cap;
+                    if (expiry.isBefore(now)) {
+                        // 已过期（生成时间早于 now-45min）→ 让上层立即刷新，避免缓存死链
+                        return now;
                     }
+                    return expiry;
                 } catch (NumberFormatException | ArithmeticException ignored) {
                     // 非法时间戳，回退
                 }
             }
         }
-        return Instant.now().plus(Duration.ofHours(4));
+        return Instant.now().plus(Duration.ofMinutes(45));
     }
 
 

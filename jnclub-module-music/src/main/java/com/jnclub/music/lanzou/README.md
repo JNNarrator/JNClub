@@ -116,7 +116,7 @@ LanzouUploadResult result = lanzouClient.upload("-1", "demo.mp3", file);
 
 | 方法 | 说明 | 对应蓝奏云接口 |
 |------|------|----------------|
-| `directLink(fileId, fileName)` | 获取文件直链（4小时过期） | `doupload.php?task=12` |
+| `directLink(fileId, fileName)` | 获取文件直链（约45分钟过期） | `doupload.php?task=12` |
 | `createDirectShare(fileId, fileName)` | 创建直链分享（同 `directLink`） | 同上 |
 
 **示例：**
@@ -197,7 +197,7 @@ lanzouClient.setAcwScV2(acw);
 | `LanzouFolder` | id, name | 文件夹信息 |
 | `LanzouPageResult` | page, pageSize, files, folders | 分页结果 |
 | `LanzouUploadResult` | fileId, name, size, shareId, shareUrl | 上传结果 |
-| `LanzouDirectLink` | url, expiresAt | 直链（4小时过期） |
+| `LanzouDirectLink` | url, expiresAt | 直链（约45分钟过期） |
 | `LanzouShareLink` | shareId, shareUrl, directUrl, requirePassword | 分享解析结果 |
 | `LanzouShareInfo` | fileId, fileName, passwordRequired, password, shareUrl | 分享信息详情 |
 | `LanzouUidVei` | uid, vei | 用户状态参数 |

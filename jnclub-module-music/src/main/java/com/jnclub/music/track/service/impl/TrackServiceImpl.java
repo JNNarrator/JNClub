@@ -7,6 +7,7 @@ import com.jnclub.common.cache.CacheService;
 import com.jnclub.music.common.PageResponse;
 import com.jnclub.music.common.enums.ErrorCode;
 import com.jnclub.music.common.exception.BusinessException;
+import com.jnclub.music.lanzou.LanzouApiClient;
 import com.jnclub.music.lanzou.LanzouSessionException;
 import com.jnclub.music.storage.MusicStorage;
 import com.jnclub.music.track.mapper.TrackMapper;
@@ -166,10 +167,9 @@ public class TrackServiceImpl implements TrackService {
     @Cacheable(value = "mediaUrls", key = "#trackId")
     public MediaUrlDTO getMediaUrl(String trackId) {
         String id = requireTrackId(trackId);
-        // L2: 先查 MySQL 缓存的直链
+        // L2: 先查 MySQL 缓存的直链（双重校验：数据库过期时间 + 直链 e 参数，防死链）
         var cachedTrack = trackMapper.selectById(id);
-        if (cachedTrack != null && cachedTrack.getMediaUrl() != null && !cachedTrack.getMediaUrl().isBlank()
-                && cachedTrack.getUrlExpiresAt() != null && cachedTrack.getUrlExpiresAt().isAfter(OffsetDateTime.now())) {
+        if (cachedTrack != null && isMediaUrlFresh(cachedTrack)) {
             // 有效缓存 → 直接返回，不调蓝奏云
             String fmt = cachedTrack.getFormat() != null ? cachedTrack.getFormat() : "";
             return MediaUrlDTO.builder().trackId(id).mediaUrl(cachedTrack.getMediaUrl()).format(fmt)
@@ -235,8 +235,7 @@ public class TrackServiceImpl implements TrackService {
         }
         for (String id : trackIds) {
             Track ct = cacheMap.get(id);
-            if (ct != null && ct.getMediaUrl() != null && !ct.getMediaUrl().isBlank()
-                    && ct.getUrlExpiresAt() != null && ct.getUrlExpiresAt().isAfter(OffsetDateTime.now())) {
+            if (ct != null && isMediaUrlFresh(ct)) {
                 String fmt = ct.getFormat() != null ? ct.getFormat() : "";
                 result.put(id, MediaUrlDTO.builder().trackId(id).mediaUrl(ct.getMediaUrl()).format(fmt)
                         .expiresAt(ct.getUrlExpiresAt()).build());
@@ -494,7 +493,28 @@ public class TrackServiceImpl implements TrackService {
     private boolean isUrlFresh(JSONObject entry) {
         Long expiresAt = entry.getLong("expiresAtMillis");
         if (expiresAt == null || expiresAt == 0L) return false;
-        return expiresAt > System.currentTimeMillis();
+        if (expiresAt <= System.currentTimeMillis()) return false;
+        // 防御：直链 e 参数是生成时间（有效期约 45 分钟），数据库/Redis 里可能存着
+        // 按旧逻辑算出的未来过期时间（now+4h），这里按 e 重新校验，避免返回死链。
+        String url = entry.getStr("url");
+        if (url != null && !url.isBlank()) {
+            return LanzouApiClient.resolveRealExpiry(url).isAfter(Instant.now());
+        }
+        return true;
+    }
+
+    /**
+     * 判断 MySQL 缓存的直链是否仍有效。
+     * <p>双重校验：①数据库过期时间；②直链 URL 的 e 参数（蓝奏云 e=链接生成时间，
+     * 约 45 分钟有效期）。旧数据可能因 e 语义变更被写成 now+4h 的未来过期时间，
+     * ②可兜底识别已死链接并触发回源刷新。</p>
+     */
+    private static boolean isMediaUrlFresh(Track track) {
+        String url = track.getMediaUrl();
+        OffsetDateTime expiresAt = track.getUrlExpiresAt();
+        if (url == null || url.isBlank()) return false;
+        if (expiresAt == null || !expiresAt.isAfter(OffsetDateTime.now())) return false;
+        return LanzouApiClient.resolveRealExpiry(url).isAfter(Instant.now());
     }
 
     private String downloadText(String url) {
