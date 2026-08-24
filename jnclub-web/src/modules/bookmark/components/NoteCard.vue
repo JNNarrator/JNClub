@@ -89,7 +89,11 @@ const onRootClick = () => {
 <template>
   <div
     class="note-card jnclub-bouncy"
-          @click="onRootClick"
+    role="link"
+    tabindex="0"
+    @click="onRootClick"
+    @keydown.enter.prevent="onRootClick"
+    @keydown.space.prevent="onRootClick"
     @contextmenu.prevent="openMenu($event, dropdownOptions, handleDropdown)"
   >
       <div v-if="props.batchMode" class="batch-check" @click.stop="emit('toggle-select')">
@@ -293,8 +297,13 @@ const onRootClick = () => {
   transition: opacity var(--dur) var(--ease);
 }
 
-.note-card:hover .card-actions {
+.note-card:hover .card-actions,
+.note-card:focus-within .card-actions {
   opacity: 1;
+}
+
+@media (hover: none) {
+  .card-actions { opacity: 1; }
 }
 
 .more-btn {

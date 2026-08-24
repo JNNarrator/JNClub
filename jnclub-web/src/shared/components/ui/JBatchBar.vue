@@ -46,6 +46,8 @@ const emit = defineEmits<{
         <template #icon><NIcon :component="Trash2" size="14" /></template>
         删除
       </NButton>
+      <!-- 额外批量操作（如云盘“打包下载”） -->
+      <slot />
       <NButton size="small" quaternary @click="emit('cancel')">
         <template #icon><NIcon :component="X" size="14" /></template>
         取消

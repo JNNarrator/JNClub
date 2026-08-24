@@ -104,6 +104,13 @@ export interface DesignTokens {
   spaceMd: string
   spaceLg: string
   spaceXl: string
+  // 布局体系
+  layoutContentMax: string
+  layoutPageGutter: string
+  layoutPagePadding: string
+  layoutPanelPadding: string
+  headerHeight: string
+  tabbarHeight: string
   dur: string
   ease: string
   easeBouncy: string
@@ -206,6 +213,12 @@ export const lightTokens: DesignTokens = {
   spaceMd: '16px',
   spaceLg: '24px',
   spaceXl: '32px',
+  layoutContentMax: '1560px',
+  layoutPageGutter: '24px',
+  layoutPagePadding: '12px 24px 0',
+  layoutPanelPadding: '20px 24px',
+  headerHeight: '60px',
+  tabbarHeight: '56px',
   dur: '0.2s',
   ease: 'cubic-bezier(0.32, 0.72, 0, 1)',
   easeBouncy: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
@@ -308,6 +321,12 @@ export const darkTokens: DesignTokens = {
   spaceMd: '16px',
   spaceLg: '24px',
   spaceXl: '32px',
+  layoutContentMax: '1560px',
+  layoutPageGutter: '24px',
+  layoutPagePadding: '12px 24px 0',
+  layoutPanelPadding: '20px 24px',
+  headerHeight: '60px',
+  tabbarHeight: '56px',
   dur: '0.2s',
   ease: 'cubic-bezier(0.32, 0.72, 0, 1)',
   easeBouncy: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
@@ -410,6 +429,12 @@ export function tokensToCSSVars(tokens: DesignTokens): Record<string, string> {
     '--space-md': tokens.spaceMd,
     '--space-lg': tokens.spaceLg,
     '--space-xl': tokens.spaceXl,
+    '--layout-content-max': tokens.layoutContentMax,
+    '--layout-page-gutter': tokens.layoutPageGutter,
+    '--layout-page-padding': tokens.layoutPagePadding,
+    '--layout-panel-padding': tokens.layoutPanelPadding,
+    '--header-height': tokens.headerHeight,
+    '--tabbar-height': tokens.tabbarHeight,
     '--dur': tokens.dur,
     '--ease': tokens.ease,
     '--ease-bouncy': tokens.easeBouncy,

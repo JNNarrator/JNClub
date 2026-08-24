@@ -189,8 +189,8 @@ const handleBreadcrumbRoot = () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 24px;
-  height: 60px;
+  padding: 0 var(--layout-page-gutter, 24px);
+  height: var(--header-height, 60px);
   flex-shrink: 0;
   border-bottom: 1px solid var(--border);
   gap: 16px;
@@ -207,6 +207,7 @@ const handleBreadcrumbRoot = () => {
   align-items: center;
   gap: 10px;
   flex-shrink: 0;
+  min-width: 0;
 }
 
 .jnclub-breadcrumb :deep(.n-breadcrumb-item__link) {
@@ -220,6 +221,7 @@ const handleBreadcrumbRoot = () => {
 
 .refresh-btn {
   color: var(--text-2);
+  flex-shrink: 0;
 }
 .refresh-btn:hover {
   color: var(--text-1);
@@ -237,6 +239,7 @@ const handleBreadcrumbRoot = () => {
   background: transparent;
   color: var(--text-2);
   cursor: pointer;
+  flex-shrink: 0;
 }
 .theme-toggle-btn:hover {
   color: var(--text-1);
@@ -322,6 +325,15 @@ const handleBreadcrumbRoot = () => {
   }
   .header-right {
     gap: 4px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .header-right::-webkit-scrollbar {
+    display: none;
+  }
+  .user-row {
+    flex-shrink: 0;
   }
 }
 </style>

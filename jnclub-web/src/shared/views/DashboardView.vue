@@ -4,7 +4,7 @@
  * 统计卡片（收藏/便签/文件/密码/标签/回收站）+ 磁盘占用 + 密码库指纹健康 + 最近动态 + 快捷入口
  */
 import { ref, computed, onMounted, watch } from 'vue'
-import { NIcon, NEmpty, NButton, NDrawer, NSwitch } from 'naive-ui'
+import { NIcon, NButton, NDrawer, NSwitch } from 'naive-ui'
 import {
   Bookmark, StickyNote, Cloud, KeyRound, Tag, Trash2, HardDrive,
   ShieldCheck, AlertTriangle, ArrowRight, LayoutDashboard, RefreshCw, Download, Upload, Database, TrendingUp,
@@ -21,6 +21,7 @@ import ShareManagerDrawer from '../components/ShareManagerDrawer.vue'
 import ReadingModal from '../../modules/bookmark/components/ReadingModal.vue'
 import JStatCard from '../components/ui/JStatCard.vue'
 import JSkeletonGrid from '../components/ui/JSkeletonGrid.vue'
+import JErrorState from '../components/ui/JErrorState.vue'
 
 interface StatsSummary {
   counts: {
@@ -309,8 +310,11 @@ const goTodos = () => router.push('/todos')
       <JSkeletonGrid v-if="loading" />
 
       <div v-else-if="error && !data" class="dash-error">
-        <NEmpty description="加载失败，请刷新重试" class="dash-empty" />
-        <NButton size="small" type="primary" secondary class="dash-retry" @click="fetchSummary(); fetchTrend()">重试</NButton>
+        <JErrorState
+          message="概览加载失败"
+          hint="请检查网络后重试"
+          @retry="fetchSummary(); fetchTrend()"
+        />
       </div>
 
       <template v-else-if="data">

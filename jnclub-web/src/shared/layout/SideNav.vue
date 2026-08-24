@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
-import { NLayoutSider, NIcon } from 'naive-ui'
-import { Pencil, MousePointer2, Sparkles } from 'lucide-vue-next'
+import { NLayoutSider, NIcon, NDropdown } from 'naive-ui'
+import { Settings2 } from 'lucide-vue-next'
 import { useUserPreferences } from '../composables/useUserPreferences'
 import BrandLogo from '../components/BrandLogo.vue'
 import NavItem from '../../modules/bookmark/components/NavItem.vue'
@@ -110,6 +110,19 @@ const showCursorSettings = ref(false)
 
 /** 背景特效设置抽屉 */
 const showParticlesSettings = ref(false)
+
+/** 个性化设置入口（收纳光标/背景/导航编辑） */
+const settingsOptions = [
+  { label: '光标样式', key: 'cursor' },
+  { label: '背景特效', key: 'particles' },
+  { label: '编辑导航', key: 'nav' },
+]
+
+const handleSettingsSelect = (key: string) => {
+  if (key === 'cursor') showCursorSettings.value = true
+  else if (key === 'particles') showParticlesSettings.value = true
+  else if (key === 'nav') showNavEditor.value = true
+}
 </script>
 
 <template>
@@ -144,32 +157,14 @@ const showParticlesSettings = ref(false)
       </div>
     </nav>
 
-    <!-- 侧栏底部入口：光标样式 + 背景特效 + 编辑导航（小图标，不参与拖拽） -->
+    <!-- 侧栏底部入口：个性化（光标/背景/导航编辑，不参与拖拽） -->
     <div :class="['nav-editor-bar', { collapsed: props.collapsed }]">
-      <button
-        type="button"
-        class="nav-editor-btn jnclub-bouncy"
-        title="光标样式"
-        @click="showCursorSettings = true"
-      >
-        <NIcon :component="MousePointer2" :size="18" />
-      </button>
-      <button
-        type="button"
-        class="nav-editor-btn jnclub-bouncy"
-        title="背景特效"
-        @click="showParticlesSettings = true"
-      >
-        <NIcon :component="Sparkles" :size="18" />
-      </button>
-      <button
-        type="button"
-        class="nav-editor-btn jnclub-bouncy"
-        title="编辑导航"
-        @click="showNavEditor = true"
-      >
-        <NIcon :component="Pencil" :size="18" />
-      </button>
+      <NDropdown :options="settingsOptions" placement="right-start" trigger="click" @select="handleSettingsSelect">
+        <button type="button" class="nav-editor-btn jnclub-bouncy" title="个性化">
+          <NIcon :component="Settings2" :size="18" />
+          <span v-if="!props.collapsed" class="nav-editor-text">个性化</span>
+        </button>
+      </NDropdown>
     </div>
   </NLayoutSider>
 
@@ -251,14 +246,25 @@ const showParticlesSettings = ref(false)
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
+  gap: 8px;
+  min-width: 36px;
   height: 36px;
+  padding: 0 14px;
   border: none;
   border-radius: 10px;
   background: transparent;
   color: var(--text-3);
   cursor: pointer;
   transition: all .18s ease;
+}
+.nav-editor-bar.collapsed .nav-editor-btn {
+  width: 36px;
+  padding: 0;
+}
+.nav-editor-text {
+  font-size: var(--fs-md);
+  font-weight: 500;
+  white-space: nowrap;
 }
 .nav-editor-btn:hover {
   color: var(--brand);

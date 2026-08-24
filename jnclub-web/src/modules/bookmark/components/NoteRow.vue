@@ -106,8 +106,12 @@ const handleDragEnd = () => setDragging(null)
 <template>
   <div
     class="note-row"
-          draggable="true"
+    role="link"
+    tabindex="0"
+    draggable="true"
     @click="onRootClick"
+    @keydown.enter.prevent="onRootClick"
+    @keydown.space.prevent="onRootClick"
     @dragstart="handleDragStart"
     @dragend="handleDragEnd"
     @contextmenu.prevent="openMenu($event, dropdownOptions, handleDropdown)"
@@ -273,7 +277,11 @@ const handleDragEnd = () => setDragging(null)
   opacity: 0;
   transition: opacity var(--dur) var(--ease);
 }
-.note-row:hover .row-actions { opacity: 1; }
+.note-row:hover .row-actions,
+.note-row:focus-within .row-actions { opacity: 1; }
+@media (hover: none) {
+  .row-actions { opacity: 1; }
+}
 .more-btn {
   color: var(--text-3);
   transition: color var(--dur) var(--ease);

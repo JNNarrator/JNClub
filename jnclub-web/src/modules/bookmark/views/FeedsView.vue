@@ -7,7 +7,7 @@
  */
 import { ref, computed, watch, onMounted } from 'vue'
 import {
-  NButton, NIcon, NInput, NTag, NEmpty, useMessage,
+  NButton, NIcon, NInput, NTag, useMessage,
   NModal, NSelect, NScrollbar, NBadge,
 } from 'naive-ui'
 import {
@@ -15,6 +15,8 @@ import {
 } from 'lucide-vue-next'
 import axios from 'axios'
 import JSkeletonList from '../../../shared/components/ui/JSkeletonList.vue'
+import JEmptyState from '../../../shared/components/ui/JEmptyState.vue'
+import JErrorState from '../../../shared/components/ui/JErrorState.vue'
 import { formatRelativeTime } from '../composables/formatDate'
 import { useDirectoryStore } from '../stores/directory'
 
@@ -50,6 +52,8 @@ const items = ref<FeedItemRow[]>([])
 const total = ref(0)
 const loadingFeeds = ref(false)
 const loadingItems = ref(false)
+const feedsError = ref(false)
+const itemsError = ref(false)
 
 const activeFeedId = ref<number | null>(null) // null = 全部
 const filter = ref<'all' | 'unread' | 'starred'>('all')
@@ -62,10 +66,13 @@ const reading = ref<FeedItemRow | null>(null)
 /* ─── 加载订阅源 ─── */
 const fetchFeeds = async () => {
   loadingFeeds.value = true
+  feedsError.value = false
   try {
     const res = await axios.get('/api/feeds')
     if (res.data.code === 200) feeds.value = res.data.data || []
+    else feedsError.value = true
   } catch (e: any) {
+    feedsError.value = true
     message.error(e.response?.data?.message || '加载订阅源失败')
   } finally { loadingFeeds.value = false }
 }
@@ -73,6 +80,7 @@ const fetchFeeds = async () => {
 /* ─── 加载条目 ─── */
 const fetchItems = async () => {
   loadingItems.value = true
+  itemsError.value = false
   try {
     const res = await axios.get('/api/feeds/items', {
       params: { feedId: activeFeedId.value, filter: filter.value, page: page.value, size: PAGE_SIZE },
@@ -80,8 +88,9 @@ const fetchItems = async () => {
     if (res.data.code === 200) {
       items.value = res.data.data?.items || []
       total.value = res.data.data?.total || 0
-    }
+    } else itemsError.value = true
   } catch (e: any) {
+    itemsError.value = true
     message.error(e.response?.data?.message || '加载条目失败')
   } finally { loadingItems.value = false }
 }
@@ -296,7 +305,19 @@ const totalUnread = computed(() => feeds.value.reduce((s, f) => s + (f.unread ||
         </div>
         <NScrollbar class="feed-scroll">
           <JSkeletonList v-if="loadingFeeds && !feeds.length" :count="4" />
-          <NEmpty v-else-if="!feeds.length" description="还没有订阅源" class="col-empty" />
+          <JErrorState
+            v-else-if="feedsError"
+            message="订阅源加载失败"
+            hint="请检查网络后重试"
+            class="col-state"
+            @retry="fetchFeeds"
+          />
+          <JEmptyState
+            v-else-if="!feeds.length"
+            message="还没有订阅源"
+            hint="添加一个 RSS / Atom 地址开始订阅"
+            class="col-state"
+          />
           <div
             v-for="f in feeds" :key="f.id"
             class="feed-row"
@@ -332,7 +353,14 @@ const totalUnread = computed(() => feeds.value.reduce((s, f) => s + (f.unread ||
         </div>
         <NScrollbar class="item-scroll">
           <JSkeletonList v-if="loadingItems" :count="5" />
-          <NEmpty v-else-if="!items.length" description="暂无条目" class="col-empty" />
+          <JErrorState
+            v-else-if="itemsError"
+            message="条目加载失败"
+            hint="请检查网络后重试"
+            class="col-state"
+            @retry="fetchItems"
+          />
+          <JEmptyState v-else-if="!items.length" message="暂无条目" hint="换个筛选或刷新试试" class="col-state" />
           <div
             v-for="it in items" :key="it.id"
             class="item-row"
@@ -383,7 +411,7 @@ const totalUnread = computed(() => feeds.value.reduce((s, f) => s + (f.unread ||
             <div class="read-content">
               <div v-if="hasFullContent" class="rich-content" v-html="readingHtml" />
               <div v-else-if="reading.summary" class="rich-content" v-html="readingHtml" />
-              <NEmpty v-else description="该条目没有正文内容" />
+              <JEmptyState v-else message="该条目没有正文内容" hint="可打开原文阅读" />
             </div>
           </NScrollbar>
         </template>
@@ -472,6 +500,11 @@ const totalUnread = computed(() => feeds.value.reduce((s, f) => s + (f.unread ||
 .feed-scroll, .item-scroll, .read-scroll { flex: 1; min-height: 0; }
 .col-state { display: flex; align-items: center; justify-content: center; gap: 8px; color: var(--text-3); font-size: var(--fs-sm); padding: 30px 0; }
 .col-empty { padding: 30px 0; }
+.col-state {
+  min-height: 160px;
+  padding: 24px 12px;
+  border-radius: var(--radius-sm);
+}
 
 .feed-row {
   display: flex; align-items: center; gap: 8px;

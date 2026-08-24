@@ -10,6 +10,7 @@ import {
   NDropdown, NCheckbox, NModal, NInput, NSelect, NForm, NFormItem,
 } from 'naive-ui'
 import EmptyState from './EmptyState.vue'
+import JBatchBar from '../../../shared/components/ui/JBatchBar.vue'
 import ShareModal from './ShareModal.vue'
 import { Pause, Play, Download, Trash2, FileText, Pencil, FolderInput, Ellipsis, X, Eye, Archive, Link2 } from 'lucide-vue-next'
 import { useCloudDiskStore, type DiskFile } from '../stores/clouddisk'
@@ -462,28 +463,22 @@ const fileKindColor = (name: string) => FILE_KINDS.find(k => k.re.test(name))?.c
             </div>
           </div>
 
-          <!-- 批量操作条 -->
-          <Transition name="batch-up">
-            <div v-if="batchMode && selectedIds.length" class="batch-bar">
-              <span class="batch-info">已选 {{ selectedIds.length }} 个文件</span>
-              <NButton size="small" type="primary" secondary @click="openBatchMove">
-                <template #icon><NIcon :component="FolderInput" size="14" /></template>
-                移动到
-              </NButton>
-              <NButton size="small" type="primary" @click="handleBatchDownload">
-                <template #icon><NIcon :component="Archive" size="14" /></template>
-                打包下载
-              </NButton>
-              <NButton size="small" type="error" secondary @click="handleBatchDelete">
-                <template #icon><NIcon :component="Trash2" size="14" /></template>
-                删除
-              </NButton>
-              <NButton size="small" quaternary @click="toggleBatchMode(false)">
-                <template #icon><NIcon :component="X" size="14" /></template>
-                取消
-              </NButton>
-            </div>
-          </Transition>
+          <!-- 批量操作条（统一 JBatchBar，插槽放云盘独有“打包下载”） -->
+          <JBatchBar
+            v-if="batchMode && selectedIds.length"
+            :selected-count="selectedIds.length"
+            :all-selected="allSelected"
+            :show-tag="false"
+            @toggle-all="toggleAll"
+            @move="openBatchMove"
+            @delete="handleBatchDelete"
+            @cancel="toggleBatchMode(false)"
+          >
+            <NButton size="small" type="primary" @click="handleBatchDownload">
+              <template #icon><NIcon :component="Archive" size="14" /></template>
+              打包下载
+            </NButton>
+          </JBatchBar>
         </template>
       </NSpin>
     </div>

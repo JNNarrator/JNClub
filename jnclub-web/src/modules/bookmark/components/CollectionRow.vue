@@ -81,7 +81,11 @@ const handleDropdown = (key: string) => {
 <template>
   <div
     class="collection-row"
-          @click="onRootClick"
+    role="link"
+    tabindex="0"
+    @click="onRootClick"
+    @keydown.enter.prevent="onRootClick"
+    @keydown.space.prevent="onRootClick"
     @contextmenu.prevent="openMenu($event, dropdownOptions, handleDropdown)"
   >
       <div v-if="props.batchMode" class="batch-check" @click.stop="emit('toggle-select')">
@@ -239,8 +243,13 @@ const handleDropdown = (key: string) => {
   transition: opacity var(--dur) var(--ease);
 }
 
-.collection-row:hover .row-actions {
+.collection-row:hover .row-actions,
+.collection-row:focus-within .row-actions {
   opacity: 1;
+}
+
+@media (hover: none) {
+  .row-actions { opacity: 1; }
 }
 
 .more-btn {

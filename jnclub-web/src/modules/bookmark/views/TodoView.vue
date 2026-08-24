@@ -7,12 +7,14 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import {
   NInput, NSelect, NButton, NIcon, NCheckbox, useMessage, NPopconfirm,
-  NTag, NEmpty, NModal, NDatePicker,
+  NTag, NModal, NDatePicker,
 } from 'naive-ui'
 import { Plus, Trash2, Pencil, Calendar, Bell } from 'lucide-vue-next'
 import axios from 'axios'
 import JSkeletonList from '../../../shared/components/ui/JSkeletonList.vue'
 import JFilterBar from '../../../shared/components/ui/JFilterBar.vue'
+import JEmptyState from '../../../shared/components/ui/JEmptyState.vue'
+import JErrorState from '../../../shared/components/ui/JErrorState.vue'
 
 interface Todo {
   id: number
@@ -31,17 +33,23 @@ const message = useMessage()
 const todos = ref<Todo[]>([])
 const filter = ref<'all' | 'active' | 'completed' | 'today' | 'overdue'>('all')
 const loading = ref(false)
+const loadError = ref(false)
 
 // 概览统计：进行中 / 今日到期 / 已逾期
 const stats = ref({ active: 0, dueToday: 0, overdue: 0 })
 
 const fetchTodos = async () => {
   loading.value = true
+  loadError.value = false
   try {
     const res = await axios.get('/api/todos', { params: { filter: filter.value } })
     if (res.data.code === 200) todos.value = res.data.data || []
-    else message.error(res.data.message || '加载失败')
+    else {
+      loadError.value = true
+      message.error(res.data.message || '加载失败')
+    }
   } catch (e: any) {
+    loadError.value = true
     message.error(e.response?.data?.message || e.message || '加载失败')
   } finally {
     loading.value = false
@@ -301,8 +309,14 @@ const emptyText = computed(() => {
     <div class="todo-spin">
       <JSkeletonList v-if="loading" />
       <template v-else>
-        <div v-if="!todos.length" class="todo-empty">
-          <NEmpty :description="emptyText" class="todo-empty-inner" />
+        <JErrorState
+          v-if="loadError"
+          message="待办加载失败"
+          hint="请检查网络后重试"
+          @retry="fetchTodos"
+        />
+        <div v-else-if="!todos.length" class="todo-empty">
+          <JEmptyState :message="emptyText" hint="添加一条待办，开始规划今天" />
         </div>
         <div v-else class="todo-list">
           <div

@@ -6,12 +6,13 @@
  */
 import { ref, onMounted, watch } from 'vue'
 import {
-  NButton, NIcon, NEmpty, NTabs, NTabPane, NModal, NInputNumber,
+  NButton, NIcon, NTabs, NTabPane, NModal, NInputNumber,
   useMessage, useDialog,
 } from 'naive-ui'
 import { Trash2, RotateCcw, Eraser, Clock, Settings2, Zap } from 'lucide-vue-next'
 import axios from 'axios'
 import JSkeletonList from '../../../shared/components/ui/JSkeletonList.vue'
+import JEmptyState from '../../../shared/components/ui/JEmptyState.vue'
 import { formatRelativeTime, formatDate } from '../composables/formatDate'
 
 const props = defineProps<{ refresh?: number }>()
@@ -232,7 +233,7 @@ onMounted(() => { fetchItems(); fetchConfig() })
     <div class="recycle-spin">
       <JSkeletonList v-if="loading" />
       <template v-else>
-        <NEmpty v-if="!items.length" description="回收站是空的" class="recycle-empty" />
+        <JEmptyState v-if="!items.length" message="回收站是空的" hint="删除的收藏、便签、文件或密码会出现在这里" />
         <div v-else class="recycle-list">
           <div v-for="item in items" :key="item.id" class="recycle-item">
             <div class="item-main">

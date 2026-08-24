@@ -1,19 +1,16 @@
 <script setup lang="ts">
-import { ref, onMounted, watch, computed, nextTick, onBeforeUnmount } from 'vue'
+import { ref, onMounted, watch, computed, onBeforeUnmount } from 'vue'
 import {
-  NButton, NIcon, NSpin,
-  NModal, NForm, NFormItem, NInput, NSpace, NSelect, NAvatar,
-  NDrawer, NDrawerContent,
-  useMessage, useDialog,
+  NIcon,
+  useMessage,
 } from 'naive-ui'
-import { FolderOpen, Link, Globe, Tag } from 'lucide-vue-next'
-import { useRouter, useRoute, type RouteLocationRaw } from 'vue-router'
+import { FolderOpen, Tag } from 'lucide-vue-next'
+import { useRouter, useRoute } from 'vue-router'
 import { useDirectoryStore } from '../stores/directory'
 import { useBookmarkStore } from '../stores/bookmark'
 import { useNoteStore } from '../stores/note'
 import { useCloudDiskStore } from '../stores/clouddisk'
 import { useVaultStore } from '../stores/vault'
-import type { Note } from '../stores/note'
 import FolderPanel from '../components/FolderPanel.vue'
 import CollectionGrid from '../components/CollectionGrid.vue'
 import CollectionList from '../components/CollectionList.vue'
@@ -25,7 +22,9 @@ import VaultView from '../components/VaultView.vue'
 import DeadLinkModal from '../components/DeadLinkModal.vue'
 import ReadingModal from '../components/ReadingModal.vue'
 import ModuleToolbar from '../components/ModuleToolbar.vue'
-import TagPicker from '../components/TagPicker.vue'
+import BookmarkFormModal from '../components/BookmarkFormModal.vue'
+import BatchActionModals from '../components/BatchActionModals.vue'
+import DirectoryDrawer from '../components/DirectoryDrawer.vue'
 import SearchDrawer from '../components/SearchDrawer.vue'
 import JSkeletonGrid from '../../../shared/components/ui/JSkeletonGrid.vue'
 import JSkeletonList from '../../../shared/components/ui/JSkeletonList.vue'
@@ -34,11 +33,11 @@ import JBatchBar from '../../../shared/components/ui/JBatchBar.vue'
 import ContextMenuHost from '../../../shared/components/ContextMenuHost.vue'
 import AppHeader from '../../../shared/layout/AppHeader.vue'
 import type { ViewMode } from '../components/ViewSwitcher.vue'
-import axios from 'axios'
 import { useUserPreferences } from '../../../shared/composables/useUserPreferences'
-import { useKeyboardShortcut } from '../../../shared/composables/useKeyboardShortcut'
-import { fetchTags, setRefTags, type TagItem } from '../composables/tags'
-import { exportMarkdown, downloadFile } from '../composables/markdownIO'
+import { fetchTags, type TagItem } from '../composables/tags'
+import { useBatchActions } from '../composables/useBatchActions'
+import { useNoteActions } from '../composables/useNoteActions'
+import { useSearchActions } from '../composables/useSearchActions'
 
 const router = useRouter()
 const route = useRoute()
@@ -49,7 +48,6 @@ const noteStore = useNoteStore()
 const cloudDiskStore = useCloudDiskStore()
 const vaultStore = useVaultStore()
 const message = useMessage()
-const dialog = useDialog()
 
 const props = defineProps<{
   activeModule: 'bookmarks' | 'notes' | 'files' | 'vault'
@@ -63,172 +61,43 @@ const emit = defineEmits<{
 
 const directoryType = computed(() => props.activeModule === 'bookmarks' ? 1 : props.activeModule === 'notes' ? 2 : props.activeModule === 'files' ? 3 : 5)
 
-// ========== 全局搜索 ==========
-
-const showSearch = ref(false)
-/** 搜索结果跳转：切模块后待选中的目录 */
-const pendingDirId = ref<number | null>(null)
-
-// 搜索快捷键走全局注册中心（与 ⌘1~5 / ⌘⇧T 同一引擎；Home 挂载期间生效，输入框内也响应）
-useKeyboardShortcut('search', { mods: ['mod'], key: 'k' }, () => {
-  showSearch.value = true
-}, { skipWhenEditing: true })
-
-const handleSearchJump = (module: 'bookmarks' | 'notes' | 'files' | 'vault' | 'music', directoryId: number | null) => {
-  if (module === 'music') {
-    router.push('/music')
-    return
-  }
-  pendingDirId.value = directoryId
-  emit('module-change', module)
-}
-
-/** 命令面板快捷动作 */
-const handleCommand = (key: string) => {
-  const nav: Record<string, 'bookmarks' | 'notes' | 'files' | 'vault'> = {
-    'module.bookmarks': 'bookmarks',
-    'module.notes': 'notes',
-    'module.files': 'files',
-    'module.vault': 'vault',
-  }
-  switch (key) {
-    case 'note.new': emit('module-change', 'notes'); break
-    case 'bookmark.new': emit('module-change', 'bookmarks'); break
-    case 'vault.lock': useVaultStore().lock(); break
-    case 'theme.toggle': emit('toggle-theme'); break
-    case 'module.music': router.push('/music'); break
-    case 'go.recycle': router.push('/recycle'); break
-    case 'go.overview': router.push('/overview'); break
-    case 'go.extension': router.push('/extension'); break
-    default:
-      if (nav[key]) emit('module-change', nav[key])
-  }
-}
+// ========== 全局搜索与命令面板 ==========
+const search = useSearchActions({
+  onModuleChange: (m) => emit('module-change', m),
+  onToggleTheme: () => emit('toggle-theme'),
+})
+const { showSearch, pendingDirId, handleSearchJump, handleCommand } = search
 
 // ========== 批量操作（收藏 / 便签） ==========
-const batchMode = ref(false)
-const selectedIds = ref<number[]>([])
+const batch = useBatchActions({
+  activeModule: () => props.activeModule,
+  currentList: () => props.activeModule === 'notes' ? noteStore.notes : bookmarkStore.bookmarks,
+  loadData: () => loadData(),
+  loadTags: () => loadTags(),
+})
+const {
+  batchMode,
+  selectedIds,
+  allSelected,
+  toggleBatchMode,
+  toggleSelect,
+  toggleAll,
+  handleBatchDelete,
+} = batch
 
-const toggleBatchMode = (on: boolean) => {
-  batchMode.value = on
-  if (!on) selectedIds.value = []
-}
-const toggleSelect = (id: number) => {
-  const i = selectedIds.value.indexOf(id)
-  if (i >= 0) selectedIds.value.splice(i, 1)
-  else selectedIds.value.push(id)
-}
-const currentList = computed(() =>
-  props.activeModule === 'notes' ? noteStore.notes : bookmarkStore.bookmarks)
-const allSelected = computed(() =>
-  currentList.value.length > 0 && selectedIds.value.length === currentList.value.length)
-const toggleAll = () => {
-  if (allSelected.value) selectedIds.value = []
-  else selectedIds.value = currentList.value.map((i: any) => i.id)
-}
-
-// 切模块时退出多选
-watch(() => props.activeModule, () => toggleBatchMode(false))
-
-/** 批量移动到 */
-const batchDirOptions = ref<{ label: string; value: number }[]>([])
-const showBatchMove = ref(false)
-const batchMoveForm = ref({ directoryId: null as number | null })
-
-const loadBatchDirs = async () => {
-  const type = props.activeModule === 'bookmarks' ? 1 : 2
-  try {
-    const res = await axios.get('/api/directories', { params: { type } })
-    const flat: { label: string; value: number }[] = []
-    const walk = (dirs: any[], prefix: string) => {
-      for (const d of dirs) {
-        flat.push({ label: prefix + d.name, value: d.id })
-        if (d.children?.length) walk(d.children, prefix + d.name + ' / ')
-      }
-    }
-    walk(res.data.data || [], '')
-    batchDirOptions.value = flat
-  } catch { /* 静默 */ }
-}
-
-const openBatchMove = async () => {
-  await loadBatchDirs()
-  batchMoveForm.value = { directoryId: null }
-  showBatchMove.value = true
-}
-
-const submitBatchMove = async () => {
-  if (!batchMoveForm.value.directoryId) {
-    message.warning('请选择目标目录')
-    return
-  }
-  const url = props.activeModule === 'notes' ? '/api/notes/batch-move' : '/api/bookmarks/batch-move'
-  try {
-    await axios.put(url, { ids: selectedIds.value, directoryId: batchMoveForm.value.directoryId })
-    message.success(`已移动 ${selectedIds.value.length} 项`)
-    showBatchMove.value = false
-    finishBatch()
-  } catch (e: any) {
-    message.error(e.response?.data?.message || '移动失败')
-  }
-}
-
-/** 批量打标签（仅收藏） */
-const showBatchTags = ref(false)
-const batchTagOptions = ref<{ label: string; value: number }[]>([])
-const batchTagIds = ref<number[]>([])
-
-const openBatchTags = async () => {
-  const tags = await fetchTags('bookmark')
-  batchTagOptions.value = tags.map(t => ({ label: t.name, value: t.id }))
-  batchTagIds.value = []
-  showBatchTags.value = true
-}
-
-const submitBatchTags = async () => {
-  const names = batchTagOptions.value
-    .filter(o => batchTagIds.value.includes(o.value))
-    .map(o => o.label)
-  try {
-    await axios.put('/api/bookmarks/batch-tags', { ids: selectedIds.value, tagNames: names })
-    message.success(`已更新 ${selectedIds.value.length} 项标签`)
-    showBatchTags.value = false
-    finishBatch()
-  } catch (e: any) {
-    message.error(e.response?.data?.message || '打标签失败')
-  }
-}
-
-/** 批量删除（软删除进回收站） */
-const handleBatchDelete = () => {
-  if (!selectedIds.value.length) return
-  dialog.warning({
-    title: '批量删除',
-    content: `确定删除选中的 ${selectedIds.value.length} 项吗？删除后进入回收站，可在回收站恢复。`,
-    positiveText: '确定',
-    negativeText: '取消',
-    onPositiveClick: async () => {
-      const url = props.activeModule === 'notes' ? '/api/notes/batch' : '/api/bookmarks/batch'
-      try {
-        await axios.delete(url, { data: { ids: selectedIds.value } })
-        message.success(`已删除 ${selectedIds.value.length} 项`)
-        finishBatch()
-      } catch (e: any) {
-        message.error(e.response?.data?.message || '批量删除失败')
-      }
-    },
-  })
-}
-
-const finishBatch = () => {
-  toggleBatchMode(false)
-  loadData()
-  loadTags()
-}
+const batchActionRef = ref<InstanceType<typeof BatchActionModals> | null>(null)
+const openBatchMove = () => batchActionRef.value?.openMove()
+const openBatchTags = () => batchActionRef.value?.openTags()
 
 const selectedDirectoryId = ref<number | null>(null)
 const loading = ref(false)
 const loadError = ref(false)
+
+const noteActions = useNoteActions({
+  selectedDirectoryId: () => selectedDirectoryId.value,
+  loadData: () => loadData(),
+})
+const { handleCreateNote, handleExportAllNotes, handleEditNote, handlePreviewNote, handleDeleteNote } = noteActions
 /** 视图模式：按模块记忆（后端偏好），便签默认极简 list、收藏夹默认卡片 grid */
 const viewMode = ref<ViewMode>(prefs.get(`view.${props.activeModule}`, props.activeModule === 'notes' ? 'list' : 'grid'))
 
@@ -248,27 +117,9 @@ onMounted(() => {
 })
 onBeforeUnmount(() => window.removeEventListener('resize', checkMobile))
 
-/** 抽屉内选中目录：复用桌面端逻辑 + 自动收起抽屉 */
-const handleDrawerSelect = async (id: number) => {
-  showDirDrawer.value = false
-  await handleDirectorySelect(id)
-}
-
-// 目录创建
-
 // 收藏创建/编辑表单
 const showCreateModal = ref(false)
-const creating = ref(false)
-const editingBookmarkId = ref<number | null>(null)
-const createBookmarkForm = ref({ title: '', url: '', directoryId: null as number | null })
-const editTagPickerRef = ref<InstanceType<typeof TagPicker> | null>(null)
-const createTagPickerRef = ref<InstanceType<typeof TagPicker> | null>(null)
-
-// URL 预览
-const previewIcon = ref('')
-const previewTitle = ref('')
-const previewLoading = ref(false)
-let previewTimer: ReturnType<typeof setTimeout> | null = null
+const editingBookmark = ref<{ id: number; title: string; url: string; directoryId: number | null } | null>(null)
 
 const directoryOptions = computed(() =>
   directoryStore.directories.map(d => ({ label: d.name, value: d.id }))
@@ -311,8 +162,6 @@ const activeTagId = ref<number | null>(null)
 const notesArchived = ref(false)
 /** 收藏失效检测弹窗 */
 const showDeadLink = ref(false)
-/** TagPicker 保存触发计数 */
-const tagSaveTrigger = ref(0)
 
 const loadTags = async () => {
   if (props.activeModule === 'files' || props.activeModule === 'vault') {
@@ -487,48 +336,26 @@ const handleSort = async (orderedIds: number[]) => {
   }
 }
 
-// ========== URL 预览与收藏创建 ==========
-
-const isValidUrl = (url: string) => {
-  try { new URL(url); return true } catch { return false }
-}
-
-const onUrlInput = () => {
-  if (previewTimer) clearTimeout(previewTimer)
-  const url = createBookmarkForm.value.url.trim()
-  if (!isValidUrl(url)) { previewIcon.value = ''; previewTitle.value = ''; return }
-  previewTimer = setTimeout(async () => {
-    previewLoading.value = true
-    try {
-      const res = await axios.get('/api/bookmarks/preview', { params: { url } })
-      if (res.data.code === 200 && res.data.data) {
-        previewTitle.value = res.data.data.title || ''
-        previewIcon.value = res.data.data.icon || ''
-        if (!createBookmarkForm.value.title.trim()) createBookmarkForm.value.title = previewTitle.value
-      }
-    } catch { /* 静默 */ }
-    finally { previewLoading.value = false }
-  }, 600)
-}
+// ========== 收藏创建/编辑 ==========
 
 const handleOpenCreate = () => {
-  editingBookmarkId.value = null
-  createBookmarkForm.value = { title: '', url: '', directoryId: selectedDirectoryId.value }
-  previewIcon.value = ''
-  previewTitle.value = ''
+  editingBookmark.value = null
   showCreateModal.value = true
 }
 
 const handleEditBookmark = (bookmark: any) => {
-  editingBookmarkId.value = bookmark.id
-  createBookmarkForm.value = {
+  editingBookmark.value = {
+    id: bookmark.id,
     title: bookmark.title || '',
     url: bookmark.url || '',
     directoryId: bookmark.directoryId ?? selectedDirectoryId.value,
   }
-  previewIcon.value = ''
-  previewTitle.value = ''
   showCreateModal.value = true
+}
+
+const handleBookmarkSaved = () => {
+  loadData()
+  loadTags()
 }
 
 /** 收藏阅读模式 */
@@ -541,116 +368,8 @@ const handleReadBookmark = (bookmark: any) => {
   showReading.value = true
 }
 
-const handleCreate = async () => {
-  if (!createBookmarkForm.value.url.trim()) { message.warning('请输入网址'); return }
-  if (!isValidUrl(createBookmarkForm.value.url.trim())) { message.warning('请输入正确的网址'); return }
-  if (!createBookmarkForm.value.title.trim()) { message.warning('请输入标题'); return }
-  if (!createBookmarkForm.value.directoryId && selectedDirectoryId.value) {
-    createBookmarkForm.value.directoryId = selectedDirectoryId.value
-  }
-  if (!createBookmarkForm.value.directoryId) { message.warning('请选择目录'); return }
-
-  creating.value = true
-  try {
-    if (editingBookmarkId.value !== null) {
-      await axios.put(`/api/bookmarks/${editingBookmarkId.value}`, {
-        title: createBookmarkForm.value.title.trim(),
-        url: createBookmarkForm.value.url.trim(),
-        directoryId: createBookmarkForm.value.directoryId,
-      })
-      message.success('保存成功')
-    } else {
-      const created = await axios.post('/api/bookmarks', {
-        title: createBookmarkForm.value.title.trim(),
-        url: createBookmarkForm.value.url.trim(),
-        directoryId: createBookmarkForm.value.directoryId,
-      })
-      message.success('收藏成功')
-      // 创建态标签持久化（refId 为空时由 TagPicker 收集选中名，创建成功后按新 id 写入）
-      if (created.data?.code === 200 && created.data?.data?.id) {
-        const names = createTagPickerRef.value?.getSelectedNames() ?? []
-        if (names.length) {
-          await setRefTags('bookmark', created.data.data.id, names)
-          await loadTags()
-        }
-      }
-    }
-    // 编辑态保存标签
-    if (editingBookmarkId.value !== null) {
-      tagSaveTrigger.value++
-      await nextTick()
-      editTagPickerRef.value?.save()
-      await loadTags()
-    }
-    showCreateModal.value = false
-    await loadData()
-  } catch (e: any) {
-    message.error(e.response?.data?.message || '保存失败')
-  } finally { creating.value = false }
-}
-
 // ========== 便签 ==========
-
-/** 在新标签页打开便签页面（新建/编辑/预览） */
-const openNoteInNewTab = (location: RouteLocationRaw) => {
-  window.open(router.resolve(location).href, '_blank')
-}
-
-const handleCreateNote = () => {
-  if (!selectedDirectoryId.value) {
-    message.warning('请先选择一个目录')
-    return
-  }
-  openNoteInNewTab({
-    name: 'note-create',
-    query: { directoryId: String(selectedDirectoryId.value) },
-  })
-}
-
-/** 导出当前目录全部便签为 .md（逐个下载，图片内嵌 base64） */
-const handleExportAllNotes = async () => {
-  const notes = noteStore.notes
-  if (!notes.length) { message.warning('当前目录没有便签'); return }
-  const loadingMsg = message.loading(`正在导出 ${notes.length} 篇便签…`, { duration: 0 })
-  let ok = 0
-  for (const n of notes) {
-    try {
-      const md = await exportMarkdown(n.content || '')
-      downloadFile(`${(n.title || '未命名').replace(/[\\/:*?"<>|]/g, '_')}.md`, md, 'text/markdown')
-      ok++
-    } catch {
-      /* 单篇失败跳过，继续导出其余 */
-    }
-  }
-  loadingMsg.destroy()
-  message.success(ok === notes.length ? `已导出 ${ok} 篇便签` : `已导出 ${ok}/${notes.length} 篇（部分失败）`)
-}
-
-const handleEditNote = (note: Note) => {
-  openNoteInNewTab({ name: 'note-view', params: { id: note.id } })
-}
-
-const handlePreviewNote = (note: Note) => {
-  openNoteInNewTab({ name: 'note-view', params: { id: note.id } })
-}
-
-const handleDeleteNote = async (note: Note) => {
-  dialog.warning({
-    title: '确认删除',
-    content: `确定要删除便签"${note.title}"吗？`,
-    positiveText: '确定',
-    negativeText: '取消',
-    onPositiveClick: async () => {
-      try {
-        await axios.delete(`/api/notes/${note.id}`)
-        message.success('删除成功')
-        loadData()
-      } catch (e: any) {
-        message.error(e.response?.data?.message || '删除失败')
-      }
-    },
-  })
-}
+// 便签动作（新建/导出/编辑/预览/删除）由 useNoteActions 统一管理
 
 // ========== 云盘 ==========
 
@@ -858,89 +577,33 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
     <!-- 全局搜索抽屉 -->
     <SearchDrawer :show="showSearch" @close="showSearch = false" @jump="handleSearchJump" @action="handleCommand" />
 
-    <!-- 批量移动到弹窗 -->
-    <NModal v-model:show="showBatchMove" preset="dialog" :title="`移动到（${selectedIds.length} 项）`">
-      <NForm style="margin-top: 12px;">
-        <NFormItem label="目标目录">
-          <NSelect v-model:value="batchMoveForm.directoryId" :options="batchDirOptions" placeholder="选择目录" filterable clearable />
-        </NFormItem>
-      </NForm>
-      <template #action>
-        <NButton @click="showBatchMove = false">取消</NButton>
-        <NButton type="primary" @click="submitBatchMove">确定</NButton>
-      </template>
-    </NModal>
-
-    <!-- 批量打标签弹窗（收藏） -->
-    <NModal v-model:show="showBatchTags" preset="dialog" :title="`打标签（${selectedIds.length} 项）`">
-      <p class="jn-hint" style="margin: 0 0 10px;">将覆盖所选收藏的现有标签（全量设置）。</p>
-      <NSelect v-model:value="batchTagIds" :options="batchTagOptions" multiple filterable placeholder="选择或输入标签" />
-      <template #action>
-        <NButton @click="showBatchTags = false">取消</NButton>
-        <NButton type="primary" @click="submitBatchTags">确定</NButton>
-      </template>
-    </NModal>
+    <!-- 批量移动/打标签弹窗 -->
+    <BatchActionModals
+      ref="batchActionRef"
+      :active-module="props.activeModule === 'notes' ? 'notes' : 'bookmarks'"
+      :selected-ids="selectedIds"
+      @done="batch.finishBatch"
+    />
 
     <!-- 移动端目录抽屉（<768px）：复用 FolderPanel，选中后自动收起） -->
-    <NDrawer
-      v-model:show="showDirDrawer"
-      :width="280"
-      placement="left"
-      :mask-closable="true"
-      class="mobile-dir-drawer"
-    >
-      <NDrawerContent :native-scrollbar="false">
-        <template #header>
-          <span class="drawer-title">
-            <NIcon :component="FolderOpen" size="16" style="margin-right: 6px; vertical-align: -2px;" />
-            目录
-          </span>
-        </template>
-        <FolderPanel
-          :directories="directoryStore.directories"
-          :selected-id="selectedDirectoryId"
-          :type="directoryType"
-          @select="handleDrawerSelect"
-          @refresh="handleRefresh"
-        />
-      </NDrawerContent>
-    </NDrawer>
+    <DirectoryDrawer
+      :show="showDirDrawer"
+      :directories="directoryStore.directories"
+      :selected-id="selectedDirectoryId"
+      :type="directoryType"
+      @update:show="(v: boolean) => showDirDrawer = v"
+      @select="handleDirectorySelect"
+      @refresh="handleRefresh"
+    />
 
     <!-- 收藏创建/编辑弹窗 -->
-    <NModal v-model:show="showCreateModal" preset="dialog" :title="editingBookmarkId !== null ? '编辑收藏' : '添加收藏'">
-      <NForm :model="createBookmarkForm" style="margin-top: 12px;">
-        <NFormItem label="网址" path="url">
-          <NInput v-model:value="createBookmarkForm.url" placeholder="https://example.com" clearable @input="onUrlInput">
-            <template #prefix><NIcon :component="Link" /></template>
-          </NInput>
-        </NFormItem>
-        <div v-if="previewTitle || previewLoading" class="preview-bar">
-          <NSpin :show="previewLoading" size="small">
-            <NAvatar v-if="previewIcon" :src="previewIcon" size="small" round class="preview-avatar" />
-            <NIcon v-else :component="Globe" size="20" style="color: var(--text-3); flex-shrink: 0;" />
-          </NSpin>
-          <span class="preview-title">{{ previewTitle || '正在获取网页信息…' }}</span>
-        </div>
-        <NFormItem label="标题" path="title">
-          <NInput v-model:value="createBookmarkForm.title" placeholder="留空自动从网页获取" clearable />
-        </NFormItem>
-        <NFormItem label="所属目录" path="directoryId">
-          <NSelect v-model:value="createBookmarkForm.directoryId" :options="directoryOptions" placeholder="选择目录" clearable />
-        </NFormItem>
-        <NFormItem v-if="editingBookmarkId !== null" label="标签" path="tags">
-          <TagPicker ref="editTagPickerRef" ref-type="bookmark" :ref-id="editingBookmarkId" :save-trigger="tagSaveTrigger" />
-        </NFormItem>
-        <NFormItem v-else label="标签" path="tags">
-          <TagPicker ref="createTagPickerRef" ref-type="bookmark" :ref-id="null" />
-        </NFormItem>
-      </NForm>
-      <template #action>
-        <NSpace>
-          <NButton @click="showCreateModal = false">取消</NButton>
-          <NButton type="primary" :loading="creating" @click="handleCreate">确定</NButton>
-        </NSpace>
-      </template>
-    </NModal>
+    <BookmarkFormModal
+      v-model:show="showCreateModal"
+      :editing-bookmark="editingBookmark"
+      :default-directory-id="selectedDirectoryId"
+      :directory-options="directoryOptions"
+      @saved="handleBookmarkSaved"
+    />
 
     <!-- 全局右键菜单宿主 -->
     <ContextMenuHost />
@@ -967,9 +630,9 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
   gap: 20px;
   min-height: 0;
   width: 100%;
-  max-width: 1560px;
+  max-width: var(--layout-content-max, 1560px);
   margin: 0 auto;
-  padding: 20px 24px;
+  padding: 20px var(--layout-page-gutter, 24px);
   /* 品牌色氛围光晕（背景层次第 0 层） */
   background:
     radial-gradient(700px 280px at 4% 0%, var(--glass-glow-top), transparent 55%),
@@ -1014,7 +677,7 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
   -webkit-backdrop-filter: blur(14px);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-md);
-  padding: 18px 20px;
+  padding: var(--layout-panel-padding, 18px 20px);
   box-shadow: var(--shadow-1);
   contain: paint layout style;
 }
