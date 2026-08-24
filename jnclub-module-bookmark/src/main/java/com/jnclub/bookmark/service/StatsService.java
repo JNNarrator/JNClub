@@ -45,7 +45,7 @@ public class StatsService {
     private final DirectoryMapper directoryMapper;
     private final TodoMapper todoMapper;
 
-    /** 概览摘要：数量 / 磁盘 / 最近动态 / 密码库指纹健康 / 待办概览 */
+    /** 概览摘要：数量 / 磁盘 / 最近动态 / 密码库指纹健康 / 待办概览 / 稍后读 */
     public Map<String, Object> summary() {
         String userId = StpUtil.getLoginIdAsString();
         Map<String, Object> result = new LinkedHashMap<>();
@@ -54,7 +54,32 @@ public class StatsService {
         result.put("recent", recent(userId));
         result.put("vault", vaultHealth(userId));
         result.put("todos", todoCounts(userId));
+        result.put("readLater", readLater(userId));
         return result;
+    }
+
+    /** 稍后读：未读完的稍后读收藏（progress<100），按最近阅读时间倒序取前 10 */
+    private Map<String, Object> readLater(String userId) {
+        List<Map<String, Object>> list = new ArrayList<>();
+        bookmarkMapper.selectList(new LambdaQueryWrapper<Bookmark>()
+                        .eq(Bookmark::getUserId, userId)
+                        .eq(Bookmark::getDeleted, 0)
+                        .eq(Bookmark::getReadLater, 1)
+                        .orderByDesc(Bookmark::getReadAt)
+                        .last("LIMIT 10"))
+                .forEach(b -> {
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("id", b.getId());
+                    m.put("title", b.getTitle());
+                    m.put("url", b.getUrl());
+                    m.put("progress", b.getReadProgress() == null ? 0 : b.getReadProgress());
+                    m.put("readAt", b.getReadAt());
+                    list.add(m);
+                });
+        Map<String, Object> rl = new LinkedHashMap<>();
+        rl.put("count", list.size());
+        rl.put("list", list);
+        return rl;
     }
 
     /** 待办概览：进行中 / 今日到期 / 已逾期 */

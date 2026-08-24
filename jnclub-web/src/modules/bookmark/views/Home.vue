@@ -566,9 +566,11 @@ const handleEditBookmark = (bookmark: any) => {
 
 /** 收藏阅读模式 */
 const readingUrl = ref('')
+const readingId = ref<number | null>(null)
 const showReading = ref(false)
 const handleReadBookmark = (bookmark: any) => {
   readingUrl.value = bookmark?.url || ''
+  readingId.value = bookmark?.id ?? null
   showReading.value = true
 }
 
@@ -1107,7 +1109,7 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
 
     <!-- 收藏失效检测弹窗 -->
     <DeadLinkModal v-model:show="showDeadLink" @cleaned="handleRefresh" />
-    <ReadingModal v-model:show="showReading" :url="readingUrl" />
+    <ReadingModal v-model:show="showReading" :url="readingUrl" :bookmark-id="readingId" />
   </div>
 </template>
 

@@ -5,11 +5,12 @@
  * hover: 卡片抬升 + 品牌粉阴影
  */
 import { h, ref } from 'vue'
-import { NButton, NIcon, NDropdown, NEllipsis, NTag, useMessage, NCheckbox } from 'naive-ui'
-import { Pencil, Trash2, EllipsisVertical, ExternalLink, FolderInput, Link2, BookOpen } from 'lucide-vue-next'
+import { NButton, NIcon, NDropdown, NEllipsis, NTag, useMessage, NCheckbox, NProgress } from 'naive-ui'
+import { Pencil, Trash2, EllipsisVertical, ExternalLink, FolderInput, Link2, BookOpen, BookmarkPlus, Check, Archive } from 'lucide-vue-next'
 import { openMenu } from '../../../shared/composables/useContextMenu'
 import MoveItemModal from './MoveItemModal.vue'
 import ShareModal from './ShareModal.vue'
+import SnapshotModal from './SnapshotModal.vue'
 import axios from 'axios'
 import type { BookmarkItem } from './CollectionRow.vue'
 
@@ -30,6 +31,24 @@ const message = useMessage()
 const imgError = ref(false)
 const showMoveModal = ref(false)
 const showShare = ref(false)
+const showSnapshot = ref(false)
+
+/** 归档快照：成功后标记 hasSnapshot（前端乐观更新） */
+const capturing = ref(false)
+const captureSnapshot = async () => {
+  capturing.value = true
+  try {
+    const res = await axios.post(`/api/snapshots/${props.bookmark.id}`, {}, { timeout: 30000 })
+    if (res.data.code === 200) {
+      ;(props.bookmark as any).hasSnapshot = true
+      message.success('快照已归档')
+    } else {
+      message.error(res.data.message || '归档失败')
+    }
+  } catch (e: any) {
+    message.error(e.response?.data?.message || e.message || '归档失败')
+  } finally { capturing.value = false }
+}
 
 const getDomain = (url: string) => {
   try { return new URL(url).hostname } catch { return url }
@@ -54,9 +73,30 @@ const handleDelete = async () => {
   }
 }
 
+const isReadLater = () => props.bookmark.readLater === 1
+
+const toggleReadLater = async () => {
+  try {
+    const next = !isReadLater()
+    await axios.put(`/api/bookmarks/${props.bookmark.id}/read-later`, { readLater: next })
+    props.bookmark.readLater = next ? 1 : 0
+    if (!next) props.bookmark.readProgress = 0
+    message.success(next ? '已加入稍后读' : '已移出稍后读')
+    emit('refresh')
+  } catch (e: any) {
+    message.error(e.response?.data?.message || '操作失败')
+  }
+}
+
 const dropdownOptions = [
   { label: '打开', key: 'open', icon: () => h(NIcon, null, { default: () => h(ExternalLink) }) },
   { label: '阅读模式', key: 'read', icon: () => h(NIcon, null, { default: () => h(BookOpen) }) },
+  {
+    label: isReadLater() ? '移出稍后读' : '稍后读',
+    key: 'read-later',
+    icon: () => h(NIcon, null, { default: () => h(isReadLater() ? Check : BookmarkPlus) }),
+  },
+  { label: (props.bookmark as any).hasSnapshot ? '查看快照' : '归档快照', key: 'snapshot', icon: () => h(NIcon, null, { default: () => h(Archive) }) },
   { label: '移动到…', key: 'move', icon: () => h(NIcon, null, { default: () => h(FolderInput) }) },
   { label: '分享', key: 'share', icon: () => h(NIcon, null, { default: () => h(Link2) }) },
   { label: '编辑', key: 'edit', icon: () => h(NIcon, null, { default: () => h(Pencil) }) },
@@ -66,6 +106,11 @@ const dropdownOptions = [
 const handleDropdown = (key: string) => {
   if (key === 'open') handleOpen()
   else if (key === 'read') emit('read', props.bookmark)
+  else if (key === 'read-later') toggleReadLater()
+  else if (key === 'snapshot') {
+    if ((props.bookmark as any).hasSnapshot) showSnapshot.value = true
+    else captureSnapshot()
+  }
   else if (key === 'move') showMoveModal.value = true
   else if (key === 'share') showShare.value = true
   else if (key === 'edit') emit('edit', props.bookmark)
@@ -141,6 +186,29 @@ const handleDropdown = (key: string) => {
         </svg>
         {{ getDomain(bookmark.url) }}
       </a>
+
+      <!-- 稍后读 + 阅读进度 + 快照标记 -->
+      <div v-if="isReadLater() || (bookmark.readProgress ?? 0) > 0 || (bookmark as any).hasSnapshot" class="card-readlater">
+        <div class="rl-badges">
+          <span v-if="isReadLater()" class="rl-badge">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" /></svg>
+            稍后读
+          </span>
+          <span v-if="(bookmark as any).hasSnapshot" class="rl-badge snap-badge" @click.stop="showSnapshot = true">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /><polyline points="3.27 6.96 12 12.01 20.73 6.96" /><line x1="12" y1="22.08" x2="12" y2="12" /></svg>
+            快照
+          </span>
+        </div>
+        <NProgress
+          v-if="(bookmark.readProgress ?? 0) > 0 && (bookmark.readProgress ?? 0) < 100"
+          :percentage="bookmark.readProgress ?? 0"
+          :show-indicator="false"
+          :height="3"
+          color="#7c5cff"
+          rail-color="var(--border)"
+          class="rl-progress"
+        />
+      </div>
     </div>
 
     <!-- 移动到目录弹窗 -->
@@ -158,6 +226,14 @@ const handleDropdown = (key: string) => {
       :ref-id="bookmark.id"
       :name="bookmark.title || bookmark.url"
       @update:show="(v: boolean) => (showShare = v)"
+    />
+
+    <!-- 网页快照查看 -->
+    <SnapshotModal
+      v-model:show="showSnapshot"
+      :bookmark-id="bookmark.id"
+      :url="bookmark.url"
+      @changed="emit('refresh')"
     />
   </div>
 </template>
@@ -273,6 +349,29 @@ const handleDropdown = (key: string) => {
   color: var(--brand-hover);
   text-decoration: underline;
 }
+
+/* === 稍后读 === */
+.card-readlater {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 2px;
+}
+.rl-badges { display: flex; gap: 6px; flex-wrap: wrap; }
+.rl-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: fit-content;
+  font-size: 11px;
+  color: #7c5cff;
+  background: rgba(124, 92, 255, 0.12);
+  border-radius: var(--radius-pill);
+  padding: 2px 8px;
+}
+.snap-badge { color: var(--success); background: rgba(15, 191, 140, 0.12); cursor: pointer; }
+.snap-badge:hover { filter: brightness(1.1); }
+.rl-progress { width: 100%; }
 
 /* === 操作按钮 hover 显示 === */
 .card-actions {

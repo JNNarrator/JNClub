@@ -5,8 +5,8 @@
  */
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { NButton, NIcon, NInput, NSpin, NTag } from 'naive-ui'
-import { Download, Lock, StickyNote, Bookmark, FileText, ExternalLink } from 'lucide-vue-next'
+import { NButton, NIcon, NInput, NSpin, NTag, useMessage } from 'naive-ui'
+import { Download, Lock, StickyNote, Bookmark, FileText, ExternalLink, FileDown, Printer } from 'lucide-vue-next'
 import { formatDate } from '../../modules/bookmark/composables/formatDate'
 import axios from 'axios'
 
@@ -43,6 +43,30 @@ const load = async (withPwd: string) => {
 const submitPwd = () => load(pwd.value)
 
 const fileDownloadUrl = () => `/api/share/${token.value}/file${pwd.value ? `?pwd=${encodeURIComponent(pwd.value)}` : ''}`
+
+const message = useMessage()
+
+/** 导出便签内容为 Markdown 文件（内容已在 resolve 时门控获取，直接前端下载） */
+const exportMarkdown = () => {
+  const title = data.value?.title || '便签'
+  const content = data.value?.content || ''
+  const md = `# ${title}\n\n${content}\n`
+  const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `${title.replace(/[\\/:*?"<>|]/g, '_')}.md`
+  a.click()
+  URL.revokeObjectURL(url)
+  message.success('Markdown 已导出')
+}
+
+/** 打印便签（浏览器另存为 PDF） */
+const printNote = () => {
+  document.title = (data.value?.title || '便签') + ' - JNClub'
+  window.print()
+  document.title = '分享 - JNClub'
+}
 
 onMounted(() => load(''))
 
@@ -89,6 +113,16 @@ const bookmarkDomain = computed(() => {
 
         <div v-if="data.type === 'note'" class="share-content">
           <pre class="note-body">{{ data.content || '（空便签）' }}</pre>
+          <div class="share-export">
+            <NButton size="small" secondary @click="exportMarkdown">
+              <template #icon><NIcon :component="FileDown" size="15" /></template>
+              导出 Markdown
+            </NButton>
+            <NButton size="small" secondary @click="printNote">
+              <template #icon><NIcon :component="Printer" size="15" /></template>
+              打印 / PDF
+            </NButton>
+          </div>
         </div>
 
         <div v-else-if="data.type === 'bookmark'" class="share-content">
@@ -151,6 +185,7 @@ const bookmarkDomain = computed(() => {
 .share-title { font-size: 22px; font-weight: 800; color: var(--text-1); margin: 8px 0 4px; }
 .share-sub { font-size: var(--fs-sm); color: var(--text-3); margin: 0; }
 .share-content { display: flex; flex-direction: column; gap: 16px; align-items: center; }
+.share-export { display: flex; gap: 10px; margin-top: 4px; }
 .note-body {
   width: 100%;
   white-space: pre-wrap;

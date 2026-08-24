@@ -8,7 +8,7 @@ import { NIcon, NSpin, NEmpty, NButton, NDrawer, NSwitch } from 'naive-ui'
 import {
   Bookmark, StickyNote, Cloud, KeyRound, Tag, Trash2, HardDrive,
   ShieldCheck, AlertTriangle, ArrowRight, LayoutDashboard, RefreshCw, Download, Upload, Database, TrendingUp,
-  ListTodo, Settings2, GripVertical, Sparkles, ScanSearch,
+  ListTodo, Settings2, GripVertical, Sparkles, ScanSearch, Share2, BookOpen,
 } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
@@ -17,6 +17,8 @@ import ExportModal from '../../modules/bookmark/components/ExportModal.vue'
 import ImportModal from '../../modules/bookmark/components/ImportModal.vue'
 import FullBackupModal from '../../modules/bookmark/components/FullBackupModal.vue'
 import DedupModal from '../../modules/bookmark/components/DedupModal.vue'
+import ShareManagerDrawer from '../components/ShareManagerDrawer.vue'
+import ReadingModal from '../../modules/bookmark/components/ReadingModal.vue'
 
 interface StatsSummary {
   counts: {
@@ -39,6 +41,10 @@ interface StatsSummary {
   }
   vault: { entries: number; duplicateCount: number }
   todos: { active: number; dueToday: number; overdue: number }
+  readLater: {
+    count: number
+    list: Array<{ id: number; title: string; url: string; progress: number; readAt: string }>
+  }
 }
 
 const router = useRouter()
@@ -49,6 +55,17 @@ const showExport = ref(false)
 const showImport = ref(false)
 const showBackup = ref(false)
 const showDedup = ref(false)
+const showShareManager = ref(false)
+
+/* ─── 继续阅读（稍后读） ─── */
+const readingShow = ref(false)
+const readingUrl = ref('')
+const readingId = ref<number | null>(null)
+const goReadLater = (r: { id: number; title: string; url: string }) => {
+  readingUrl.value = r.url
+  readingId.value = r.id
+  readingShow.value = true
+}
 
 const fetchSummary = async () => {
   loading.value = true
@@ -468,6 +485,26 @@ const goTodos = () => router.push('/todos')
                 </div>
               </div>
             </div>
+            <div class="panel">
+              <div class="panel-title">
+                <NIcon :component="BookOpen" size="15" class="panel-title-icon" /> 继续阅读
+                <span v-if="data.readLater.count" class="panel-sub">{{ data.readLater.count }} 篇待读</span>
+              </div>
+              <div v-if="!data.readLater.list.length" class="panel-empty">没有稍后读的内容</div>
+              <div v-else class="recent-list">
+                <div
+                  v-for="r in data.readLater.list" :key="r.id"
+                  class="recent-item recent-link"
+                  @click="goReadLater(r)"
+                >
+                  <span class="recent-title">{{ r.title || r.url }}</span>
+                  <span class="recent-meta">
+                    <span v-if="r.progress > 0" class="rl-pct">{{ r.progress }}%</span>
+                    <span v-else class="rl-new">未开始</span>
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -481,12 +518,22 @@ const goTodos = () => router.push('/todos')
               <template #icon><NIcon :component="q.icon" size="15" /></template>
               {{ q.label }}
             </NButton>
+            <NButton size="small" class="quick-btn jnclub-bouncy" @click="showShareManager = true">
+              <template #icon><NIcon :component="Share2" size="15" /></template>
+              我的分享
+            </NButton>
             <span class="quick-hint">快捷入口</span>
             <NIcon :component="ArrowRight" size="13" class="quick-arrow" />
           </div>
         </div>
       </template>
     </NSpin>
+
+    <!-- 我的分享管理 -->
+    <ShareManagerDrawer v-model:show="showShareManager" />
+
+    <!-- 继续阅读（阅读模式，跟踪进度） -->
+    <ReadingModal v-model:show="readingShow" :url="readingUrl" :bookmark-id="readingId" />
 
     <!-- 布局编辑器 -->
     <NDrawer v-model:show="showLayout" placement="right" :width="320">
@@ -717,11 +764,18 @@ const goTodos = () => router.push('/todos')
   transition: background var(--dur) var(--ease);
 }
 .recent-item:hover { background: var(--glass-chip-bg); }
+.recent-link { cursor: pointer; }
 .recent-title {
   font-size: var(--fs-sm); color: var(--text-2);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .recent-time { font-size: var(--fs-xs); color: var(--text-3); flex-shrink: 0; }
+.recent-meta { display: flex; align-items: center; flex-shrink: 0; }
+.rl-pct {
+  font-size: var(--fs-xs); color: var(--brand); font-weight: 600;
+  background: var(--brand-soft); border-radius: var(--radius-pill); padding: 1px 8px;
+}
+.rl-new { font-size: var(--fs-xs); color: var(--text-3); }
 
 /* 快捷入口 */
 .quick-bar {

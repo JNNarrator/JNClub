@@ -32,6 +32,12 @@ public class Share {
     /** 过期时间；null=永不过期 */
     private LocalDateTime expiresAt;
 
+    /** 访问统计(PV)：公开解析/下载成功解锁后自增 */
+    private Integer visitCount;
+
+    /** 最近访问时间 */
+    private LocalDateTime lastVisitAt;
+
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
 }

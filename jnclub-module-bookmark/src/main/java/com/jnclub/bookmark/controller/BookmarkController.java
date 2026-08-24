@@ -132,6 +132,34 @@ public class BookmarkController {
         return R.ok(Map.of("deleted", count));
     }
 
+    // ============================================================
+    // 稍后读 + 阅读进度
+    // ============================================================
+
+    /** 稍后读列表（未读完，按最近阅读时间倒序） */
+    @GetMapping("/read-later")
+    public R<List<Bookmark>> listReadLater() {
+        return R.ok(bookmarkService.listReadLater());
+    }
+
+    /** 设置稍后读：body { readLater: bool } */
+    @PutMapping("/{id}/read-later")
+    public R<Void> setReadLater(@PathVariable Long id, @RequestBody Map<String, Object> body) {
+        boolean readLater = Boolean.TRUE.equals(body.get("readLater"))
+                || Integer.valueOf(1).equals(body.get("readLater"));
+        bookmarkService.setReadLater(id, readLater);
+        return R.ok();
+    }
+
+    /** 回写阅读进度：body { progress: int }（0-100，服务端节流） */
+    @PutMapping("/{id}/progress")
+    public R<Void> updateProgress(@PathVariable Long id, @RequestBody Map<String, Object> body) {
+        int progress = body.get("progress") == null
+                ? 0 : Integer.parseInt(String.valueOf(body.get("progress")));
+        bookmarkService.updateReadProgress(id, progress);
+        return R.ok();
+    }
+
     @SuppressWarnings("unchecked")
     private List<Long> parseIds(Object raw) {
         if (raw == null) return List.of();

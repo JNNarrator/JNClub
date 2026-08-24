@@ -38,4 +38,13 @@ public class Bookmark {
 
     /** 最近失效检测时间 */
     private LocalDateTime checkedAt;
+
+    /** 稍后读标记：0否 1是 */
+    private Integer readLater;
+
+    /** 阅读进度 0-100 */
+    private Integer readProgress;
+
+    /** 最近阅读时间 */
+    private LocalDateTime readAt;
 }

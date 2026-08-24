@@ -4,9 +4,10 @@
  * 显示检测统计 + 失效收藏列表 + 一键清理（真正删除）
  */
 import { ref, watch } from 'vue'
-import { NModal, NButton, NIcon, NEmpty, useMessage, useDialog, NSpin } from 'naive-ui'
-import { AlertTriangle, Trash2, Link2Off, ExternalLink, RefreshCw } from 'lucide-vue-next'
+import { NModal, NButton, NIcon, NEmpty, useMessage, useDialog, NSpin, NTag } from 'naive-ui'
+import { AlertTriangle, Trash2, Link2Off, ExternalLink, RefreshCw, Archive } from 'lucide-vue-next'
 import axios from 'axios'
+import SnapshotModal from './SnapshotModal.vue'
 
 const props = defineProps<{ show: boolean }>()
 const emit = defineEmits<{ 'update:show': [v: boolean]; cleaned: [] }>()
@@ -15,6 +16,16 @@ const dialog = useDialog()
 
 const loading = ref(false)
 const result = ref<{ total: number; ok: number; dead: number; error: number; deadList: any[] } | null>(null)
+
+/** 快照查看 */
+const snapShow = ref(false)
+const snapBookmarkId = ref<number | null>(null)
+const snapUrl = ref('')
+const viewSnapshot = (d: any) => {
+  snapBookmarkId.value = d.id
+  snapUrl.value = d.url
+  snapShow.value = true
+}
 
 const startCheck = async () => {
   loading.value = true
@@ -108,9 +119,18 @@ const cleanAll = () => {
           <div v-for="d in result.deadList" :key="d.id" class="dead-item">
             <div class="dead-item-icon"><NIcon :component="Link2Off" size="14" /></div>
             <div class="dead-item-main">
-              <div class="dead-item-title">{{ d.title || '（无标题）' }}</div>
+              <div class="dead-item-title">
+                {{ d.title || '（无标题）' }}
+                <NTag v-if="d.hasSnapshot" size="tiny" :bordered="false" class="snap-tag">
+                  <NIcon :component="Archive" size="11" /> 有快照
+                </NTag>
+              </div>
               <div class="dead-item-url">{{ d.url }}</div>
             </div>
+            <NButton v-if="d.hasSnapshot" size="tiny" secondary class="dead-item-snap" @click="viewSnapshot(d)">
+              <template #icon><NIcon :component="Archive" size="13" /></template>
+              查看快照
+            </NButton>
             <a :href="d.url" target="_blank" rel="noopener noreferrer" class="dead-item-open" title="在新窗口打开确认">
               <NIcon :component="ExternalLink" size="14" />
             </a>
@@ -124,6 +144,14 @@ const cleanAll = () => {
       <NButton size="small" quaternary @click="emit('update:show', false)">关闭</NButton>
     </template>
   </NModal>
+
+  <!-- 失效收藏快照查看 -->
+  <SnapshotModal
+    v-model:show="snapShow"
+    :bookmark-id="snapBookmarkId"
+    :url="snapUrl"
+    @changed="startCheck"
+  />
 </template>
 
 <style scoped>
@@ -238,4 +266,6 @@ const cleanAll = () => {
 .dead-item-open:hover {
   color: var(--brand);
 }
+.snap-tag { margin-left: 6px; }
+.dead-item-snap { flex-shrink: 0; }
 </style>

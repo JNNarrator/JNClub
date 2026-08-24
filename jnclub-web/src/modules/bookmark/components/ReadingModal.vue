@@ -3,24 +3,33 @@
  * ReadingModal.vue — 收藏阅读模式
  * 调后端 /api/bookmarks/read 抓取正文（服务端提取+清洗），站内沉浸阅读；
  * 失败时回退"在新标签页打开原文"。
+ * 传入 bookmarkId 时滚动跟踪阅读进度，回写 /api/bookmarks/{id}/progress（节流）。
  */
-import { ref, watch } from 'vue'
-import { NModal, NButton, NIcon, NSpin, NEmpty } from 'naive-ui'
+import { ref, watch, onBeforeUnmount } from 'vue'
+import { NModal, NButton, NIcon, NSpin, NEmpty, NProgress } from 'naive-ui'
 import { ExternalLink, X, BookOpen } from 'lucide-vue-next'
 import axios from 'axios'
 
 const props = defineProps<{
   show: boolean
   url: string
+  bookmarkId?: number | null
 }>()
 const emit = defineEmits<{ 'update:show': [v: boolean] }>()
 
 const loading = ref(false)
 const error = ref('')
 const article = ref<{ title: string; content: string } | null>(null)
+const progress = ref(0)
+const bodyEl = ref<HTMLElement | null>(null)
+
+let progressTimer: ReturnType<typeof setTimeout> | null = null
 
 watch(() => props.show, (v) => {
-  if (v && props.url) load()
+  if (v && props.url) {
+    progress.value = 0
+    load()
+  }
 })
 
 const load = async () => {
@@ -40,6 +49,42 @@ const load = async () => {
     loading.value = false
   }
 }
+
+/** 计算滚动进度 0-100（正文滚动区） */
+const computeProgress = () => {
+  const el = bodyEl.value
+  if (!el) return 0
+  const max = el.scrollHeight - el.clientHeight
+  if (max <= 0) return 100
+  return Math.min(100, Math.round((el.scrollTop / max) * 100))
+}
+
+const onScroll = () => {
+  const p = computeProgress()
+  progress.value = p
+  if (!props.bookmarkId) return
+  // 节流：150ms 内最多一次回写；后端再按 ≥5 差值过滤
+  if (progressTimer) return
+  progressTimer = setTimeout(() => {
+    progressTimer = null
+    const cur = progress.value
+    axios.put(`/api/bookmarks/${props.bookmarkId}/progress`, { progress: cur })
+      .catch(() => { /* 进度回写失败静默，不打断阅读 */ })
+  }, 150)
+}
+
+/** 关闭时把最终进度落库 */
+const close = () => {
+  if (props.bookmarkId && article.value) {
+    axios.put(`/api/bookmarks/${props.bookmarkId}/progress`, { progress: progress.value })
+      .catch(() => {})
+  }
+  emit('update:show', false)
+}
+
+onBeforeUnmount(() => {
+  if (progressTimer) { clearTimeout(progressTimer); progressTimer = null }
+})
 </script>
 
 <template>
@@ -59,13 +104,13 @@ const load = async () => {
           <a v-if="props.url" :href="props.url" target="_blank" rel="noopener" class="reading-open">
             <NIcon :component="ExternalLink" size="14" /> 打开原文
           </a>
-          <NButton quaternary circle size="small" @click="emit('update:show', false)">
+          <NButton quaternary circle size="small" @click="close">
             <template #icon><NIcon :component="X" size="16" /></template>
           </NButton>
         </div>
       </div>
 
-      <div class="reading-body">
+      <div class="reading-body" ref="bodyEl" @scroll.passive="onScroll">
         <NSpin :show="loading">
           <div v-if="loading" class="reading-hint">正在抓取正文…</div>
           <div v-else-if="error" class="reading-error">
@@ -76,6 +121,17 @@ const load = async () => {
           </div>
           <article v-else-if="article" class="reading-article" v-html="article.content" />
         </NSpin>
+      </div>
+
+      <!-- 阅读进度条（仅传入 bookmarkId 时显示） -->
+      <div v-if="props.bookmarkId" class="reading-progress">
+        <NProgress
+          :percentage="progress"
+          :show-indicator="false"
+          :height="2"
+          color="#7c5cff"
+          rail-color="transparent"
+        />
       </div>
     </div>
   </NModal>
@@ -139,6 +195,7 @@ const load = async () => {
   overflow-y: auto;
   padding: 8px 0;
 }
+.reading-progress { flex-shrink: 0; }
 .reading-hint {
   padding: 60px 0;
   text-align: center;

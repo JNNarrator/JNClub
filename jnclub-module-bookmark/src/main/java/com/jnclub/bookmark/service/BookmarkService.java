@@ -38,6 +38,9 @@ public class BookmarkService extends ServiceImpl<BookmarkMapper, Bookmark> {
     @Autowired
     private DirectoryMapper directoryMapper;
 
+    @Autowired
+    private com.jnclub.bookmark.mapper.BookmarkSnapshotMapper snapshotMapper;
+
     private static final String UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
 
     public List<Bookmark> getBookmarks(Long directoryId, Long tagId) {
@@ -481,9 +484,20 @@ public class BookmarkService extends ServiceImpl<BookmarkMapper, Bookmark> {
             item.put("title", b.getTitle());
             item.put("url", b.getUrl());
             item.put("checkedAt", String.valueOf(b.getCheckedAt()));
+            // 附带快照存在标记（失效后可看快照兜底）
+            item.put("hasSnapshot", hasSnapshot(b.getId(), userId));
             result.add(item);
         }
         return result;
+    }
+
+    /** 收藏是否已有快照（失效检测列表附带用） */
+    public boolean hasSnapshot(Long bookmarkId, String userId) {
+        Long c = snapshotMapper.selectCount(new LambdaQueryWrapper<com.jnclub.bookmark.entity.BookmarkSnapshot>()
+                .eq(com.jnclub.bookmark.entity.BookmarkSnapshot::getBookmarkId, bookmarkId)
+                .eq(com.jnclub.bookmark.entity.BookmarkSnapshot::getUserId, userId)
+                .eq(com.jnclub.bookmark.entity.BookmarkSnapshot::getDeleted, 0));
+        return c != null && c > 0;
     }
 
     /** 批量删除失效收藏（真正删除；回收站保留） */
@@ -501,6 +515,59 @@ public class BookmarkService extends ServiceImpl<BookmarkMapper, Bookmark> {
         }
         cacheService.evictByPrefix(CacheKey.bookmarkPrefix(userId));
         return count;
+    }
+
+    // ============================================================
+    // 稍后读 + 阅读进度
+    // ============================================================
+
+    /** 设置稍后读标记：{ readLater: true|false } */
+    public void setReadLater(Long id, boolean readLater) {
+        String userId = StpUtil.getLoginIdAsString();
+        Bookmark b = getById(id);
+        if (b == null || !b.getUserId().equals(userId)) {
+            throw new BizException("收藏不存在");
+        }
+        b.setReadLater(readLater ? 1 : 0);
+        if (readLater && (b.getReadAt() == null)) {
+            b.setReadAt(java.time.LocalDateTime.now());
+        }
+        updateById(b);
+        cacheService.evictByPrefix(CacheKey.bookmarkPrefix(userId));
+    }
+
+    /**
+     * 回写阅读进度：0-100 整数；节流——与库内差值 ≥5 才写库（避免滚动高频写），
+     * 同时更新最近阅读时间。进度达到 100 视为读完，自动清除稍后读标记。
+     */
+    public void updateReadProgress(Long id, int progress) {
+        String userId = StpUtil.getLoginIdAsString();
+        Bookmark b = getById(id);
+        if (b == null || !b.getUserId().equals(userId)) {
+            throw new BizException("收藏不存在");
+        }
+        int p = Math.max(0, Math.min(100, progress));
+        int cur = b.getReadProgress() == null ? 0 : b.getReadProgress();
+        if (Math.abs(p - cur) < 5 && p < 100) {
+            return; // 节流：跳过小幅度变化（除非读到 100 必须落库）
+        }
+        b.setReadProgress(p);
+        b.setReadAt(java.time.LocalDateTime.now());
+        if (p >= 100 && b.getReadLater() != null && b.getReadLater() == 1) {
+            b.setReadLater(0); // 读完自动移出稍后读
+        }
+        updateById(b);
+        cacheService.evictByPrefix(CacheKey.bookmarkPrefix(userId));
+    }
+
+    /** 稍后读列表（未读完）：read_later=1 按最近阅读时间倒序 */
+    public List<Bookmark> listReadLater() {
+        String userId = StpUtil.getLoginIdAsString();
+        return list(new LambdaQueryWrapper<Bookmark>()
+                .eq(Bookmark::getUserId, userId)
+                .eq(Bookmark::getDeleted, 0)
+                .eq(Bookmark::getReadLater, 1)
+                .orderByDesc(Bookmark::getReadAt));
     }
 
     /**

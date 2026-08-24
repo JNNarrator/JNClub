@@ -5,8 +5,9 @@
  */
 import { ref, watch } from 'vue'
 import { NModal, NButton, NIcon, NInput, NSelect, useMessage } from 'naive-ui'
-import { Link2, Copy, Trash2, Plus } from 'lucide-vue-next'
+import { Link2, Copy, Trash2, Plus, Settings2, Check } from 'lucide-vue-next'
 import { copyText } from '../../../shared/utils/clipboard'
+import { formatDate } from '../composables/formatDate'
 import axios from 'axios'
 
 const props = defineProps<{
@@ -19,7 +20,8 @@ const emit = defineEmits<{ 'update:show': [v: boolean] }>()
 
 const message = useMessage()
 const loading = ref(false)
-const share = ref<{ token: string; url: string } | null>(null)
+const editing = ref(false)
+const share = ref<{ token: string; url: string; expiresAt?: string | null; visitCount?: number; lastVisitAt?: string | null } | null>(null)
 const hasPassword = ref(false)
 const password = ref('')
 const expiresInDays = ref<number | null>(null)
@@ -39,7 +41,7 @@ const load = async () => {
     const list = (res.data.code === 200 ? res.data.data : []) || []
     if (list.length) {
       const s = list[0]
-      share.value = { token: s.token, url: `/jnclub/share/${s.token}` }
+      share.value = { token: s.token, url: `/jnclub/share/${s.token}`, expiresAt: s.expiresAt, visitCount: s.visitCount, lastVisitAt: s.lastVisitAt }
       hasPassword.value = !!s.passwordHash
     } else {
       share.value = null
@@ -49,7 +51,7 @@ const load = async () => {
   } finally { loading.value = false }
 }
 
-watch(() => props.show, (v) => { if (v) { password.value = ''; expiresInDays.value = null; load() } })
+watch(() => props.show, (v) => { if (v) { password.value = ''; expiresInDays.value = null; editing.value = false; load() } })
 
 const createShare = async () => {
   if (!props.refId) return
@@ -62,9 +64,11 @@ const createShare = async () => {
     })
     if (res.data.code === 200) {
       const d = res.data.data
-      share.value = { token: d.token, url: d.url }
+      share.value = { token: d.token, url: d.url, expiresAt: null, visitCount: 0 }
       hasPassword.value = !!password.value
-      message.success('分享已创建')
+      editing.value = false
+      message.success(share.value.token ? '分享设置已更新' : '分享已创建')
+      load()
     }
   } catch (e: any) {
     message.error(e.response?.data?.message || '创建失败')
@@ -109,15 +113,39 @@ const copyLink = async () => {
       <p class="share-tip">
         访客免登录查看<template v-if="hasPassword">，访问需密码</template>。
       </p>
+      <div v-if="share.expiresAt || share.visitCount !== undefined" class="share-meta">
+        <span v-if="share.expiresAt" class="share-meta-item">
+          有效期至 {{ formatDate(share.expiresAt) }}
+        </span>
+        <span v-else class="share-meta-item">永不过期</span>
+        <span class="share-meta-item">访问 {{ share.visitCount ?? 0 }} 次</span>
+      </div>
       <div class="share-actions">
         <NButton size="small" type="primary" @click="copyLink">
           <template #icon><NIcon :component="Copy" size="14" /></template>
           复制链接
         </NButton>
+        <NButton size="small" @click="editing = true">
+          <template #icon><NIcon :component="Settings2" size="14" /></template>
+          修改设置
+        </NButton>
         <NButton size="small" type="error" secondary @click="revokeShare">
           <template #icon><NIcon :component="Trash2" size="14" /></template>
           撤销分享
         </NButton>
+      </div>
+      <div v-if="editing" class="share-form share-edit-form">
+        <label class="share-label">访问密码（可选）</label>
+        <NInput v-model:value="password" placeholder="留空则免密查看" clearable />
+        <label class="share-label">有效期</label>
+        <NSelect v-model:value="expiresInDays" :options="EXPIRY_OPTIONS" />
+        <div class="share-actions">
+          <NButton size="small" type="primary" :loading="loading" @click="createShare">
+            <template #icon><NIcon :component="Check" size="14" /></template>
+            保存设置
+          </NButton>
+          <NButton size="small" @click="editing = false">取消</NButton>
+        </div>
       </div>
     </template>
 
@@ -160,7 +188,17 @@ const copyLink = async () => {
   font-family: var(--font-mono);
 }
 .share-tip { margin: 12px 0 14px; font-size: var(--fs-sm); color: var(--text-3); }
-.share-actions { display: flex; gap: 10px; margin-top: 16px; justify-content: flex-end; }
+.share-meta {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin: -6px 0 4px;
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+}
+.share-meta-item { display: inline-flex; align-items: center; gap: 4px; }
+.share-edit-form { margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--glass-border); }
+.share-actions { display: flex; gap: 10px; margin-top: 16px; justify-content: flex-end; flex-wrap: wrap; }
 .share-form { display: flex; flex-direction: column; gap: 8px; }
 .share-label { font-size: var(--fs-sm); color: var(--text-2); margin-top: 6px; }
 </style>

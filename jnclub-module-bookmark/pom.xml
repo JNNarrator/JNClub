@@ -55,6 +55,13 @@
             <version>1.17.2</version>
         </dependency>
 
+        <!-- RSS 阅读器：RSS/Atom 解析 -->
+        <dependency>
+            <groupId>com.rometools</groupId>
+            <artifactId>rome</artifactId>
+            <version>2.1.0</version>
+        </dependency>
+
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>

@@ -101,6 +101,7 @@ public class ShareService {
                 return locked;
             }
         }
+        recordVisit(sh);
         return payload(sh);
     }
 
@@ -115,6 +116,64 @@ public class ShareService {
             throw new BizException("该分享不是文件");
         }
         return cloudDiskService.getFileById(sh.getRefId());
+    }
+
+    /** 成功解锁访问后自增 PV + 更新最近访问时间 */
+    private void recordVisit(Share sh) {
+        try {
+            sh.setVisitCount((sh.getVisitCount() == null ? 0 : sh.getVisitCount()) + 1);
+            sh.setLastVisitAt(LocalDateTime.now());
+            shareMapper.updateById(sh);
+        } catch (Exception e) {
+            log.warn("分享 PV 计数失败 token={}: {}", sh.getToken(), e.getMessage());
+        }
+    }
+
+    /** 我的全部分享（跨类型），附带关联条目标题与访问统计；按创建时间倒序 */
+    public List<Map<String, Object>> listMine() {
+        String userId = StpUtil.getLoginIdAsString();
+        List<Share> shares = shareMapper.selectList(new LambdaQueryWrapper<Share>()
+                .eq(Share::getUserId, userId)
+                .orderByDesc(Share::getCreateTime));
+        List<Map<String, Object>> result = new java.util.ArrayList<>();
+        for (Share sh : shares) {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("token", sh.getToken());
+            m.put("refType", sh.getRefType());
+            m.put("refId", sh.getRefId());
+            m.put("title", refTitle(sh));
+            m.put("hasPassword", sh.getPasswordHash() != null);
+            m.put("expiresAt", sh.getExpiresAt());
+            m.put("visitCount", sh.getVisitCount() == null ? 0 : sh.getVisitCount());
+            m.put("lastVisitAt", sh.getLastVisitAt());
+            m.put("createTime", sh.getCreateTime());
+            m.put("url", "/jnclub/share/" + sh.getToken());
+            result.add(m);
+        }
+        return result;
+    }
+
+    /** 关联条目展示标题（已删除/丢失则回退占位） */
+    private String refTitle(Share sh) {
+        try {
+            switch (sh.getRefType()) {
+                case "note" -> {
+                    Note n = noteService.getById(sh.getRefId());
+                    return n == null ? "（已删除便签）" : n.getTitle();
+                }
+                case "bookmark" -> {
+                    Bookmark b = bookmarkService.getById(sh.getRefId());
+                    return b == null ? "（已删除收藏）" : b.getTitle();
+                }
+                case "file" -> {
+                    FileRecord f = cloudDiskService.getFileById(sh.getRefId());
+                    return f == null ? "（已删除文件）" : f.getOriginalName();
+                }
+                default -> { return "未知类型"; }
+            }
+        } catch (Exception e) {
+            return "（内容不可用）";
+        }
     }
 
     private Map<String, Object> payload(Share sh) {

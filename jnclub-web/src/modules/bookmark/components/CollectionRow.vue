@@ -22,6 +22,8 @@ export interface BookmarkItem {
   sortOrder: number
   createTime: string
   tags?: string[]
+  readLater?: number
+  readProgress?: number
 }
 
 const props = defineProps<{

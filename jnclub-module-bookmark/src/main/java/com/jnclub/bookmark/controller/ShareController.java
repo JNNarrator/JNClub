@@ -59,6 +59,13 @@ public class ShareController {
         return R.ok(shareService.listByRef(refType, refId));
     }
 
+    /** 我的全部分享（跨类型，含访问统计） */
+    @GetMapping("/mine")
+    public R<List<Map<String, Object>>> mine() {
+        StpUtil.checkLogin();
+        return R.ok(shareService.listMine());
+    }
+
     /** 撤销分享 */
     @DeleteMapping("/{token}")
     public R<Void> revoke(@PathVariable String token) {
