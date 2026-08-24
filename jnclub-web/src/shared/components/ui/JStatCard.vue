@@ -39,9 +39,9 @@ const emit = defineEmits<{
 .j-stat-card {
   display: flex;
   align-items: center;
-  gap: 18px;
-  min-height: 112px;
-  padding: 24px;
+  gap: 14px;
+  min-height: 96px;
+  padding: 16px 18px;
   background: var(--glass-bg-trans);
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
@@ -56,7 +56,7 @@ const emit = defineEmits<{
 .j-stat-card:hover {
   border-color: var(--brand);
   box-shadow: var(--shadow-2), var(--glass-shadow);
-  transform: translateY(-2px);
+  transform: translateY(-1px);
 }
 .j-stat-card.j-stat-warn {
   border-color: color-mix(in srgb, var(--danger) 45%, transparent);
@@ -64,11 +64,11 @@ const emit = defineEmits<{
 .j-stat-text {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
   min-width: 0;
 }
 .j-stat-icon {
-  width: 44px; height: 44px; border-radius: 14px;
+  width: 38px; height: 38px; border-radius: 12px;
   flex-shrink: 0;
   background: var(--brand-soft); color: var(--brand);
   display: flex; align-items: center; justify-content: center;
@@ -78,12 +78,12 @@ const emit = defineEmits<{
   color: var(--danger-text);
 }
 .j-stat-value {
-  font-size: 32px; font-weight: 800; color: var(--text-1); line-height: 1.1;
+  font-size: 24px; font-weight: 800; color: var(--text-1); line-height: 1.1;
   white-space: nowrap;
 }
 .j-stat-label {
   display: inline-flex; align-items: center; gap: 6px;
-  font-size: var(--fs-md); color: var(--glass-text-secondary);
+  font-size: var(--fs-sm); color: var(--glass-text-secondary);
 }
 .j-stat-warn-dot {
   width: 7px; height: 7px; border-radius: 50%;
@@ -98,10 +98,11 @@ const emit = defineEmits<{
   .j-stat-card {
     flex-direction: column;
     align-items: flex-start;
-    gap: 10px;
-    min-height: 124px;
+    gap: 8px;
+    min-height: 104px;
+    padding: 14px;
   }
-  .j-stat-icon { width: 36px; height: 36px; border-radius: 10px; }
-  .j-stat-value { font-size: 26px; }
+  .j-stat-icon { width: 32px; height: 32px; border-radius: 10px; }
+  .j-stat-value { font-size: 22px; }
 }
 </style>

@@ -4,11 +4,11 @@
  * 统计卡片（收藏/便签/文件/密码/标签/回收站）+ 磁盘占用 + 密码库指纹健康 + 最近动态 + 快捷入口
  */
 import { ref, computed, onMounted, watch } from 'vue'
-import { NIcon, NButton, NDrawer, NSwitch } from 'naive-ui'
+import { NIcon, NButton, NDrawer, NSwitch, NDropdown } from 'naive-ui'
 import {
   Bookmark, StickyNote, Cloud, KeyRound, Tag, Trash2, HardDrive,
-  ShieldCheck, AlertTriangle, ArrowRight, LayoutDashboard, RefreshCw, Download, Upload, Database, TrendingUp,
-  ListTodo, Settings2, GripVertical, Sparkles, ScanSearch, Share2, BookOpen,
+  ShieldCheck, AlertTriangle, ArrowRight, LayoutDashboard, RefreshCw, TrendingUp,
+  ListTodo, Settings2, GripVertical, Sparkles, Share2, BookOpen, MoreHorizontal,
 } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
@@ -59,6 +59,21 @@ const showImport = ref(false)
 const showBackup = ref(false)
 const showDedup = ref(false)
 const showShareManager = ref(false)
+
+/** 概览低频操作统一收进「更多」 */
+const moreOptions = [
+  { label: '全量备份', key: 'backup' },
+  { label: '数据导出', key: 'export' },
+  { label: '数据导入', key: 'import' },
+  { label: '查重', key: 'dedup' },
+]
+
+const handleMoreSelect = (key: string) => {
+  if (key === 'backup') showBackup.value = true
+  else if (key === 'export') showExport.value = true
+  else if (key === 'import') showImport.value = true
+  else if (key === 'dedup') showDedup.value = true
+}
 
 /* ─── 继续阅读（稍后读） ─── */
 const readingShow = ref(false)
@@ -268,37 +283,22 @@ const goTodos = () => router.push('/todos')
 
 <template>
   <div class="dash">
-    <div class="dash-head">
-      <div class="dash-title">
-        <NIcon :component="LayoutDashboard" size="18" class="dash-title-icon" />
-        <span>数据概览</span>
-      </div>
-      <div class="dash-actions">
-        <NButton size="tiny" quaternary class="dash-layout" @click="showLayout = true">
-          <template #icon><NIcon :component="Settings2" size="13" /></template>
-          布局
+    <!-- 概览操作区：低频操作收进“更多”，避免和 JPageHeader 重复 -->
+    <div class="dash-toolbar">
+      <NDropdown :options="moreOptions" placement="bottom-end" trigger="click" @select="handleMoreSelect">
+        <NButton size="tiny" quaternary class="dash-more">
+          <template #icon><NIcon :component="MoreHorizontal" size="14" /></template>
+          更多
         </NButton>
-        <NButton size="tiny" quaternary class="dash-backup" @click="showBackup = true">
-          <template #icon><NIcon :component="Database" size="13" /></template>
-          全量备份
-        </NButton>
-        <NButton size="tiny" quaternary class="dash-export" @click="showExport = true">
-          <template #icon><NIcon :component="Download" size="13" /></template>
-          数据导出
-        </NButton>
-        <NButton size="tiny" quaternary class="dash-import" @click="showImport = true">
-          <template #icon><NIcon :component="Upload" size="13" /></template>
-          数据导入
-        </NButton>
-        <NButton size="tiny" quaternary class="dash-dedup" @click="showDedup = true">
-          <template #icon><NIcon :component="ScanSearch" size="13" /></template>
-          查重
-        </NButton>
-        <NButton size="tiny" quaternary class="dash-refresh" :loading="loading" @click="fetchSummary; fetchTrend()">
-          <template #icon><NIcon :component="RefreshCw" size="13" /></template>
-          刷新
-        </NButton>
-      </div>
+      </NDropdown>
+      <NButton size="tiny" quaternary class="dash-layout" @click="showLayout = true">
+        <template #icon><NIcon :component="Settings2" size="13" /></template>
+        布局
+      </NButton>
+      <NButton size="tiny" quaternary class="dash-refresh" :loading="loading" @click="fetchSummary; fetchTrend()">
+        <template #icon><NIcon :component="RefreshCw" size="13" /></template>
+        刷新
+      </NButton>
     </div>
 
     <ExportModal v-model:show="showExport" />
@@ -334,6 +334,7 @@ const goTodos = () => router.push('/todos')
 
         <!-- 统计卡片 -->
         <div v-if="visible('stat')" class="dash-section" :style="{ order: orderOf('stat') }">
+          <div class="dash-group-title">数据总览</div>
           <div class="stat-grid">
             <JStatCard
               v-for="c in statCards" :key="c.key"
@@ -345,6 +346,7 @@ const goTodos = () => router.push('/todos')
 
         <!-- 今日待办 -->
         <div v-if="visible('todo')" class="dash-section" :style="{ order: orderOf('todo') }">
+          <div class="dash-group-title">状态与效率</div>
           <div class="panel todo-panel" @click="goTodos">
             <div class="panel-title">
               <NIcon :component="ListTodo" size="15" class="panel-title-icon" /> 今日待办
@@ -457,6 +459,7 @@ const goTodos = () => router.push('/todos')
 
         <!-- 最近动态 -->
         <div v-if="visible('recent')" class="dash-section" :style="{ order: orderOf('recent') }">
+          <div class="dash-group-title">最近与快捷</div>
           <div class="recent-grid">
             <div class="panel">
               <div class="panel-title"><NIcon :component="Bookmark" size="15" class="panel-title-icon" /> 最近收藏</div>
@@ -525,8 +528,6 @@ const goTodos = () => router.push('/todos')
               <template #icon><NIcon :component="Share2" size="15" /></template>
               我的分享
             </NButton>
-            <span class="quick-hint">快捷入口</span>
-            <NIcon :component="ArrowRight" size="13" class="quick-arrow" />
           </div>
         </div>
       </template>
@@ -564,45 +565,48 @@ const goTodos = () => router.push('/todos')
 .dash {
   display: flex;
   flex-direction: column;
-  gap: 40px;
+  gap: 28px;
 }
-.dash-head {
+.dash-toolbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-}
-.dash-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: var(--fs-md);
-  font-weight: 600;
-  color: var(--text-1);
-}
-.dash-title-icon { color: var(--brand); }
-.dash-actions {
-  display: flex;
-  align-items: center;
+  justify-content: flex-end;
   gap: 8px;
 }
-.dash-refresh { border-radius: var(--radius-pill); }
-.dash-export { border-radius: var(--radius-pill); color: var(--brand); }
-.dash-import { border-radius: var(--radius-pill); color: var(--brand); }
+.dash-more,
+.dash-layout,
+.dash-refresh {
+  border-radius: var(--radius-pill);
+}
 .dash-spin { min-height: 240px; }
 .dash-error { padding-top: 60px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
 .dash-retry { border-radius: var(--radius-pill); }
 
-/* 统计卡片 */
-/* 统计卡片：固定列数（3/2），任何宽度都不超过 3 列，避免卡片过窄拥挤；
-   ≤699px 移动端降为 2 列 */
+/* 分组标题：轻量 overline，强化信息层级 */
+.dash-group-title {
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--text-3);
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+
+/* 统计卡片：宽屏 6 列一排，常规 3 列，移动端 2 列，极窄 1 列 */
 .stat-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  column-gap: 20px;
-  row-gap: 20px;
+  column-gap: 16px;
+  row-gap: 16px;
+}
+@media (min-width: 1400px) {
+  .stat-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 }
 @media (max-width: 699px) {
   .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 419px) {
+  .stat-grid { grid-template-columns: 1fr; }
 }
 .stat-card {
   display: flex;
@@ -669,15 +673,19 @@ const goTodos = () => router.push('/todos')
 /* 中排双栏 */
 .mid-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  column-gap: 28px;
-  row-gap: 32px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 20px;
+  row-gap: 20px;
+  align-items: stretch;
+}
+.mid-grid .panel {
+  height: 100%;
 }
 @media (max-width: 900px) {
   .mid-grid { grid-template-columns: 1fr; }
 }
 .panel {
-  padding: 24px;
+  padding: 20px;
   background: var(--glass-bg-trans);
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
@@ -686,7 +694,7 @@ const goTodos = () => router.push('/todos')
   box-shadow: var(--shadow-1), var(--glass-shadow);
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 16px;
 }
 .panel-title {
   display: flex;
@@ -750,20 +758,28 @@ const goTodos = () => router.push('/todos')
 }
 .health-ok { font-size: var(--fs-sm); color: var(--success); }
 
-/* 最近动态 */
+/* 最近动态：桌面 4 列一排，平板 2 列，手机 1 列 */
 .recent-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  column-gap: 24px;
-  row-gap: 32px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  column-gap: 20px;
+  row-gap: 20px;
+  grid-auto-rows: 1fr;
 }
-@media (max-width: 900px) {
+.recent-grid .panel {
+  min-height: 0;
+  height: 100%;
+}
+@media (max-width: 1199px) {
+  .recent-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 699px) {
   .recent-grid { grid-template-columns: 1fr; }
 }
 .recent-list { display: flex; flex-direction: column; gap: 8px; }
 .recent-item {
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
-  padding: 10px 12px;
+  padding: 8px 10px;
   border-radius: var(--radius-sm);
   transition: background var(--dur) var(--ease);
 }
@@ -783,18 +799,13 @@ const goTodos = () => router.push('/todos')
 
 /* 快捷入口 */
 .quick-bar {
-  display: flex; align-items: center; flex-wrap: wrap; gap: 10px;
-  padding: 14px 18px;
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+  padding: 12px 14px;
   background: var(--glass-bg-trans);
   border: 1px dashed var(--glass-border);
   border-radius: var(--radius-md);
 }
 .quick-btn { border-radius: var(--radius-pill); }
-.quick-hint {
-  margin-left: auto;
-  font-size: var(--fs-xs); color: var(--text-3);
-}
-.quick-arrow { color: var(--text-3); }
 
 /* 数据趋势 */
 .trend-panel { min-height: 200px; }
@@ -882,6 +893,16 @@ const goTodos = () => router.push('/todos')
 @media (max-width: 699px) {
   .trend-bars { gap: 6px; }
   .trend-bar { width: 7px; }
+  .dash-toolbar { gap: 4px; }
+  .panel-title {
+    flex-wrap: wrap;
+    row-gap: 4px;
+  }
+  .panel-sub,
+  .trend-legend {
+    margin-left: 0;
+    width: 100%;
+  }
 }
 
 /* 问候卡片 */
