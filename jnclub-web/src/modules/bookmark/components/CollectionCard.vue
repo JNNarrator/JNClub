@@ -204,7 +204,7 @@ const handleDropdown = (key: string) => {
           :percentage="bookmark.readProgress ?? 0"
           :show-indicator="false"
           :height="3"
-          color="#7c5cff"
+          color="var(--module-bookmark)"
           rail-color="var(--border)"
           class="rl-progress"
         />
@@ -364,12 +364,12 @@ const handleDropdown = (key: string) => {
   gap: 4px;
   width: fit-content;
   font-size: 11px;
-  color: #7c5cff;
-  background: rgba(124, 92, 255, 0.12);
+  color: var(--module-bookmark);
+  background: color-mix(in srgb, var(--module-bookmark) 12%, transparent);
   border-radius: var(--radius-pill);
   padding: 2px 8px;
 }
-.snap-badge { color: var(--success); background: rgba(15, 191, 140, 0.12); cursor: pointer; }
+.snap-badge { color: var(--success); background: color-mix(in srgb, var(--success) 12%, transparent); cursor: pointer; }
 .snap-badge:hover { filter: brightness(1.1); }
 .rl-progress { width: 100%; }
 

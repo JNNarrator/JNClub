@@ -4,10 +4,11 @@
  * 聚合当月待办（dueDate）+ 便签（更新时间）；拖拽待办改期；点击空白格快捷新建待办
  */
 import { ref, computed, watch, onMounted } from 'vue'
-import { NButton, NIcon, NCheckbox, NInput, NSelect, useMessage, NSpin, NModal } from 'naive-ui'
+import { NButton, NIcon, NCheckbox, NInput, NSelect, useMessage, NModal } from 'naive-ui'
 import { ChevronLeft, ChevronRight, StickyNote, Trash2 } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
+import JSkeletonGrid from '../../../shared/components/ui/JSkeletonGrid.vue'
 
 interface TodoItem {
   id: number
@@ -235,7 +236,8 @@ const WEEKDAYS = ['一', '二', '三', '四', '五', '六', '日']
 
     <!-- 网格 -->
     <div class="cal-body" :class="{ loading }">
-      <NSpin :show="loading">
+      <JSkeletonGrid v-if="loading" :count="7" />
+      <template v-else>
         <div class="cal-weekdays">
           <div v-for="w in WEEKDAYS" :key="w" class="cal-weekday">{{ w }}</div>
         </div>
@@ -290,7 +292,7 @@ const WEEKDAYS = ['一', '二', '三', '四', '五', '六', '日']
             </div>
           </div>
         </div>
-      </NSpin>
+      </template>
     </div>
 
     <!-- 快捷新建待办 -->
@@ -330,8 +332,8 @@ const WEEKDAYS = ['一', '二', '三', '四', '五', '六', '日']
 .cal-overdue {
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
   padding: 8px 14px;
-  background: rgba(224, 108, 117, .1);
-  border: 1px solid rgba(224, 108, 117, .25);
+  background: var(--danger-soft);
+  border: 1px solid color-mix(in srgb, var(--danger) 25%, transparent);
   border-radius: var(--radius-sm);
   font-size: var(--fs-sm); color: var(--text-2);
 }
@@ -386,11 +388,11 @@ const WEEKDAYS = ['一', '二', '三', '四', '五', '六', '日']
   padding: 2px 4px;
   border-radius: var(--radius-xs);
   font-size: var(--fs-xs);
-  background: rgba(124, 92, 255, .08);
+  background: color-mix(in srgb, var(--module-bookmark) 8%, transparent);
   cursor: grab;
 }
-.cell-todo.prio-2 { background: rgba(224, 108, 117, .12); }
-.cell-todo.prio-1 { background: rgba(240, 161, 58, .1); }
+.cell-todo.prio-2 { background: color-mix(in srgb, var(--danger) 12%, transparent); }
+.cell-todo.prio-1 { background: color-mix(in srgb, var(--warning-text) 10%, transparent); }
 .cell-todo.done { opacity: .5; }
 .cell-todo.done .cell-todo-title { text-decoration: line-through; }
 .cell-todo-check { pointer-events: auto; }

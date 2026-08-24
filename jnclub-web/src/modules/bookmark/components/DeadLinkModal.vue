@@ -194,7 +194,7 @@ const cleanAll = () => {
   color: var(--text-1);
 }
 .stat-item.ok .stat-num { color: var(--success); }
-.stat-item.bad .stat-num { color: #ff8a97; }
+.stat-item.bad .stat-num { color: var(--danger-text); }
 .stat-item.err .stat-num { color: var(--text-3); }
 .stat-label {
   font-size: var(--fs-xs);
@@ -216,7 +216,7 @@ const cleanAll = () => {
   gap: 6px;
   font-size: var(--fs-sm);
   font-weight: 600;
-  color: #ff8a97;
+  color: var(--danger-text);
   margin-bottom: 4px;
 }
 .dead-list-head .n-button {
@@ -227,15 +227,15 @@ const cleanAll = () => {
   align-items: center;
   gap: 10px;
   padding: 9px 12px;
-  border: 1px solid rgba(245, 72, 92, 0.25);
+  border: 1px solid color-mix(in srgb, var(--danger) 25%, transparent);
   border-radius: var(--radius-sm);
-  background: rgba(245, 72, 92, 0.05);
+  background: color-mix(in srgb, var(--danger) 5%, transparent);
 }
 .dead-item-icon {
   width: 28px; height: 28px;
   border-radius: 8px;
-  background: rgba(245, 72, 92, 0.12);
-  color: #ff8a97;
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  color: var(--danger-text);
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
 }

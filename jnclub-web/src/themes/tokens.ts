@@ -51,6 +51,22 @@ export interface DesignTokens {
   stateErrorSoft: string
   gradientSuccess: string
   shadowSuccess: string
+  // 语义化状态文字/背景（UI 重构后统一替代业务组件硬编码色）
+  danger: string
+  dangerSoft: string
+  dangerText: string
+  warningText: string
+  successText: string
+  // 模块色（概览趋势/统计/徽标）
+  moduleBookmark: string
+  moduleNote: string
+  moduleFile: string
+  moduleVault: string
+  // 文件类型图标色
+  fileTypeImage: string
+  fileTypeDoc: string
+  fileTypeArchive: string
+  fileTypeAudio: string
   // 玻璃拟态体系（从密码库弹框提炼）
   glassBgSolid: string
   glassBgTrans: string
@@ -140,6 +156,19 @@ export const lightTokens: DesignTokens = {
   stateErrorSoft: 'rgba(232, 120, 120, 0.12)',
   gradientSuccess: 'linear-gradient(135deg, #7AC686, #059669)',
   shadowSuccess: '0 4px 14px -4px rgba(16, 185, 129, 0.5)',
+  danger: '#EF5B6B',
+  dangerSoft: 'rgba(245, 72, 92, 0.1)',
+  dangerText: '#FF8A97',
+  warningText: '#F0A13A',
+  successText: '#37C978',
+  moduleBookmark: '#7C5CFF',
+  moduleNote: '#2F9DF7',
+  moduleFile: '#0FBF8C',
+  moduleVault: '#F0A13A',
+  fileTypeImage: '#7EB8E8',
+  fileTypeDoc: '#F472B6',
+  fileTypeArchive: '#F3C470',
+  fileTypeAudio: '#7AC686',
   // 玻璃拟态（亮色：浅粉玻璃）
   glassBgSolid: '#FFFFFF',
   glassBgTrans: 'rgba(255, 255, 255, 0.72)',
@@ -229,6 +258,19 @@ export const darkTokens: DesignTokens = {
   stateErrorSoft: 'rgba(232, 120, 120, 0.14)',
   gradientSuccess: 'linear-gradient(135deg, #7AC686, #059669)',
   shadowSuccess: '0 4px 14px -4px rgba(16, 185, 129, 0.45)',
+  danger: '#EF5B6B',
+  dangerSoft: 'rgba(245, 72, 92, 0.14)',
+  dangerText: '#FF8A97',
+  warningText: '#F0A13A',
+  successText: '#37C978',
+  moduleBookmark: '#8B7CFF',
+  moduleNote: '#5AA9F7',
+  moduleFile: '#2FCFA3',
+  moduleVault: '#F0A13A',
+  fileTypeImage: '#7EB8E8',
+  fileTypeDoc: '#F472B6',
+  fileTypeArchive: '#F3C470',
+  fileTypeAudio: '#7AC686',
   // 玻璃拟态（暗色：深粉玻璃）
   glassBgSolid: '#1C1C1E',
   glassBgTrans: 'rgba(28, 28, 30, 0.72)',
@@ -311,10 +353,27 @@ export function tokensToCSSVars(tokens: DesignTokens): Record<string, string> {
     '--state-warning': tokens.stateWarning,
     '--state-error': tokens.stateError,
     '--state-info': tokens.stateInfo,
+    '--success': tokens.stateSuccess,
+    '--warning': tokens.stateWarning,
+    '--info': tokens.stateInfo,
+    '--error': tokens.stateError,
     '--state-warning-soft': tokens.stateWarningSoft,
     '--state-error-soft': tokens.stateErrorSoft,
     '--gradient-success': tokens.gradientSuccess,
     '--shadow-success': tokens.shadowSuccess,
+    '--danger': tokens.danger,
+    '--danger-soft': tokens.dangerSoft,
+    '--danger-text': tokens.dangerText,
+    '--warning-text': tokens.warningText,
+    '--success-text': tokens.successText,
+    '--module-bookmark': tokens.moduleBookmark,
+    '--module-note': tokens.moduleNote,
+    '--module-file': tokens.moduleFile,
+    '--module-vault': tokens.moduleVault,
+    '--file-type-image': tokens.fileTypeImage,
+    '--file-type-doc': tokens.fileTypeDoc,
+    '--file-type-archive': tokens.fileTypeArchive,
+    '--file-type-audio': tokens.fileTypeAudio,
     '--glass-bg-solid': tokens.glassBgSolid,
     '--glass-bg-trans': tokens.glassBgTrans,
     '--glass-border': tokens.glassBorder,

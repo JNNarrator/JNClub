@@ -129,7 +129,7 @@ onBeforeUnmount(() => {
           :percentage="progress"
           :show-indicator="false"
           :height="2"
-          color="#7c5cff"
+          color="var(--module-bookmark)"
           rail-color="transparent"
         />
       </div>

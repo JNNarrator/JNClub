@@ -7,13 +7,14 @@
  */
 import { ref, computed, watch, onMounted } from 'vue'
 import {
-  NButton, NIcon, NInput, NTag, NSpin, NEmpty, useMessage,
+  NButton, NIcon, NInput, NTag, NEmpty, useMessage,
   NModal, NSelect, NScrollbar, NBadge,
 } from 'naive-ui'
 import {
   Plus, Trash2, RefreshCw, CheckCheck, Star, Bookmark, Rss, ExternalLink, Clock,
 } from 'lucide-vue-next'
 import axios from 'axios'
+import JSkeletonList from '../../../shared/components/ui/JSkeletonList.vue'
 import { formatRelativeTime } from '../composables/formatDate'
 import { useDirectoryStore } from '../stores/directory'
 
@@ -294,7 +295,7 @@ const totalUnread = computed(() => feeds.value.reduce((s, f) => s + (f.unread ||
           </div>
         </div>
         <NScrollbar class="feed-scroll">
-          <div v-if="loadingFeeds && !feeds.length" class="col-state">加载中…</div>
+          <JSkeletonList v-if="loadingFeeds && !feeds.length" :count="4" />
           <NEmpty v-else-if="!feeds.length" description="还没有订阅源" class="col-empty" />
           <div
             v-for="f in feeds" :key="f.id"
@@ -330,7 +331,7 @@ const totalUnread = computed(() => feeds.value.reduce((s, f) => s + (f.unread ||
           <span class="col-title">{{ filter === 'starred' ? '星标' : filter === 'unread' ? '未读' : '全部条目' }}（{{ total }}）</span>
         </div>
         <NScrollbar class="item-scroll">
-          <div v-if="loadingItems" class="col-state"><NSpin size="small" /> 加载中…</div>
+          <JSkeletonList v-if="loadingItems" :count="5" />
           <NEmpty v-else-if="!items.length" description="暂无条目" class="col-empty" />
           <div
             v-for="it in items" :key="it.id"
@@ -518,7 +519,7 @@ const totalUnread = computed(() => feeds.value.reduce((s, f) => s + (f.unread ||
 .item-time { font-size: 10px; color: var(--text-3); }
 .item-author { font-size: 10px; color: var(--text-3); max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .item-star { margin-left: auto; color: var(--text-3); }
-.item-star.starred { color: #f0a13a; }
+.item-star.starred { color: var(--warning-text); }
 
 .read-head {
   padding: 16px 20px;

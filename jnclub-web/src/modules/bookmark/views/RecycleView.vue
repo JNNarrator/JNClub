@@ -6,11 +6,12 @@
  */
 import { ref, onMounted, watch } from 'vue'
 import {
-  NButton, NIcon, NSpin, NEmpty, NTabs, NTabPane, NModal, NInputNumber,
+  NButton, NIcon, NEmpty, NTabs, NTabPane, NModal, NInputNumber,
   useMessage, useDialog,
 } from 'naive-ui'
 import { Trash2, RotateCcw, Eraser, Clock, Settings2, Zap } from 'lucide-vue-next'
 import axios from 'axios'
+import JSkeletonList from '../../../shared/components/ui/JSkeletonList.vue'
 import { formatRelativeTime, formatDate } from '../composables/formatDate'
 
 const props = defineProps<{ refresh?: number }>()
@@ -228,36 +229,39 @@ onMounted(() => { fetchItems(); fetchConfig() })
       </NButton>
     </div>
 
-    <NSpin :show="loading" class="recycle-spin">
-      <NEmpty v-if="!loading && !items.length" description="回收站是空的" class="recycle-empty" />
-      <div v-else class="recycle-list">
-        <div v-for="item in items" :key="item.id" class="recycle-item">
-          <div class="item-main">
-            <div class="item-title">{{ itemTitle(item) }}</div>
-            <div class="item-sub">
-              <span v-if="itemSub(item)">{{ itemSub(item) }}</span>
-              <span class="item-time">
-                <NIcon :component="Clock" size="12" />
-                {{ formatRelativeTime(item.createTime) }}
-              </span>
-              <span v-if="expiresAt(item)" class="item-expire" :class="{ expired: isExpired(item) }">
-                {{ isExpired(item) ? '已到期可清' : '保留至 ' + formatDate(String(expiresAt(item)!.getTime())) }}
-              </span>
+    <div class="recycle-spin">
+      <JSkeletonList v-if="loading" />
+      <template v-else>
+        <NEmpty v-if="!items.length" description="回收站是空的" class="recycle-empty" />
+        <div v-else class="recycle-list">
+          <div v-for="item in items" :key="item.id" class="recycle-item">
+            <div class="item-main">
+              <div class="item-title">{{ itemTitle(item) }}</div>
+              <div class="item-sub">
+                <span v-if="itemSub(item)">{{ itemSub(item) }}</span>
+                <span class="item-time">
+                  <NIcon :component="Clock" size="12" />
+                  {{ formatRelativeTime(item.createTime) }}
+                </span>
+                <span v-if="expiresAt(item)" class="item-expire" :class="{ expired: isExpired(item) }">
+                  {{ isExpired(item) ? '已到期可清' : '保留至 ' + formatDate(String(expiresAt(item)!.getTime())) }}
+                </span>
+              </div>
+            </div>
+            <div class="item-actions">
+              <NButton size="tiny" class="glass-primary-btn restore-btn" @click="restore(item)">
+                <template #icon><NIcon :component="RotateCcw" size="13" /></template>
+                恢复
+              </NButton>
+              <NButton size="tiny" class="recycle-danger-btn" @click="purge(item)">
+                <template #icon><NIcon :component="Trash2" size="13" /></template>
+                永久删除
+              </NButton>
             </div>
           </div>
-          <div class="item-actions">
-            <NButton size="tiny" class="glass-primary-btn restore-btn" @click="restore(item)">
-              <template #icon><NIcon :component="RotateCcw" size="13" /></template>
-              恢复
-            </NButton>
-            <NButton size="tiny" class="recycle-danger-btn" @click="purge(item)">
-              <template #icon><NIcon :component="Trash2" size="13" /></template>
-              永久删除
-            </NButton>
-          </div>
         </div>
-      </div>
-    </NSpin>
+      </template>
+    </div>
 
     <!-- 自动清理设置弹窗 -->
     <NModal v-model:show="showConfigModal" preset="card" title="回收站自动清理设置" style="width: 380px" :bordered="false">
@@ -301,8 +305,8 @@ onMounted(() => { fetchItems(); fetchConfig() })
 }
 .clean-now {
   background: var(--glass-bg-trans) !important;
-  border: 1px solid rgba(245, 72, 92, 0.4) !important;
-  color: #ff8a97 !important;
+  border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent) !important;
+  color: var(--danger-text) !important;
 }
 .config-tip {
   font-size: var(--fs-sm);
@@ -327,7 +331,7 @@ onMounted(() => { fetchItems(); fetchConfig() })
   color: var(--glass-text-tertiary);
 }
 .item-expire.expired {
-  color: #ff8a97;
+  color: var(--danger-text);
   font-weight: 500;
 }
 
@@ -352,13 +356,13 @@ onMounted(() => { fetchItems(); fetchConfig() })
 .recycle-clear-btn {
   border-radius: var(--radius-pill) !important;
   background: transparent !important;
-  border: 1px solid rgba(245, 72, 92, 0.4) !important;
-  color: #ff8a97 !important;
+  border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent) !important;
+  color: var(--danger-text) !important;
   font-weight: 500;
   transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease), opacity var(--dur) var(--ease);
 }
 .recycle-clear-btn:hover {
-  background: rgba(245, 72, 92, 0.16) !important;
+  background: color-mix(in srgb, var(--danger) 16%, transparent) !important;
   border-color: var(--danger) !important;
 }
 .recycle-clear-btn[disabled] {
@@ -438,13 +442,13 @@ onMounted(() => { fetchItems(); fetchConfig() })
   background: var(--glass-bg-trans) !important;
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid rgba(245, 72, 92, 0.4) !important;
-  color: #ff8a97 !important;
+  border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent) !important;
+  color: var(--danger-text) !important;
   font-weight: 500;
   transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease), opacity var(--dur) var(--ease);
 }
 .recycle-danger-btn:hover {
-  background: rgba(245, 72, 92, 0.16) !important;
+  background: color-mix(in srgb, var(--danger) 16%, transparent) !important;
   border-color: var(--danger) !important;
 }
 .recycle-danger-btn[disabled] {

@@ -82,7 +82,10 @@ const isActive = (tab: NavDef) => {
   z-index: 100;
   display: flex;
   align-items: center;
-  justify-content: space-around;
+  justify-content: flex-start;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
   background: var(--glass-bg-trans);
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
@@ -91,9 +94,12 @@ const isActive = (tab: NavDef) => {
   padding-bottom: env(safe-area-inset-bottom);
   height: calc(56px + env(safe-area-inset-bottom));
 }
+.mobile-tabbar::-webkit-scrollbar {
+  display: none;
+}
 
 .tab-item {
-  flex: 1;
+  flex: 0 0 64px;
   display: flex;
   flex-direction: column;
   align-items: center;

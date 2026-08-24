@@ -7,10 +7,12 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import {
   NInput, NSelect, NButton, NIcon, NCheckbox, useMessage, NPopconfirm,
-  NTag, NEmpty, NSpin, NModal, NDatePicker,
+  NTag, NEmpty, NModal, NDatePicker,
 } from 'naive-ui'
 import { Plus, Trash2, Pencil, Calendar, Bell } from 'lucide-vue-next'
 import axios from 'axios'
+import JSkeletonList from '../../../shared/components/ui/JSkeletonList.vue'
+import JFilterBar from '../../../shared/components/ui/JFilterBar.vue'
 
 interface Todo {
   id: number
@@ -288,54 +290,56 @@ const emptyText = computed(() => {
     </div>
 
     <!-- 筛选 -->
-    <div class="filter-bar">
-      <button
-        v-for="f in filterOptions" :key="f.value"
-        :class="['filter-chip', 'jnclub-bouncy', { 'filter-chip-active': filter === f.value }]"
-        @click="filter = f.value; fetchTodos()"
-      >{{ f.label }}</button>
-    </div>
+    <JFilterBar
+      class="filter-bar"
+      :items="filterOptions.map(f => ({ label: f.label, value: f.value }))"
+      :model-value="filter"
+      @select="(v: string | number | null) => { filter = (v ?? 'all') as typeof filter; fetchTodos() }"
+    />
 
     <!-- 列表 -->
-    <NSpin :show="loading" class="todo-spin">
-      <div v-if="!todos.length && !loading" class="todo-empty">
-        <NEmpty :description="emptyText" class="todo-empty-inner" />
-      </div>
-      <div v-else class="todo-list">
-        <div
-          v-for="t in todos" :key="t.id"
-          :class="['todo-item', 'jnclub-bouncy', { 'todo-done': t.completed === 1, 'todo-overdue': isOverdue(t) }]"
-        >
-          <NCheckbox :checked="t.completed === 1" class="todo-check" @update:checked="() => toggleComplete(t)" />
-          <div class="todo-main">
-            <div class="todo-title-row">
-              <span class="todo-title">{{ t.title }}</span>
-              <NTag size="tiny" round :bordered="false" :type="PRIORITY_META[t.priority ?? 1]?.type || 'default'" class="todo-priority">
-                {{ PRIORITY_META[t.priority ?? 1]?.label || '中' }}
-              </NTag>
-              <span v-if="t.dueDate" :class="['todo-due', { 'due-overdue': isOverdue(t), 'due-today': isToday(t) }]">
-                <NIcon :component="Calendar" size="12" />
-                {{ fmtDue(t.dueDate) }}{{ isOverdue(t) ? ' · 已逾期' : isToday(t) ? ' · 今天' : '' }}
-              </span>
+    <div class="todo-spin">
+      <JSkeletonList v-if="loading" />
+      <template v-else>
+        <div v-if="!todos.length" class="todo-empty">
+          <NEmpty :description="emptyText" class="todo-empty-inner" />
+        </div>
+        <div v-else class="todo-list">
+          <div
+            v-for="t in todos" :key="t.id"
+            :class="['todo-item', 'jnclub-bouncy', { 'todo-done': t.completed === 1, 'todo-overdue': isOverdue(t) }]"
+          >
+            <NCheckbox :checked="t.completed === 1" class="todo-check" @update:checked="() => toggleComplete(t)" />
+            <div class="todo-main">
+              <div class="todo-title-row">
+                <span class="todo-title">{{ t.title }}</span>
+                <NTag size="tiny" round :bordered="false" :type="PRIORITY_META[t.priority ?? 1]?.type || 'default'" class="todo-priority">
+                  {{ PRIORITY_META[t.priority ?? 1]?.label || '中' }}
+                </NTag>
+                <span v-if="t.dueDate" :class="['todo-due', { 'due-overdue': isOverdue(t), 'due-today': isToday(t) }]">
+                  <NIcon :component="Calendar" size="12" />
+                  {{ fmtDue(t.dueDate) }}{{ isOverdue(t) ? ' · 已逾期' : isToday(t) ? ' · 今天' : '' }}
+                </span>
+              </div>
+              <div v-if="t.note" class="todo-note">{{ t.note }}</div>
             </div>
-            <div v-if="t.note" class="todo-note">{{ t.note }}</div>
-          </div>
-          <div class="todo-actions">
-            <NButton quaternary circle size="small" title="编辑" @click="openEdit(t)">
-              <template #icon><NIcon :component="Pencil" size="14" /></template>
-            </NButton>
-            <NPopconfirm @positive-click="removeTodo(t)">
-              <template #trigger>
-                <NButton quaternary circle size="small" title="删除" class="todo-del-btn">
-                  <template #icon><NIcon :component="Trash2" size="14" /></template>
-                </NButton>
-              </template>
-              确定删除这条待办？
-            </NPopconfirm>
+            <div class="todo-actions">
+              <NButton quaternary circle size="small" title="编辑" @click="openEdit(t)">
+                <template #icon><NIcon :component="Pencil" size="14" /></template>
+              </NButton>
+              <NPopconfirm @positive-click="removeTodo(t)">
+                <template #trigger>
+                  <NButton quaternary circle size="small" title="删除" class="todo-del-btn">
+                    <template #icon><NIcon :component="Trash2" size="14" /></template>
+                  </NButton>
+                </template>
+                确定删除这条待办？
+              </NPopconfirm>
+            </div>
           </div>
         </div>
-      </div>
-    </NSpin>
+      </template>
+    </div>
 
     <!-- 编辑弹窗 -->
     <NModal
@@ -406,8 +410,8 @@ const emptyText = computed(() => {
   font-weight: 800;
   color: var(--text-1);
 }
-.todo-stat.stat-warn b { color: #f0a13a; }
-.todo-stat.stat-danger b { color: #ef5b6b; }
+.todo-stat.stat-warn b { color: var(--warning-text); }
+.todo-stat.stat-danger b { color: var(--danger); }
 .stat-spacer { flex: 1; }
 .notify-btn { color: var(--text-2); }
 
@@ -472,7 +476,7 @@ const emptyText = computed(() => {
   transition: border-color var(--dur) var(--ease), opacity var(--dur) var(--ease);
 }
 .todo-item:hover { border-color: var(--brand); }
-.todo-item.todo-overdue { border-left: 3px solid #ef5b6b; }
+.todo-item.todo-overdue { border-left: 3px solid var(--danger); }
 .todo-item.todo-done { opacity: 0.55; }
 .todo-check { margin-top: 2px; }
 .todo-main {
@@ -506,8 +510,8 @@ const emptyText = computed(() => {
   color: var(--text-3);
   flex-shrink: 0;
 }
-.todo-due.due-overdue { color: #ef5b6b; }
-.todo-due.due-today { color: #f0a13a; }
+.todo-due.due-overdue { color: var(--danger); }
+.todo-due.due-today { color: var(--warning-text); }
 .todo-note {
   font-size: var(--fs-sm);
   color: var(--text-2);
@@ -527,7 +531,7 @@ const emptyText = computed(() => {
 }
 .todo-item:hover .todo-actions { opacity: 1; }
 .todo-del-btn { color: var(--text-3); }
-.todo-del-btn:hover { color: #ef5b6b; }
+.todo-del-btn:hover { color: var(--danger); }
 
 /* 编辑弹窗 */
 .edit-form { display: flex; flex-direction: column; gap: 12px; }

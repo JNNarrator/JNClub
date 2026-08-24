@@ -1,35 +1,38 @@
 <script setup lang="ts">
-import { ref, h, onMounted, watch, computed, nextTick, onBeforeUnmount } from 'vue'
+import { ref, onMounted, watch, computed, nextTick, onBeforeUnmount } from 'vue'
 import {
-  NButton, NIcon, NSpin, NBreadcrumb, NBreadcrumbItem,
+  NButton, NIcon, NSpin,
   NModal, NForm, NFormItem, NInput, NSpace, NSelect, NAvatar,
-  NDrawer, NDrawerContent, NDropdown,
+  NDrawer, NDrawerContent,
   useMessage, useDialog,
 } from 'naive-ui'
-import { Plus, FolderOpen, Link, Globe, RefreshCw, UploadCloud, Tag, Search, Download, Sun, Moon, CircleUser, LogOut, CheckSquare, FolderInput, Tags, Trash2, X, Archive, ShieldAlert } from 'lucide-vue-next'
+import { FolderOpen, Link, Globe, Tag } from 'lucide-vue-next'
 import { useRouter, useRoute, type RouteLocationRaw } from 'vue-router'
 import { useDirectoryStore } from '../stores/directory'
 import { useBookmarkStore } from '../stores/bookmark'
 import { useNoteStore } from '../stores/note'
 import { useCloudDiskStore } from '../stores/clouddisk'
 import { useVaultStore } from '../stores/vault'
-import { useUserStore } from '../../../shared/stores/user'
 import type { Note } from '../stores/note'
 import FolderPanel from '../components/FolderPanel.vue'
 import CollectionGrid from '../components/CollectionGrid.vue'
 import CollectionList from '../components/CollectionList.vue'
-import EmptyState from '../components/EmptyState.vue'
+import JEmptyState from '../../../shared/components/ui/JEmptyState.vue'
 import NoteGrid from '../components/NoteGrid.vue'
 import NoteList from '../components/NoteList.vue'
 import DiskView from '../components/DiskView.vue'
 import VaultView from '../components/VaultView.vue'
 import DeadLinkModal from '../components/DeadLinkModal.vue'
 import ReadingModal from '../components/ReadingModal.vue'
-import ViewSwitcher from '../components/ViewSwitcher.vue'
+import ModuleToolbar from '../components/ModuleToolbar.vue'
 import TagPicker from '../components/TagPicker.vue'
 import SearchDrawer from '../components/SearchDrawer.vue'
+import JSkeletonGrid from '../../../shared/components/ui/JSkeletonGrid.vue'
+import JSkeletonList from '../../../shared/components/ui/JSkeletonList.vue'
+import JFilterBar from '../../../shared/components/ui/JFilterBar.vue'
+import JBatchBar from '../../../shared/components/ui/JBatchBar.vue'
 import ContextMenuHost from '../../../shared/components/ContextMenuHost.vue'
-import { openMenu } from '../../../shared/composables/useContextMenu'
+import AppHeader from '../../../shared/layout/AppHeader.vue'
 import type { ViewMode } from '../components/ViewSwitcher.vue'
 import axios from 'axios'
 import { useUserPreferences } from '../../../shared/composables/useUserPreferences'
@@ -45,54 +48,8 @@ const bookmarkStore = useBookmarkStore()
 const noteStore = useNoteStore()
 const cloudDiskStore = useCloudDiskStore()
 const vaultStore = useVaultStore()
-const userStore = useUserStore()
 const message = useMessage()
 const dialog = useDialog()
-
-/** 顶栏用户下拉（自 SideNav 迁移）：用户信息 / 退出登录 */
-const userDropdownOptions = [
-  { label: '用户信息', key: 'profile', icon: () => h(NIcon, null, { default: () => h(CircleUser) }) },
-  { label: '退出登录', key: 'logout', icon: () => h(NIcon, null, { default: () => h(LogOut) }) },
-]
-const showProfileModal = ref(false)
-const roleLabel = computed(() => userStore.userinfo?.role === 'admin' ? '管理员' : '用户')
-
-const handleUserDropdown = (key: string) => {
-  if (key === 'logout') {
-    dialog.warning({
-      title: '确认退出',
-      content: '确定要退出登录吗？',
-      positiveText: '确定',
-      negativeText: '取消',
-      onPositiveClick: async () => {
-        try {
-          const res = await axios.post('/api/auth/logout')
-          const ssoLogoutUrl = res.data?.data?.ssoLogoutUrl
-          const redirectUrl = res.data?.data?.redirectUrl
-          if (ssoLogoutUrl) {
-            try {
-              await axios.post(ssoLogoutUrl, null, { params: { redirect: redirectUrl ?? '' }, timeout: 5000 })
-            } catch { /* 忽略 */ }
-            window.location.href = redirectUrl || '/sso/login'
-            return
-          }
-        } catch { /* 忽略 */ }
-        delete axios.defaults.headers.common['jn-token']
-        localStorage.removeItem('jn-token')
-        window.location.href = '/sso/login'
-      },
-    })
-  } else if (key === 'profile') {
-    showProfileModal.value = true
-  }
-}
-
-const goSsoProfile = () => {
-  const url = userStore.userinfo?.ssoProfileUrl
-  if (url) {
-    window.open(url, '_blank', 'noopener,noreferrer')
-  }
-}
 
 const props = defineProps<{
   activeModule: 'bookmarks' | 'notes' | 'files' | 'vault'
@@ -271,6 +228,7 @@ const finishBatch = () => {
 
 const selectedDirectoryId = ref<number | null>(null)
 const loading = ref(false)
+const loadError = ref(false)
 /** 视图模式：按模块记忆（后端偏好），便签默认极简 list、收藏夹默认卡片 grid */
 const viewMode = ref<ViewMode>(prefs.get(`view.${props.activeModule}`, props.activeModule === 'notes' ? 'list' : 'grid'))
 
@@ -465,6 +423,12 @@ watch(() => route.query.dir, async (dir) => {
   }
 })
 
+/** 顶栏面包屑点击 JNClub/模块名：回到根目录并退出多选 */
+const handleBreadcrumbRoot = () => {
+  selectedDirectoryId.value = null
+  toggleBatchMode(false)
+}
+
 const handleDirectorySelect = async (id: number) => {
   selectedDirectoryId.value = id
   prefs.set(dirPrefKey(), id)
@@ -475,6 +439,7 @@ const handleDirectorySelect = async (id: number) => {
 const loadData = async () => {
   if (!selectedDirectoryId.value && !notesArchived.value) return
   loading.value = true
+  loadError.value = false
   try {
     if (props.activeModule === 'bookmarks') {
       await bookmarkStore.fetchBookmarks(selectedDirectoryId.value!, activeTagId.value)
@@ -485,11 +450,13 @@ const loadData = async () => {
     } else {
       await vaultStore.fetchItems(selectedDirectoryId.value!)
     }
+  } catch {
+    loadError.value = true
   } finally { loading.value = false }
 }
 
-const handleTagFilter = (tagId: number | null) => {
-  activeTagId.value = tagId
+const handleTagFilter = (tagId: string | number | null) => {
+  activeTagId.value = tagId === null ? null : Number(tagId)
   loadData()
 }
 
@@ -712,67 +679,21 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
     <div class="ambient-texture"></div>
 
     <!-- 毛玻璃顶栏 -->
-    <header class="home-header glass-header">
-      <div class="header-left">
-        <!-- 移动端：目录抽屉入口 -->
-        <NButton
-          v-if="isMobile"
-          quaternary circle size="small"
-          class="mobile-dir-btn jnclub-bouncy"
-          title="目录"
-          @click="showDirDrawer = true"
-        >
-          <template #icon><NIcon :component="FolderOpen" size="18" /></template>
-        </NButton>
-        <NBreadcrumb class="jnclub-breadcrumb">
-          <NBreadcrumbItem @click="selectedDirectoryId = null">JNClub</NBreadcrumbItem>
-          <NBreadcrumbItem @click="selectedDirectoryId = null">
-            {{ props.activeModule === 'bookmarks' ? '收藏夹' : props.activeModule === 'notes' ? '便签' : props.activeModule === 'files' ? '云盘' : '密码库' }}
-          </NBreadcrumbItem>
-          <NBreadcrumbItem v-if="currentDirName !== '全部'" class="breadcrumb-current">
-            {{ currentDirName }}
-          </NBreadcrumbItem>
-        </NBreadcrumb>
-      </div>
-
-      <div class="header-right">
-        <NButton quaternary circle size="small" class="refresh-btn" @click="showSearch = true" title="搜索 (Ctrl/⌘+K)">
-          <template #icon><NIcon :component="Search" size="16" /></template>
-        </NButton>
-        <NButton
-          v-if="props.activeModule === 'bookmarks' || props.activeModule === 'notes'"
-          quaternary circle size="small"
-          class="refresh-btn"
-          :type="batchMode ? 'primary' : 'default'"
-          :title="batchMode ? '退出多选' : '多选'"
-          @click="toggleBatchMode(!batchMode)"
-        >
-          <template #icon><NIcon :component="CheckSquare" size="16" /></template>
-        </NButton>
-        <ViewSwitcher v-if="props.activeModule === 'bookmarks' || props.activeModule === 'notes'" v-model="viewMode" />
-        <NButton quaternary circle size="small" @click="handleRefresh" class="refresh-btn jnclub-bouncy" title="刷新">
-          <template #icon><NIcon :component="RefreshCw" size="16" /></template>
-        </NButton>
-
-        <!-- 暗色模式开关（自侧栏移入） -->
-        <button type="button" class="theme-toggle-btn jnclub-bouncy" @click="emit('toggle-theme')" title="切换暗色模式">
-          <NIcon :component="props.isDark ? Sun : Moon" size="16" />
-        </button>
-
-        <!-- 头像 + 名称下拉（自侧栏移入） -->
-        <NDropdown :options="userDropdownOptions" @select="handleUserDropdown" placement="bottom-end" trigger="click">
-          <div class="user-row jnclub-bouncy" @contextmenu.prevent="openMenu($event, userDropdownOptions, handleUserDropdown)">
-            <NAvatar round size="small" :src="userStore.userinfo?.avatar" class="user-avatar">
-              <template v-if="!userStore.userinfo?.avatar">
-                {{ userStore.userinfo?.nickname?.charAt(0) || 'U' }}
-              </template>
-            </NAvatar>
-            <span class="user-name">{{ userStore.userinfo?.nickname || '用户' }}</span>
-            <span class="user-role">{{ roleLabel }}</span>
-          </div>
-        </NDropdown>
-      </div>
-    </header>
+    <AppHeader
+      :is-dark="props.isDark"
+      :active-module="props.activeModule"
+      :is-mobile="isMobile"
+      :batch-mode="batchMode"
+      :view-mode="viewMode"
+      :breadcrumb-current="currentDirName"
+      @toggle-theme="emit('toggle-theme')"
+      @open-search="showSearch = true"
+      @update:batch-mode="toggleBatchMode"
+      @update:view-mode="(v: ViewMode) => viewMode = v"
+      @refresh="handleRefresh"
+      @open-dir-drawer="showDirDrawer = true"
+      @breadcrumb-root="handleBreadcrumbRoot"
+    />
 
     <!-- 主体 -->
     <div class="content-area">
@@ -793,65 +714,19 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
 
       <div class="collection-column">
         <!-- 模块内部工具栏（模块特定操作归这里，顶栏只留通用能力） -->
-        <div class="module-toolbar fade-in-up">
-          <NButton
-            v-if="props.activeModule === 'bookmarks'"
-            class="btn-new jnclub-bouncy-slow"
-            @click="handleOpenCreate"
-          >
-            <template #icon><NIcon :component="Plus" /></template>
-            新建收藏
-          </NButton>
-          <NButton
-            v-if="props.activeModule === 'bookmarks'"
-            size="small"
-            class="io-export-btn jnclub-bouncy"
-            :disabled="!bookmarkStore.bookmarks.length"
-            title="检测全部收藏链接是否失效（死链检测）"
-            @click="showDeadLink = true"
-          >
-            <template #icon><NIcon :component="ShieldAlert" size="15" /></template>
-            检测失效
-          </NButton>
-          <NButton
-            v-if="props.activeModule === 'notes'"
-            class="btn-new jnclub-bouncy-slow"
-            @click="handleCreateNote"
-          >
-            <template #icon><NIcon :component="Plus" /></template>
-            新建便签
-          </NButton>
-          <NButton
-            v-if="props.activeModule === 'notes'"
-            size="small"
-            class="io-export-btn jnclub-bouncy"
-            :disabled="!noteStore.notes.length"
-            title="导出当前目录全部便签为 .md（图片内嵌 base64）"
-            @click="handleExportAllNotes"
-          >
-            <template #icon><NIcon :component="Download" size="15" /></template>
-            导出全部
-          </NButton>
-          <NButton
-            v-if="props.activeModule === 'notes'"
-            size="small"
-            :class="['archived-toggle', notesArchived ? 'archived-active' : '']"
-            :title="notesArchived ? '返回正常便签' : '查看已归档便签'"
-            @click="notesArchived = !notesArchived; loadData()"
-          >
-            <template #icon><NIcon :component="Archive" size="15" /></template>
-            {{ notesArchived ? '返回' : '归档' }}
-          </NButton>
-          <NButton
-            v-if="props.activeModule === 'files'"
-            class="btn-new jnclub-bouncy-slow"
-            :disabled="!selectedDirectoryId"
-            @click="handleFilesUpload"
-          >
-            <template #icon><NIcon :component="UploadCloud" /></template>
-            上传文件
-          </NButton>
-        </div>
+        <ModuleToolbar
+          :active-module="props.activeModule"
+          :bookmark-count="bookmarkStore.bookmarks.length"
+          :note-count="noteStore.notes.length"
+          :notes-archived="notesArchived"
+          :can-upload="!!selectedDirectoryId"
+          @create-bookmark="handleOpenCreate"
+          @check-dead="showDeadLink = true"
+          @create-note="handleCreateNote"
+          @export-notes="handleExportAllNotes"
+          @toggle-archived="notesArchived = !notesArchived; loadData()"
+          @upload-file="handleFilesUpload"
+        />
 
         <!-- 目录 Chip 快速切换 -->
         <div class="chip-bar fade-in-up">
@@ -870,25 +745,30 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
         </div>
 
         <!-- 标签筛选条（收藏/便签模块） -->
-        <div v-if="props.activeModule !== 'files' && availableTags.length" class="tag-bar">
-          <button
-            :class="['tag-chip', 'jnclub-bouncy', { 'tag-chip-active': activeTagId === null }]"
-            @click="handleTagFilter(null)"
-          >全部</button>
-          <button
-            v-for="t in availableTags"
-            :key="t.id"
-            :class="['tag-chip', 'jnclub-bouncy', { 'tag-chip-active': activeTagId === t.id }]"
-            @click="handleTagFilter(t.id)"
-          >
-            <NIcon :component="Tag" size="13" />
-            {{ t.name }}
-            <span v-if="t.count" class="tag-count">{{ t.count }}</span>
-          </button>
-        </div>
+        <JFilterBar
+          v-if="props.activeModule !== 'files' && availableTags.length"
+          class="tag-bar"
+          :items="availableTags.map(t => ({ label: t.name, value: t.id, count: t.count, icon: Tag }))"
+          :model-value="activeTagId"
+          all-label="全部"
+          @select="handleTagFilter"
+        />
 
-        <NSpin :show="loading" class="spin-area">
-          <Transition name="module-fade" mode="out-in">
+        <div class="spin-area">
+          <JSkeletonGrid
+            v-if="loading && (props.activeModule === 'bookmarks' || props.activeModule === 'notes') && viewMode === 'grid'"
+          />
+          <JSkeletonList
+            v-else-if="loading && ((props.activeModule === 'bookmarks' || props.activeModule === 'notes') && viewMode === 'list' || props.activeModule === 'files' || props.activeModule === 'vault')"
+          />
+          <JEmptyState
+            v-else-if="loadError"
+            message="加载失败"
+            hint="请检查网络后重试"
+            cta-label="重试"
+            @create="handleRefresh"
+          />
+          <Transition v-else name="module-fade" mode="out-in">
             <div :key="contentKey" class="module-content">
           <!-- 收藏卡片网格 -->
           <CollectionGrid
@@ -905,7 +785,7 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
             @refresh="loadData" @edit="handleEditBookmark" @read="handleReadBookmark" @sort="handleSort"
           />
           <!-- 收藏空状态 -->
-          <EmptyState
+          <JEmptyState
             v-else-if="props.activeModule === 'bookmarks' && !loading"
             icon="bookmark"
             :message="emptyMessage"
@@ -931,7 +811,7 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
             @refresh="loadData" @sort="handleSort"
           />
           <!-- 便签空状态 -->
-          <EmptyState
+          <JEmptyState
             v-else-if="props.activeModule === 'notes' && !loading"
             icon="note"
             :message="emptyMessage"
@@ -958,33 +838,20 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
           />
             </div>
           </Transition>
-        </NSpin>
+        </div>
 
         <!-- 批量操作条（收藏/便签） -->
-        <Transition name="batch-up">
-          <div v-if="batchMode && selectedIds.length" class="batch-bar">
-            <span class="batch-info">已选 {{ selectedIds.length }} 项</span>
-            <NButton size="small" quaternary @click="toggleAll">
-              {{ allSelected ? '取消全选' : '全选' }}
-            </NButton>
-            <NButton v-if="props.activeModule === 'bookmarks'" size="small" type="primary" secondary @click="openBatchTags">
-              <template #icon><NIcon :component="Tags" size="14" /></template>
-              打标签
-            </NButton>
-            <NButton size="small" type="primary" secondary @click="openBatchMove">
-              <template #icon><NIcon :component="FolderInput" size="14" /></template>
-              移动到
-            </NButton>
-            <NButton size="small" type="error" secondary @click="handleBatchDelete">
-              <template #icon><NIcon :component="Trash2" size="14" /></template>
-              删除
-            </NButton>
-            <NButton size="small" quaternary @click="toggleBatchMode(false)">
-              <template #icon><NIcon :component="X" size="14" /></template>
-              取消
-            </NButton>
-          </div>
-        </Transition>
+        <JBatchBar
+          v-if="batchMode && selectedIds.length"
+          :selected-count="selectedIds.length"
+          :all-selected="allSelected"
+          :show-tag="props.activeModule === 'bookmarks'"
+          @toggle-all="toggleAll"
+          @tag="openBatchTags"
+          @move="openBatchMove"
+          @delete="handleBatchDelete"
+          @cancel="toggleBatchMode(false)"
+        />
       </div>
     </div>
 
@@ -1011,35 +878,6 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
       <template #action>
         <NButton @click="showBatchTags = false">取消</NButton>
         <NButton type="primary" @click="submitBatchTags">确定</NButton>
-      </template>
-    </NModal>
-
-    <!-- 用户信息弹窗 -->
-    <NModal v-model:show="showProfileModal" preset="dialog" title="用户信息">
-      <div class="profile-content">
-        <div class="profile-avatar">
-          <NAvatar round :size="64" :src="userStore.userinfo?.avatar" class="profile-avatar-large">
-            <template v-if="!userStore.userinfo?.avatar">
-              {{ userStore.userinfo?.nickname?.charAt(0) || 'U' }}
-            </template>
-          </NAvatar>
-          <div class="profile-name">{{ userStore.userinfo?.nickname || '用户' }}</div>
-        </div>
-        <div class="profile-detail">
-          <div class="detail-row">邮箱：{{ userStore.userinfo?.email || userStore.userinfo?.username || '--' }}</div>
-          <div class="detail-row" v-if="userStore.userinfo?.ssoProfileUrl">
-            <NButton type="primary" block @click="goSsoProfile">
-              <template #icon><NIcon :component="CircleUser" /></template>
-              前往 SSO 修改资料
-            </NButton>
-          </div>
-        </div>
-      </div>
-      <template #action>
-        <NButton type="error" @click="handleUserDropdown('logout')">
-          <template #icon><NIcon :component="LogOut" /></template>
-          退出登录
-        </NButton>
       </template>
     </NModal>
 
@@ -1122,79 +960,6 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
   z-index: 1;
 }
 
-/* === 顶栏：毛玻璃 === */
-.home-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 24px;
-  height: 60px;
-  flex-shrink: 0;
-  border-bottom: 1px solid var(--border);
-  gap: 16px;
-}
-.header-left {
-  flex: 1;
-  min-width: 0;
-}
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-shrink: 0;
-}
-
-.jnclub-breadcrumb :deep(.n-breadcrumb-item__link) {
-  cursor: pointer;
-  font-size: var(--fs-md);
-}
-.breadcrumb-current :deep(.n-breadcrumb-item__link) {
-  font-weight: 600;
-  color: var(--text-1);
-}
-
-.refresh-btn {
-  color: var(--text-2);
-}
-.refresh-btn:hover {
-  color: var(--text-1);
-  background: var(--hover-bg);
-}
-
-/* 导出全部（玻璃小按钮） */
-.io-export-btn {
-  border-radius: var(--radius-pill) !important;
-  background: var(--glass-bg-trans) !important;
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid var(--glass-border) !important;
-  color: var(--text-2) !important;
-}
-.io-export-btn:hover {
-  color: var(--brand) !important;
-  border-color: var(--brand) !important;
-}
-.io-export-btn[disabled] {
-  opacity: 0.45;
-}
-
-/* 归档视图切换 */
-.archived-toggle {
-  border-radius: var(--radius-pill) !important;
-  background: var(--glass-bg-trans) !important;
-  border: 1px solid var(--glass-border) !important;
-  color: var(--text-2) !important;
-}
-.archived-toggle:hover {
-  color: var(--brand) !important;
-  border-color: var(--brand) !important;
-}
-.archived-toggle.archived-active {
-  color: var(--brand) !important;
-  border-color: var(--brand) !important;
-  background: var(--brand-soft) !important;
-}
-
 /* === 主体 === */
 .content-area {
   flex: 1;
@@ -1238,65 +1003,6 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
   box-shadow: var(--shadow-1);
   /* 隔离渲染边界，避免 backdrop-filter 影响兄弟元素合成 */
   contain: paint layout style;
-}
-
-/* 模块内部工具栏（各模块特定操作，滚动区顶部） */
-.module-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-bottom: 14px;
-}
-
-/* 顶栏暗色模式开关（自侧栏移入） */
-.theme-toggle-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  background: transparent;
-  border: none;
-  border-radius: 50%;
-  cursor: pointer;
-  color: var(--text-2);
-}
-.theme-toggle-btn:hover {
-  background: var(--hover-bg);
-  color: var(--text-1);
-}
-
-/* 顶栏用户行（头像 + 名称 + 角色） */
-.user-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  padding: 4px 10px 4px 6px;
-  border-radius: var(--radius-pill);
-  transition: background var(--dur) var(--ease);
-}
-.user-row:hover {
-  background: var(--hover-bg);
-}
-.user-avatar {
-  background: var(--pink-cherry) !important;
-  color: var(--brand) !important;
-  flex-shrink: 0;
-}
-.user-name {
-  font-size: var(--fs-md);
-  font-weight: 500;
-  color: var(--text-1);
-  max-width: 120px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.user-role {
-  font-size: var(--fs-xs);
-  color: var(--text-3);
 }
 
 .collection-column {
@@ -1412,11 +1118,6 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
 
 /* === 移动端适配（<768px） === */
 @media (max-width: 767px) {
-  .home-header {
-    padding: 0 12px;
-    gap: 8px;
-    height: 52px;
-  }
   /* 侧栏目录树在窄屏隐藏，靠顶栏目录按钮唤起抽屉 */
   .folder-column {
     display: none;
@@ -1424,33 +1125,6 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
   .content-area {
     padding: 12px;
     gap: 12px;
-  }
-  .header-right {
-    gap: 6px;
-  }
-  /* 顶栏按钮加大触控目标（≥44px），新建按钮窄屏只留图标（隐藏文字） */
-  .header-right :deep(.n-button) {
-    min-width: 40px;
-    height: 40px;
-  }
-  .header-right :deep(.n-button) span {
-    display: none;
-  }
-  .mobile-dir-btn {
-    margin-right: 2px;
-    color: var(--text-2);
-  }
-  .mobile-dir-btn:hover {
-    color: var(--text-1);
-    background: var(--hover-bg);
-  }
-  /* 面包屑收窄 */
-  .jnclub-breadcrumb :deep(.n-breadcrumb-item__link) {
-    font-size: var(--fs-sm);
-    max-width: 90px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
   .chip-bar {
     margin-bottom: 12px;
@@ -1473,72 +1147,5 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
   .collection-column {
     padding-bottom: 12px;
   }
-}
-/* 用户信息弹窗 */
-.profile-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 20px;
-  padding: 16px 0;
-}
-.profile-avatar {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-}
-.profile-avatar-large {
-  background: var(--pink-cherry) !important;
-  color: var(--brand) !important;
-  font-size: 28px;
-  font-weight: 700;
-}
-.profile-name {
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--text-1);
-}
-.profile-detail {
-  width: 100%;
-}
-.detail-row {
-  color: var(--text-2);
-  font-size: var(--fs-base);
-  line-height: 2;
-}
-/* 批量操作条（收藏/便签） */
-.batch-bar {
-  position: sticky;
-  bottom: 12px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 14px;
-  padding: 10px 16px;
-  background: var(--glass-bg-trans);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-sm);
-  box-shadow: var(--glass-shadow);
-}
-.batch-info {
-  flex: 1;
-  font-size: var(--fs-md);
-  color: var(--text-2);
-}
-.batch-up-enter-active {
-  transition: opacity 0.22s var(--ease), transform 0.22s var(--ease-bouncy);
-}
-.batch-up-enter-from {
-  opacity: 0;
-  transform: translateY(14px);
-}
-.batch-up-leave-active {
-  transition: opacity 0.15s var(--ease);
-}
-.batch-up-leave-to {
-  opacity: 0;
 }
 </style>

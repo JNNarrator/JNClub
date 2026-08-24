@@ -35,8 +35,8 @@ export const NAV_META: Record<NavKey, Omit<NavDef, 'key'>> = {
 /** 默认全量顺序（兼容旧 nav.order 缺失项时补齐） */
 export const DEFAULT_ORDER: NavKey[] = ['overview', 'bookmarks', 'notes', 'files', 'vault', 'todos', 'calendar', 'feeds', 'music', 'recycle', 'extension']
 
-/** 移动端底部 TabBar 参与项（音乐/插件页移动端不显示，保持 6 tab） */
-export const MOBILE_KEYS: NavKey[] = ['overview', 'bookmarks', 'notes', 'files', 'vault', 'todos', 'recycle']
+/** 移动端底部 TabBar 参与项（音乐/插件页移动端不显示；日历/订阅纳入，横向滚动容纳更多入口） */
+export const MOBILE_KEYS: NavKey[] = ['overview', 'bookmarks', 'notes', 'files', 'vault', 'todos', 'calendar', 'feeds', 'recycle']
 
 /** 过滤出合法导航 key（剔除脏数据） */
 export function normalizeNavKeys(arr: any[]): NavKey[] {

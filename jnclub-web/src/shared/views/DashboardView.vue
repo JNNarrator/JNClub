@@ -4,7 +4,7 @@
  * 统计卡片（收藏/便签/文件/密码/标签/回收站）+ 磁盘占用 + 密码库指纹健康 + 最近动态 + 快捷入口
  */
 import { ref, computed, onMounted, watch } from 'vue'
-import { NIcon, NSpin, NEmpty, NButton, NDrawer, NSwitch } from 'naive-ui'
+import { NIcon, NEmpty, NButton, NDrawer, NSwitch } from 'naive-ui'
 import {
   Bookmark, StickyNote, Cloud, KeyRound, Tag, Trash2, HardDrive,
   ShieldCheck, AlertTriangle, ArrowRight, LayoutDashboard, RefreshCw, Download, Upload, Database, TrendingUp,
@@ -19,6 +19,8 @@ import FullBackupModal from '../../modules/bookmark/components/FullBackupModal.v
 import DedupModal from '../../modules/bookmark/components/DedupModal.vue'
 import ShareManagerDrawer from '../components/ShareManagerDrawer.vue'
 import ReadingModal from '../../modules/bookmark/components/ReadingModal.vue'
+import JStatCard from '../components/ui/JStatCard.vue'
+import JSkeletonGrid from '../components/ui/JSkeletonGrid.vue'
 
 interface StatsSummary {
   counts: {
@@ -89,10 +91,10 @@ interface TrendPoint {
 const trendData = ref<TrendPoint[]>([])
 
 const TREND_SERIES: Array<{ key: keyof Omit<TrendPoint, 'month'>; label: string; color: string }> = [
-  { key: 'bookmarks', label: '收藏', color: '#7c5cff' },
-  { key: 'notes', label: '便签', color: '#2f9df7' },
-  { key: 'files', label: '云盘', color: '#0fbf8c' },
-  { key: 'vault', label: '密码库', color: '#f0a13a' },
+  { key: 'bookmarks', label: '收藏', color: 'var(--module-bookmark)' },
+  { key: 'notes', label: '便签', color: 'var(--module-note)' },
+  { key: 'files', label: '云盘', color: 'var(--module-file)' },
+  { key: 'vault', label: '密码库', color: 'var(--module-vault)' },
 ]
 
 const fetchTrend = async () => {
@@ -303,9 +305,12 @@ const goTodos = () => router.push('/todos')
     <FullBackupModal v-model:show="showBackup" @imported="fetchSummary" />
     <DedupModal v-model:show="showDedup" @changed="fetchSummary" />
 
-    <NSpin :show="loading" class="dash-spin">
-      <div v-if="error && !data" class="dash-error">
+    <div class="dash-spin">
+      <JSkeletonGrid v-if="loading" />
+
+      <div v-else-if="error && !data" class="dash-error">
         <NEmpty description="加载失败，请刷新重试" class="dash-empty" />
+        <NButton size="small" type="primary" secondary class="dash-retry" @click="fetchSummary(); fetchTrend()">重试</NButton>
       </div>
 
       <template v-else-if="data">
@@ -326,17 +331,11 @@ const goTodos = () => router.push('/todos')
         <!-- 统计卡片 -->
         <div v-if="visible('stat')" class="dash-section" :style="{ order: orderOf('stat') }">
           <div class="stat-grid">
-            <button
+            <JStatCard
               v-for="c in statCards" :key="c.key"
-              type="button" class="stat-card jnclub-bouncy" :class="{ 'stat-warn': c.warn }"
+              :label="c.label" :value="c.value" :icon="c.icon" :warn="c.warn"
               @click="router.push(c.to)"
-            >
-              <div class="stat-icon"><NIcon :component="c.icon" size="20" /></div>
-              <div class="stat-text">
-                <div class="stat-value">{{ c.value }}</div>
-                <div class="stat-label">{{ c.label }}<span v-if="c.warn" class="stat-warn-dot" /></div>
-              </div>
-            </button>
+            />
           </div>
         </div>
 
@@ -527,7 +526,7 @@ const goTodos = () => router.push('/todos')
           </div>
         </div>
       </template>
-    </NSpin>
+    </div>
 
     <!-- 我的分享管理 -->
     <ShareManagerDrawer v-model:show="showShareManager" />
@@ -586,7 +585,8 @@ const goTodos = () => router.push('/todos')
 .dash-export { border-radius: var(--radius-pill); color: var(--brand); }
 .dash-import { border-radius: var(--radius-pill); color: var(--brand); }
 .dash-spin { min-height: 240px; }
-.dash-error { padding-top: 60px; }
+.dash-error { padding-top: 60px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.dash-retry { border-radius: var(--radius-pill); }
 
 /* 统计卡片 */
 /* 统计卡片：固定列数（3/2），任何宽度都不超过 3 列，避免卡片过窄拥挤；
@@ -621,7 +621,7 @@ const goTodos = () => router.push('/todos')
   box-shadow: var(--shadow-2), var(--glass-shadow);
   transform: translateY(-2px);
 }
-.stat-card.stat-warn { border-color: rgba(245, 72, 92, 0.45); }
+.stat-card.stat-warn { border-color: color-mix(in srgb, var(--danger) 45%, transparent); }
 .stat-text {
   display: flex;
   flex-direction: column;
@@ -634,7 +634,7 @@ const goTodos = () => router.push('/todos')
   background: var(--brand-soft); color: var(--brand);
   display: flex; align-items: center; justify-content: center;
 }
-.stat-warn .stat-icon { background: rgba(245, 72, 92, 0.16); color: #ff8a97; }
+.stat-warn .stat-icon { background: var(--danger-soft); color: var(--danger-text); }
 .stat-value {
   font-size: 32px; font-weight: 800; color: var(--text-1); line-height: 1.1;
   white-space: nowrap;
@@ -737,11 +737,11 @@ const goTodos = () => router.push('/todos')
 }
 .health-label { color: var(--text-2); }
 .health-value { font-weight: 600; color: var(--text-1); }
-.health-value.health-bad { color: #ff8a97; }
+.health-value.health-bad { color: var(--danger-text); }
 .health-warn {
   display: inline-flex; align-items: center; gap: 6px;
-  font-size: var(--fs-sm); color: #ff8a97;
-  background: rgba(245, 72, 92, 0.1);
+  font-size: var(--fs-sm); color: var(--danger-text);
+  background: var(--danger-soft);
   padding: 8px 10px; border-radius: var(--radius-sm);
 }
 .health-ok { font-size: var(--fs-sm); color: var(--success); }
@@ -934,8 +934,8 @@ const goTodos = () => router.push('/todos')
   font-weight: 800;
   color: var(--text-1);
 }
-.todo-summary-item.todo-summary-warn b { color: #f0a13a; }
-.todo-summary-item.todo-summary-danger b { color: #ef5b6b; }
+.todo-summary-item.todo-summary-warn b { color: var(--warning-text); }
+.todo-summary-item.todo-summary-danger b { color: var(--danger); }
 .todo-summary-go {
   margin-left: auto;
   display: inline-flex;

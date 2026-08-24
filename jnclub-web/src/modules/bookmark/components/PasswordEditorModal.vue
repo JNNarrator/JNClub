@@ -308,9 +308,9 @@ const onShowChange = (v: boolean) => emit('update:show', v)
   border-radius: 3px;
   transition: width 240ms var(--ease-bouncy);
 }
-.strength-fill.strength-weak { background: #ef5b6b; }
-.strength-fill.strength-medium { background: #f0a13a; }
-.strength-fill.strength-strong { background: #37c978; }
+.strength-fill.strength-weak { background: var(--danger); }
+.strength-fill.strength-medium { background: var(--warning-text); }
+.strength-fill.strength-strong { background: var(--success-text); }
 .strength-label {
   font-size: var(--fs-xs, 12px);
   font-weight: 600;
@@ -318,9 +318,9 @@ const onShowChange = (v: boolean) => emit('update:show', v)
   min-width: 52px;
   text-align: right;
 }
-.strength-label.strength-weak { color: #ef5b6b; }
-.strength-label.strength-medium { color: #f0a13a; }
-.strength-label.strength-strong { color: #37c978; }
+.strength-label.strength-weak { color: var(--danger); }
+.strength-label.strength-medium { color: var(--warning-text); }
+.strength-label.strength-strong { color: var(--success-text); }
 
 /* ─── 密码生成器 ─── */
 .generator {

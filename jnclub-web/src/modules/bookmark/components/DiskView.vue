@@ -350,10 +350,10 @@ onMounted(loadDiskDirs)
 
 /** 文件类型彩色图标映射（图片/文档/压缩包/音频，其余用中性色） */
 const FILE_KINDS = [
-  { re: /\.(png|jpe?g|gif|webp|svg|avif)$/i, color: '#7EB8E8' },
-  { re: /\.(docx?|pdf|txt|md|pptx?|xlsx?)$/i, color: '#F472B6' },
-  { re: /\.(zip|rar|7z|tar|gz)$/i, color: '#F3C470' },
-  { re: /\.(mp3|wav|flac|aac|ogg|m4a)$/i, color: '#7AC686' },
+  { re: /\.(png|jpe?g|gif|webp|svg|avif)$/i, color: 'var(--file-type-image)' },
+  { re: /\.(docx?|pdf|txt|md|pptx?|xlsx?)$/i, color: 'var(--file-type-doc)' },
+  { re: /\.(zip|rar|7z|tar|gz)$/i, color: 'var(--file-type-archive)' },
+  { re: /\.(mp3|wav|flac|aac|ogg|m4a)$/i, color: 'var(--file-type-audio)' },
 ] as const
 const fileKindColor = (name: string) => FILE_KINDS.find(k => k.re.test(name))?.color ?? 'var(--text-3)'
 </script>

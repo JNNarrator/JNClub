@@ -1,15 +1,14 @@
 <script setup lang="ts">
 /**
  * CalendarLayout.vue — 日历主壳
- * 套用与主界面一致的壳：MainLayout（左侧导航/移动端 TabBar）+ 毛玻璃顶栏（面包屑「JNClub/日历」+ 刷新/主题/返回）
+ * 套用与主界面一致的壳：MainLayout（左侧导航/移动端 TabBar）+ 统一页面头（刷新/主题/返回）。
  */
-import { NIcon, NButton, NBreadcrumb, NBreadcrumbItem } from 'naive-ui'
-import { RefreshCw, Sun, Moon, ArrowLeft } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 import { ref } from 'vue'
 import MainLayout from './MainLayout.vue'
 import CalendarView from '../../modules/bookmark/views/CalendarView.vue'
 import HelpDrawer from '../components/HelpDrawer.vue'
+import JPageHeader from '../components/ui/JPageHeader.vue'
 import { useAppShortcuts } from '../composables/useAppShortcuts'
 
 const { isDark } = defineProps<{
@@ -47,25 +46,17 @@ useAppShortcuts({
     @module-change="handleModuleChange"
   >
     <div class="calendar-page">
-      <header class="home-header glass-header">
-        <div class="header-left">
-          <NBreadcrumb class="jnclub-breadcrumb">
-            <NBreadcrumbItem @click="router.push('/')">JNClub</NBreadcrumbItem>
-            <NBreadcrumbItem class="breadcrumb-current">日历</NBreadcrumbItem>
-          </NBreadcrumb>
-        </div>
-        <div class="header-right">
-          <NButton quaternary circle size="small" class="refresh-btn jnclub-bouncy" title="刷新" @click="handleRefresh">
-            <template #icon><NIcon :component="RefreshCw" size="16" /></template>
-          </NButton>
-          <button type="button" class="theme-toggle-btn jnclub-bouncy" title="切换暗色模式" @click="emit('toggle-theme')">
-            <NIcon :component="isDark ? Sun : Moon" size="16" />
-          </button>
-          <NButton quaternary circle size="small" class="refresh-btn jnclub-bouncy" title="返回" @click="router.push('/')">
-            <template #icon><NIcon :component="ArrowLeft" size="16" /></template>
-          </NButton>
-        </div>
-      </header>
+      <JPageHeader
+        title="日历"
+        subtitle="待办与便签的月视图"
+        refresh
+        theme
+        back
+        :is-dark="isDark"
+        @refresh="handleRefresh"
+        @toggle-theme="emit('toggle-theme')"
+        @back="router.push('/')"
+      />
 
       <div class="calendar-body">
         <CalendarView :refresh="refreshTick" />
@@ -83,43 +74,8 @@ useAppShortcuts({
   display: flex;
   flex-direction: column;
   z-index: 1;
+  padding: 12px 24px 0;
 }
-
-.home-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 24px;
-  height: 60px;
-  flex-shrink: 0;
-  border-bottom: 1px solid var(--border);
-  gap: 16px;
-}
-.header-left { flex: 1; min-width: 0; }
-.header-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-.jnclub-breadcrumb :deep(.n-breadcrumb-item__link) {
-  cursor: pointer;
-  font-size: var(--fs-md);
-}
-.breadcrumb-current :deep(.n-breadcrumb-item__link) {
-  font-weight: 600;
-  color: var(--text-1);
-}
-.refresh-btn { color: var(--text-2); }
-.refresh-btn:hover { color: var(--text-1); background: var(--hover-bg); }
-.theme-toggle-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  background: transparent;
-  border: none;
-  border-radius: 50%;
-  cursor: pointer;
-  color: var(--text-2);
-}
-.theme-toggle-btn:hover { background: var(--hover-bg); color: var(--text-1); }
 
 .calendar-body {
   flex: 1;
@@ -140,24 +96,12 @@ useAppShortcuts({
 }
 
 @media (max-width: 767px) {
-  .home-header {
-    padding: 0 12px;
-    height: 52px;
-    gap: 8px;
+  .calendar-page {
+    padding: 8px 8px 0;
   }
   .calendar-body {
     margin: 0;
     padding: 12px;
-  }
-  .header-right { gap: 6px; }
-  .header-right :deep(.n-button) { min-width: 40px; height: 40px; }
-  .header-right :deep(.n-button) span { display: none; }
-  .jnclub-breadcrumb :deep(.n-breadcrumb-item__link) {
-    font-size: var(--fs-sm);
-    max-width: 90px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
 }
 </style>
