@@ -79,6 +79,9 @@ const goToday = () => {
 }
 
 const dayKey = (d: Date) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`
+/** API 使用 ISO 格式，月/日必须补零，否则后端 LocalDate 反序列化 500 */
+const fmtDate = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 const byDay = computed(() => {
   const map: Record<string, { todos: TodoItem[]; notes: NoteItem[] }> = {}
   for (const t of todos.value) {
@@ -140,7 +143,7 @@ const onTodoDragStart = (e: DragEvent, t: TodoItem) => {
 }
 const onDayDrop = async (cell: DayCell) => {
   if (!dragTodoId) return
-  const targetDate = `${cell.date.getFullYear()}-${cell.date.getMonth() + 1}-${cell.date.getDate()}`
+  const targetDate = fmtDate(cell.date)
   try {
     const res = await axios.put(`/api/todos/${dragTodoId}`, { dueDate: targetDate })
     if (res.data.code === 200) {
@@ -162,7 +165,7 @@ const quickAdding = ref(false)
 
 const openQuickAdd = (cell: DayCell) => {
   if (!cell.inMonth) return
-  quickDate.value = `${cell.date.getFullYear()}-${cell.date.getMonth() + 1}-${cell.date.getDate()}`
+  quickDate.value = fmtDate(cell.date)
   quickTitle.value = ''
   quickPriority.value = 1
   quickShow.value = true
