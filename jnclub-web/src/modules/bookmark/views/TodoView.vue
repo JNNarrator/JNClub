@@ -27,6 +27,10 @@ interface Todo {
   createTime?: string | null
 }
 
+/** API 使用 ISO 日期，必须按本地时区补零，避免 toISOString 在东八区跨日/凌晨变成前一天 */
+const toDateStr = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+
 const props = defineProps<{ refresh: number }>()
 const message = useMessage()
 
@@ -86,7 +90,7 @@ const addTodo = async () => {
       title: newTitle.value.trim(),
       priority: newPriority.value,
     }
-    if (newDue.value) payload.dueDate = new Date(newDue.value).toISOString().slice(0, 10)
+    if (newDue.value) payload.dueDate = toDateStr(new Date(newDue.value))
     if (newNote.value.trim()) payload.note = newNote.value.trim()
     const res = await axios.post('/api/todos', payload)
     if (res.data.code === 200) {
@@ -183,8 +187,11 @@ const saveEdit = async () => {
     const payload: any = { title: editForm.value.title.trim() }
     if (editForm.value.note !== (editing.value.note || '')) payload.note = editForm.value.note
     if (editForm.value.priority !== (editing.value.priority ?? 1)) payload.priority = editForm.value.priority
-    const dueStr = editForm.value.due ? new Date(editForm.value.due).toISOString().slice(0, 10) : null
-    if (dueStr !== (editing.value.dueDate || null)) payload.dueDate = dueStr
+    const dueStr = editForm.value.due ? toDateStr(new Date(editForm.value.due)) : null
+    if (dueStr !== (editing.value.dueDate || null)) {
+      payload.dueDate = dueStr
+      if (dueStr === null) payload.clearDueDate = true
+    }
     const res = await axios.put(`/api/todos/${editing.value.id}`, payload)
     if (res.data.code === 200) {
       message.success('已保存')
@@ -201,8 +208,7 @@ const saveEdit = async () => {
 }
 
 /* ─── 展示辅助 ─── */
-const today = new Date()
-const todayStr = today.toISOString().slice(0, 10)
+const todayStr = toDateStr(new Date())
 
 const PRIORITY_META: Record<number, { label: string; type: 'error' | 'warning' | 'default' }> = {
   2: { label: '高', type: 'error' },

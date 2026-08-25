@@ -246,7 +246,9 @@ watch(() => props.note?.id, () => {
 }, { immediate: true })
 
 /* ─── 便签模板 ─── */
-const todayStr = new Date().toISOString().slice(0, 10)
+const toDateStr = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+const todayStr = toDateStr(new Date())
 interface NoteTemplate { key: string; label: string; icon: string; content: string }
 const NOTE_TEMPLATES: NoteTemplate[] = [
   {

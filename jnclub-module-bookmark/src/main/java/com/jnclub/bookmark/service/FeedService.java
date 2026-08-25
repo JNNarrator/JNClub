@@ -15,6 +15,8 @@ import com.rometools.rome.feed.synd.SyndFeed;
 import com.rometools.rome.io.SyndFeedInput;
 import com.rometools.rome.io.XmlReader;
 import lombok.RequiredArgsConstructor;
+import org.jsoup.Jsoup;
+import org.jsoup.safety.Safelist;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -167,6 +169,11 @@ public class FeedService {
         qw.last("LIMIT " + ((p - 1) * s) + ", " + s);
 
         List<FeedItem> items = feedItemMapper.selectList(qw);
+        // 兼容历史脏数据：读取时再清洗一遍，前端 v-html 始终只拿到安全 HTML
+        items.forEach(it -> {
+            if (it.getContent() != null) it.setContent(sanitizeHtml(it.getContent()));
+            if (it.getSummary() != null) it.setSummary(sanitizeHtml(it.getSummary()));
+        });
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("total", total);
         result.put("page", p);
@@ -327,9 +334,9 @@ public class FeedService {
             item.setTitle(cleanText(e.getTitle(), 500, "（无标题）"));
             if (e.getLink() != null) item.setLink(cleanText(e.getLink(), 2048, ""));
             if (e.getAuthor() != null) item.setAuthor(cleanText(e.getAuthor(), 200, ""));
-            if (e.getDescription() != null) item.setSummary(cleanText(e.getDescription().getValue(), 4000, ""));
+            if (e.getDescription() != null) item.setSummary(sanitizeHtml(cleanText(e.getDescription().getValue(), 4000, "")));
             if (e.getContents() != null && !e.getContents().isEmpty()) {
-                item.setContent(e.getContents().get(0).getValue());
+                item.setContent(sanitizeHtml(e.getContents().get(0).getValue()));
             }
             item.setPublishedAt(e.getPublishedDate() == null ? null
                     : e.getPublishedDate().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime());
@@ -377,5 +384,15 @@ public class FeedService {
         if (s == null || s.isBlank()) return fallback;
         String t = s.replaceAll("\\s+", " ").trim();
         return t.length() > max ? t.substring(0, max) : t;
+    }
+
+    /** HTML 清洗：RSS 正文/摘要来自不可信源，前端会 v-html 渲染，必须去掉脚本/事件属性 */
+    private String sanitizeHtml(String html) {
+        if (html == null || html.isBlank()) return "";
+        return Jsoup.clean(html, Safelist.relaxed()
+                .addAttributes("img", "src", "alt", "width", "height")
+                .addAttributes("a", "href", "title", "target", "rel")
+                .addAttributes("code", "class")
+                .addAttributes("pre", "class"));
     }
 }

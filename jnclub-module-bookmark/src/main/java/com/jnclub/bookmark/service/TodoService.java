@@ -68,7 +68,7 @@ public class TodoService extends ServiceImpl<TodoMapper, Todo> {
         return todo;
     }
 
-    /** 编辑（标题/备注/优先级/截止日期；null 字段忽略，清空截止日期传 dueDate=null 用空对象标记） */
+    /** 编辑（标题/备注/优先级/截止日期；null 字段忽略，显式清空截止日期传 dueDate=null 且 clearDueDate=true） */
     public void update(Long id, Todo patch) {
         Todo exist = requireOwned(id);
         if (patch.getTitle() != null && !patch.getTitle().isBlank()) {
@@ -76,7 +76,11 @@ public class TodoService extends ServiceImpl<TodoMapper, Todo> {
         }
         if (patch.getNote() != null) exist.setNote(patch.getNote());
         if (patch.getPriority() != null) exist.setPriority(patch.getPriority());
-        if (patch.getDueDate() != null) exist.setDueDate(patch.getDueDate());
+        if (Boolean.TRUE.equals(patch.getClearDueDate())) {
+            exist.setDueDate(null);
+        } else if (patch.getDueDate() != null) {
+            exist.setDueDate(patch.getDueDate());
+        }
         updateById(exist);
     }
 

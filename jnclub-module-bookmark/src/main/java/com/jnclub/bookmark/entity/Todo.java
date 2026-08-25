@@ -29,6 +29,10 @@ public class Todo {
     /** 截止日期（可选） */
     private LocalDate dueDate;
 
+    /** 请求专用标记：显式清空截止日期（不落库） */
+    @TableField(exist = false)
+    private Boolean clearDueDate;
+
     /** 完成标记：0未完成 1已完成 */
     private Integer completed;
 

@@ -178,21 +178,35 @@ public class CloudDiskController {
                     Base64.encode(auth.getBytes(StandardCharsets.UTF_8)));
         }
 
-        HttpResponse dufsResp = req.execute();
-        if (dufsResp.getStatus() != 200) {
-            log.warn("云盘下载 dufs 失败: status={} url={}", dufsResp.getStatus(), dufsUrl);
-            response.sendError(404);
-            return;
-        }
+        try (HttpResponse dufsResp = req.execute()) {
+            if (dufsResp.getStatus() != 200) {
+                log.warn("云盘下载 dufs 失败: status={} url={}", dufsResp.getStatus(), dufsUrl);
+                response.sendError(404);
+                return;
+            }
 
-        String filename = record.getOriginalName() == null ? "download" : record.getOriginalName();
-        String encoded = URLEncoder.encode(filename, StandardCharsets.UTF_8).replace("+", "%20");
-        response.setContentType(record.getMime() == null ? "application/octet-stream" : record.getMime());
-        response.setHeader("Content-Disposition", "attachment; filename*=UTF-8''" + encoded);
-        response.setContentLengthLong(dufsResp.bodyBytes().length);
+            String filename = record.getOriginalName() == null ? "download" : record.getOriginalName();
+            String encoded = URLEncoder.encode(filename, StandardCharsets.UTF_8).replace("+", "%20");
+            response.setContentType(record.getMime() == null ? "application/octet-stream" : record.getMime());
+            response.setHeader("Content-Disposition", "attachment; filename*=UTF-8''" + encoded);
+            String contentLength = dufsResp.header("Content-Length");
+            if (contentLength != null) {
+                try {
+                    response.setContentLengthLong(Long.parseLong(contentLength));
+                } catch (NumberFormatException ignored) {
+                    // 忽略非法 Content-Length，仍可流式下载
+                }
+            }
 
-        try (OutputStream out = response.getOutputStream()) {
-            out.write(dufsResp.bodyBytes());
+            try (InputStream in = dufsResp.bodyStream();
+                 OutputStream out = response.getOutputStream()) {
+                byte[] buf = new byte[8192];
+                int n;
+                while ((n = in.read(buf)) > 0) {
+                    out.write(buf, 0, n);
+                }
+                out.flush();
+            }
         }
     }
 
@@ -222,15 +236,22 @@ public class CloudDiskController {
                     String auth = dufsUser + ":" + dufsPass;
                     req.header("Authorization", "Basic " + Base64.encode(auth.getBytes(StandardCharsets.UTF_8)));
                 }
-                HttpResponse dufsResp = req.execute();
-                if (dufsResp.getStatus() != 200) {
-                    log.warn("云盘打包下载 dufs 失败: status={} key={}", dufsResp.getStatus(), r.getStoredKey());
-                    continue;
+                try (HttpResponse dufsResp = req.execute()) {
+                    if (dufsResp.getStatus() != 200) {
+                        log.warn("云盘打包下载 dufs 失败: status={} key={}", dufsResp.getStatus(), r.getStoredKey());
+                        continue;
+                    }
+                    String name = uniqueName(r.getOriginalName(), used);
+                    zos.putNextEntry(new ZipEntry(name));
+                    try (InputStream in = dufsResp.bodyStream()) {
+                        byte[] buf = new byte[8192];
+                        int n;
+                        while ((n = in.read(buf)) > 0) {
+                            zos.write(buf, 0, n);
+                        }
+                    }
+                    zos.closeEntry();
                 }
-                String name = uniqueName(r.getOriginalName(), used);
-                zos.putNextEntry(new ZipEntry(name));
-                zos.write(dufsResp.bodyBytes());
-                zos.closeEntry();
             }
         }
     }
