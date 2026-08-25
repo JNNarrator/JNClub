@@ -40,7 +40,13 @@ export function useNoteActions(opts: {
     let ok = 0
     for (const n of notes) {
       try {
-        const md = await exportMarkdown(n.content || '')
+        // 列表已瘦身不返回正文；导出属于低频操作，按需拉详情后仍按单篇 .md 下载
+        let content = n.content
+        if (!content) {
+          await noteStore.fetchNoteDetail(n.id)
+          content = noteStore.currentNote?.content || ''
+        }
+        const md = await exportMarkdown(content)
         downloadFile(`${(n.title || '未命名').replace(/[\\/:*?"<>|]/g, '_')}.md`, md, 'text/markdown')
         ok++
       } catch {

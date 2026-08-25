@@ -4,14 +4,15 @@
  * grid-template-columns: repeat(auto-fill, minmax(220px,1fr)) + gap
  * 单卡不孤悬，stagger 渐入
  */
-import { ref, onMounted } from 'vue'
+import { ref, computed, watch, nextTick, onMounted } from 'vue'
+import { useVirtualList, useElementSize } from '@vueuse/core'
 import { NSpin } from 'naive-ui'
 import CollectionCard from './CollectionCard.vue'
 import type { BookmarkItem } from './CollectionRow.vue'
 import { useDraggableSort } from '../composables/useDraggableSort'
 import { useItemDragContext } from '../composables/useItemDragContext'
 
-defineProps<{
+const props = defineProps<{
   bookmarks: BookmarkItem[]
   loading?: boolean
   batchMode?: boolean
@@ -44,24 +45,75 @@ const handleDragStart = (e: DragEvent, item: BookmarkItem) => {
 
 const handleDragEnd = () => setDragging(null)
 
+/* 大列表网格虚拟滚动：按容器宽度把卡片分组为行，只渲染可视行 */
+const rootRef = ref<HTMLElement | null>(null)
+const { width: gridWidth } = useElementSize(rootRef)
+const columns = computed(() => {
+  const w = gridWidth.value
+  if (!w) return 3
+  return Math.max(1, Math.floor(w / 220))
+})
+const rows = computed(() => {
+  const cols = columns.value
+  const result: BookmarkItem[][] = []
+  for (let i = 0; i < props.bookmarks.length; i += cols) {
+    result.push(props.bookmarks.slice(i, i + cols))
+  }
+  return result
+})
+const isVirtual = computed(() => props.bookmarks.length > 80)
+const virtual = useVirtualList(rows, { itemHeight: 220, overscan: 2 })
+const virtualRows = computed(() => Array.isArray(virtual.list.value) ? virtual.list.value : [])
+const dragDisabled = computed(() => isVirtual.value)
+const { init: initSort, destroy: destroySort } = useDraggableSort(gridRef, (ids) => {
+  emit('sort', ids.map(Number))
+}, dragDisabled)
+
 onMounted(() => {
   requestAnimationFrame(() => {
     visible.value = true
   })
+  if (!isVirtual.value) initSort()
 })
 
-const { init: initSort } = useDraggableSort(gridRef, (ids) => {
-  emit('sort', ids.map(Number))
+watch(isVirtual, async (v) => {
+  if (v) {
+    destroySort()
+  } else {
+    await nextTick()
+    initSort()
+  }
 })
-onMounted(() => { initSort() })
 </script>
 
 <template>
-  <div class="collection-grid">
+  <div ref="rootRef" class="collection-grid">
     <NSpin :show="loading">
-      <div ref="gridRef" :class="['grid-cards', { visible }]">
+      <div v-if="isVirtual" v-bind="virtual.containerProps" class="virtual-scroll">
+        <div v-bind="virtual.wrapperProps">
+          <div
+            v-for="row in virtualRows"
+            :key="row.index"
+            class="virtual-row"
+            :style="{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }"
+          >
+            <div
+              v-for="bk in row.data"
+              :key="bk.id"
+              :data-id="bk.id"
+              class="grid-item-wrap virtual-item"
+              draggable="true"
+              @dragstart="handleDragStart($event, bk)"
+              @dragend="handleDragEnd"
+            >
+              <CollectionCard :bookmark="bk" @refresh="emit('refresh')" @edit="emit('edit', $event)" @read="emit('read', $event)" :batch-mode="batchMode" :selected="selectedIds?.includes(bk.id)" @toggle-select="emit('toggle-select', bk.id)" />
+            </div>
+          </div>
+        </div>
+      </div>
+      <div v-else ref="gridRef" :class="['grid-cards', { visible }]">
         <div
-          v-for="(bk, i) in bookmarks"
+          v-for="(bk, i) in props.bookmarks"
           :key="bk.id"
           :data-id="bk.id"
           class="grid-item-wrap"
@@ -80,6 +132,22 @@ onMounted(() => { initSort() })
 <style scoped>
 .collection-grid {
   min-height: 100px;
+}
+
+.virtual-scroll {
+  max-height: calc(100vh - 240px);
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.virtual-row {
+  display: grid;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.virtual-item {
+  animation: none !important;
+  opacity: 1 !important;
+  transform: none !important;
 }
 
 .grid-cards {

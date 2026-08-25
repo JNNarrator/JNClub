@@ -242,6 +242,24 @@ public class VaultService extends ServiceImpl<VaultMapper, Vault> {
         return list;
     }
 
+    /** 分页列出目录内密码条目：密码置空 */
+    public Map<String, Object> pageList(Long directoryId, long page, long size) {
+        String userId = StpUtil.getLoginIdAsString();
+        var p = page(new com.baomidou.mybatisplus.extension.plugins.pagination.Page<>(page, size),
+                new LambdaQueryWrapper<Vault>()
+                        .eq(Vault::getDirectoryId, directoryId)
+                        .eq(Vault::getUserId, userId)
+                        .eq(Vault::getDeleted, 0)
+                        .orderByAsc(Vault::getSortOrder));
+        p.getRecords().forEach(v -> v.setPassword(null));
+        Map<String, Object> result = new HashMap<>();
+        result.put("items", p.getRecords());
+        result.put("total", p.getTotal());
+        result.put("page", page);
+        result.put("size", size);
+        return result;
+    }
+
     /** 详情：解密返回密码明文（已设置主密钥需先解锁） */
     public Vault getDetail(Long id) {
         String userId = StpUtil.getLoginIdAsString();

@@ -19,6 +19,10 @@ public class Note {
 
     private String content;
 
+    /** 列表摘要（非表字段，由列表接口填充；详情接口不返回） */
+    @TableField(exist = false)
+    private String excerpt;
+
     private Long directoryId;
 
     private String userId;

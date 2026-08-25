@@ -228,6 +228,15 @@ const handleDelete = (item: VaultItem) => {
   })
 }
 
+/** 行点击：打开编辑（与行内编辑按钮一致） */
+const handleRowClick = (item: VaultItem) => openEdit(item)
+const handleRowKeydown = (e: KeyboardEvent, item: VaultItem) => {
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault()
+    handleRowClick(item)
+  }
+}
+
 // ========== 行菜单（三点 + 右键共用；含移动到） ==========
 const rowMenu = () => [
   { label: '移动到…', key: 'move', icon: () => h(NIcon, null, { default: () => h(FolderInput) }) },
@@ -263,9 +272,19 @@ const handleDragEnd = () => setDragging(null)
 
 // ========== 拖拽排序 ==========
 const listRef = ref<HTMLElement | null>(null)
+const vaultDragDisabled = computed(() => vaultStore.hasMoreItems)
 const { init: initSort } = useDraggableSort(listRef, (ids) => {
   emit('sort', ids.map(Number))
-})
+}, vaultDragDisabled)
+
+/** 加载下一页密码条目并追加 */
+const loadMoreItems = async () => {
+  if (!props.directoryId || vaultStore.loadingMore || !vaultStore.hasMoreItems) return
+  await vaultStore.fetchItems(props.directoryId, {
+    page: vaultStore.page + 1,
+    append: true,
+  })
+}
 
 
 // ========== 自动锁定（空闲 5 分钟自动锁库） ==========
@@ -481,7 +500,12 @@ defineExpose({ openCreate })
             :key="item.id"
             :data-id="item.id"
             class="vault-item jnclub-bouncy"
+            role="button"
+            tabindex="0"
+            :aria-label="`编辑密码 ${item.name}`"
             draggable="true"
+            @click="handleRowClick(item)"
+            @keydown="handleRowKeydown($event, item)"
             @dragstart="handleDragStart($event, item)"
             @dragend="handleDragEnd"
             @contextmenu.prevent="openMenu($event, rowMenu(), (key: string) => handleRowMenu(key, item))"
@@ -503,7 +527,7 @@ defineExpose({ openCreate })
                 <NTag v-if="isDup(item.id)" size="tiny" round :bordered="false" class="health-tag dup" title="与其他条目密码重复">重复</NTag>
               </div>
             </div>
-            <div class="item-actions">
+            <div class="item-actions" @click.stop>
               <PasswordRevealPopover :item="item" />
               <NButton quaternary circle size="small" title="TOTP 验证码" @click="openTotp(item)">
                 <template #icon><NIcon :component="ShieldCheck" size="16" /></template>
@@ -524,6 +548,11 @@ defineExpose({ openCreate })
                 </NButton>
               </NDropdown>
             </div>
+          </div>
+          <div v-if="vaultStore.hasMoreItems" class="load-more-wrap">
+            <NButton size="small" quaternary :loading="vaultStore.loadingMore" @click="loadMoreItems">
+              {{ vaultStore.loadingMore ? '加载中…' : `加载更多（${vaultStore.items.length}/${vaultStore.totalItems}）` }}
+            </NButton>
           </div>
         </div>
       </NSpin>
@@ -750,6 +779,11 @@ defineExpose({ openCreate })
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+.load-more-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 12px 8px;
 }
 .vault-item {
   display: flex;

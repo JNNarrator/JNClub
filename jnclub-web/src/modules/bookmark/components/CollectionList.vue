@@ -3,14 +3,15 @@
  * CollectionList.vue — 极简列表视图
  * 包裹多行 CollectionRow，stagger 渐入
  */
-import { ref, onMounted } from 'vue'
+import { ref, computed, watch, nextTick, onMounted } from 'vue'
+import { useVirtualList } from '@vueuse/core'
 import { NSpin } from 'naive-ui'
 import CollectionRow from './CollectionRow.vue'
 import type { BookmarkItem } from './CollectionRow.vue'
 import { useDraggableSort } from '../composables/useDraggableSort'
 import { useItemDragContext } from '../composables/useItemDragContext'
 
-defineProps<{
+const props = defineProps<{
   bookmarks: BookmarkItem[]
   loading?: boolean
   batchMode?: boolean
@@ -44,24 +45,51 @@ const handleDragStart = (e: DragEvent, item: BookmarkItem) => {
 
 const handleDragEnd = () => setDragging(null)
 
+/* 大列表启用虚拟滚动；虚拟模式下拖拽排序不可用（避免只排序已渲染片段） */
+const isVirtual = computed(() => props.bookmarks.length > 80)
+const virtual = useVirtualList(computed(() => props.bookmarks), { itemHeight: 64, overscan: 8 })
+const virtualItems = computed(() => Array.isArray(virtual.list.value) ? virtual.list.value : [])
+const dragDisabled = computed(() => isVirtual.value)
+const { init: initSort, destroy: destroySort } = useDraggableSort(listRef, (ids) => {
+  emit('sort', ids.map(Number))
+}, dragDisabled)
+
 onMounted(() => {
   requestAnimationFrame(() => {
     visible.value = true
   })
+  if (!isVirtual.value) initSort()
 })
 
-const { init: initSort } = useDraggableSort(listRef, (ids) => {
-  emit('sort', ids.map(Number))
+watch(isVirtual, async (v) => {
+  if (v) {
+    destroySort()
+  } else {
+    await nextTick()
+    initSort()
+  }
 })
-onMounted(() => { initSort() })
 </script>
 
 <template>
   <div class="collection-list">
     <NSpin :show="loading">
-      <div ref="listRef" :class="['list-items', { visible }]">
+      <div v-if="isVirtual" v-bind="virtual.containerProps" class="virtual-scroll">
+        <div v-bind="virtual.wrapperProps">
+          <div
+            v-for="item in virtualItems"
+            :key="item.data.id"
+            :data-id="item.data.id"
+            class="list-item-wrap virtual-item"
+            :style="{ '--i': item.index % 20 }"
+          >
+            <CollectionRow :bookmark="item.data" @refresh="emit('refresh')" @edit="emit('edit', $event)" @read="emit('read', $event)" :batch-mode="batchMode" :selected="selectedIds?.includes(item.data.id)" @toggle-select="emit('toggle-select', item.data.id)" />
+          </div>
+        </div>
+      </div>
+      <div v-else ref="listRef" :class="['list-items', { visible }]">
         <div
-          v-for="(bk, i) in bookmarks"
+          v-for="(bk, i) in props.bookmarks"
           :key="bk.id"
           :data-id="bk.id"
           class="list-item-wrap"
@@ -80,6 +108,17 @@ onMounted(() => { initSort() })
 <style scoped>
 .collection-list {
   min-height: 100px;
+}
+
+.virtual-scroll {
+  max-height: calc(100vh - 240px);
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.virtual-item {
+  animation: none !important;
+  opacity: 1 !important;
+  transform: none !important;
 }
 
 .list-items {

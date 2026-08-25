@@ -63,6 +63,16 @@ public class TagController {
     }
 
     /**
+     * 批量查询多条记录关联的标签（带标签名），返回 { refId: Tag[] }
+     * 列表页使用一次请求替代 N+1。
+     */
+    @GetMapping("/relations/batch")
+    public R<Map<Long, List<Tag>>> listTagsOfRefs(@RequestParam String refType,
+                                                  @RequestParam List<Long> refIds) {
+        return R.ok(tagService.listTagsOfRefs(refType, refIds));
+    }
+
+    /**
      * 全量覆盖设置关联：body = {refType, refId, tagNames[]}
      */
     @PutMapping("/relations")

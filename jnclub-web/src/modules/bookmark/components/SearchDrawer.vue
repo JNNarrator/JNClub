@@ -4,7 +4,7 @@
  * 收藏(标题+URL) / 便签(标题+内容摘要) / 云盘(文件名) 分组展示
  * 点击结果 → 切到对应模块并选中目录
  */
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, nextTick } from 'vue'
 import { NDrawer, NInput, NIcon, NEmpty, NSpin, NEllipsis } from 'naive-ui'
 import { Search, Bookmark, StickyNote, FileText, KeyRound, Tag, Music, ArrowRight, Lock, Moon, Trash2, LayoutDashboard, Puzzle, Plus } from 'lucide-vue-next'
 import axios from 'axios'
@@ -60,6 +60,7 @@ watch(() => props.show, (v) => {
     keyword.value = ''
     result.value = { bookmarks: [], notes: [], files: [], vault: [], tags: [], tracks: [] }
     searched.value = false
+    activeIndex.value = -1
     loadHistory()
   }
 })
@@ -77,6 +78,7 @@ const doSearch = async () => {
     if (res.data.code === 200) {
       result.value = res.data.data || { bookmarks: [], notes: [], files: [], vault: [], tags: [], tracks: [] }
       searched.value = true
+      activeIndex.value = -1
       pushHistory(kw)
     }
   } catch { /* 静默 */ }
@@ -89,6 +91,7 @@ const searchByHistory = (kw: string) => {
 }
 
 const onInput = () => {
+  activeIndex.value = -1
   if (timer) clearTimeout(timer)
   timer = setTimeout(doSearch, 300)
 }
@@ -130,6 +133,71 @@ const filteredCommands = computed(() => {
 const runCommand = (key: string) => {
   emit('close')
   emit('action', key)
+}
+
+/* ─── 键盘导航：↑↓ 选择、Enter 执行、Esc 关闭 ─── */
+const activeIndex = ref(-1)
+
+interface SearchNavItem {
+  key: string
+  label: string
+  group: string
+  type: 'command' | 'bookmark' | 'note' | 'file' | 'vault' | 'tag' | 'track'
+  run: () => void
+}
+
+const navItems = computed<SearchNavItem[]>(() => {
+  const items: SearchNavItem[] = []
+  for (const c of filteredCommands.value) {
+    items.push({ key: c.key, label: c.label, group: c.group, type: 'command', run: () => runCommand(c.key) })
+  }
+  for (const b of result.value.bookmarks) {
+    items.push({ key: `b-${b.id}`, label: b.title || b.url, group: '收藏', type: 'bookmark', run: () => handleJump('bookmarks', b.directoryId) })
+  }
+  for (const n of result.value.notes) {
+    items.push({ key: `n-${n.id}`, label: n.title || '无标题', group: '便签', type: 'note', run: () => handleJump('notes', n.directoryId) })
+  }
+  for (const f of result.value.files) {
+    items.push({ key: `f-${f.id}`, label: f.originalName, group: '云盘文件', type: 'file', run: () => handleJump('files', f.directoryId) })
+  }
+  for (const v of result.value.vault) {
+    items.push({ key: `v-${v.id}`, label: v.name, group: '密码库', type: 'vault', run: () => handleJump('vault', v.directoryId) })
+  }
+  for (const t of result.value.tags) {
+    items.push({ key: `t-${t.id}`, label: t.name, group: '标签', type: 'tag', run: () => handleJump('bookmarks', null) })
+  }
+  for (const t of result.value.tracks) {
+    items.push({ key: `track-${t.trackId}`, label: t.name, group: '音乐', type: 'track', run: () => handleJump('music', null) })
+  }
+  return items
+})
+
+const navIndex = (key: string) => navItems.value.findIndex(i => i.key === key)
+
+const scrollActiveIntoView = async () => {
+  await nextTick()
+  document.querySelector('.search-nav-active')?.scrollIntoView({ block: 'nearest' })
+}
+
+const onKeydown = async (e: KeyboardEvent) => {
+  if (e.key === 'ArrowDown') {
+    e.preventDefault()
+    if (!navItems.value.length) return
+    activeIndex.value = (activeIndex.value + 1) % navItems.value.length
+    await scrollActiveIntoView()
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault()
+    if (!navItems.value.length) return
+    activeIndex.value = (activeIndex.value - 1 + navItems.value.length) % navItems.value.length
+    await scrollActiveIntoView()
+  } else if (e.key === 'Enter') {
+    e.preventDefault()
+    const item = activeIndex.value >= 0 ? navItems.value[activeIndex.value] : null
+    if (item) item.run()
+    else doSearch()
+  } else if (e.key === 'Escape') {
+    emit('close')
+  }
 }
 
 /** 高亮渲染：按后端返回的 {field, ranges:[[s,e]]} 把命中词包 <mark>（防注入转义） */
@@ -178,7 +246,7 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
         placeholder="搜索收藏 / 便签 / 文件 / 密码 / 音乐…"
         clearable
         @input="onInput"
-        @keyup.enter="doSearch"
+        @keydown="onKeydown"
       >
         <template #prefix><NIcon :component="Search" size="16" /></template>
       </NInput>
@@ -203,7 +271,7 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
         <div class="cmd-list">
           <button
             v-for="c in filteredCommands" :key="c.key"
-            type="button" class="cmd-item jnclub-bouncy" @click="runCommand(c.key)"
+            type="button" :class="['cmd-item', 'jnclub-bouncy', { 'search-nav-active': activeIndex === navIndex(c.key) }]" @click="runCommand(c.key)"
           >
             <NIcon :component="c.icon" size="15" class="cmd-ic" />
             <span class="cmd-label">{{ c.label }}</span>
@@ -231,7 +299,7 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
             </div>
             <div
               v-for="(b, idx) in result.bookmarks" :key="b.id"
-              class="result-item jnclub-bouncy" @click="handleJump('bookmarks', b.directoryId)"
+              :class="['result-item', 'jnclub-bouncy', { 'search-nav-active': activeIndex === navIndex(`b-${b.id}`) }]" @click="handleJump('bookmarks', b.directoryId)"
               :style="{ animationDelay: `${Math.min(idx * 35, 300)}ms` }"
             >
               <img v-if="b.icon" :src="b.icon" class="item-icon" @error="(e: Event) => ((e.target as HTMLImageElement).style.display = 'none')" />
@@ -252,7 +320,7 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
             </div>
             <div
               v-for="(n, idx) in result.notes" :key="n.id"
-              class="result-item jnclub-bouncy" @click="handleJump('notes', n.directoryId)"
+              :class="['result-item', 'jnclub-bouncy', { 'search-nav-active': activeIndex === navIndex(`n-${n.id}`) }]" @click="handleJump('notes', n.directoryId)"
               :style="{ animationDelay: `${Math.min(idx * 35, 300)}ms` }"
             >
               <NIcon :component="StickyNote" size="15" class="item-fallback" />
@@ -272,7 +340,7 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
             </div>
             <div
               v-for="(f, idx) in result.files" :key="f.id"
-              class="result-item jnclub-bouncy" @click="handleJump('files', f.directoryId)"
+              :class="['result-item', 'jnclub-bouncy', { 'search-nav-active': activeIndex === navIndex(`f-${f.id}`) }]" @click="handleJump('files', f.directoryId)"
               :style="{ animationDelay: `${Math.min(idx * 35, 300)}ms` }"
             >
               <NIcon :component="FileText" size="15" class="item-fallback" />
@@ -292,7 +360,7 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
             </div>
             <div
               v-for="(v, idx) in result.vault" :key="v.id"
-              class="result-item jnclub-bouncy" @click="handleJump('vault', v.directoryId)"
+              :class="['result-item', 'jnclub-bouncy', { 'search-nav-active': activeIndex === navIndex(`v-${v.id}`) }]" @click="handleJump('vault', v.directoryId)"
               :style="{ animationDelay: `${Math.min(idx * 35, 300)}ms` }"
             >
               <NIcon :component="KeyRound" size="15" class="item-fallback" />
@@ -312,7 +380,7 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
             </div>
             <div
               v-for="(t, idx) in result.tags" :key="t.id"
-              class="result-item jnclub-bouncy" @click="handleJump('bookmarks', null)"
+              :class="['result-item', 'jnclub-bouncy', { 'search-nav-active': activeIndex === navIndex(`t-${t.id}`) }]" @click="handleJump('bookmarks', null)"
               :style="{ animationDelay: `${Math.min(idx * 35, 300)}ms` }"
             >
               <NIcon :component="Tag" size="15" class="item-fallback" />
@@ -332,7 +400,7 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
             </div>
             <div
               v-for="(t, idx) in result.tracks" :key="t.trackId"
-              class="result-item jnclub-bouncy" @click="handleJump('music', null)"
+              :class="['result-item', 'jnclub-bouncy', { 'search-nav-active': activeIndex === navIndex(`track-${t.trackId}`) }]" @click="handleJump('music', null)"
               :style="{ animationDelay: `${Math.min(idx * 35, 300)}ms` }"
             >
               <NIcon :component="Music" size="15" class="item-fallback" />
@@ -422,8 +490,12 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
   opacity: 0;
   animation: search-item-in .3s var(--ease) forwards;
 }
-.result-item:hover {
+.result-item:hover,
+.result-item.search-nav-active {
   background: var(--glass-chip-bg);
+}
+.result-item.search-nav-active .item-arrow {
+  opacity: 1;
 }
 @keyframes search-item-in {
   from { opacity: 0; transform: translateX(12px); }
@@ -532,7 +604,8 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
   text-align: left;
   transition: background var(--dur) var(--ease);
 }
-.cmd-item:hover { background: var(--glass-chip-bg); }
+.cmd-item:hover,
+.cmd-item.search-nav-active { background: var(--glass-chip-bg); }
 .cmd-ic { color: var(--brand); flex-shrink: 0; }
 .cmd-label { flex: 1; }
 .cmd-group { font-size: var(--fs-xs); color: var(--text-3); }

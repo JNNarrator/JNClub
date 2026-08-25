@@ -20,6 +20,19 @@ export async function fetchRefTags(refType: string, refId: number): Promise<TagI
   return []
 }
 
+/**
+ * 批量查询多条记录关联的标签，返回 refId → tags。
+ * 列表页使用一次请求替代 N+1；服务端对缺失 refId 不返回 key，前端按空数组处理。
+ */
+export async function fetchRefTagsBatch(refType: string, refIds: number[]): Promise<Record<number, TagItem[]>> {
+  if (!refIds.length) return {}
+  const res = await axios.get('/api/tags/relations/batch', {
+    params: { refType, refIds: refIds.join(',') },
+  })
+  if (res.data.code === 200) return res.data.data || {}
+  return {}
+}
+
 /** 全量覆盖设置某记录标签 */
 export async function setRefTags(refType: string, refId: number, tagNames: string[]): Promise<void> {
   const res = await axios.put('/api/tags/relations', { refType, refId, tagNames })

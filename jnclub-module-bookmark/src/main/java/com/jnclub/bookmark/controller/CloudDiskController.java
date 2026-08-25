@@ -92,9 +92,14 @@ public class CloudDiskController {
     // 文件管理
     // ============================================================
 
-    /** 按云盘目录列出文件（该用户） */
+    /** 按云盘目录列出文件（该用户）；传 page/size 时分页返回 {items,total,page,size} */
     @GetMapping("/files")
-    public R<List<FileRecord>> listFiles(@RequestParam("directoryId") Long directoryId) {
+    public R<Object> listFiles(@RequestParam("directoryId") Long directoryId,
+                               @RequestParam(required = false) Integer page,
+                               @RequestParam(required = false) Integer size) {
+        if (page != null && size != null) {
+            return R.ok(cloudDiskService.pageFiles(directoryId, page, size));
+        }
         return R.ok(cloudDiskService.listFiles(directoryId));
     }
 

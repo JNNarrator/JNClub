@@ -4,7 +4,7 @@
  * RecycleView.vue — 回收站内容区（软删除条目查看/恢复/永久删除/清空）
  * 现由 RecycleLayout 套用主壳渲染：顶栏/导航/TabBar 与其他模块一致
  */
-import { ref, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import {
   NButton, NIcon, NTabs, NTabPane, NModal, NInputNumber,
   useMessage, useDialog,
@@ -24,6 +24,11 @@ type RecycleType = 'bookmark' | 'note' | 'file' | 'vault'
 const activeType = ref<RecycleType>('bookmark')
 const items = ref<any[]>([])
 const loading = ref(false)
+const loadingMore = ref(false)
+const page = ref(1)
+const PAGE_SIZE = 50
+const totalItems = ref(0)
+const hasMore = computed(() => items.value.length < totalItems.value)
 
 const typeLabels: Record<RecycleType, string> = {
   bookmark: '收藏',
@@ -111,15 +116,43 @@ const isExpired = (item: any): boolean => {
 }
 
 const fetchItems = async () => {
+  page.value = 1
   loading.value = true
   try {
-    const res = await axios.get('/api/recycle', { params: { type: activeType.value } })
+    const res = await axios.get('/api/recycle', { params: { type: activeType.value, page: page.value, size: PAGE_SIZE } })
     if (res.data.code === 200) {
-      items.value = res.data.data || []
+      const data = res.data.data
+      if (data && Array.isArray(data.items)) {
+        items.value = data.items || []
+        totalItems.value = data.total || 0
+      } else {
+        // 兼容旧后端直接返回数组
+        items.value = data || []
+        totalItems.value = items.value.length
+      }
     }
   } catch (e: any) {
     message.error(e.response?.data?.message || '加载失败')
   } finally { loading.value = false }
+}
+
+const loadMore = async () => {
+  if (loadingMore.value || !hasMore.value) return
+  loadingMore.value = true
+  const next = page.value + 1
+  try {
+    const res = await axios.get('/api/recycle', { params: { type: activeType.value, page: next, size: PAGE_SIZE } })
+    if (res.data.code === 200) {
+      const data = res.data.data
+      if (data && Array.isArray(data.items)) {
+        items.value = [...items.value, ...(data.items || [])]
+        totalItems.value = data.total ?? totalItems.value
+        page.value = data.page ?? next
+      }
+    }
+  } catch (e: any) {
+    message.error(e.response?.data?.message || '加载更多失败')
+  } finally { loadingMore.value = false }
 }
 
 const onTabChange = () => fetchItems()
@@ -260,6 +293,11 @@ onMounted(() => { fetchItems(); fetchConfig() })
               </NButton>
             </div>
           </div>
+          <div v-if="hasMore" class="load-more-wrap">
+            <NButton size="small" quaternary :loading="loadingMore" @click="loadMore">
+              {{ loadingMore ? '加载中…' : `加载更多（${items.length}/${totalItems}）` }}
+            </NButton>
+          </div>
         </div>
       </template>
     </div>
@@ -380,6 +418,11 @@ onMounted(() => { fetchItems(); fetchConfig() })
   flex-direction: column;
   gap: 8px;
   margin-top: 12px;
+}
+.load-more-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 12px 8px;
 }
 .recycle-item {
   display: flex;

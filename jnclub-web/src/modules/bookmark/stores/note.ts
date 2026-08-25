@@ -1,12 +1,14 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import axios from 'axios'
-import { fetchRefTags } from '../composables/tags'
+import { fetchRefTagsBatch } from '../composables/tags'
 
 export interface Note {
   id: number
   title: string
   content: string | null
+  /** 列表接口返回的摘要，详情接口返回完整 content */
+  excerpt?: string | null
   directoryId: number
   userId?: string
   sortOrder: number
@@ -29,10 +31,13 @@ export const useNoteStore = defineStore('note', () => {
         params: { directoryId, ...(tagId ? { tagId } : {}), ...(archived ? { archived: true } : {}) }
       })
       if (res.data.code === 200) {
-        notes.value = res.data.data || []
-        notes.value = await Promise.all(notes.value.map(async (n) => {
-          const tags = await fetchRefTags('note', n.id)
-          return { ...n, tags: tags.map(t => t.name) }
+        const list = res.data.data || []
+        notes.value = list
+        // 一次批量请求拉取全部标签，替代逐条 N+1
+        const tagMap = await fetchRefTagsBatch('note', list.map((n: Note) => n.id))
+        notes.value = list.map((n: Note) => ({
+          ...n,
+          tags: (tagMap[n.id] || []).map(t => t.name),
         }))
       }
     } finally {

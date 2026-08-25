@@ -5,7 +5,7 @@
  * 性能克制：interactivity 全关、fpsLimit 30、粒子数 ≤40、detectRetina false、pointer-events none
  * 触屏 / prefers-reduced-motion 自动关闭
  */
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref, watch, getCurrentInstance } from 'vue'
 import { useRoute } from 'vue-router'
 import type { ISourceOptions } from '@tsparticles/engine'
 import { useParticlesSettings } from '../composables/useParticlesSettings'
@@ -31,6 +31,34 @@ const shouldShow = computed(() => {
 
 onMounted(() => {
   settings.init()
+  if (shouldShow.value) ensureParticles()
+})
+
+// 用户启用粒子 / 路由进入可展示页面时再动态加载 tsparticles，避免首屏加载其引擎
+const particlesReady = ref(false)
+const instance = getCurrentInstance()
+let installPromise: Promise<void> | null = null
+async function ensureParticles() {
+  if (particlesReady.value) return
+  if (installPromise) return installPromise
+  installPromise = (async () => {
+    const [{ default: Particles }, { loadSlim }] = await Promise.all([
+      import('@tsparticles/vue3'),
+      import('@tsparticles/slim'),
+    ])
+    const app = instance?.appContext.app
+    if (!app) return
+    app.use(Particles, {
+      init: async (engine: any) => {
+        await loadSlim(engine)
+      },
+    })
+    particlesReady.value = true
+  })()
+  await installPromise
+}
+watch(shouldShow, (v) => {
+  if (v) ensureParticles()
 })
 
 /** 亮暗主题配色：亮色用极深高对比色（确保在 #F5F5F7 浅底上清晰可见）；暗色用柔和亮色 */
@@ -98,8 +126,9 @@ const options = computed<ISourceOptions>(() => {
 </script>
 
 <template>
-  <div v-if="shouldShow" class="particles-bg" aria-hidden="true">
-    <VueParticles id="jnclub-particles" :options="options" />
+  <div v-if="shouldShow && particlesReady" class="particles-bg" aria-hidden="true">
+    <!-- 插件按需安装后全局注册 VueParticles，这里用动态组件字符串解析 -->
+    <component :is="'VueParticles'" id="jnclub-particles" :options="options" />
   </div>
 </template>
 

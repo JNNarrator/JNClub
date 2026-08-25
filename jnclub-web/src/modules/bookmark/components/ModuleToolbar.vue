@@ -58,7 +58,7 @@ const emit = defineEmits<{
       size="small"
       class="io-export-btn jnclub-bouncy"
       :disabled="!noteCount"
-      title="导出当前目录全部便签为 .md（图片内嵌 base64）"
+      title="导出当前目录全部便签为 .md（列表瘦身后按需拉取正文）"
       @click="emit('export-notes')"
     >
       <template #icon><NIcon :component="Download" size="15" /></template>

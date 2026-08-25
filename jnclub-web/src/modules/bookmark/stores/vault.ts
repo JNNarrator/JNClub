@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import axios from 'axios'
 
 export interface VaultItem {
@@ -18,6 +18,12 @@ export interface VaultItem {
 export const useVaultStore = defineStore('vault', () => {
   const items = ref<VaultItem[]>([])
   const loading = ref(false)
+  const loadingMore = ref(false)
+  const totalItems = ref(0)
+  const page = ref(1)
+  const PAGE_SIZE = 50
+
+  const hasMoreItems = computed(() => items.value.length < totalItems.value)
 
   /** 主密钥状态：{ configured: 是否已设置, unlocked: 当前是否已解锁 } */
   const masterStatus = ref<{ configured: boolean; unlocked: boolean }>({ configured: false, unlocked: false })
@@ -25,15 +31,30 @@ export const useVaultStore = defineStore('vault', () => {
   /** 健康检查结果：弱密码 / 重复密码条目 id → 展示角标（仅提示不拦截） */
   const health = ref<{ weakIds: Set<number>; dupIds: Set<number> }>({ weakIds: new Set(), dupIds: new Set() })
 
-  const fetchItems = async (directoryId: number) => {
-    loading.value = true
+  const fetchItems = async (directoryId: number, opts?: { page?: number; size?: number; append?: boolean }) => {
+    const nextPage = opts?.page ?? 1
+    const size = opts?.size ?? PAGE_SIZE
+    const append = opts?.append ?? false
+    if (append) loadingMore.value = true
+    else loading.value = true
     try {
-      const res = await axios.get('/api/vault', { params: { directoryId } })
+      const res = await axios.get('/api/vault', { params: { directoryId, page: nextPage, size } })
       if (res.data.code === 200) {
-        items.value = res.data.data || []
+        const data = res.data.data
+        // 兼容旧后端直接返回数组
+        if (Array.isArray(data)) {
+          totalItems.value = data.length
+          items.value = append ? [...items.value, ...data] : data
+        } else {
+          const list = data?.items || []
+          totalItems.value = data?.total ?? 0
+          page.value = data?.page ?? nextPage
+          items.value = append ? [...items.value, ...list] : list
+        }
       }
     } finally {
       loading.value = false
+      loadingMore.value = false
     }
   }
 
@@ -119,6 +140,10 @@ export const useVaultStore = defineStore('vault', () => {
   return {
     items,
     loading,
+    loadingMore,
+    totalItems,
+    page,
+    hasMoreItems,
     masterStatus,
     health,
     fetchItems,

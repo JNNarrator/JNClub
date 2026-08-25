@@ -66,6 +66,7 @@ public class NoteService extends ServiceImpl<NoteMapper, Note> {
                     .orderByDesc(Note::getPinned)
                     .orderByDesc(Note::getUpdateTime));
             notes.forEach(n -> n.setTitle(deriveDisplayTitle(n.getTitle(), n.getContent())));
+            notes.forEach(this::slimNote);
             return notes;
         }
 
@@ -82,11 +83,20 @@ public class NoteService extends ServiceImpl<NoteMapper, Note> {
                     .in(Note::getId, refIds)
                     .orderByDesc(Note::getPinned)
                     .orderByAsc(Note::getSortOrder));
+            for (Note note : notes) {
+                note.setTitle(deriveDisplayTitle(note.getTitle(), note.getContent()));
+                slimNote(note);
+            }
+            return notes;
         } else {
-            // 无标签过滤：走 Redis 旁路缓存（列表含派生标题，读开销大）
+            // 无标签过滤：走 Redis 旁路缓存（列表只保留摘要，不缓存完整正文）
             String cacheKey = CacheKey.note(userId, directoryId);
             List<Note> cached = cacheService.getList(cacheKey, Note.class);
-            if (cached != null) return cached;
+            if (cached != null) {
+                // 兼容旧版本缓存：即使缓存里仍有全文也统一瘦身后返回
+                cached.forEach(this::slimNote);
+                return cached;
+            }
             notes = list(new LambdaQueryWrapper<Note>()
                     .eq(Note::getDirectoryId, directoryId)
                     .eq(Note::getUserId, userId)
@@ -96,15 +106,31 @@ public class NoteService extends ServiceImpl<NoteMapper, Note> {
                     .orderByAsc(Note::getSortOrder));
             for (Note note : notes) {
                 note.setTitle(deriveDisplayTitle(note.getTitle(), note.getContent()));
+                slimNote(note);
             }
             cacheService.setList(cacheKey, notes, CacheService.DEFAULT_TTL);
             return notes;
         }
+    }
 
-        for (Note note : notes) {
-            note.setTitle(deriveDisplayTitle(note.getTitle(), note.getContent()));
-        }
-        return notes;
+    /** 列表瘦身：填充摘要并移除完整正文，减少接口 payload 与缓存体积 */
+    private void slimNote(Note note) {
+        // 已瘦身的缓存对象（content 为 null、excerpt 已有）保持不动
+        if (note.getContent() == null) return;
+        note.setExcerpt(buildExcerpt(note.getContent()));
+        note.setContent(null);
+    }
+
+    /** 从 Markdown 正文生成纯文本摘要（最多 200 字） */
+    private String buildExcerpt(String content) {
+        if (content == null || content.isBlank()) return null;
+        String plain = content
+                .replaceAll("(?s)<[^>]*>", " ")
+                .replaceAll("[#>*_`~\\[\\]()!\\-]", " ")
+                .replaceAll("\\s+", " ")
+                .trim();
+        if (plain.isEmpty()) return null;
+        return plain.length() > 200 ? plain.substring(0, 200) + "…" : plain;
     }
 
     public Note getNoteDetail(Long id) {

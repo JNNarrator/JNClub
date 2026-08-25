@@ -20,9 +20,14 @@ public class VaultController {
 
     private final VaultService vaultService;
 
-    /** 目录内列表（password 置空） */
+    /** 目录内列表（password 置空）；传 page/size 时分页返回 {items,total,page,size} */
     @GetMapping
-    public R<List<Vault>> list(@RequestParam Long directoryId) {
+    public R<Object> list(@RequestParam Long directoryId,
+                          @RequestParam(required = false) Integer page,
+                          @RequestParam(required = false) Integer size) {
+        if (page != null && size != null) {
+            return R.ok(vaultService.pageList(directoryId, page, size));
+        }
         return R.ok(vaultService.list(directoryId));
     }
 

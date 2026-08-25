@@ -1,8 +1,6 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import { registerSW } from 'virtual:pwa-register'
-import Particles from '@tsparticles/vue3'
-import { loadSlim } from '@tsparticles/slim'
 import App from './App.vue'
 import router from './shared/router'
 import './assets/main.css'
@@ -15,11 +13,7 @@ const app = createApp(App)
 
 app.use(createPinia())
 app.use(router)
-// tsParticles 全局注册（组件 <VueParticles>），slim 体积最小（circle 形状够用）
-app.use(Particles, {
-  init: async (engine) => {
-    await loadSlim(engine)
-  },
-})
+// tsParticles 不再全局注册；ParticlesBackground 在用户真正启用粒子时才动态加载并安装，
+// 避免首屏加载 tsparticles 引擎相关 chunk。
 
 app.mount('#app')

@@ -149,6 +149,40 @@ public class TagService extends ServiceImpl<TagMapper, Tag> {
     }
 
     /**
+     * 批量查询多条记录关联的标签（带标签名），返回 refId → tags。
+     * 用于列表页一次请求消除 N+1；只返回当前用户有权的标签。
+     */
+    public Map<Long, List<Tag>> listTagsOfRefs(String refType, List<Long> refIds) {
+        String userId = StpUtil.getLoginIdAsString();
+        if (refIds == null || refIds.isEmpty()) return Collections.emptyMap();
+        if (!"bookmark".equals(refType) && !"note".equals(refType)) {
+            throw new BizException("refType 非法");
+        }
+
+        List<TagRelation> relations = tagRelationMapper.selectList(
+                new LambdaQueryWrapper<TagRelation>()
+                        .eq(TagRelation::getRefType, refType)
+                        .in(TagRelation::getRefId, refIds));
+        if (relations.isEmpty()) return Collections.emptyMap();
+
+        List<Long> tagIds = relations.stream().map(TagRelation::getTagId).distinct().toList();
+        List<Tag> tags = list(new LambdaQueryWrapper<Tag>()
+                .in(Tag::getId, tagIds)
+                .eq(Tag::getUserId, userId)
+                .orderByAsc(Tag::getName));
+        if (tags.isEmpty()) return Collections.emptyMap();
+
+        Map<Long, Tag> tagById = tags.stream().collect(Collectors.toMap(Tag::getId, t -> t));
+        Map<Long, List<Tag>> result = new java.util.LinkedHashMap<>();
+        for (TagRelation relation : relations) {
+            Tag tag = tagById.get(relation.getTagId());
+            if (tag == null) continue;
+            result.computeIfAbsent(relation.getRefId(), k -> new ArrayList<>()).add(tag);
+        }
+        return result;
+    }
+
+    /**
      * 全量覆盖设置关联：body = {refType, refId, tagNames[]}。
      * 先清空旧关联，再按 tagNames 建立（同名标签复用）。
      */

@@ -36,7 +36,9 @@ const showMoveModal = ref(false)
 const showShare = ref(false)
 const { setDragging } = useItemDragContext()
 
-const getSummary = (content: string | null) => {
+const getSummary = (note: Note) => {
+  // 列表接口已返回纯文本 excerpt；兼容旧数据/详情场景回退到完整 content
+  const content = note.excerpt ?? note.content
   if (!content) return '暂无内容'
   const plain = stripMarkdown(content)
   if (!plain) return '暂无内容'
@@ -134,7 +136,7 @@ const handleDragEnd = () => setDragging(null)
           {{ note.title || '无标题' }}
         </NEllipsis>
       </div>
-      <div class="row-summary">{{ getSummary(note.content) }}</div>
+      <div class="row-summary">{{ getSummary(note) }}</div>
       <div v-if="note.tags?.length" class="row-tags">
         <NTag v-for="t in note.tags" :key="t" size="tiny" round :bordered="false" class="row-tag">
           {{ t }}

@@ -34,7 +34,9 @@ const noteStore = useNoteStore()
 const showMoveModal = ref(false)
 const showShare = ref(false)
 
-const getSummary = (content: string | null) => {
+const getSummary = (note: Note) => {
+  // 列表接口已返回纯文本 excerpt；兼容旧数据/详情场景回退到完整 content
+  const content = note.excerpt ?? note.content
   if (!content) return '暂无内容'
   const plain = stripMarkdown(content)
   if (!plain) return '暂无内容'
@@ -135,7 +137,7 @@ const onRootClick = () => {
       </div>
 
       <!-- 摘要 -->
-      <div class="card-summary">{{ getSummary(note.content) }}</div>
+      <div class="card-summary">{{ getSummary(note) }}</div>
 
       <!-- 标签 -->
       <div v-if="note.tags?.length" class="card-tags">

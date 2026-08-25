@@ -18,9 +18,14 @@ public class RecycleController {
 
     private final RecycleService recycleService;
 
-    /** 列出某类型回收站条目（type: bookmark|note|file） */
+    /** 列出某类型回收站条目（type: bookmark|note|file|vault）；传 page/size 时分页 */
     @GetMapping
-    public R<List<?>> list(@RequestParam String type) {
+    public R<Object> list(@RequestParam String type,
+                          @RequestParam(required = false) Integer page,
+                          @RequestParam(required = false) Integer size) {
+        if (page != null && size != null) {
+            return R.ok(recycleService.pageList(type, page, size));
+        }
         return R.ok(recycleService.list(type));
     }
 

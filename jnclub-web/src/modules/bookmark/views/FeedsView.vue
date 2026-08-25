@@ -59,6 +59,7 @@ const activeFeedId = ref<number | null>(null) // null = 全部
 const filter = ref<'all' | 'unread' | 'starred'>('all')
 const page = ref(1)
 const PAGE_SIZE = 50
+const loadingMore = ref(false)
 
 const selected = ref<FeedItemRow | null>(null)
 const reading = ref<FeedItemRow | null>(null)
@@ -77,8 +78,9 @@ const fetchFeeds = async () => {
   } finally { loadingFeeds.value = false }
 }
 
-/* ─── 加载条目 ─── */
+/* ─── 加载条目（每次重新拉第一页） ─── */
 const fetchItems = async () => {
+  page.value = 1
   loadingItems.value = true
   itemsError.value = false
   try {
@@ -93,6 +95,28 @@ const fetchItems = async () => {
     itemsError.value = true
     message.error(e.response?.data?.message || '加载条目失败')
   } finally { loadingItems.value = false }
+}
+
+const hasMore = computed(() => items.value.length < total.value)
+
+/** 加载下一页并追加到当前列表 */
+const loadMore = async () => {
+  if (loadingMore.value || !hasMore.value) return
+  loadingMore.value = true
+  const next = page.value + 1
+  try {
+    const res = await axios.get('/api/feeds/items', {
+      params: { feedId: activeFeedId.value, filter: filter.value, page: next, size: PAGE_SIZE },
+    })
+    if (res.data.code === 200) {
+      const list = res.data.data?.items || []
+      items.value = [...items.value, ...list]
+      total.value = res.data.data?.total ?? total.value
+      page.value = next
+    }
+  } catch (e: any) {
+    message.error(e.response?.data?.message || '加载更多失败')
+  } finally { loadingMore.value = false }
 }
 
 const reload = () => { fetchFeeds(); fetchItems() }
@@ -380,6 +404,11 @@ const totalUnread = computed(() => feeds.value.reduce((s, f) => s + (f.unread ||
               </NButton>
             </div>
           </div>
+          <div v-if="hasMore" class="load-more-wrap">
+            <NButton size="small" quaternary :loading="loadingMore" @click="loadMore">
+              {{ loadingMore ? '加载中…' : `加载更多（${items.length}/${total}）` }}
+            </NButton>
+          </div>
         </NScrollbar>
       </div>
 
@@ -443,7 +472,10 @@ const totalUnread = computed(() => feeds.value.reduce((s, f) => s + (f.unread ||
 </template>
 
 <style scoped>
-.feeds-wrap { display: flex; flex-direction: column; height: 100%; gap: 10px; }
+.feeds-wrap {
+  display: flex; flex-direction: column; height: 100%; gap: 10px;
+  padding-bottom: env(safe-area-inset-bottom);
+}
 .feeds-toolbar {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   padding: 4px 4px 0;
@@ -535,6 +567,11 @@ const totalUnread = computed(() => feeds.value.reduce((s, f) => s + (f.unread ||
 .item-row { padding: 10px 12px; cursor: pointer; border-bottom: 1px solid var(--glass-border); }
 .item-row:hover { background: var(--hover-bg); }
 .item-row.selected { background: var(--brand-soft); }
+.load-more-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 12px 8px;
+}
 .item-row.unread .item-row-title { font-weight: 700; color: var(--text-1); }
 .item-row-title {
   display: flex; align-items: flex-start; gap: 6px;
@@ -564,7 +601,7 @@ const totalUnread = computed(() => feeds.value.reduce((s, f) => s + (f.unread ||
 .read-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
 .read-scroll { }
-.read-content { max-width: 760px; margin: 0 auto; padding: 20px 28px 48px; }
+.read-content { max-width: 760px; margin: 0 auto; padding: 20px 28px calc(48px + env(safe-area-inset-bottom)); }
 .rich-content { font-size: 15px; line-height: 1.85; color: var(--text-1); word-break: break-word; }
 .rich-content :deep(h1), .rich-content :deep(h2), .rich-content :deep(h3), .rich-content :deep(h4) {
   margin: 1.3em 0 0.5em; line-height: 1.4; font-weight: 700; color: var(--text-1);
@@ -610,5 +647,7 @@ const totalUnread = computed(() => feeds.value.reduce((s, f) => s + (f.unread ||
   .feeds-main { flex-direction: column; }
   .feed-col, .item-col { width: 100%; max-height: 180px; }
   .read-col { min-height: 320px; }
+  /* 触屏没有 hover，操作入口常显 */
+  .feed-row-actions { opacity: 1; }
 }
 </style>

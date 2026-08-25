@@ -57,6 +57,11 @@ export default defineConfig({
     },
   },
   build: {
+    modulePreload: {
+      polyfill: false,
+      // 避免首屏预载 md-editor（便签编辑器）大 chunk；它只在打开 /notes 路由时才真正加载
+      resolveDependencies: (_filename, deps) => deps.filter((dep) => !dep.includes('md-editor')),
+    },
     rollupOptions: {
       output: {
         manualChunks: {

@@ -472,6 +472,18 @@ html.custom-cursor-active.dragging * {
     var(--glass-bg-trans) !important;
 }
 
+/* ---- 长列表渲染优化：让离屏条目跳过布局/绘制（渐进增强） ---- */
+.grid-item-wrap,
+.list-item-wrap,
+.file-item,
+.vault-item,
+.recycle-item,
+.feed-row,
+.item-row {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 80px;
+}
+
 /* ---- Reduced motion ---- */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

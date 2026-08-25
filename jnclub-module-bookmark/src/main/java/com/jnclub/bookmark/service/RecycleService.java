@@ -22,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -142,6 +143,23 @@ public class RecycleService {
             case "vault" -> vaultService.listRecycle(userId);
             default -> cloudDiskService.listRecycle(userId);
         };
+    }
+
+    /**
+     * 分页列出某类型回收站条目。先取全量再切片，减少前端渲染压力；
+     * 回收站数据量通常远小于业务表，后续如有必要再下沉到 SQL 分页。
+     */
+    public Map<String, Object> pageList(String type, int page, int size) {
+        List<?> all = list(type);
+        int total = all.size();
+        int from = Math.min(Math.max((page - 1) * size, 0), total);
+        int to = Math.min(from + size, total);
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("items", all.subList(from, to));
+        result.put("total", total);
+        result.put("page", page);
+        result.put("size", size);
+        return result;
     }
 
     // ============================================================

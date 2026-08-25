@@ -170,12 +170,22 @@ const handleDelete = (file: DiskFile) => {
 
 const st = uploader.state
 
-/** 文件列表拖拽排序 */
+/** 文件列表拖拽排序；分页未加载完全部文件时禁用，避免只重排已加载片段 */
 const fileListRef = ref<HTMLElement | null>(null)
+const dragDisabled = computed(() => diskStore.hasMoreFiles)
 const { init: initSort } = useDraggableSort(fileListRef, (ids) => {
   emit('sort', ids.map(Number))
-})
+}, dragDisabled)
 onMounted(() => { initSort() })
+
+/** 加载下一页云盘文件并追加 */
+const loadMoreFiles = async () => {
+  if (!props.directoryId || diskStore.loadingMore || !diskStore.hasMoreFiles) return
+  await diskStore.fetchFiles(props.directoryId, {
+    page: diskStore.page + 1,
+    append: true,
+  })
+}
 
 // ============================================================
 // P0 增强：重命名 / 移动 / 多选批量
@@ -312,6 +322,18 @@ const handleBatchDelete = () => {
   })
 }
 
+/** 行点击：多选模式下切换勾选，普通模式打开预览 */
+const handleRowClick = (file: DiskFile) => {
+  if (batchMode.value) toggleSelect(file.id)
+  else openPreview(file)
+}
+const handleRowKeydown = (e: KeyboardEvent, file: DiskFile) => {
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault()
+    handleRowClick(file)
+  }
+}
+
 /** 行下拉菜单 */
 const rowMenu = () => [
   { label: '预览', key: 'preview', icon: () => h(NIcon, null, { default: () => h(Eye) }) },
@@ -434,7 +456,12 @@ const fileKindColor = (name: string) => FILE_KINDS.find(k => k.re.test(name))?.c
             <div
               v-for="file in diskStore.files" :key="file.id" :data-id="file.id"
               :class="['file-item', 'jnclub-bouncy', { 'file-item-selected': isSelected(file.id) }]"
+              role="button"
+              tabindex="0"
+              :aria-label="file.originalName"
               draggable="true"
+              @click="handleRowClick(file)"
+              @keydown="handleRowKeydown($event, file)"
               @dragstart="handleDragStart($event, file)"
               @dragend="handleDragEnd"
               @contextmenu.prevent="openMenu($event, rowMenu(), (key: string) => handleRowMenu(key, file))"
@@ -443,14 +470,15 @@ const fileKindColor = (name: string) => FILE_KINDS.find(k => k.re.test(name))?.c
                 v-if="batchMode"
                 :checked="isSelected(file.id)"
                 @update:checked="() => toggleSelect(file.id)"
+                @click.stop
                 class="file-check"
               />
               <div class="file-icon"><NIcon :component="FileText" size="20" :style="{ color: fileKindColor(file.originalName) }" /></div>
               <div class="file-main">
-                <div class="file-name previewable" :title="file.originalName" @click="openPreview(file)">{{ file.originalName }}</div>
+                <div class="file-name previewable" :title="file.originalName" @click.stop="openPreview(file)">{{ file.originalName }}</div>
                 <div class="file-meta">{{ diskStore.formatSize(file.size) }}</div>
               </div>
-              <div class="file-actions">
+              <div class="file-actions" @click.stop>
                 <NButton quaternary circle size="small" title="下载" @click="handleDownload(file)">
                   <template #icon><NIcon :component="Download" size="16" /></template>
                 </NButton>
@@ -461,6 +489,12 @@ const fileKindColor = (name: string) => FILE_KINDS.find(k => k.re.test(name))?.c
                 </NDropdown>
               </div>
             </div>
+          </div>
+
+          <div v-if="diskStore.hasMoreFiles" class="load-more-wrap">
+            <NButton size="small" quaternary :loading="diskStore.loadingMore" @click="loadMoreFiles">
+              {{ diskStore.loadingMore ? '加载中…' : `加载更多（${diskStore.files.length}/${diskStore.totalFiles}）` }}
+            </NButton>
           </div>
 
           <!-- 批量操作条（统一 JBatchBar，插槽放云盘独有“打包下载”） -->
@@ -613,6 +647,11 @@ const fileKindColor = (name: string) => FILE_KINDS.find(k => k.re.test(name))?.c
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+.load-more-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 12px 8px;
 }
 .file-item {
   display: flex;

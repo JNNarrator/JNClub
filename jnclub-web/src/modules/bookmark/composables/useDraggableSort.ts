@@ -2,7 +2,7 @@
  * useDraggableSort — 基于 SortableJS 的可复用拖拽排序
  * 供收藏夹/便签/云盘的网格与列表，以及侧栏导航复用，统一拖拽交互与排序回调
  */
-import { onBeforeUnmount, type Ref } from 'vue'
+import { onBeforeUnmount, watch, type Ref } from 'vue'
 import Sortable from 'sortablejs'
 
 /** data-id 支持数字 id 或字符串 key（如导航模块 key） */
@@ -61,6 +61,11 @@ export function useDraggableSort(
       },
       disabled: disabledRef?.value ?? false,
     })
+    if (disabledRef) {
+      watch(disabledRef, (v) => {
+        sortable?.option('disabled', v)
+      })
+    }
   }
 
   const destroy = () => {

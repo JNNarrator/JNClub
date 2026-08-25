@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import axios from 'axios'
 
 export interface DiskFile {
@@ -17,16 +17,37 @@ export interface DiskFile {
 export const useCloudDiskStore = defineStore('clouddisk', () => {
   const files = ref<DiskFile[]>([])
   const loading = ref(false)
+  const loadingMore = ref(false)
+  const totalFiles = ref(0)
+  const page = ref(1)
+  const PAGE_SIZE = 50
 
-  const fetchFiles = async (directoryId: number) => {
-    loading.value = true
+  const hasMoreFiles = computed(() => files.value.length < totalFiles.value)
+
+  const fetchFiles = async (directoryId: number, opts?: { page?: number; size?: number; append?: boolean }) => {
+    const nextPage = opts?.page ?? 1
+    const size = opts?.size ?? PAGE_SIZE
+    const append = opts?.append ?? false
+    if (append) loadingMore.value = true
+    else loading.value = true
     try {
-      const res = await axios.get('/api/clouddisk/files', { params: { directoryId } })
+      const res = await axios.get('/api/clouddisk/files', { params: { directoryId, page: nextPage, size } })
       if (res.data.code === 200) {
-        files.value = res.data.data || []
+        const data = res.data.data
+        // 兼容旧后端直接返回数组
+        if (Array.isArray(data)) {
+          totalFiles.value = data.length
+          files.value = append ? [...files.value, ...data] : data
+        } else {
+          const items = data?.items || []
+          totalFiles.value = data?.total ?? 0
+          page.value = data?.page ?? nextPage
+          files.value = append ? [...files.value, ...items] : items
+        }
       }
     } finally {
       loading.value = false
+      loadingMore.value = false
     }
   }
 
@@ -58,6 +79,10 @@ export const useCloudDiskStore = defineStore('clouddisk', () => {
   return {
     files,
     loading,
+    loadingMore,
+    totalFiles,
+    page,
+    hasMoreFiles,
     fetchFiles,
     updateSortOrder,
     deleteFile,

@@ -309,6 +309,25 @@ public class CloudDiskService {
                 .orderByDesc(FileRecord::getCreateTime));
     }
 
+    /** 分页列出云盘文件（大目录场景，避免一次返回全部） */
+    public Map<String, Object> pageFiles(Long directoryId, long page, long size) {
+        String userId = userId();
+        var p = fileMapper.selectPage(
+                new com.baomidou.mybatisplus.extension.plugins.pagination.Page<>(page, size),
+                new LambdaQueryWrapper<FileRecord>()
+                        .eq(FileRecord::getDirectoryId, directoryId)
+                        .eq(FileRecord::getUserId, userId)
+                        .eq(FileRecord::getDeleted, 0)
+                        .orderByAsc(FileRecord::getSortOrder)
+                        .orderByDesc(FileRecord::getCreateTime));
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("items", p.getRecords());
+        result.put("total", p.getTotal());
+        result.put("page", page);
+        result.put("size", size);
+        return result;
+    }
+
     /**
      * 重复文件检测：按内容 MD5 分组返回重复组（组内 ≥2 条）。
      * 旧文件（content_hash 为空）懒计算：≤50MB 从 dufs 拉取算 MD5 并回填。
