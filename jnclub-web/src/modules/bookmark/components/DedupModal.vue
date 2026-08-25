@@ -5,8 +5,10 @@
  * 每个重复组可「保留第一条，删除其余」或逐条勾选删除。
  */
 import { ref, watch } from 'vue'
-import { NModal, NButton, NIcon, NSpin, NEmpty, NCheckbox, useMessage, NTag, NPopconfirm } from 'naive-ui'
+import { NModal, NButton, NIcon, NSpin, NCheckbox, useMessage, NTag, NPopconfirm } from 'naive-ui'
 import { ScanSearch, Bookmark, Cloud, Trash2 } from 'lucide-vue-next'
+import JEmptyState from '../../../shared/components/ui/JEmptyState.vue'
+import JErrorState from '../../../shared/components/ui/JErrorState.vue'
 import axios from 'axios'
 
 const props = defineProps<{ show: boolean; initialTab?: 'bookmarks' | 'files' }>()
@@ -22,6 +24,7 @@ interface DupGroup { url?: string; hash?: string; normalized?: string; count: nu
 const bookmarks = ref<DupGroup[]>([])
 const files = ref<DupGroup[]>([])
 const loading = ref(false)
+const loadError = ref(false)
 const busy = ref(false)
 
 const groups = () => (tab.value === 'bookmarks' ? bookmarks.value : files.value)
@@ -37,6 +40,7 @@ watch(() => props.show, (v) => {
 
 const run = async () => {
   loading.value = true
+  loadError.value = false
   try {
     if (tab.value === 'bookmarks') {
       const res = await axios.post('/api/bookmarks/dedup')
@@ -46,6 +50,7 @@ const run = async () => {
       files.value = res.data?.data || []
     }
   } catch (e: any) {
+    loadError.value = true
     message.error(e.response?.data?.message || e.message || '检测失败')
   } finally {
     loading.value = false
@@ -150,8 +155,19 @@ const toggle = (id: number) => {
 
       <div class="dedup-body">
         <NSpin :show="loading">
-          <div v-if="!groups().length && !loading" class="dedup-empty">
-            <NEmpty description="没有发现重复数据，很干净 👌" />
+          <JErrorState
+            v-if="loadError && !loading"
+            message="检测失败"
+            hint="请检查网络后重试"
+            class="dedup-empty"
+            @retry="run"
+          />
+          <div v-else-if="!groups().length && !loading" class="dedup-empty">
+            <JEmptyState
+              message="没有发现重复数据"
+              hint="很干净 👌"
+              :show-cta="false"
+            />
           </div>
           <template v-else>
             <!-- 批量操作条 -->

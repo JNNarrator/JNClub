@@ -5,8 +5,9 @@
  * 点击结果 → 切到对应模块并选中目录
  */
 import { ref, watch, computed, nextTick } from 'vue'
-import { NDrawer, NInput, NIcon, NEmpty, NSpin, NEllipsis } from 'naive-ui'
+import { NDrawer, NInput, NIcon, NSpin, NEllipsis } from 'naive-ui'
 import { Search, Bookmark, StickyNote, FileText, KeyRound, Tag, Music, ArrowRight, Lock, Moon, Trash2, LayoutDashboard, Puzzle, Plus } from 'lucide-vue-next'
+import JEmptyState from '../../../shared/components/ui/JEmptyState.vue'
 import axios from 'axios'
 import { JGradientText } from '../../../shared/components/animation'
 
@@ -316,11 +317,22 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
 
       <NSpin :show="loading" class="search-spin">
         <!-- 空输入 -->
-        <NEmpty v-if="!keyword.trim()" description="输入内容关键词搜索，或执行上方快捷操作" class="search-empty" />
+        <JEmptyState
+          v-if="!keyword.trim()"
+          message="搜索收藏、便签、云盘、密码库和音乐"
+          hint="输入关键词开始搜索，或执行上方快捷操作"
+          :show-cta="false"
+          class="search-empty"
+        />
 
         <!-- 无结果 -->
         <div v-else-if="searched && total() === 0" class="no-result">
-          <NEmpty description="没有找到相关内容" class="search-empty" />
+          <JEmptyState
+            message="没有找到相关内容"
+            hint="换个关键词试试"
+            :show-cta="false"
+            class="search-empty"
+          />
         </div>
 
         <!-- 结果 -->

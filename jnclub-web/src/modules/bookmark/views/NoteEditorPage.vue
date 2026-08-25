@@ -6,7 +6,8 @@
  */
 import { ref, onMounted, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { NSpin, NEmpty, NButton, NSelect, useMessage } from 'naive-ui'
+import { NSpin, NButton, NSelect, useMessage } from 'naive-ui'
+import JEmptyState from '../../../shared/components/ui/JEmptyState.vue'
 import NoteEditor from '../components/NoteEditor.vue'
 import { useNoteStore } from '../stores/note'
 import { useDirectoryStore, type Directory } from '../stores/directory'
@@ -143,7 +144,7 @@ const handleDeleted = () => {
         @jump-note="handleJumpNote"
       />
       <div v-else-if="!loading" class="page-error">
-        <NEmpty description="便签不存在或已删除" />
+        <JEmptyState message="便签不存在或已删除" hint="可以返回上一页继续浏览" :show-cta="false" />
         <NButton type="primary" size="small" @click="handleClose">返回</NButton>
       </div>
     </NSpin>

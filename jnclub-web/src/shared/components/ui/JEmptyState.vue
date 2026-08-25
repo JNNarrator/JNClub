@@ -11,11 +11,13 @@ withDefaults(defineProps<{
   hint?: string
   icon?: 'bookmark' | 'note' | 'file' | 'vault'
   ctaLabel?: string
+  showCta?: boolean
 }>(), {
   message: '',
   hint: '',
   icon: undefined,
   ctaLabel: '',
+  showCta: true,
 })
 
 const emit = defineEmits<{
@@ -29,6 +31,7 @@ const emit = defineEmits<{
     :hint="hint"
     :icon="icon"
     :cta-label="ctaLabel"
+    :show-cta="showCta"
     @create="emit('create')"
   />
 </template>

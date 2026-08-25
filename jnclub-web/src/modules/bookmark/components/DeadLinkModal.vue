@@ -4,8 +4,10 @@
  * 显示检测统计 + 失效收藏列表 + 一键清理（真正删除）
  */
 import { ref, watch } from 'vue'
-import { NModal, NButton, NIcon, NEmpty, useMessage, useDialog, NSpin, NTag } from 'naive-ui'
+import { NModal, NButton, NIcon, useMessage, useDialog, NSpin, NTag } from 'naive-ui'
 import { AlertTriangle, Trash2, Link2Off, ExternalLink, RefreshCw, Archive } from 'lucide-vue-next'
+import JEmptyState from '../../../shared/components/ui/JEmptyState.vue'
+import JErrorState from '../../../shared/components/ui/JErrorState.vue'
 import axios from 'axios'
 import SnapshotModal from './SnapshotModal.vue'
 
@@ -15,6 +17,7 @@ const message = useMessage()
 const dialog = useDialog()
 
 const loading = ref(false)
+const loadError = ref(false)
 const result = ref<{ total: number; ok: number; dead: number; error: number; deadList: any[] } | null>(null)
 
 /** 快照查看 */
@@ -29,6 +32,7 @@ const viewSnapshot = (d: any) => {
 
 const startCheck = async () => {
   loading.value = true
+  loadError.value = false
   result.value = null
   try {
     const res = await axios.post('/api/bookmarks/check-dead', {}, { timeout: 300000 })
@@ -38,9 +42,11 @@ const startCheck = async () => {
         message.success(`检测完成：${res.data.data.total} 个链接全部正常`)
       }
     } else {
+      loadError.value = true
       message.error(res.data.message || '检测失败')
     }
   } catch (e: any) {
+    loadError.value = true
     message.error(e.response?.data?.message || e.message || '检测失败')
   } finally {
     loading.value = false
@@ -86,7 +92,20 @@ const cleanAll = () => {
   >
     <NSpin :show="loading">
       <template v-if="!result">
-        <NEmpty v-if="!loading" description="正在准备检测…" class="dead-empty" />
+        <JErrorState
+          v-if="loadError"
+          message="检测失败"
+          hint="请检查网络后重试"
+          class="dead-empty"
+          @retry="startCheck"
+        />
+        <JEmptyState
+          v-else-if="!loading"
+          message="正在准备检测…"
+          hint="打开后会自动开始检测失效链接"
+          :show-cta="false"
+          class="dead-empty"
+        />
         <div v-else class="dead-checking">
           <NIcon :component="RefreshCw" size="22" class="spin-icon" />
           <p>正在逐个检测链接可用性（约 {{ '每链接 0.3s' }}，请稍候）…</p>
@@ -136,7 +155,13 @@ const cleanAll = () => {
             </a>
           </div>
         </div>
-        <NEmpty v-else description="全部链接正常，没有失效收藏 🎉" class="dead-empty" />
+        <JEmptyState
+          v-else
+          message="全部链接正常"
+          hint="没有发现失效收藏 🎉"
+          :show-cta="false"
+          class="dead-empty"
+        />
       </template>
     </NSpin>
 

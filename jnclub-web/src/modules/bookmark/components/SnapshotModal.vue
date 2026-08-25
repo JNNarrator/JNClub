@@ -5,8 +5,9 @@
  * 附带元信息（抓取时间/大小）+「打开原文」兜底 + 删除快照
  */
 import { ref, watch } from 'vue'
-import { NModal, NButton, NIcon, NSpin, NEmpty, useMessage, useDialog } from 'naive-ui'
+import { NModal, NButton, NIcon, NSpin, useMessage, useDialog } from 'naive-ui'
 import { Archive, ExternalLink, X, Trash2, RefreshCw } from 'lucide-vue-next'
+import JErrorState from '../../../shared/components/ui/JErrorState.vue'
 import { formatDate } from '../composables/formatDate'
 import axios from 'axios'
 
@@ -109,7 +110,7 @@ const fmtSize = (n: number) => n > 1024 * 1024 ? (n / 1024 / 1024).toFixed(1) + 
         <NSpin :show="loading">
           <div v-if="loading" class="snap-hint">正在加载快照…</div>
           <div v-else-if="error" class="snap-error">
-            <NEmpty :description="error" class="snap-empty" />
+            <JErrorState message="快照加载失败" :hint="error" @retry="load" />
           </div>
           <iframe v-else-if="contentUrl" :src="contentUrl" class="snap-frame" sandbox="allow-same-origin" referrerpolicy="no-referrer" />
         </NSpin>

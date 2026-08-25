@@ -4,13 +4,17 @@
  * 飘浮花瓣 + 玻璃渐变卡底 + 品牌色环形图标 + CTA
  * 通过 props 区分收藏 / 便签等场景
  */
-defineProps<{
+withDefaults(defineProps<{
   message?: string
   hint?: string
   /** 图标类型：bookmark / note / file / vault */
   icon?: 'bookmark' | 'note' | 'file' | 'vault'
   ctaLabel?: string
-}>()
+  /** 是否显示底部 CTA 按钮；纯提示/空态可关闭 */
+  showCta?: boolean
+}>(), {
+  showCta: true,
+})
 
 const emit = defineEmits<{
   create: []
@@ -67,7 +71,7 @@ const emit = defineEmits<{
       <h3 class="empty-title">{{ message || '这里空空如也～' }}</h3>
       <p class="empty-sub">{{ hint || '里面还没有内容，去添加一些吧 ✨' }}</p>
 
-      <button class="empty-cta glass-pill-btn jnclub-bouncy-slow" @click="emit('create')">
+      <button v-if="showCta" class="empty-cta glass-pill-btn jnclub-bouncy-slow" @click="emit('create')">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
           <line x1="12" y1="5" x2="12" y2="19" />
           <line x1="5" y1="12" x2="19" y2="12" />

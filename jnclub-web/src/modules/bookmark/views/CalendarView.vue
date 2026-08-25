@@ -9,6 +9,7 @@ import { ChevronLeft, ChevronRight, StickyNote, Trash2 } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
 import JSkeletonGrid from '../../../shared/components/ui/JSkeletonGrid.vue'
+import JErrorState from '../../../shared/components/ui/JErrorState.vue'
 
 interface TodoItem {
   id: number
@@ -37,6 +38,7 @@ const message = useMessage()
 const router = useRouter()
 
 const loading = ref(false)
+const loadError = ref(false)
 const cursor = ref(new Date(new Date().getFullYear(), new Date().getMonth(), 1))
 const todos = ref<TodoItem[]>([])
 const overdueTodos = ref<TodoItem[]>([])
@@ -48,6 +50,7 @@ const monthTitle = computed(() =>
 
 const fetchMonth = async () => {
   loading.value = true
+  loadError.value = false
   try {
     const res = await axios.get('/api/calendar/month', {
       params: { year: cursor.value.getFullYear(), month: cursor.value.getMonth() + 1 },
@@ -57,9 +60,11 @@ const fetchMonth = async () => {
       overdueTodos.value = res.data.data?.overdueTodos || []
       notes.value = res.data.data?.notes || []
     } else {
+      loadError.value = true
       message.error(res.data.message || '加载失败')
     }
   } catch (e: any) {
+    loadError.value = true
     message.error(e.response?.data?.message || e.message || '加载失败')
   } finally { loading.value = false }
 }
@@ -247,6 +252,13 @@ const WEEKDAYS = ['一', '二', '三', '四', '五', '六', '日']
     <!-- 网格 -->
     <div class="cal-body" :class="{ loading }">
       <JSkeletonGrid v-if="loading" :count="7" />
+      <JErrorState
+        v-else-if="loadError"
+        message="日历加载失败"
+        hint="请检查网络后重试"
+        class="cal-error"
+        @retry="fetchMonth"
+      />
       <template v-else>
         <div class="cal-weekdays">
           <div v-for="w in WEEKDAYS" :key="w" class="cal-weekday">{{ w }}</div>
@@ -436,4 +448,25 @@ const WEEKDAYS = ['一', '二', '三', '四', '五', '六', '日']
 
 .quick-form { display: flex; flex-direction: column; gap: 10px; }
 .quick-date { font-size: var(--fs-sm); color: var(--brand); font-weight: 600; margin: 0; }
+
+.cal-error {
+  height: 100%;
+  min-height: 220px;
+}
+
+@media (max-width: 767px) {
+  .cal-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .cal-nav { justify-content: center; }
+  .cal-legend { justify-content: space-between; gap: 8px; }
+  .cal-grid { gap: 3px; }
+  .cal-cell { padding: 4px 3px; gap: 2px; }
+  .cell-date { font-size: var(--fs-xs); }
+  .cell-todo-title { max-width: 56px; }
+  .cell-note-chip { max-width: 48px; font-size: 9px; }
+  .cell-todo-del { opacity: 1; }
+}
 </style>

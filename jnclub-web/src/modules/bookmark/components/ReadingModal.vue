@@ -6,8 +6,9 @@
  * 传入 bookmarkId 时滚动跟踪阅读进度，回写 /api/bookmarks/{id}/progress（节流）。
  */
 import { ref, watch, onBeforeUnmount } from 'vue'
-import { NModal, NButton, NIcon, NSpin, NEmpty, NProgress } from 'naive-ui'
+import { NModal, NButton, NIcon, NSpin, NProgress } from 'naive-ui'
 import { ExternalLink, X, BookOpen } from 'lucide-vue-next'
+import JErrorState from '../../../shared/components/ui/JErrorState.vue'
 import axios from 'axios'
 
 const props = defineProps<{
@@ -114,7 +115,7 @@ onBeforeUnmount(() => {
         <NSpin :show="loading">
           <div v-if="loading" class="reading-hint">正在抓取正文…</div>
           <div v-else-if="error" class="reading-error">
-            <NEmpty :description="error" class="reading-empty" />
+            <JErrorState message="正文提取失败" :hint="error" @retry="load" />
             <a :href="props.url" target="_blank" rel="noopener" class="reading-fallback">
               在新标签页打开原文 →
             </a>

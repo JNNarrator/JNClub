@@ -11,7 +11,7 @@ import {
   NModal, NSelect, NScrollbar, NBadge,
 } from 'naive-ui'
 import {
-  Plus, Trash2, RefreshCw, CheckCheck, Star, Bookmark, Rss, ExternalLink, Clock,
+  Plus, Trash2, RefreshCw, CheckCheck, Star, Bookmark, Rss, ExternalLink, Clock, ArrowLeft,
 } from 'lucide-vue-next'
 import axios from 'axios'
 import JSkeletonList from '../../../shared/components/ui/JSkeletonList.vue'
@@ -63,6 +63,11 @@ const loadingMore = ref(false)
 
 const selected = ref<FeedItemRow | null>(null)
 const reading = ref<FeedItemRow | null>(null)
+
+/** 手机端单栏导航：订阅源列表 → 条目列表 → 阅读正文 */
+const mobileView = ref<'feeds' | 'items' | 'reader'>('feeds')
+const goMobileFeeds = () => { mobileView.value = 'feeds' }
+const goMobileItems = () => { mobileView.value = 'items' }
 
 /* ─── 加载订阅源 ─── */
 const fetchFeeds = async () => {
@@ -123,8 +128,20 @@ const reload = () => { fetchFeeds(); fetchItems() }
 watch(() => props.refresh, reload)
 onMounted(async () => { fetchFeeds(); fetchItems(); dirStore.fetchDirectories(1) })
 
-const selectFeed = (id: number | null) => { activeFeedId.value = id; page.value = 1; selected.value = null; reading.value = null; fetchItems() }
-const setFilter = (f: 'all' | 'unread' | 'starred') => { filter.value = f; page.value = 1; fetchItems() }
+const selectFeed = (id: number | null) => {
+  activeFeedId.value = id
+  page.value = 1
+  selected.value = null
+  reading.value = null
+  mobileView.value = 'items'
+  fetchItems()
+}
+const setFilter = (f: 'all' | 'unread' | 'starred') => {
+  filter.value = f
+  page.value = 1
+  mobileView.value = 'items'
+  fetchItems()
+}
 
 /* ─── 添加订阅源 ─── */
 const addShow = ref(false)
@@ -141,7 +158,11 @@ const submitAdd = async () => {
       addUrl.value = ''
       fetchFeeds()
       // 跳到新源
-      if (res.data.data?.id) { activeFeedId.value = res.data.data.id; fetchItems() }
+      if (res.data.data?.id) {
+        activeFeedId.value = res.data.data.id
+        mobileView.value = 'items'
+        fetchItems()
+      }
     } else {
       message.error(res.data.message || '订阅失败')
     }
@@ -156,7 +177,11 @@ const removeFeed = async (f: Feed) => {
     const res = await axios.delete(`/api/feeds/${f.id}`)
     if (res.data.code === 200) {
       message.success('已删除订阅源')
-      if (activeFeedId.value === f.id) { activeFeedId.value = null; fetchItems() }
+      if (activeFeedId.value === f.id) {
+        activeFeedId.value = null
+        mobileView.value = 'feeds'
+        fetchItems()
+      }
       fetchFeeds()
     }
   } catch (e: any) {
@@ -198,6 +223,7 @@ const markAllRead = async () => {
 const openItem = async (item: FeedItemRow) => {
   selected.value = item
   reading.value = item
+  mobileView.value = 'reader'
   if (item.readFlag !== 1) {
     item.readFlag = 1
     try {
@@ -302,8 +328,33 @@ const totalUnread = computed(() => feeds.value.reduce((s, f) => s + (f.unread ||
     </div>
 
     <div class="feeds-main">
+      <!-- 手机端单栏导航（桌面隐藏） -->
+      <div class="mobile-feed-nav">
+        <button
+          v-if="mobileView === 'items' || mobileView === 'reader'"
+          type="button"
+          class="mobile-back"
+          @click="goMobileFeeds"
+        >
+          <NIcon :component="ArrowLeft" :size="16" /> 订阅源
+        </button>
+        <button
+          v-if="mobileView === 'reader'"
+          type="button"
+          class="mobile-back"
+          @click="goMobileItems"
+        >
+          <NIcon :component="ArrowLeft" :size="16" /> 条目
+        </button>
+        <span class="mobile-nav-title">
+          <template v-if="mobileView === 'feeds'">订阅源</template>
+          <template v-else-if="mobileView === 'items'">{{ activeFeedId ? (feeds.find(f => f.id === activeFeedId)?.title || '条目') : '全部条目' }}</template>
+          <template v-else>{{ reading?.title || '阅读' }}</template>
+        </span>
+      </div>
+
       <!-- 左：订阅源 -->
-      <div class="feed-col">
+      <div class="feed-col" :class="{ 'mobile-hidden': mobileView !== 'feeds' }">
         <div class="col-head">
           <span class="col-title">订阅源</span>
           <NButton quaternary circle size="tiny" title="刷新订阅源列表" @click="fetchFeeds">
@@ -383,7 +434,7 @@ const totalUnread = computed(() => feeds.value.reduce((s, f) => s + (f.unread ||
       </div>
 
       <!-- 中：条目列表 -->
-      <div class="item-col">
+      <div class="item-col" :class="{ 'mobile-hidden': mobileView !== 'items' }">
         <div class="col-head">
           <span class="col-title">{{ filter === 'starred' ? '星标' : filter === 'unread' ? '未读' : '全部条目' }}（{{ total }}）</span>
         </div>
@@ -429,7 +480,7 @@ const totalUnread = computed(() => feeds.value.reduce((s, f) => s + (f.unread ||
       </div>
 
       <!-- 右：阅读窗格 -->
-      <div class="read-col">
+      <div class="read-col" :class="{ 'mobile-hidden': mobileView !== 'reader' }">
         <template v-if="reading">
           <div class="read-head">
             <h2 class="read-title">{{ reading.title }}</h2>
@@ -538,7 +589,7 @@ const totalUnread = computed(() => feeds.value.reduce((s, f) => s + (f.unread ||
 .ff-badge {
   margin-left: auto;
   background: var(--brand);
-  color: #fff;
+  color: #fff; /* 品牌色徽标上的固定白字，亮暗主题均保持对比度 */
   font-size: 10px;
   border-radius: var(--radius-pill);
   padding: 0 6px;
@@ -659,10 +710,54 @@ const totalUnread = computed(() => feeds.value.reduce((s, f) => s + (f.unread ||
 .add-hint { font-size: var(--fs-xs); color: var(--text-3); margin: 0; }
 .bm-title { font-size: var(--fs-sm); font-weight: 600; color: var(--text-1); margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+.mobile-feed-nav {
+  display: none;
+}
+
 @media (max-width: 900px) {
+  /* 手机端单栏：只显示当前层级 */
+  .mobile-feed-nav {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 2px 4px;
+    flex-shrink: 0;
+  }
+  .mobile-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    border: none;
+    background: var(--hover-bg);
+    color: var(--text-2);
+    font-size: var(--fs-sm);
+    border-radius: var(--radius-pill);
+    padding: 5px 10px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .mobile-back:active { background: var(--brand-soft); color: var(--brand); }
+  .mobile-nav-title {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--fs-sm);
+    font-weight: 700;
+    color: var(--text-1);
+    text-align: right;
+  }
+
   .feeds-main { flex-direction: column; }
-  .feed-col, .item-col { width: 100%; max-height: 180px; }
-  .read-col { min-height: 320px; }
+  .mobile-hidden { display: none !important; }
+  .feed-col, .item-col, .read-col {
+    width: 100%;
+    flex: 1;
+    max-height: none;
+    min-height: 0;
+  }
+  .read-col { min-height: 0; }
   /* 触屏没有 hover，操作入口常显 */
   .feed-row-actions { opacity: 1; }
 }

@@ -5,9 +5,11 @@
  */
 import { ref, computed, watch } from 'vue'
 import {
-  NModal, NButton, NIcon, NTag, NEmpty, NSpin, NSelect, useMessage, useDialog,
+  NModal, NButton, NIcon, NTag, NSpin, NSelect, useMessage, useDialog,
 } from 'naive-ui'
 import { History, RotateCcw, Eye, Clock, GitCompare } from 'lucide-vue-next'
+import JEmptyState from '../../../shared/components/ui/JEmptyState.vue'
+import JErrorState from '../../../shared/components/ui/JErrorState.vue'
 import { useNoteStore } from '../stores/note'
 import { formatDate } from '../composables/formatDate'
 
@@ -24,6 +26,7 @@ const noteStore = useNoteStore()
 
 const versions = ref<any[]>([])
 const loading = ref(false)
+const loadError = ref(false)
 const detail = ref<any | null>(null)
 const detailLoading = ref(false)
 
@@ -38,11 +41,13 @@ const compareLoading = ref(false)
 const load = async () => {
   if (!props.noteId) return
   loading.value = true
+  loadError.value = false
   detail.value = null
   compareMode.value = false
   try {
     versions.value = await noteStore.fetchVersions(props.noteId)
   } catch (e: any) {
+    loadError.value = true
     message.error(e.message || '获取版本失败')
   } finally {
     loading.value = false
@@ -191,7 +196,20 @@ const diffStat = computed(() => {
     </div>
 
     <NSpin :show="loading" class="ver-spin">
-      <NEmpty v-if="!loading && !versions.length" description="暂无历史版本（编辑保存后自动生成）" class="ver-empty" />
+      <JErrorState
+        v-if="!loading && loadError"
+        message="历史版本加载失败"
+        hint="请检查网络后重试"
+        class="ver-empty"
+        @retry="load"
+      />
+      <JEmptyState
+        v-else-if="!loading && !versions.length"
+        message="暂无历史版本"
+        hint="编辑保存后会自动生成版本快照"
+        :show-cta="false"
+        class="ver-empty"
+      />
 
       <!-- 对比模式 -->
       <div v-else-if="compareMode" class="compare-panel">
@@ -231,7 +249,12 @@ const diffStat = computed(() => {
                 <span class="diff-text">{{ l.text || '（空行）' }}</span>
               </div>
             </template>
-            <NEmpty v-else description="两个版本内容完全一致" class="ver-empty" />
+            <JEmptyState
+              v-else
+              message="两个版本内容完全一致"
+              :show-cta="false"
+              class="ver-empty"
+            />
           </div>
         </NSpin>
       </div>

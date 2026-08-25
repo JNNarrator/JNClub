@@ -4,8 +4,10 @@
  * 跨类型列出全部公开分享：标题/类型/有效期/访问统计，支持复制/撤销
  */
 import { ref, onMounted } from 'vue'
-import { NDrawer, NButton, NIcon, NSpin, NEmpty, NTag, useMessage } from 'naive-ui'
+import { NDrawer, NButton, NIcon, NSpin, NTag, useMessage } from 'naive-ui'
 import { Copy, Trash2, StickyNote, Bookmark, FileText, RefreshCw } from 'lucide-vue-next'
+import JEmptyState from '../components/ui/JEmptyState.vue'
+import JErrorState from '../components/ui/JErrorState.vue'
 import { copyText } from '../utils/clipboard'
 import { formatDate, formatRelativeTime } from '../../modules/bookmark/composables/formatDate'
 import axios from 'axios'
@@ -15,6 +17,7 @@ const emit = defineEmits<{ 'update:show': [v: boolean] }>()
 
 const message = useMessage()
 const loading = ref(false)
+const loadError = ref(false)
 const list = ref<any[]>([])
 
 interface ShareRow {
@@ -38,10 +41,13 @@ const TYPE_META: Record<string, { label: string; icon: any }> = {
 
 const load = async () => {
   loading.value = true
+  loadError.value = false
   try {
     const res = await axios.get('/api/share/mine')
     if (res.data.code === 200) list.value = (res.data.data || []) as ShareRow[]
+    else loadError.value = true
   } catch (e: any) {
+    loadError.value = true
     message.error(e.response?.data?.message || '加载失败')
   } finally { loading.value = false }
 }
@@ -77,7 +83,20 @@ const isExpired = (row: ShareRow) => row.expiresAt && new Date(row.expiresAt).ge
     </div>
 
     <div v-if="loading" class="smd-state"><NSpin size="small" /> 加载中…</div>
-    <NEmpty v-else-if="!list.length" description="还没有创建过分享" class="smd-empty" />
+    <JErrorState
+      v-else-if="loadError"
+      message="分享列表加载失败"
+      hint="请检查网络后重试"
+      class="smd-empty"
+      @retry="load"
+    />
+    <JEmptyState
+      v-else-if="!list.length"
+      message="还没有创建过分享"
+      hint="在收藏、便签或云盘文件中生成分享后会显示在这里"
+      :show-cta="false"
+      class="smd-empty"
+    />
 
     <div v-else class="smd-list">
       <div v-for="row in list" :key="row.token" class="smd-row" :class="{ expired: isExpired(row) }">

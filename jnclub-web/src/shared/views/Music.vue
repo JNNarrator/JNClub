@@ -29,6 +29,6 @@
   flex: 1;
   width: 100%;
   border: none;
-  background: #fff;
+  background: #fff; /* 内嵌音乐播放器为独立页面，固定白底避免加载前透出暗色背景 */
 }
 </style>
