@@ -41,6 +41,21 @@ const loadHistory = () => {
     history.value = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]')
   } catch { history.value = [] }
 }
+
+/* ─── 最近使用的快捷命令（localStorage，最多 6 条） ─── */
+const RECENT_CMD_KEY = 'jn-recent-commands'
+const recentCommands = ref<string[]>([])
+const loadRecentCommands = () => {
+  try {
+    recentCommands.value = JSON.parse(localStorage.getItem(RECENT_CMD_KEY) || '[]')
+  } catch { recentCommands.value = [] }
+}
+const recordCommand = (key: string) => {
+  const arr = recentCommands.value.filter(k => k !== key)
+  arr.unshift(key)
+  recentCommands.value = arr.slice(0, 6)
+  try { localStorage.setItem(RECENT_CMD_KEY, JSON.stringify(recentCommands.value)) } catch { /* 忽略 */ }
+}
 const pushHistory = (kw: string) => {
   const arr = history.value.filter(h => h !== kw)
   arr.unshift(kw)
@@ -52,6 +67,7 @@ const clearHistory = () => {
   try { localStorage.removeItem(HISTORY_KEY) } catch { /* 忽略 */ }
 }
 loadHistory()
+loadRecentCommands()
 
 let timer: ReturnType<typeof setTimeout> | null = null
 
@@ -62,6 +78,7 @@ watch(() => props.show, (v) => {
     searched.value = false
     activeIndex.value = -1
     loadHistory()
+    loadRecentCommands()
   }
 })
 
@@ -127,10 +144,27 @@ const COMMANDS: CommandAction[] = [
 ]
 const filteredCommands = computed(() => {
   const q = keyword.value.trim().toLowerCase()
-  if (!q) return COMMANDS
-  return COMMANDS.filter(c => c.label.toLowerCase().includes(q) || c.key.toLowerCase().includes(q))
+  if (!q) {
+    // 空输入时最近使用的命令排前面
+    const recent = COMMANDS.filter(c => recentCommands.value.includes(c.key))
+    const others = COMMANDS.filter(c => !recentCommands.value.includes(c.key))
+    return [...recent, ...others]
+  }
+  const scored = COMMANDS
+    .map(c => {
+      const label = c.label.toLowerCase()
+      const key = c.key.toLowerCase()
+      let score = 0
+      if (label.startsWith(q) || key.startsWith(q)) score = 2
+      else if (label.includes(q) || key.includes(q)) score = 1
+      return { c, score }
+    })
+    .filter(x => x.score > 0)
+    .sort((a, b) => b.score - a.score)
+  return scored.map(x => x.c)
 })
 const runCommand = (key: string) => {
+  recordCommand(key)
   emit('close')
   emit('action', key)
 }

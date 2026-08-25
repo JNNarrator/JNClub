@@ -209,6 +209,13 @@ const openItem = async (item: FeedItemRow) => {
   }
 }
 
+const handleItemKeydown = (e: KeyboardEvent, item: FeedItemRow) => {
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault()
+    openItem(item)
+  }
+}
+
 const toggleStar = async (item: FeedItemRow) => {
   item.starred = item.starred === 1 ? 0 : 1
   try {
@@ -346,11 +353,16 @@ const totalUnread = computed(() => feeds.value.reduce((s, f) => s + (f.unread ||
             v-for="f in feeds" :key="f.id"
             class="feed-row"
             :class="{ active: activeFeedId === f.id }"
+            role="button"
+            tabindex="0"
+            :aria-label="`订阅源 ${f.title || f.url}`"
             @click="selectFeed(f.id)"
+            @keydown.enter.prevent="selectFeed(f.id)"
+            @keydown.space.prevent="selectFeed(f.id)"
           >
             <NBadge :value="unreadBadge(f)" :max="99" :show-zero="false" class="feed-badge-wrap">
               <div class="feed-row-icon">
-                <img v-if="f.icon" :src="f.icon" alt="" class="feed-favicon" @error="($event.target as HTMLImageElement).style.display = 'none'" />
+                <img v-if="f.icon" :src="f.icon" alt="" class="feed-favicon" loading="lazy" decoding="async" @error="($event.target as HTMLImageElement).style.display = 'none'" />
                 <NIcon v-else :component="Rss" size="15" class="feed-fallback-ic" />
               </div>
             </NBadge>
@@ -389,7 +401,11 @@ const totalUnread = computed(() => feeds.value.reduce((s, f) => s + (f.unread ||
             v-for="it in items" :key="it.id"
             class="item-row"
             :class="{ unread: it.readFlag !== 1, selected: selected?.id === it.id }"
+            role="button"
+            tabindex="0"
+            :aria-label="it.title || '订阅条目'"
             @click="openItem(it)"
+            @keydown="handleItemKeydown($event, it)"
           >
             <div class="item-row-title" :title="it.title">
               <span v-if="it.readFlag !== 1" class="unread-dot" />
@@ -454,7 +470,7 @@ const totalUnread = computed(() => feeds.value.reduce((s, f) => s + (f.unread ||
     <!-- 添加订阅源 -->
     <NModal v-model:show="addShow" preset="card" title="添加订阅源" style="width: 420px" :bordered="false">
       <div class="add-form">
-        <NInput v-model:value="addUrl" placeholder="https://example.com/feed.xml" @keyup.enter="submitAdd" />
+        <NInput v-model:value="addUrl" placeholder="https://example.com/feed.xml" autofocus @keyup.enter="submitAdd" />
         <p class="add-hint">支持 RSS 2.0 / Atom；添加成功后会立即拉取最近条目。</p>
         <NButton type="primary" block :loading="adding" @click="submitAdd">订阅</NButton>
       </div>

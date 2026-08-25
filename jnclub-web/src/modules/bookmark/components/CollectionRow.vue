@@ -98,6 +98,8 @@ const handleDropdown = (key: string) => {
         :src="bookmark.icon"
         :alt="bookmark.title"
         class="favicon-img"
+        loading="lazy"
+        decoding="async"
         @error="(e: Event) => ((e.target as HTMLImageElement).style.display = 'none')"
       />
       <div v-else class="favicon-placeholder">

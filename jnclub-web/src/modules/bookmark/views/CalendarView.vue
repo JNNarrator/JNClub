@@ -227,7 +227,13 @@ const WEEKDAYS = ['一', '二', '三', '四', '五', '六', '日']
     <!-- 跨月逾期提示条 -->
     <div v-if="overdueTodos.length" class="cal-overdue">
       <span class="overdue-title">跨月逾期 {{ overdueTodos.length }} 项：</span>
-      <span v-for="t in overdueTodos.slice(0, 4)" :key="t.id" class="overdue-chip" @click="router.push('/todos')">
+      <span
+        v-for="t in overdueTodos.slice(0, 4)" :key="t.id"
+        class="overdue-chip" role="button" tabindex="0"
+        @click="router.push('/todos')"
+        @keydown.enter.prevent="router.push('/todos')"
+        @keydown.space.prevent="router.push('/todos')"
+      >
         {{ t.title }}
       </span>
       <span v-if="overdueTodos.length > 4" class="overdue-more">…</span>
@@ -250,7 +256,12 @@ const WEEKDAYS = ['一', '二', '三', '四', '五', '六', '日']
               today: cell.isToday,
               'drop-hover': !!dragTodoId && cell.inMonth,
             }"
+            role="button"
+            tabindex="0"
+            :aria-label="`${cell.date.getMonth() + 1}月${cell.date.getDate()}日`"
             @click="openQuickAdd(cell)"
+            @keydown.enter.prevent="openQuickAdd(cell)"
+            @keydown.space.prevent="openQuickAdd(cell)"
             @dragover.prevent="cell.inMonth && (($event as any).dataTransfer!.dropEffect = 'move')"
             @drop.prevent="onDayDrop(cell)"
           >
@@ -284,7 +295,10 @@ const WEEKDAYS = ['一', '二', '三', '四', '五', '六', '日']
             <div v-if="cell.notes.length" class="cell-notes">
               <span
                 v-for="n in cell.notes.slice(0, 2)" :key="n.id"
-                class="cell-note-chip" @click.stop="openNote(n)"
+                class="cell-note-chip" role="button" tabindex="0"
+                @click.stop="openNote(n)"
+                @keydown.enter.prevent.stop="openNote(n)"
+                @keydown.space.prevent.stop="openNote(n)"
               >
                 {{ n.title || '无标题' }}
               </span>
@@ -299,7 +313,7 @@ const WEEKDAYS = ['一', '二', '三', '四', '五', '六', '日']
     <NModal v-model:show="quickShow" preset="card" title="新建待办" style="width: 360px" :bordered="false">
       <div class="quick-form">
         <p class="quick-date">{{ quickDate }}</p>
-        <NInput v-model:value="quickTitle" placeholder="待办内容" @keyup.enter="submitQuick" />
+        <NInput v-model:value="quickTitle" placeholder="待办内容" autofocus @keyup.enter="submitQuick" />
         <NSelect
           v-model:value="quickPriority"
           :options="[

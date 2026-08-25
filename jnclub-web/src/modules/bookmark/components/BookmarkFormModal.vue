@@ -141,7 +141,7 @@ const save = async () => {
   >
     <NForm :model="form" style="margin-top: 12px;">
       <NFormItem label="网址" path="url">
-        <NInput v-model:value="form.url" placeholder="https://example.com" clearable @input="onUrlInput">
+        <NInput v-model:value="form.url" placeholder="https://example.com" clearable autofocus @input="onUrlInput">
           <template #prefix><NIcon :component="Link" /></template>
         </NInput>
       </NFormItem>

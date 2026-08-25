@@ -76,6 +76,12 @@ const emit = defineEmits<{
   color: var(--text-2);
   margin-right: 4px;
 }
+@media (max-width: 767px) {
+  .j-batch-bar {
+    padding-bottom: calc(10px + env(safe-area-inset-bottom));
+  }
+}
+
 .batch-up-enter-active,
 .batch-up-leave-active {
   transition: opacity 180ms var(--ease), transform 180ms var(--ease);

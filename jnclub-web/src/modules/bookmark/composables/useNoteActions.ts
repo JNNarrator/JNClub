@@ -2,6 +2,7 @@
  * useNoteActions.ts — 便签模块的通用动作
  * 新开标签页编辑/预览、导出当前目录 Markdown、删除。
  */
+import { h } from 'vue'
 import { useRouter, type RouteLocationRaw } from 'vue-router'
 import { useMessage, useDialog } from 'naive-ui'
 import axios from 'axios'
@@ -72,9 +73,27 @@ export function useNoteActions(opts: {
       positiveText: '确定',
       negativeText: '取消',
       onPositiveClick: async () => {
+        const id = note.id
         try {
-          await axios.delete(`/api/notes/${note.id}`)
-          message.success('删除成功')
+          await axios.delete(`/api/notes/${id}`)
+          message.success('', {
+            duration: 6000,
+            render: () => h('div', { style: 'display:flex;align-items:center;gap:12px;' }, [
+              h('span', '已移入回收站'),
+              h('a', {
+                style: 'cursor:pointer;color:var(--brand);font-weight:600;',
+                onClick: async () => {
+                  try {
+                    await axios.post('/api/recycle/restore', { type: 'note', id })
+                    message.success('已恢复')
+                    opts.loadData()
+                  } catch {
+                    message.error('恢复失败')
+                  }
+                },
+              }, '撤销'),
+            ]),
+          })
           opts.loadData()
         } catch (e: any) {
           message.error(e.response?.data?.message || '删除失败')

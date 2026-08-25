@@ -157,9 +157,27 @@ const handleDelete = (file: DiskFile) => {
     positiveText: '确定',
     negativeText: '取消',
     onPositiveClick: async () => {
+      const id = file.id
       try {
-        await diskStore.deleteFile(file.id)
-        message.success('已移入回收站')
+        await diskStore.deleteFile(id)
+        message.success('', {
+          duration: 6000,
+          render: () => h('div', { style: 'display:flex;align-items:center;gap:12px;' }, [
+            h('span', '已移入回收站'),
+            h('a', {
+              style: 'cursor:pointer;color:var(--brand);font-weight:600;',
+              onClick: async () => {
+                try {
+                  await axios.post('/api/recycle/restore', { type: 'file', id })
+                  message.success('已恢复')
+                  emit('refresh')
+                } catch {
+                  message.error('恢复失败')
+                }
+              },
+            }, '撤销'),
+          ]),
+        })
         emit('refresh')
       } catch (err: any) {
         message.error(err.response?.data?.message || '删除失败')

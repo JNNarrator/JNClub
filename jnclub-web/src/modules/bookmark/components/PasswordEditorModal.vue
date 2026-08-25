@@ -110,7 +110,7 @@ const onShowChange = (v: boolean) => emit('update:show', v)
         <div class="form-grid">
           <div class="field">
             <label class="field-label">名称</label>
-            <NInput v-model:value="form.name" placeholder="如：GitHub / 邮箱 / 银行卡" clearable />
+            <NInput v-model:value="form.name" placeholder="如：GitHub / 邮箱 / 银行卡" clearable autofocus />
           </div>
           <div class="field">
             <label class="field-label">密码</label>

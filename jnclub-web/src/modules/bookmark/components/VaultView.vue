@@ -217,9 +217,27 @@ const handleDelete = (item: VaultItem) => {
     positiveText: '确定',
     negativeText: '取消',
     onPositiveClick: async () => {
+      const id = item.id
       try {
-        await vaultStore.deleteItem(item.id)
-        message.success('已移入回收站')
+        await vaultStore.deleteItem(id)
+        message.success('', {
+          duration: 6000,
+          render: () => h('div', { style: 'display:flex;align-items:center;gap:12px;' }, [
+            h('span', '已移入回收站'),
+            h('a', {
+              style: 'cursor:pointer;color:var(--brand);font-weight:600;',
+              onClick: async () => {
+                try {
+                  await axios.post('/api/recycle/restore', { type: 'vault', id })
+                  message.success('已恢复')
+                  load()
+                } catch {
+                  message.error('恢复失败')
+                }
+              },
+            }, '撤销'),
+          ]),
+        })
         load()
       } catch (e: any) {
         message.error(e.message || '删除失败')
@@ -421,6 +439,7 @@ defineExpose({ openCreate })
           type="password" show-password-on="click"
           placeholder="设置主密钥（至少 8 位）"
           size="large"
+          autofocus
         />
         <NInput
           v-model:value="setupForm.confirm"
@@ -454,6 +473,7 @@ defineExpose({ openCreate })
         placeholder="主密钥"
         size="large"
         class="lock-input"
+        autofocus
         @keyup.enter="doUnlock"
       />
       <div class="lock-actions">

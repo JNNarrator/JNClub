@@ -4,7 +4,7 @@
  * 快速添加（标题/优先级/截止日期/备注）+ 筛选（全部/进行中/已完成/今天/逾期）
  * + 行内完成切换 + 编辑弹窗 + 桌面通知提醒（打开页面时检查逾期/今日到期）
  */
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, h } from 'vue'
 import {
   NInput, NSelect, NButton, NIcon, NCheckbox, useMessage, NPopconfirm,
   NTag, NModal, NDatePicker,
@@ -106,34 +106,56 @@ const addTodo = async () => {
   }
 }
 
-/* ─── 完成切换 ─── */
+/* ─── 完成切换（乐观更新，失败回滚） ─── */
 const toggleComplete = async (t: Todo) => {
   const next = t.completed === 1 ? false : true
+  const prev = t.completed
+  t.completed = next ? 1 : 0
+  fetchStats()
   try {
     const res = await axios.put(`/api/todos/${t.id}/complete`, { completed: next })
-    if (res.data.code === 200) {
-      t.completed = next ? 1 : 0
-      fetchStats()
-    } else {
-      message.error(res.data.message || '操作失败')
-    }
+    if (res.data.code !== 200) throw new Error(res.data.message || '操作失败')
   } catch (e: any) {
+    t.completed = prev
+    fetchStats()
     message.error(e.response?.data?.message || e.message || '操作失败')
   }
 }
 
-/* ─── 删除 ─── */
+/* ─── 删除（乐观移除 + 可撤销） ─── */
 const removeTodo = async (t: Todo) => {
+  const prev = todos.value
+  todos.value = todos.value.filter(x => x.id !== t.id)
+  fetchStats()
   try {
     const res = await axios.delete(`/api/todos/${t.id}`)
-    if (res.data.code === 200) {
-      message.success('已删除')
-      todos.value = todos.value.filter(x => x.id !== t.id)
-      fetchStats()
-    } else {
-      message.error(res.data.message || '删除失败')
-    }
+    if (res.data.code !== 200) throw new Error(res.data.message || '删除失败')
+    message.success('', {
+      duration: 6000,
+      render: () => h('div', { style: 'display:flex;align-items:center;gap:12px;' }, [
+        h('span', '已删除'),
+        h('a', {
+          style: 'cursor:pointer;color:var(--brand);font-weight:600;',
+          onClick: async () => {
+            try {
+              await axios.post('/api/todos', {
+                title: t.title,
+                note: t.note || '',
+                priority: t.priority ?? 1,
+                dueDate: t.dueDate || null,
+              })
+              message.success('已恢复')
+              reload()
+            } catch {
+              message.error('恢复失败')
+            }
+          },
+        }, '撤销'),
+      ]),
+    })
   } catch (e: any) {
+    todos.value = prev
+    fetchStats()
     message.error(e.response?.data?.message || e.message || '删除失败')
   }
 }
@@ -366,7 +388,7 @@ const emptyText = computed(() => {
       <div class="edit-form">
         <div class="edit-field">
           <label class="edit-label">内容</label>
-          <NInput v-model:value="editForm.title" placeholder="待办内容" clearable />
+          <NInput v-model:value="editForm.title" placeholder="待办内容" clearable autofocus />
         </div>
         <div class="edit-grid">
           <div class="edit-field">

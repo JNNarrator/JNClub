@@ -136,6 +136,12 @@ html, body {
   outline-offset: -2px;
 }
 .sortable-chosen { cursor: grabbing; }
+.sortable-fallback {
+  opacity: 0.9;
+  box-shadow: var(--shadow-card-hover);
+  background: var(--bg-card) !important;
+  border-radius: var(--radius-sm);
+}
 
 /* ---- 卡片顶条 ---- */
 .card-top-bar {

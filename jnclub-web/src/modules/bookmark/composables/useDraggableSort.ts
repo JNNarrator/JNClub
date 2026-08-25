@@ -29,6 +29,11 @@ export function useDraggableSort(
       ghostClass: 'sortable-ghost',
       chosenClass: 'sortable-chosen',
       dragClass: 'sortable-drag',
+      // 触屏拖拽：使用 fallback 拖动，降低长按/滚动误触，并保持跨端视觉一致
+      forceFallback: true,
+      fallbackOnBody: true,
+      fallbackClass: 'sortable-fallback',
+      touchStartThreshold: 3,
       onStart() {
         containerRef.value?.classList.add('sorting')
         document.documentElement.classList.add('dragging')
