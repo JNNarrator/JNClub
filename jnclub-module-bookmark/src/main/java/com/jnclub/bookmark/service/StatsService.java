@@ -45,17 +45,97 @@ public class StatsService {
     private final DirectoryMapper directoryMapper;
     private final TodoMapper todoMapper;
 
-    /** 概览摘要：数量 / 磁盘 / 最近动态 / 密码库指纹健康 / 待办概览 / 稍后读 */
+    /** 概览摘要：数量 / 磁盘 / 最近动态 / 密码库指纹健康 / 待办概览 / 稍后读 / 今日行动提醒 */
     public Map<String, Object> summary() {
         String userId = StpUtil.getLoginIdAsString();
         Map<String, Object> result = new LinkedHashMap<>();
-        result.put("counts", counts(userId));
+        Map<String, Object> counts = counts(userId);
+        Map<String, Object> vault = vaultHealth(userId);
+        Map<String, Object> todos = todoCounts(userId);
+        Map<String, Object> readLater = readLater(userId);
+        result.put("counts", counts);
         result.put("disk", disk(userId));
         result.put("recent", recent(userId));
-        result.put("vault", vaultHealth(userId));
-        result.put("todos", todoCounts(userId));
-        result.put("readLater", readLater(userId));
+        result.put("vault", vault);
+        result.put("todos", todos);
+        result.put("readLater", readLater);
+        result.put("alerts", buildAlerts(counts, vault, todos, readLater));
         return result;
+    }
+
+    /** 今日必办提醒：按优先级聚合待办/回收站/密码库/稍后读，空列表表示无需处理 */
+    private List<Map<String, Object>> buildAlerts(
+            Map<String, Object> counts,
+            Map<String, Object> vault,
+            Map<String, Object> todos,
+            Map<String, Object> readLater) {
+        List<Map<String, Object>> alerts = new ArrayList<>();
+
+        int dueToday = ((Number) todos.getOrDefault("dueToday", 0)).intValue();
+        int overdue = ((Number) todos.getOrDefault("overdue", 0)).intValue();
+        if (dueToday > 0 || overdue > 0) {
+            Map<String, Object> alert = new LinkedHashMap<>();
+            alert.put("type", "todo");
+            alert.put("level", overdue > 0 ? "danger" : "warning");
+            alert.put("title", "今日待办");
+            alert.put("desc", buildDesc(dueToday, "件今天到期", overdue, "件已逾期"));
+            alert.put("count", dueToday + overdue);
+            alert.put("action", "/todos");
+            alerts.add(alert);
+        }
+
+        int recycleTotal = 0;
+        Object recycle = counts.get("recycle");
+        if (recycle instanceof Map<?, ?>) {
+            for (Object v : ((Map<?, ?>) recycle).values()) {
+                if (v instanceof Number) recycleTotal += ((Number) v).intValue();
+            }
+        }
+        if (recycleTotal > 0) {
+            Map<String, Object> alert = new LinkedHashMap<>();
+            alert.put("type", "recycle");
+            alert.put("level", "warning");
+            alert.put("title", "回收站待清理");
+            alert.put("desc", "有 " + recycleTotal + " 条内容正在占用回收站");
+            alert.put("count", recycleTotal);
+            alert.put("action", "/recycle");
+            alerts.add(alert);
+        }
+
+        int duplicate = ((Number) vault.getOrDefault("duplicateCount", 0)).intValue();
+        if (duplicate > 0) {
+            Map<String, Object> alert = new LinkedHashMap<>();
+            alert.put("type", "vault");
+            alert.put("level", "danger");
+            alert.put("title", "密码库健康");
+            alert.put("desc", "检测到 " + duplicate + " 个重复密码，建议尽快处理");
+            alert.put("count", duplicate);
+            alert.put("action", "/?module=vault");
+            alerts.add(alert);
+        }
+
+        int readLaterCount = ((Number) readLater.getOrDefault("count", 0)).intValue();
+        if (readLaterCount > 0) {
+            Map<String, Object> alert = new LinkedHashMap<>();
+            alert.put("type", "readLater");
+            alert.put("level", "info");
+            alert.put("title", "继续阅读");
+            alert.put("desc", "还有 " + readLaterCount + " 篇内容未读完");
+            alert.put("count", readLaterCount);
+            alert.put("action", "/?module=bookmarks");
+            alerts.add(alert);
+        }
+
+        return alerts;
+    }
+
+    /** 拼接描述：如 “2 件今天到期，1 件已逾期”；没有前半时省略顿号 */
+    private String buildDesc(int a, String aText, int b, String bText) {
+        StringBuilder sb = new StringBuilder();
+        if (a > 0) sb.append(a).append(aText);
+        if (a > 0 && b > 0) sb.append("，");
+        if (b > 0) sb.append(b).append(bText);
+        return sb.toString();
     }
 
     /** 稍后读：未读完的稍后读收藏（progress<100），按最近阅读时间倒序取前 10 */

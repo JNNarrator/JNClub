@@ -48,6 +48,14 @@ interface StatsSummary {
     count: number
     list: Array<{ id: number; title: string; url: string; progress: number; readAt: string }>
   }
+  alerts: Array<{
+    type: string
+    level: 'danger' | 'warning' | 'info'
+    title: string
+    desc: string
+    count: number
+    action: string
+  }>
 }
 
 const router = useRouter()
@@ -96,6 +104,12 @@ const fetchSummary = async () => {
   finally { loading.value = false }
 }
 
+/* ─── 今日必办 ─── */
+const alerts = computed(() => data.value?.alerts ?? [])
+const goAlert = (a: { action: string }) => {
+  if (a.action) router.push(a.action)
+}
+
 /* ─── 数据趋势 ─── */
 interface TrendPoint {
   month: string
@@ -113,16 +127,34 @@ const TREND_SERIES: Array<{ key: keyof Omit<TrendPoint, 'month'>; label: string;
   { key: 'vault', label: '密码库', color: 'var(--module-vault)' },
 ]
 
-const fetchTrend = async () => {
+const trendMonths = ref(6)
+const TREND_MONTH_OPTIONS = [3, 6, 12] as const
+const hiddenSeries = ref<Record<string, boolean>>({})
+const visibleTrendSeries = computed(() => TREND_SERIES.filter((s) => !hiddenSeries.value[s.key]))
+
+const fetchTrend = async (months = trendMonths.value) => {
   try {
-    const res = await axios.get('/api/stats/trend', { params: { months: 6 } })
+    const res = await axios.get('/api/stats/trend', { params: { months } })
     if (res.data.code === 200) trendData.value = res.data.data
   } catch { /* 趋势失败不影响主看板 */ }
 }
 
-/** 趋势图最大刻度值（取 4 个系列最大值向上取整，至少 1） */
+const setTrendMonths = (months: number) => {
+  trendMonths.value = months
+  fetchTrend(months)
+}
+
+const toggleTrendSeries = (key: string) => {
+  hiddenSeries.value = { ...hiddenSeries.value, [key]: !hiddenSeries.value[key] }
+}
+
+const hoveredTrend = ref<{ month: string; values: TrendPoint } | null>(null)
+
+/** 趋势图最大刻度值（取可见系列最大值向上取整，至少 1） */
 const trendMax = computed(() => {
-  const all = trendData.value.flatMap((p) => TREND_SERIES.map((s) => p[s.key] ?? 0))
+  const series = visibleTrendSeries.value
+  if (!series.length) return 1
+  const all = trendData.value.flatMap((p) => series.map((s) => p[s.key] ?? 0))
   const max = Math.max(...all, 1)
   // 圆整到友好刻度（1/2/5 × 10^n）
   if (max <= 1) return 1
@@ -198,15 +230,15 @@ import { useDraggableSort } from '../../modules/bookmark/composables/useDraggabl
 
 const prefs = useUserPreferences()
 
-type DashSection = 'greet' | 'stat' | 'trend' | 'disk' | 'vault' | 'todo' | 'recent' | 'quick'
+type DashSection = 'greet' | 'today' | 'stat' | 'trend' | 'disk' | 'vault' | 'recent' | 'quick'
 
 const DASH_SECTIONS: Array<{ key: DashSection; label: string; icon: any }> = [
   { key: 'greet', label: '问候与日期', icon: Sparkles },
+  { key: 'today', label: '今日必办', icon: ListTodo },
   { key: 'stat', label: '统计卡片', icon: LayoutDashboard },
   { key: 'trend', label: '数据趋势', icon: TrendingUp },
   { key: 'disk', label: '云盘占用', icon: HardDrive },
   { key: 'vault', label: '密码库健康', icon: ShieldCheck },
-  { key: 'todo', label: '今日待办', icon: ListTodo },
   { key: 'recent', label: '最近动态', icon: Bookmark },
   { key: 'quick', label: '快捷入口', icon: ArrowRight },
 ]
@@ -248,9 +280,23 @@ const toggleSection = (key: DashSection) => {
 const resetLayout = () => {
   dashOrder.value = [...DEFAULT_DASH_ORDER]
   dashHidden.value = []
+  dashDensity.value = 'comfortable'
   prefs.set('dash.order', dashOrder.value)
   prefs.set('dash.hidden', dashHidden.value)
+  prefs.set('dash.density', dashDensity.value)
 }
+
+/* 显示密度偏好 */
+type DashDensity = 'comfortable' | 'compact'
+const dashDensity = ref<DashDensity>(prefs.get<DashDensity>('dash.density', 'comfortable'))
+const setDensity = (density: DashDensity) => {
+  dashDensity.value = density
+  prefs.set('dash.density', density)
+}
+const DENSITY_OPTIONS: Array<{ key: DashDensity; label: string; desc: string }> = [
+  { key: 'comfortable', label: '舒适', desc: '默认间距，适合浏览' },
+  { key: 'compact', label: '紧凑', desc: '一屏展示更多内容' },
+]
 
 /* ─── 问候 ─── */
 const greeting = computed(() => {
@@ -277,12 +323,19 @@ const QUOTES = [
 ]
 const quoteText = computed(() => QUOTES[new Date().getDate() % QUOTES.length])
 
-/* 今日待办跳转 */
-const goTodos = () => router.push('/todos')
+/* 最近动态快捷打开 */
+const openBookmark = (b: { url?: string }) => {
+  if (b.url) window.open(b.url, '_blank', 'noopener,noreferrer')
+  else router.push('/?module=bookmarks')
+}
+const openNote = (n: { id: number }) => router.push(`/notes/${n.id}`)
+const openFile = (f: { id: number }) => {
+  window.open(`/api/clouddisk/files/${f.id}/download`, '_blank')
+}
 </script>
 
 <template>
-  <div class="dash">
+  <div class="dash" :class="{ 'dash-dense': dashDensity === 'compact' }">
     <!-- 概览操作区：低频操作收进“更多”，避免和 JPageHeader 重复 -->
     <div class="dash-toolbar">
       <NDropdown :options="moreOptions" placement="bottom-end" trigger="click" @select="handleMoreSelect">
@@ -344,27 +397,27 @@ const goTodos = () => router.push('/todos')
           </div>
         </div>
 
-        <!-- 今日待办 -->
-        <div v-if="visible('todo')" class="dash-section" :style="{ order: orderOf('todo') }">
-          <div class="dash-group-title">状态与效率</div>
-          <div class="panel todo-panel" @click="goTodos">
-            <div class="panel-title">
-              <NIcon :component="ListTodo" size="15" class="panel-title-icon" /> 今日待办
-              <span class="panel-sub" v-if="data.todos">进行中 {{ data.todos.active }} · 今日到期 {{ data.todos.dueToday }} · 已逾期 {{ data.todos.overdue }}</span>
+        <!-- 今日必办 -->
+        <div v-if="visible('today')" class="dash-section" :style="{ order: orderOf('today') }">
+          <div class="dash-group-title">今日必办</div>
+          <div class="today-grid">
+            <div
+              v-for="a in alerts" :key="a.type"
+              class="today-card"
+              :class="[`today-${a.level}`]"
+              @click="goAlert(a)"
+            >
+              <div class="today-card-head">
+                <NIcon :component="a.level === 'info' ? Sparkles : AlertTriangle" size="16" class="today-icon" />
+                <span class="today-title">{{ a.title }}</span>
+                <span class="today-count">{{ a.count }}</span>
+              </div>
+              <p class="today-desc">{{ a.desc }}</p>
+              <div class="today-action">去处理 <NIcon :component="ArrowRight" size="12" /></div>
             </div>
-            <div class="todo-summary">
-              <div class="todo-summary-item" :class="{ 'todo-summary-warn': data.todos.dueToday > 0 }">
-                <b>{{ data.todos.dueToday }}</b><span>今日到期</span>
-              </div>
-              <div class="todo-summary-item" :class="{ 'todo-summary-danger': data.todos.overdue > 0 }">
-                <b>{{ data.todos.overdue }}</b><span>已逾期</span>
-              </div>
-              <div class="todo-summary-item">
-                <b>{{ data.todos.active }}</b><span>进行中</span>
-              </div>
-              <div class="todo-summary-go">
-                去处理 <NIcon :component="ArrowRight" size="13" />
-              </div>
+            <div v-if="!alerts.length" class="today-empty">
+              <NIcon :component="Sparkles" size="20" />
+              <span>今天没有需要处理的事项，继续保持 ☀️</span>
             </div>
           </div>
         </div>
@@ -372,43 +425,69 @@ const goTodos = () => router.push('/todos')
         <!-- 数据趋势 -->
         <div v-if="visible('trend')" class="dash-section" :style="{ order: orderOf('trend') }">
           <div class="panel trend-panel">
-          <div class="panel-title">
-            <NIcon :component="TrendingUp" size="15" class="panel-title-icon" /> 数据趋势 · 近 6 个月
-            <span class="trend-legend">
-              <span v-for="s in TREND_SERIES" :key="s.key" class="trend-legend-item">
-                <i class="trend-dot" :style="{ background: s.color }" />
-                {{ s.label }} <b>{{ trendTotal[s.key] }}</b>
+            <div class="panel-title trend-title">
+              <NIcon :component="TrendingUp" size="15" class="panel-title-icon" /> 数据趋势 · 近 {{ trendMonths }} 个月
+              <span class="trend-switch">
+                <button
+                  v-for="m in TREND_MONTH_OPTIONS" :key="m"
+                  class="trend-switch-btn"
+                  :class="{ 'trend-switch-active': trendMonths === m }"
+                  @click="setTrendMonths(m)"
+                >{{ m }}月</button>
               </span>
-            </span>
-          </div>
-          <div v-if="!trendData.length" class="panel-empty">暂无数据</div>
-          <div v-else class="trend-chart">
-            <!-- 网格线（5 档） -->
-            <div class="trend-grid-lines">
-              <div v-for="i in 5" :key="i" class="trend-grid-line" :style="{ bottom: `${((i - 1) / 4) * 100}%` }" />
+              <span class="trend-legend">
+                <span
+                  v-for="s in TREND_SERIES" :key="s.key"
+                  class="trend-legend-item"
+                  :class="{ 'trend-legend-hidden': hiddenSeries[s.key] }"
+                  @click="toggleTrendSeries(s.key)"
+                >
+                  <i class="trend-dot" :style="{ background: s.color }" />
+                  {{ s.label }} <b>{{ trendTotal[s.key] }}</b>
+                </span>
+              </span>
             </div>
-            <!-- 柱组 -->
-            <div class="trend-bars">
-              <div v-for="p in trendData" :key="p.month" class="trend-group">
-                <div class="trend-group-bars">
-                  <div
-                    v-for="s in TREND_SERIES" :key="s.key"
-                    class="trend-bar"
-                    :style="{ height: trendBarHeight(p[s.key] ?? 0), background: s.color }"
-                    :title="`${p.month} ${s.label}：${p[s.key] ?? 0}`"
-                  />
+            <div v-if="!trendData.length" class="panel-empty">暂无数据</div>
+            <div v-else-if="!visibleTrendSeries.length" class="panel-empty">已隐藏全部系列，点击图例恢复</div>
+            <div v-else class="trend-chart">
+              <!-- 网格线（5 档） -->
+              <div class="trend-grid-lines">
+                <div v-for="i in 5" :key="i" class="trend-grid-line" :style="{ bottom: `${((i - 1) / 4) * 100}%` }" />
+              </div>
+              <!-- 柱组 -->
+              <div class="trend-bars">
+                <div
+                  v-for="p in trendData" :key="p.month"
+                  class="trend-group"
+                  @mouseenter="hoveredTrend = { month: p.month, values: p }"
+                  @mouseleave="hoveredTrend = null"
+                >
+                  <div v-if="hoveredTrend && hoveredTrend.month === p.month" class="trend-tip">
+                    <div class="trend-tip-month">{{ p.month }}</div>
+                    <div v-for="s in visibleTrendSeries" :key="s.key" class="trend-tip-row">
+                      <i class="trend-tip-dot" :style="{ background: s.color }" />
+                      {{ s.label }} <b>{{ p[s.key] ?? 0 }}</b>
+                    </div>
+                  </div>
+                  <div class="trend-group-bars">
+                    <div
+                      v-for="s in visibleTrendSeries" :key="s.key"
+                      class="trend-bar"
+                      :class="{ 'trend-bar-muted': hoveredTrend && hoveredTrend.month !== p.month }"
+                      :style="{ height: trendBarHeight(p[s.key] ?? 0), background: s.color }"
+                    />
+                  </div>
+                  <span class="trend-month">{{ monthLabel(p.month) }}</span>
                 </div>
-                <span class="trend-month">{{ monthLabel(p.month) }}</span>
+              </div>
+              <!-- Y 轴刻度 -->
+              <div class="trend-y-axis">
+                <span v-for="i in 5" :key="i" class="trend-y-label" :style="{ bottom: `${((i - 1) / 4) * 100}%` }">
+                  {{ Math.round((trendMax * (i - 1)) / 4) }}
+                </span>
               </div>
             </div>
-            <!-- Y 轴刻度 -->
-            <div class="trend-y-axis">
-              <span v-for="i in 5" :key="i" class="trend-y-label" :style="{ bottom: `${((i - 1) / 4) * 100}%` }">
-                {{ Math.round((trendMax * (i - 1)) / 4) }}
-              </span>
-            </div>
           </div>
-        </div>
         </div>
 
         <!-- 磁盘占用 + 密码库健康 -->
@@ -465,9 +544,12 @@ const goTodos = () => router.push('/todos')
               <div class="panel-title"><NIcon :component="Bookmark" size="15" class="panel-title-icon" /> 最近收藏</div>
               <div v-if="!data.recent.bookmarks.length" class="panel-empty">暂无收藏</div>
               <div v-else class="recent-list">
-                <div v-for="b in data.recent.bookmarks" :key="b.id" class="recent-item">
+                <div v-for="b in data.recent.bookmarks" :key="b.id" class="recent-item recent-link" @click="openBookmark(b)">
                   <span class="recent-title">{{ b.title || b.url }}</span>
-                  <span class="recent-time">{{ formatRelativeTime(b.createTime) }}</span>
+                  <span class="recent-time">
+                    {{ formatRelativeTime(b.createTime) }}
+                    <NIcon :component="ArrowRight" size="12" class="recent-arrow" />
+                  </span>
                 </div>
               </div>
             </div>
@@ -475,9 +557,12 @@ const goTodos = () => router.push('/todos')
               <div class="panel-title"><NIcon :component="StickyNote" size="15" class="panel-title-icon" /> 最近便签</div>
               <div v-if="!data.recent.notes.length" class="panel-empty">暂无便签</div>
               <div v-else class="recent-list">
-                <div v-for="n in data.recent.notes" :key="n.id" class="recent-item">
+                <div v-for="n in data.recent.notes" :key="n.id" class="recent-item recent-link" @click="openNote(n)">
                   <span class="recent-title">{{ n.title || '无标题' }}</span>
-                  <span class="recent-time">{{ formatRelativeTime(n.createTime) }}</span>
+                  <span class="recent-time">
+                    {{ formatRelativeTime(n.createTime) }}
+                    <NIcon :component="ArrowRight" size="12" class="recent-arrow" />
+                  </span>
                 </div>
               </div>
             </div>
@@ -485,9 +570,12 @@ const goTodos = () => router.push('/todos')
               <div class="panel-title"><NIcon :component="Cloud" size="15" class="panel-title-icon" /> 最近文件</div>
               <div v-if="!data.recent.files.length" class="panel-empty">暂无文件</div>
               <div v-else class="recent-list">
-                <div v-for="f in data.recent.files" :key="f.id" class="recent-item">
+                <div v-for="f in data.recent.files" :key="f.id" class="recent-item recent-link" @click="openFile(f)">
                   <span class="recent-title">{{ f.originalName }}</span>
-                  <span class="recent-time">{{ formatRelativeTime(f.createTime) }}</span>
+                  <span class="recent-time">
+                    {{ formatRelativeTime(f.createTime) }}
+                    <NIcon :component="ArrowRight" size="12" class="recent-arrow" />
+                  </span>
                 </div>
               </div>
             </div>
@@ -552,6 +640,22 @@ const goTodos = () => router.push('/todos')
             <NSwitch :value="!dashHidden.includes(s.key)" size="small" @update:value="() => toggleSection(s.key)" />
           </div>
         </div>
+
+        <div class="layout-density">
+          <span class="layout-density-label">显示密度</span>
+          <div class="density-options">
+            <button
+              v-for="d in DENSITY_OPTIONS" :key="d.key"
+              class="density-option"
+              :class="{ 'density-active': dashDensity === d.key }"
+              @click="setDensity(d.key)"
+            >
+              <span class="density-name">{{ d.label }}</span>
+              <span class="density-desc">{{ d.desc }}</span>
+            </button>
+          </div>
+        </div>
+
         <div class="layout-foot">
           <NButton size="small" quaternary @click="resetLayout">恢复默认</NButton>
           <NButton size="small" type="primary" secondary @click="showLayout = false">完成</NButton>
@@ -590,6 +694,102 @@ const goTodos = () => router.push('/todos')
   color: var(--text-3);
   text-transform: uppercase;
   margin-bottom: 12px;
+}
+
+/* 今日必办：高优先级提醒卡片 */
+.today-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+.today-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 18px;
+  background: var(--glass-bg-trans);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-chip-border);
+  border-left: 3px solid var(--info);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-1), var(--glass-shadow);
+  cursor: pointer;
+  transition: border-color var(--dur) var(--ease), transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+.today-card:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-2), var(--glass-shadow);
+}
+.today-card.today-danger { border-left-color: var(--danger); }
+.today-card.today-warning { border-left-color: var(--warning); }
+.today-card.today-info { border-left-color: var(--info); }
+.today-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.today-icon { color: var(--info); flex-shrink: 0; }
+.today-danger .today-icon { color: var(--danger); }
+.today-warning .today-icon { color: var(--warning); }
+.today-title {
+  font-size: var(--fs-md);
+  font-weight: 600;
+  color: var(--text-1);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.today-count {
+  margin-left: auto;
+  min-width: 26px;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: var(--radius-pill);
+  background: var(--glass-chip-bg);
+  color: var(--text-2);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.today-desc {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--text-3);
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.today-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: auto;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--brand);
+}
+.today-empty {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 32px 16px;
+  border: 1px dashed var(--glass-border);
+  border-radius: var(--radius-md);
+  color: var(--text-3);
+  font-size: var(--fs-sm);
+  text-align: center;
+}
+@media (max-width: 1199px) {
+  .today-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 699px) {
+  .today-grid { grid-template-columns: 1fr; }
 }
 
 /* 统计卡片：宽屏 6 列一排，常规 3 列，移动端 2 列，极窄 1 列 */
@@ -712,10 +912,13 @@ const goTodos = () => router.push('/todos')
   color: var(--text-3);
 }
 .panel-empty {
-  padding: 20px 0;
+  padding: 26px 16px;
   text-align: center;
   font-size: var(--fs-sm);
   color: var(--text-3);
+  border: 1px dashed var(--glass-border);
+  border-radius: var(--radius-sm);
+  background: var(--glass-chip-bg);
 }
 
 /* 磁盘条 */
@@ -796,6 +999,20 @@ const goTodos = () => router.push('/todos')
   background: var(--brand-soft); border-radius: var(--radius-pill); padding: 1px 8px;
 }
 .rl-new { font-size: var(--fs-xs); color: var(--text-3); }
+.recent-arrow {
+  margin-left: 4px;
+  color: var(--brand);
+  opacity: 0;
+  transform: translateX(-2px);
+  transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease);
+}
+.recent-link:hover .recent-arrow {
+  opacity: 1;
+  transform: translateX(0);
+}
+@media (max-width: 699px) {
+  .recent-arrow { opacity: 0.55; transform: none; }
+}
 
 /* 快捷入口 */
 .quick-bar {
@@ -809,6 +1026,32 @@ const goTodos = () => router.push('/todos')
 
 /* 数据趋势 */
 .trend-panel { min-height: 200px; }
+.trend-title { flex-wrap: wrap; }
+.trend-switch {
+  margin-left: 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  background: var(--glass-chip-bg);
+  border: 1px solid var(--glass-chip-border);
+  border-radius: var(--radius-pill);
+}
+.trend-switch-btn {
+  border: none;
+  background: transparent;
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  padding: 4px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+.trend-switch-active {
+  background: var(--brand-soft);
+  color: var(--brand);
+  font-weight: 600;
+}
 .trend-legend {
   margin-left: auto;
   display: flex; align-items: center; flex-wrap: wrap; gap: 12px;
@@ -819,7 +1062,13 @@ const goTodos = () => router.push('/todos')
 .trend-legend-item {
   display: inline-flex; align-items: center; gap: 4px;
   white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  transition: opacity var(--dur) var(--ease);
 }
+.trend-legend-item:hover { opacity: 0.75; }
+.trend-legend-hidden { opacity: 0.4; }
+.trend-legend-hidden:hover { opacity: 0.6; }
 .trend-legend-item b { color: var(--text-2); font-weight: 600; }
 .trend-dot {
   width: 8px; height: 8px; border-radius: 50%;
@@ -848,6 +1097,7 @@ const goTodos = () => router.push('/todos')
   gap: 12px;
 }
 .trend-group {
+  position: relative;
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -871,6 +1121,48 @@ const goTodos = () => router.push('/todos')
   opacity: 0.92;
 }
 .trend-bar:hover { opacity: 1; }
+.trend-bar-muted { opacity: 0.22; }
+.trend-tip {
+  position: absolute;
+  bottom: calc(100% - 14px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  min-width: 132px;
+  padding: 8px 10px;
+  background: var(--glass-bg-trans);
+  backdrop-filter: blur(calc(var(--glass-blur) + 2px));
+  -webkit-backdrop-filter: blur(calc(var(--glass-blur) + 2px));
+  border: 1px solid var(--glass-chip-border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-2), var(--glass-shadow);
+  pointer-events: none;
+}
+.trend-tip-month {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--brand);
+  margin-bottom: 4px;
+}
+.trend-tip-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-xs);
+  color: var(--text-2);
+  white-space: nowrap;
+}
+.trend-tip-row b {
+  margin-left: auto;
+  color: var(--text-1);
+  font-weight: 700;
+}
+.trend-tip-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
 .trend-month {
   text-align: center;
   font-size: var(--fs-xs);
@@ -902,6 +1194,10 @@ const goTodos = () => router.push('/todos')
   .trend-legend {
     margin-left: 0;
     width: 100%;
+  }
+  .trend-switch {
+    margin-left: 0;
+    order: 3;
   }
 }
 
@@ -938,38 +1234,16 @@ const goTodos = () => router.push('/todos')
   text-align: right;
 }
 
-/* 今日待办面板 */
-.todo-panel { cursor: pointer; transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease); }
-.todo-panel:hover { border-color: var(--brand); box-shadow: var(--shadow-2), var(--glass-shadow); }
-.todo-summary {
-  display: flex;
-  align-items: center;
-  gap: 24px;
-  flex-wrap: wrap;
-}
-.todo-summary-item {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  font-size: var(--fs-sm);
-  color: var(--text-3);
-}
-.todo-summary-item b {
-  font-size: 24px;
-  font-weight: 800;
-  color: var(--text-1);
-}
-.todo-summary-item.todo-summary-warn b { color: var(--warning-text); }
-.todo-summary-item.todo-summary-danger b { color: var(--danger); }
-.todo-summary-go {
-  margin-left: auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: var(--fs-sm);
-  color: var(--brand);
-  font-weight: 600;
-}
+/* 紧凑密度偏好 */
+.dash-dense { gap: 18px; }
+.dash-dense .dash-group-title { margin-bottom: 8px; }
+.dash-dense .stat-grid { column-gap: 10px; row-gap: 10px; }
+.dash-dense .mid-grid { column-gap: 12px; row-gap: 12px; }
+.dash-dense .panel { padding: 14px 16px; gap: 10px; }
+.dash-dense .today-grid { gap: 10px; }
+.dash-dense .recent-grid { column-gap: 12px; row-gap: 12px; }
+.dash-dense .recent-item { padding: 5px 8px; }
+.dash-dense .trend-chart { height: 150px; }
 
 /* 布局编辑器 */
 .layout-editor { display: flex; flex-direction: column; gap: 14px; padding: 16px; }
@@ -990,6 +1264,52 @@ const goTodos = () => router.push('/todos')
 .layout-grip { color: var(--text-3); }
 .layout-item-icon { color: var(--brand); }
 .layout-item-label { flex: 1; font-size: var(--fs-md); color: var(--text-1); }
+.layout-density {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 4px;
+  border-top: 1px solid var(--glass-border);
+}
+.layout-density-label {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-2);
+}
+.density-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.density-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 10px 12px;
+  background: var(--glass-chip-bg);
+  border: 1px solid var(--glass-chip-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease);
+}
+.density-option:hover { border-color: var(--brand); }
+.density-option.density-active {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+}
+.density-name {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-1);
+}
+.density-desc {
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  line-height: 1.4;
+}
 .layout-foot {
   display: flex;
   align-items: center;
