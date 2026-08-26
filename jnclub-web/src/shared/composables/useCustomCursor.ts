@@ -66,8 +66,9 @@ function onMove(e: MouseEvent) {
   }
   cursorVisible.value = true
   // 输入框内隐藏自定义光标，露出原生 I-beam
+  // .cm-content 为 md-editor-v3 / CodeMirror 的可编辑区，显式纳入识别以兼容 contenteditable 属性变化
   const t = e.target as HTMLElement | null
-  cursorInInput.value = !!(t && t.closest && t.closest('input, textarea, [contenteditable]'))
+  cursorInInput.value = !!(t && t.closest && t.closest('input, textarea, [contenteditable], .cm-content'))
 }
 
 function onOver(e: MouseEvent) {

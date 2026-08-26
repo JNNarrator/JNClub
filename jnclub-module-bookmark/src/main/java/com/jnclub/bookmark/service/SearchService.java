@@ -69,13 +69,25 @@ public class SearchService {
         result.put("feeds", List.of());
         result.put("feedItems", List.of());
 
+        Map<String, Object> parsed = parseSyntax(keyword);
+        result.put("parsed", parsed);
+
         if (keyword == null || keyword.isBlank()) {
             return result;
         }
-        List<String> terms = Arrays.stream(keyword.trim().toLowerCase().split("\\s+"))
+        String typeFilter = (String) parsed.get("type");
+        String dateFilter = (String) parsed.get("date");
+        String tagFilter = (String) parsed.get("tag");
+
+        List<String> terms = new ArrayList<>(Arrays.stream(((String) parsed.get("cleanKeyword")).trim().toLowerCase().split("\\s+"))
                 .filter(t -> !t.isBlank())
-                .toList();
-        if (terms.isEmpty()) return result;
+                .toList());
+        if (terms.isEmpty() && tagFilter == null) {
+            return result;
+        }
+        if (tagFilter != null) {
+            terms.add(tagFilter.toLowerCase());
+        }
 
         int size = Math.max(1, Math.min(limit <= 0 ? 20 : limit, 50));
 
@@ -301,6 +313,44 @@ public class SearchService {
             feedItemResults.add(m);
         }
 
+        if (dateFilter != null && !dateFilter.isBlank()) {
+            filterByDate(bookmarkResults, dateFilter, "createTime");
+            filterByDate(noteResults, dateFilter, "createTime");
+            filterByDate(fileResults, dateFilter, "createTime");
+            filterByDate(vaultResults, dateFilter, "createTime");
+            filterByDate(tagResults, dateFilter, "createTime");
+            filterByDate(todoResults, dateFilter, "dueDate");
+            filterByDate(readLaterResults, dateFilter, "createTime");
+            filterByDate(feedResults, dateFilter, "createTime");
+            filterByDate(feedItemResults, dateFilter, "publishedAt");
+        }
+
+        if (tagFilter != null) {
+            // #标签 定位：只展示标签分组，避免把普通内容误认为标签命中
+            bookmarkResults.clear();
+            noteResults.clear();
+            fileResults.clear();
+            vaultResults.clear();
+            trackResults.clear();
+            todoResults.clear();
+            readLaterResults.clear();
+            feedResults.clear();
+            feedItemResults.clear();
+        }
+
+        if (typeFilter != null && !typeFilter.isBlank()) {
+            if (!"bookmarks".equals(typeFilter)) bookmarkResults.clear();
+            if (!"notes".equals(typeFilter)) noteResults.clear();
+            if (!"files".equals(typeFilter)) fileResults.clear();
+            if (!"vault".equals(typeFilter)) vaultResults.clear();
+            if (!"tags".equals(typeFilter)) tagResults.clear();
+            if (!"tracks".equals(typeFilter)) trackResults.clear();
+            if (!"todos".equals(typeFilter)) todoResults.clear();
+            if (!"readLater".equals(typeFilter)) readLaterResults.clear();
+            if (!"feeds".equals(typeFilter)) feedResults.clear();
+            if (!"feedItems".equals(typeFilter)) feedItemResults.clear();
+        }
+
         sortByScore(bookmarkResults);
         sortByScore(noteResults);
         sortByScore(fileResults);
@@ -322,7 +372,80 @@ public class SearchService {
         result.put("readLater", readLaterResults);
         result.put("feeds", feedResults);
         result.put("feedItems", feedItemResults);
+        result.put("parsed", parsed);
         return result;
+    }
+
+    /**
+     * 解析搜索语法：
+     * - type:xxx 限定分组
+     * - date:today|week|month|YYYY-MM 限定日期范围
+     * - #标签 定位标签分组
+     */
+    private Map<String, Object> parseSyntax(String keyword) {
+        Map<String, Object> parsed = new LinkedHashMap<>();
+        if (keyword == null || keyword.isBlank()) {
+            parsed.put("keyword", "");
+            parsed.put("cleanKeyword", "");
+            parsed.put("type", null);
+            parsed.put("date", null);
+            parsed.put("tag", null);
+            return parsed;
+        }
+        List<String> tokens = new ArrayList<>(Arrays.asList(keyword.trim().split("\\s+")));
+        String type = null;
+        String date = null;
+        String tag = null;
+        List<String> clean = new ArrayList<>();
+        for (String token : tokens) {
+            String lower = token.toLowerCase();
+            if (lower.startsWith("type:")) {
+                type = lower.substring("type:".length());
+            } else if (lower.startsWith("date:")) {
+                date = lower.substring("date:".length());
+            } else if (token.startsWith("#")) {
+                tag = token.substring(1);
+            } else {
+                clean.add(token);
+            }
+        }
+        parsed.put("keyword", keyword.trim());
+        parsed.put("cleanKeyword", String.join(" ", clean));
+        parsed.put("type", type == null || type.isBlank() ? null : type);
+        parsed.put("date", date == null || date.isBlank() ? null : date);
+        parsed.put("tag", tag == null || tag.isBlank() ? null : tag);
+        return parsed;
+    }
+
+    /** 按日期过滤结果；不认识的日期格式直接保留 */
+    private void filterByDate(List<Map<String, Object>> list, String filter, String field) {
+        list.removeIf(item -> {
+            Object raw = item.get(field);
+            if (raw == null) return false;
+            String text = String.valueOf(raw);
+            if (text.length() < 10) return false;
+            try {
+                java.time.LocalDate d = java.time.LocalDate.parse(text.substring(0, 10));
+                return !dateInRange(d, filter);
+            } catch (Exception e) {
+                return false;
+            }
+        });
+    }
+
+    private boolean dateInRange(java.time.LocalDate d, String filter) {
+        java.time.LocalDate today = java.time.LocalDate.now();
+        return switch (filter) {
+            case "today" -> d.isEqual(today);
+            case "week" -> !d.isBefore(today) && !d.isAfter(today.plusDays(6));
+            case "month" -> d.getYear() == today.getYear() && d.getMonthValue() == today.getMonthValue();
+            default -> {
+                if (filter != null && filter.matches("\\d{4}-\\d{2}")) {
+                    yield d.toString().startsWith(filter);
+                }
+                yield true;
+            }
+        };
     }
 
     /** 音乐曲目搜索（JdbcTemplate 直查 music_track，标题/歌手） */

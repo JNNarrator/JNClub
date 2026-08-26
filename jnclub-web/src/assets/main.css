@@ -450,10 +450,15 @@ html.custom-cursor-active,
 html.custom-cursor-active * {
   cursor: none !important;
 }
-/* 输入框内保留系统 I-beam（编辑体验优先） */
+/* 输入框内保留系统 I-beam（编辑体验优先）
+   contenteditable 内的子元素（如 CodeMirror 的 .cm-line）也会被上面的
+   html.custom-cursor-active * 规则命中并显示 cursor:none，因此需要一并恢复为 text。 */
 html.custom-cursor-active input,
 html.custom-cursor-active textarea,
-html.custom-cursor-active [contenteditable] {
+html.custom-cursor-active [contenteditable],
+html.custom-cursor-active [contenteditable] *,
+html.custom-cursor-active .cm-content,
+html.custom-cursor-active .cm-content * {
   cursor: text !important;
 }
 

@@ -5,17 +5,19 @@
  * （全部/进行中/已完成/今天/已逾期/明天/未来7天/无日期/高优先级）
  * + 行内完成切换 + 子任务 + 编辑弹窗 + 桌面通知
  */
-import { ref, computed, watch, onMounted, h } from 'vue'
+import { ref, computed, watch, onMounted, nextTick, h } from 'vue'
 import {
   NInput, NSelect, NButton, NIcon, NCheckbox, useMessage, NPopconfirm,
   NTag, NModal, NDatePicker, NTimePicker, NInputNumber,
 } from 'naive-ui'
 import { Plus, Trash2, Pencil, Calendar, Bell, ChevronDown, ChevronRight, ListChecks, Repeat2 } from 'lucide-vue-next'
+import { useRoute } from 'vue-router'
 import axios from 'axios'
 import JSkeletonList from '../../../shared/components/ui/JSkeletonList.vue'
 import JFilterBar from '../../../shared/components/ui/JFilterBar.vue'
 import JEmptyState from '../../../shared/components/ui/JEmptyState.vue'
 import JErrorState from '../../../shared/components/ui/JErrorState.vue'
+import { parseTodoNlp } from '../../../shared/utils/todoNlp'
 
 interface TodoItem {
   id: number
@@ -63,8 +65,10 @@ const parseDateTime = (s?: string | null): number | null => {
 
 const props = defineProps<{ refresh: number }>()
 const message = useMessage()
+const route = useRoute()
 
 const todos = ref<Todo[]>([])
+const highlightTodoId = ref<number | null>(null)
 const filter = ref<'all' | 'active' | 'completed' | 'today' | 'overdue' | 'tomorrow' | 'week' | 'noDate' | 'high'>('all')
 const loading = ref(false)
 const loadError = ref(false)
@@ -87,6 +91,12 @@ const fetchTodos = async () => {
     message.error(e.response?.data?.message || e.message || '加载失败')
   } finally {
     loading.value = false
+    const q = route.query.highlight
+    if (q) {
+      highlightTodoId.value = Number(q)
+      await nextTick()
+      document.querySelector('.todo-highlight')?.scrollIntoView({ block: 'center' })
+    }
   }
 }
 
@@ -128,15 +138,17 @@ const addTodo = async () => {
   if (!newTitle.value.trim()) { message.warning('请输入待办内容'); return }
   adding.value = true
   try {
+    const parsed = parseTodoNlp(newTitle.value)
     const payload: any = {
-      title: newTitle.value.trim(),
-      priority: newPriority.value,
+      title: parsed.title || newTitle.value.trim(),
+      priority: parsed.priority || newPriority.value,
     }
-    if (newDue.value) payload.dueDate = toDateStr(new Date(newDue.value))
-    if (newDueTime.value) payload.dueTime = newDueTime.value
-    if (newRemindAt.value) payload.remindAt = toDateTimeStr(new Date(newRemindAt.value))
-    if (newRecurrence.value) {
-      payload.recurrence = newRecurrence.value
+    if (parsed.dueDate || newDue.value) payload.dueDate = parsed.dueDate || toDateStr(new Date(newDue.value!))
+    if (parsed.dueTime || newDueTime.value) payload.dueTime = parsed.dueTime || newDueTime.value
+    if (parsed.remindAt || newRemindAt.value) payload.remindAt = parsed.remindAt || toDateTimeStr(new Date(newRemindAt.value!))
+    const recurrence = parsed.recurrence || newRecurrence.value
+    if (recurrence) {
+      payload.recurrence = recurrence
       payload.recurrenceInterval = Math.max(1, newRecurrenceInterval.value || 1)
     }
     if (newNote.value.trim()) payload.note = newNote.value.trim()
@@ -604,7 +616,7 @@ const emptyText = computed(() => {
         <div v-else class="todo-list">
           <div
             v-for="t in todos" :key="t.id"
-            :class="['todo-item', 'jnclub-bouncy', { 'todo-done': t.completed === 1, 'todo-overdue': isOverdue(t) }]"
+            :class="['todo-item', 'jnclub-bouncy', { 'todo-done': t.completed === 1, 'todo-overdue': isOverdue(t), 'todo-highlight': highlightTodoId === t.id }]"
           >
             <NCheckbox :checked="t.completed === 1" class="todo-check" @update:checked="() => toggleComplete(t)" />
             <div class="todo-main">
@@ -860,6 +872,15 @@ const emptyText = computed(() => {
 .todo-item:hover { border-color: var(--brand); }
 .todo-item.todo-overdue { border-left: 3px solid var(--danger); }
 .todo-item.todo-done { opacity: 0.55; }
+.todo-item.todo-highlight {
+  outline: 2px solid var(--brand);
+  outline-offset: 1px;
+  animation: todo-highlight-pulse 1.4s ease 2;
+}
+@keyframes todo-highlight-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .6; }
+}
 .todo-check { margin-top: 2px; }
 .todo-main {
   flex: 1;

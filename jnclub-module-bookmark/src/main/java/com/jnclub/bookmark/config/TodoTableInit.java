@@ -98,6 +98,26 @@ public class TodoTableInit implements ApplicationRunner {
                     INDEX idx_ref (ref_type, ref_id)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='站内提醒表'
                 """);
+
+        // 服务端搜索历史表
+        ensureTable("t_search_history", """
+                CREATE TABLE IF NOT EXISTS t_search_history (
+                    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+                    user_id VARCHAR(64) NOT NULL COMMENT 'SSO用户标识',
+                    keyword VARCHAR(200) NOT NULL COMMENT '搜索关键词',
+                    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+                    INDEX idx_user_time (user_id, create_time)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='搜索历史表'
+                """);
+
+        // 稳定与性能：补齐高频查询索引（幂等）
+        ensureIndex("t_todo", "idx_user_due", "user_id, due_date");
+        ensureIndex("t_todo", "idx_user_completed", "user_id, completed, due_date");
+        ensureIndex("t_todo", "idx_remind", "remind_at, remind_notified");
+        ensureIndex("t_bookmark", "idx_user_updated", "user_id, update_time");
+        ensureIndex("t_feed_item", "idx_feed_created", "feed_id, create_time");
+        ensureIndex("t_notification", "idx_user_read", "user_id, read_flag, create_time");
+        ensureIndex("t_search_history", "idx_user_time", "user_id, create_time");
     }
 
     private void ensureColumn(String table, String column, String alterSql) {
@@ -127,6 +147,21 @@ public class TodoTableInit implements ApplicationRunner {
             }
         } catch (Exception e) {
             log.warn("{} 建表失败（不影响启动）: {}", table, e.getMessage());
+        }
+    }
+
+    private void ensureIndex(String table, String indexName, String columnList) {
+        try {
+            Integer count = jdbcTemplate.queryForObject("""
+                    SELECT COUNT(*) FROM information_schema.STATISTICS
+                    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND INDEX_NAME = ?
+                    """, Integer.class, table, indexName);
+            if (count == null || count == 0) {
+                jdbcTemplate.execute("ALTER TABLE " + table + " ADD INDEX " + indexName + " (" + columnList + ")");
+                log.info("{} 表已新增索引 {}", table, indexName);
+            }
+        } catch (Exception e) {
+            log.warn("{} 表索引 {} 检查/迁移失败（不影响启动）: {}", table, indexName, e.getMessage());
         }
     }
 }

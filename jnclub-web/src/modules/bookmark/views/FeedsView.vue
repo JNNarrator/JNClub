@@ -5,7 +5,7 @@
  * 中：条目列表（标题/摘要/时间/星标，未读加粗）
  * 右：阅读窗格（content 渲染，打开即已读；收藏到收藏夹）
  */
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import {
   NButton, NIcon, NInput, NTag, useMessage,
   NModal, NSelect, NScrollbar, NBadge,
@@ -13,6 +13,7 @@ import {
 import {
   Plus, Trash2, RefreshCw, CheckCheck, Star, Bookmark, Rss, ExternalLink, Clock, ArrowLeft,
 } from 'lucide-vue-next'
+import { useRoute } from 'vue-router'
 import axios from 'axios'
 import JSkeletonList from '../../../shared/components/ui/JSkeletonList.vue'
 import JEmptyState from '../../../shared/components/ui/JEmptyState.vue'
@@ -22,6 +23,7 @@ import { useDirectoryStore } from '../stores/directory'
 
 const props = defineProps<{ refresh: number }>()
 const message = useMessage()
+const route = useRoute()
 const dirStore = useDirectoryStore()
 
 interface Feed {
@@ -63,6 +65,7 @@ const loadingMore = ref(false)
 
 const selected = ref<FeedItemRow | null>(null)
 const reading = ref<FeedItemRow | null>(null)
+const highlightItemId = ref<number | null>(null)
 
 /** 手机端单栏导航：订阅源列表 → 条目列表 → 阅读正文 */
 const mobileView = ref<'feeds' | 'items' | 'reader'>('feeds')
@@ -126,7 +129,24 @@ const loadMore = async () => {
 
 const reload = () => { fetchFeeds(); fetchItems() }
 watch(() => props.refresh, reload)
-onMounted(async () => { fetchFeeds(); fetchItems(); dirStore.fetchDirectories(1) })
+onMounted(async () => {
+  const qFeedId = route.query.feedId ? Number(route.query.feedId) : null
+  if (qFeedId) activeFeedId.value = qFeedId
+  const qItemId = route.query.itemId ? Number(route.query.itemId) : null
+  await Promise.all([fetchFeeds(), fetchItems()])
+  if (qItemId) {
+    highlightItemId.value = qItemId
+    const item = items.value.find(x => x.id === qItemId) || null
+    if (item) {
+      selected.value = item
+      reading.value = item
+      mobileView.value = 'reader'
+    }
+    await nextTick()
+    document.querySelector('.item-row-highlight')?.scrollIntoView({ block: 'center' })
+  }
+  dirStore.fetchDirectories(1)
+})
 
 const selectFeed = (id: number | null) => {
   activeFeedId.value = id
@@ -451,7 +471,7 @@ const totalUnread = computed(() => feeds.value.reduce((s, f) => s + (f.unread ||
           <div
             v-for="it in items" :key="it.id"
             class="item-row"
-            :class="{ unread: it.readFlag !== 1, selected: selected?.id === it.id }"
+            :class="{ unread: it.readFlag !== 1, selected: selected?.id === it.id, 'item-row-highlight': highlightItemId === it.id }"
             role="button"
             tabindex="0"
             :aria-label="it.title || '订阅条目'"
@@ -634,6 +654,15 @@ const totalUnread = computed(() => feeds.value.reduce((s, f) => s + (f.unread ||
 .item-row { padding: 10px 12px; cursor: pointer; border-bottom: 1px solid var(--glass-border); }
 .item-row:hover { background: var(--hover-bg); }
 .item-row.selected { background: var(--brand-soft); }
+.item-row.item-row-highlight {
+  background: var(--brand-soft);
+  box-shadow: inset 3px 0 0 var(--brand);
+  animation: feed-item-pulse 1.6s ease-out 2;
+}
+@keyframes feed-item-pulse {
+  0%, 100% { background-color: var(--brand-soft); }
+  50% { background-color: color-mix(in srgb, var(--brand-soft), var(--brand) 18%); }
+}
 .load-more-wrap {
   display: flex;
   justify-content: center;

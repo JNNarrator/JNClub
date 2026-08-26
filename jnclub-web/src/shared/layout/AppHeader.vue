@@ -119,17 +119,38 @@ const handleNotificationClick = async (n: NotificationItem) => {
   }
 }
 
-onMounted(() => {
-  void fetchNotificationUnread()
+const startNotificationPolling = () => {
+  if (notificationTimer !== undefined) return
   notificationTimer = window.setInterval(() => {
     void fetchNotificationUnread()
   }, 60_000)
+}
+
+const stopNotificationPolling = () => {
+  if (notificationTimer !== undefined) {
+    window.clearInterval(notificationTimer)
+    notificationTimer = undefined
+  }
+}
+
+const handleVisibilityChange = () => {
+  if (document.hidden) {
+    stopNotificationPolling()
+  } else {
+    void fetchNotificationUnread()
+    startNotificationPolling()
+  }
+}
+
+onMounted(() => {
+  void fetchNotificationUnread()
+  startNotificationPolling()
+  document.addEventListener('visibilitychange', handleVisibilityChange)
 })
 
 onUnmounted(() => {
-  if (notificationTimer !== undefined) {
-    window.clearInterval(notificationTimer)
-  }
+  stopNotificationPolling()
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
 })
 
 const userDropdownOptions = [

@@ -13,10 +13,12 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
- * 待办清单服务 — 手动 CRUD + 优先级/截止日期/完成状态 + 子任务 + 重复规则
+ * 待办清单服务 — 手动 CRUD + 优先级/截止日期/完成状态 + 子任务 + 重复规则 + 分页
  */
 @Service
 @RequiredArgsConstructor
@@ -31,6 +33,33 @@ public class TodoService extends ServiceImpl<TodoMapper, Todo> {
      *               overdue=已逾期未完成 / tomorrow=明天 / week=未来7天 / noDate=无日期 / high=高优先级
      */
     public List<Todo> list(String filter) {
+        LambdaQueryWrapper<Todo> qw = buildWrapper(filter);
+        List<Todo> todos = list(qw);
+        todos.forEach(this::fillItemStats);
+        return todos;
+    }
+
+    /**
+     * 分页列表（保留 list 默认行为；page/pageSize 显式传入时返回 { list, page, pageSize, total }）
+     */
+    public Map<String, Object> page(String filter, int page, int pageSize) {
+        int safePage = Math.max(1, page);
+        int safeSize = Math.max(1, Math.min(pageSize, 100));
+        LambdaQueryWrapper<Todo> qw = buildWrapper(filter);
+        Long total = count(qw);
+        int offset = (safePage - 1) * safeSize;
+        qw.last("LIMIT " + offset + "," + safeSize);
+        List<Todo> todos = list(qw);
+        todos.forEach(this::fillItemStats);
+        Map<String, Object> result = new HashMap<>();
+        result.put("list", todos);
+        result.put("page", safePage);
+        result.put("pageSize", safeSize);
+        result.put("total", total == null ? 0 : total);
+        return result;
+    }
+
+    private LambdaQueryWrapper<Todo> buildWrapper(String filter) {
         String userId = StpUtil.getLoginIdAsString();
         LocalDate today = LocalDate.now();
         LambdaQueryWrapper<Todo> qw = new LambdaQueryWrapper<Todo>()
@@ -59,9 +88,7 @@ public class TodoService extends ServiceImpl<TodoMapper, Todo> {
                 .orderByAsc(Todo::getDueDate)
                 .orderByAsc(Todo::getSortOrder)
                 .orderByDesc(Todo::getCreateTime);
-        List<Todo> todos = list(qw);
-        todos.forEach(this::fillItemStats);
-        return todos;
+        return qw;
     }
 
     /** 创建待办 */

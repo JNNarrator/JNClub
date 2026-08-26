@@ -22,10 +22,18 @@ public class TodoController {
 
     /**
      * 待办列表：filter = all|active|completed|today|overdue|tomorrow|week|noDate|high
+     * 不传 page/pageSize 时保持原有返回 List<Todo>；传了则返回 { list, page, pageSize, total }
      */
     @GetMapping
-    public R<List<Todo>> list(@RequestParam(defaultValue = "all") String filter) {
-        return R.ok(todoService.list(filter));
+    public R<?> list(@RequestParam(defaultValue = "all") String filter,
+                     @RequestParam(required = false) Integer page,
+                     @RequestParam(required = false) Integer pageSize) {
+        if (page == null && pageSize == null) {
+            return R.ok(todoService.list(filter));
+        }
+        int p = page == null ? 1 : page;
+        int s = pageSize == null ? 50 : pageSize;
+        return R.ok(todoService.page(filter, p, s));
     }
 
     /** 新建待办 */

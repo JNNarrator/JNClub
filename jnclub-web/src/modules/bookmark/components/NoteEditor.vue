@@ -226,7 +226,7 @@ const handleDocClick = async (e: MouseEvent) => {
 /* ─── 反向链接面板 ─── */
 const backlinks = ref<Array<{ id: number; title: string; directoryId: number; snippet: string }>>([])
 const backlinksLoading = ref(false)
-const backlinksOpen = ref(true)
+const backlinksOpen = ref(false)
 let backlinkReqSeq = 0
 const fetchBacklinks = async () => {
   if (!isViewNote.value || !props.note) { backlinks.value = []; return }
@@ -576,9 +576,8 @@ defineExpose({ hasUnsavedChanges })
   <div class="note-editor-shell" :class="{ 'readonly-mode': readonlyMode }">
     <div class="note-editor" :class="{ 'readonly-mode': readonlyMode }">
     <div class="editor-topbar">
-      <NButton quaternary size="small" @click="handleRequestClose" title="返回列表（有未保存修改时二次确认）">
-        <template #icon><NIcon :component="ArrowLeft" size="18" /></template>
-        返回列表
+      <NButton quaternary circle size="small" @click="handleRequestClose" title="返回列表（有未保存修改时二次确认）">
+        <template #icon><NIcon :component="ArrowLeft" size="17" /></template>
       </NButton>
       <div class="editor-title-wrap">
         <NInput
@@ -840,10 +839,21 @@ defineExpose({ hasUnsavedChanges })
 .editor-topbar {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
+  gap: 6px;
+  padding: 6px 10px;
   border-bottom: 1px solid var(--glass-border);
   flex-shrink: 0;
+  min-height: 38px;
+}
+.editor-topbar :deep(.n-button) {
+  height: 26px;
+  min-height: 26px;
+  font-size: 12px;
+  padding: 0 6px;
+}
+.editor-topbar :deep(.n-button.n-button--circle) {
+  width: 26px;
+  padding: 0;
 }
 .editor-title-wrap { flex: 1; min-width: 0; }
 .editor-title-input {
@@ -900,18 +910,36 @@ defineExpose({ hasUnsavedChanges })
 .template-icon { font-size: 16px; }
 .template-label { font-weight: 500; }
 
-/* 反向链接面板 */
+/* 反向链接面板：悬浮在右下角，不再挤占编辑区 */
 .backlinks-panel {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  width: 300px;
+  max-width: calc(100% - 24px);
+  max-height: 40vh;
+  overflow: hidden;
   flex-shrink: 0;
-  border-top: 1px solid var(--glass-border);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
   background: var(--glass-bg-trans);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: var(--glass-shadow);
+}
+.backlinks-panel:not(:has(.backlinks-body)) {
+  width: auto;
+  min-width: 120px;
 }
 .backlinks-head {
   display: flex;
   align-items: center;
   gap: 6px;
   width: 100%;
-  padding: 8px 16px;
+  padding: 7px 12px;
   border: none;
   background: transparent;
   cursor: pointer;
@@ -919,6 +947,7 @@ defineExpose({ hasUnsavedChanges })
   font-size: var(--fs-sm);
   color: var(--glass-text-secondary);
   text-align: left;
+  flex-shrink: 0;
 }
 .backlinks-head:hover { color: var(--text-1); }
 .backlinks-count {
@@ -937,7 +966,12 @@ defineExpose({ hasUnsavedChanges })
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 0 16px 10px;
+  padding: 0 10px 10px;
+  overflow-y: auto;
+}
+/* 只读态底部保留提示栏，悬浮面板上移一点避免遮挡 */
+.readonly-mode .backlinks-panel {
+  bottom: 38px;
 }
 .backlinks-empty {
   font-size: var(--fs-sm);
@@ -995,13 +1029,14 @@ defineExpose({ hasUnsavedChanges })
 .editor-tags {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 16px;
+  gap: 6px;
+  padding: 2px 12px;
+  min-height: 28px;
   border-bottom: 1px solid var(--glass-border);
   flex-shrink: 0;
 }
 .tags-label {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-3);
   flex-shrink: 0;
 }
@@ -1191,10 +1226,15 @@ defineExpose({ hasUnsavedChanges })
 :deep(.md-editor-toolbar) {
   background: transparent !important;
   border-bottom: 1px solid var(--glass-border) !important;
-  padding: 4px 8px !important;
-  height: 44px;
+  padding: 2px 6px !important;
+  height: 36px;
+  flex-shrink: 0;
 }
-:deep(.md-editor-toolbar-item) { color: var(--text-2) !important; }
+:deep(.md-editor-toolbar-item) {
+  color: var(--text-2) !important;
+  height: 26px !important;
+  min-width: 26px !important;
+}
 :deep(.md-editor-toolbar-item:hover) { color: var(--brand) !important; background: var(--glass-chip-bg) !important; }
 :deep(.md-editor-toolbar-item.active) { color: var(--brand) !important; }
 :deep(.md-editor-content) { background: transparent !important; }
@@ -1213,7 +1253,10 @@ defineExpose({ hasUnsavedChanges })
 /* 只读（MdPreview）模式下不显示工具栏 */
 .readonly-mode :deep(.md-editor-toolbar) { display: none !important; }
 
-/* 底部状态条 */
+/* 底部状态条：编辑态隐藏，保留只读态提示 */
+.note-editor:not(.readonly-mode) > .editor-statusbar {
+  display: none;
+}
 .editor-statusbar {
   display: flex;
   align-items: center;
@@ -1304,32 +1347,32 @@ defineExpose({ hasUnsavedChanges })
 .guide-card {
   pointer-events: none;
   text-align: center;
-  padding: 30px 44px;
+  padding: 14px 24px;
   background: var(--glass-bg-trans);
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
   border: 1px dashed var(--glass-chip-border);
-  border-radius: 12px;
+  border-radius: 10px;
   box-shadow: var(--glass-shadow);
   animation: fade-in-up .3s ease;
 }
 .guide-title {
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 700;
   color: var(--text-1);
-  margin-bottom: 10px;
+  margin-bottom: 4px;
 }
 .guide-tip {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--text-2);
-  margin-bottom: 16px;
+  margin-bottom: 8px;
 }
 .guide-tip code {
   background: var(--hover-bg);
   color: var(--brand);
-  padding: 2px 6px;
+  padding: 1px 5px;
   border-radius: 4px;
-  font-size: 12px;
+  font-size: 11px;
 }
 .guide-help {
   pointer-events: auto;
@@ -1338,7 +1381,7 @@ defineExpose({ hasUnsavedChanges })
   color: var(--brand);
   font-size: 12px;
   font-weight: 600;
-  padding: 8px 16px;
+  padding: 5px 12px;
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: all .18s ease;
@@ -1495,8 +1538,8 @@ defineExpose({ hasUnsavedChanges })
     padding: 0 !important;
   }
   .editor-topbar {
-    padding: 10px 12px;
-    gap: 8px;
+    padding: 5px 8px;
+    gap: 4px;
   }
   .editor-title-input :deep(.n-input__input-el) {
     font-size: 15px;
@@ -1514,7 +1557,15 @@ defineExpose({ hasUnsavedChanges })
     padding: 6px 12px;
   }
   .editor-tags {
-    padding: 6px 12px;
+    padding: 2px 8px;
+  }
+  .backlinks-panel {
+    right: 8px;
+    bottom: 8px;
+    width: min(280px, calc(100% - 16px));
+  }
+  .readonly-mode .backlinks-panel {
+    bottom: 34px;
   }
 }
 </style>

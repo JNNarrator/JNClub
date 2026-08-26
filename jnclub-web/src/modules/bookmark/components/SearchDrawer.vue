@@ -39,6 +39,7 @@ const result = ref<{
   readLater: any[]
   feeds: any[]
   feedItems: any[]
+  parsed?: any
 }>({ bookmarks: [], notes: [], files: [], vault: [], tags: [], tracks: [], todos: [], readLater: [], feeds: [], feedItems: [] })
 
 const typeFilter = ref<'all' | 'bookmarks' | 'notes' | 'files' | 'vault' | 'tags' | 'tracks' | 'todos' | 'readLater' | 'feeds' | 'feedItems'>('all')
@@ -60,13 +61,51 @@ const typeFilterOptions: Array<{ label: string; value: typeof typeFilter.value }
 const shouldShowGroup = (key: 'bookmarks' | 'notes' | 'files' | 'vault' | 'tags' | 'tracks' | 'todos' | 'readLater' | 'feeds' | 'feedItems') =>
   typeFilter.value === 'all' || typeFilter.value === key
 
-/* ─── 搜索历史（localStorage，最多 10 条） ─── */
+/* ─── 搜索历史（服务端为主，localStorage 兜底，最多 10 条） ─── */
 const HISTORY_KEY = 'jn-search-history'
 const history = ref<string[]>([])
+const serverHistory = ref<string[]>([])
+const serverHistoryOk = ref(false)
 const loadHistory = () => {
   try {
     history.value = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]')
   } catch { history.value = [] }
+}
+const displayedHistory = computed(() => serverHistoryOk.value ? serverHistory.value : history.value)
+
+/* ─── 服务端搜索建议 ─── */
+const suggest = ref<{
+  history: string[]
+  groups: Array<{ key: string; label: string }>
+  commands: Array<{ key: string; label: string }>
+}>({ history: [], groups: [], commands: [] })
+const fetchServerHistory = async () => {
+  try {
+    const res = await axios.get('/api/search/history', { params: { limit: 20 } })
+    if (res.data.code === 200) {
+      serverHistory.value = (res.data.data || []).map((h: any) => h.keyword).filter(Boolean)
+      serverHistoryOk.value = true
+    }
+  } catch { /* 服务端不可用时继续用 localStorage 兜底 */ }
+}
+const fetchSuggest = async () => {
+  try {
+    const res = await axios.get('/api/search/suggest', { params: { keyword: keyword.value.trim() } })
+    if (res.data.code === 200) {
+      const d = res.data.data || {}
+      suggest.value = {
+        history: (d.history || []).map((h: any) => h.keyword).filter(Boolean),
+        groups: d.groups || [],
+        commands: d.commands || [],
+      }
+      if (serverHistoryOk.value) serverHistory.value = suggest.value.history
+    }
+  } catch { /* 静默 */ }
+}
+const refreshHistory = () => {
+  loadHistory()
+  fetchServerHistory()
+  fetchSuggest()
 }
 
 /* ─── 最近使用的快捷命令（localStorage，最多 6 条） ─── */
@@ -88,12 +127,18 @@ const pushHistory = (kw: string) => {
   arr.unshift(kw)
   history.value = arr.slice(0, 10)
   try { localStorage.setItem(HISTORY_KEY, JSON.stringify(history.value)) } catch { /* 忽略 */ }
+  try { axios.post('/api/search/history', null, { params: { keyword: kw } }) } catch { /* 静默 */ }
 }
-const clearHistory = () => {
+const clearHistory = async () => {
   history.value = []
+  serverHistory.value = []
   try { localStorage.removeItem(HISTORY_KEY) } catch { /* 忽略 */ }
+  try {
+    const res = await axios.delete('/api/search/history')
+    if (res.data.code === 200) serverHistoryOk.value = true
+  } catch { /* 服务端失败也保持本地已清空 */ }
 }
-loadHistory()
+refreshHistory()
 loadRecentCommands()
 
 let timer: ReturnType<typeof setTimeout> | null = null
@@ -105,7 +150,7 @@ watch(() => props.show, (v) => {
     typeFilter.value = 'all'
     searched.value = false
     activeIndex.value = -1
-    loadHistory()
+    refreshHistory()
     loadRecentCommands()
   }
 })
@@ -138,6 +183,11 @@ const searchByHistory = (kw: string) => {
 const onInput = () => {
   activeIndex.value = -1
   if (timer) clearTimeout(timer)
+  if (!keyword.value.trim()) {
+    refreshHistory()
+    return
+  }
+  fetchSuggest()
   timer = setTimeout(doSearch, 300)
 }
 
@@ -164,8 +214,52 @@ const downloadFile = (id: number | string) => {
   emit('close')
   window.open(`/api/clouddisk/files/${id}/download`, '_blank')
 }
-const goTodos = () => goRoute('/todos')
-const goFeeds = () => goRoute('/feeds')
+const goTodos = (id?: number) => goRoute(id ? `/todos?highlight=${id}` : '/todos')
+const goFeeds = (feedId?: number, itemId?: number) => {
+  const params = new URLSearchParams()
+  if (feedId != null) params.set('feedId', String(feedId))
+  if (itemId != null) params.set('itemId', String(itemId))
+  const qs = params.toString()
+  goRoute(qs ? `/feeds?${qs}` : '/feeds')
+}
+
+/* ─── 搜索语法 chips ─── */
+const syntaxChips = computed(() => {
+  const p = result.value.parsed || {}
+  const chips: Array<{ kind: 'type' | 'date' | 'tag'; label: string }> = []
+  if (p.type) {
+    const opt = typeFilterOptions.find(o => o.value === p.type)
+    chips.push({ kind: 'type', label: `类型：${opt?.label || p.type}` })
+  }
+  if (p.date) chips.push({ kind: 'date', label: `日期：${p.date}` })
+  if (p.tag) chips.push({ kind: 'tag', label: `标签：#${p.tag}` })
+  return chips
+})
+const removeSyntax = (kind: 'type' | 'date' | 'tag') => {
+  const parts = keyword.value.trim().split(/\s+/).filter(Boolean)
+  const kept = parts.filter(part => {
+    const lower = part.toLowerCase()
+    if (kind === 'type' && lower.startsWith('type:')) return false
+    if (kind === 'date' && lower.startsWith('date:')) return false
+    if (kind === 'tag' && part.startsWith('#')) return false
+    return true
+  })
+  keyword.value = kept.join(' ')
+  if (keyword.value.trim()) {
+    doSearch()
+  } else {
+    result.value = { bookmarks: [], notes: [], files: [], vault: [], tags: [], tracks: [], todos: [], readLater: [], feeds: [], feedItems: [] }
+    searched.value = false
+    refreshHistory()
+  }
+}
+
+const searchByGroup = (key: string) => {
+  const valid = typeFilterOptions.some(o => o.value === key)
+  typeFilter.value = valid ? (key as typeof typeFilter.value) : 'all'
+  keyword.value = valid ? `type:${key} ` : ''
+  doSearch()
+}
 
 /* ─── 快捷动作命令 ─── */
 interface CommandAction {
@@ -265,7 +359,7 @@ const navItems = computed<SearchNavItem[]>(() => {
   }
   if (shouldShowGroup('todos')) {
     for (const td of result.value.todos) {
-      items.push({ key: `todo-${td.id}`, label: td.title || '未命名待办', group: '待办', type: 'todo', run: () => goTodos() })
+      items.push({ key: `todo-${td.id}`, label: td.title || '未命名待办', group: '待办', type: 'todo', run: () => goTodos(td.id) })
     }
   }
   if (shouldShowGroup('readLater')) {
@@ -275,18 +369,43 @@ const navItems = computed<SearchNavItem[]>(() => {
   }
   if (shouldShowGroup('feeds')) {
     for (const f of result.value.feeds) {
-      items.push({ key: `feed-${f.id}`, label: f.title || f.url, group: '订阅源', type: 'feed', run: () => goFeeds() })
+      items.push({ key: `feed-${f.id}`, label: f.title || f.url, group: '订阅源', type: 'feed', run: () => goFeeds(f.id) })
     }
   }
   if (shouldShowGroup('feedItems')) {
     for (const fi of result.value.feedItems) {
-      items.push({ key: `fi-${fi.id}`, label: fi.title || '未命名文章', group: '文章', type: 'feedItem', run: () => goFeeds() })
+      items.push({ key: `fi-${fi.id}`, label: fi.title || '未命名文章', group: '文章', type: 'feedItem', run: () => goFeeds(fi.feedId, fi.id) })
     }
   }
   return items
 })
 
 const navIndex = (key: string) => navItems.value.findIndex(i => i.key === key)
+
+const navGroups = computed(() => {
+  const seen = new Set<string>()
+  const groups: string[] = []
+  for (const item of navItems.value) {
+    if (!seen.has(item.group)) {
+      seen.add(item.group)
+      groups.push(item.group)
+    }
+  }
+  return groups
+})
+const cycleGroup = (forward: boolean) => {
+  const groups = navGroups.value
+  if (!groups.length) return
+  const current = activeIndex.value >= 0 ? navItems.value[activeIndex.value]?.group : groups[groups.length - 1]
+  const idx = Math.max(0, groups.indexOf(current || ''))
+  const step = forward ? 1 : -1
+  const nextGroup = groups[(idx + step + groups.length) % groups.length]
+  const firstIdx = navItems.value.findIndex(i => i.group === nextGroup)
+  if (firstIdx >= 0) {
+    activeIndex.value = firstIdx
+    void scrollActiveIntoView()
+  }
+}
 
 const scrollActiveIntoView = async () => {
   await nextTick()
@@ -304,6 +423,9 @@ const onKeydown = async (e: KeyboardEvent) => {
     if (!navItems.value.length) return
     activeIndex.value = (activeIndex.value - 1 + navItems.value.length) % navItems.value.length
     await scrollActiveIntoView()
+  } else if (e.key === 'Tab') {
+    e.preventDefault()
+    cycleGroup(!e.shiftKey)
   } else if (e.key === 'Enter') {
     e.preventDefault()
     const item = activeIndex.value >= 0 ? navItems.value[activeIndex.value] : null
@@ -374,17 +496,47 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
         >{{ opt.label }}</button>
       </div>
 
+      <!-- 已识别的搜索语法 -->
+      <div v-if="syntaxChips.length" class="syntax-chips">
+        <button
+          v-for="chip in syntaxChips" :key="chip.kind"
+          type="button" class="syntax-chip jnclub-bouncy" :title="`移除${chip.label}`" @click="removeSyntax(chip.kind)"
+        >{{ chip.label }} <span class="syntax-close">×</span></button>
+      </div>
+
       <!-- 搜索历史（空输入时展示） -->
-      <div v-if="!keyword.trim() && history.length" class="history-section">
+      <div v-if="!keyword.trim() && displayedHistory.length" class="history-section">
         <div class="history-head">
           <span class="history-title">最近搜索</span>
           <button type="button" class="history-clear" @click="clearHistory">清空</button>
         </div>
         <div class="history-chips">
           <button
-            v-for="h in history" :key="h"
+            v-for="h in displayedHistory" :key="h"
             type="button" class="history-chip jnclub-bouncy" @click="searchByHistory(h)"
           >{{ h }}</button>
+        </div>
+      </div>
+
+      <!-- 服务端搜索建议（空输入时展示快捷入口） -->
+      <div v-if="!keyword.trim() && (suggest.groups.length || suggest.commands.length)" class="suggest-section">
+        <div v-if="suggest.groups.length" class="suggest-block">
+          <span class="history-title">搜索范围</span>
+          <div class="history-chips">
+            <button
+              v-for="g in suggest.groups" :key="g.key"
+              type="button" class="history-chip jnclub-bouncy" @click="searchByGroup(g.key)"
+            >{{ g.label }}</button>
+          </div>
+        </div>
+        <div v-if="suggest.commands.length" class="suggest-block">
+          <span class="history-title">快捷命令</span>
+          <div class="history-chips">
+            <button
+              v-for="c in suggest.commands" :key="c.key"
+              type="button" class="history-chip jnclub-bouncy" @click="runCommand(c.key)"
+            >{{ c.label }}</button>
+          </div>
         </div>
       </div>
 
@@ -553,7 +705,7 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
               </div>
               <div
                 v-for="(td, idx) in result.todos" :key="td.id"
-                :class="['result-item', 'jnclub-bouncy', { 'search-nav-active': activeIndex === navIndex(`todo-${td.id}`) }]" @click="goTodos()"
+                :class="['result-item', 'jnclub-bouncy', { 'search-nav-active': activeIndex === navIndex(`todo-${td.id}`) }]" @click="goTodos(td.id)"
                 :style="{ animationDelay: `${Math.min(idx * 35, 300)}ms` }"
               >
                 <NIcon :component="ListTodo" size="15" class="item-fallback" />
@@ -597,7 +749,7 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
               </div>
               <div
                 v-for="(f, idx) in result.feeds" :key="f.id"
-                :class="['result-item', 'jnclub-bouncy', { 'search-nav-active': activeIndex === navIndex(`feed-${f.id}`) }]" @click="goFeeds()"
+                :class="['result-item', 'jnclub-bouncy', { 'search-nav-active': activeIndex === navIndex(`feed-${f.id}`) }]" @click="goFeeds(f.id)"
                 :style="{ animationDelay: `${Math.min(idx * 35, 300)}ms` }"
               >
                 <NIcon :component="Rss" size="15" class="item-fallback" />
@@ -617,7 +769,7 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
               </div>
               <div
                 v-for="(fi, idx) in result.feedItems" :key="fi.id"
-                :class="['result-item', 'jnclub-bouncy', { 'search-nav-active': activeIndex === navIndex(`fi-${fi.id}`) }]" @click="goFeeds()"
+                :class="['result-item', 'jnclub-bouncy', { 'search-nav-active': activeIndex === navIndex(`fi-${fi.id}`) }]" @click="goFeeds(fi.feedId, fi.id)"
                 :style="{ animationDelay: `${Math.min(idx * 35, 300)}ms` }"
               >
                 <NIcon :component="Newspaper" size="15" class="item-fallback" />
@@ -854,6 +1006,47 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
 }
 .type-filter-chip.active {
   background: var(--brand-soft);
+}
+
+/* 已识别搜索语法标签 */
+.syntax-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.syntax-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--brand);
+  background: var(--brand-soft);
+  color: var(--brand);
+  font-size: var(--fs-xs);
+  cursor: pointer;
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+.syntax-chip:hover {
+  background: var(--brand);
+  color: #fff;
+}
+.syntax-close {
+  font-size: 14px;
+  line-height: 1;
+}
+
+/* 服务端搜索建议（空输入快捷入口） */
+.suggest-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+}
+.suggest-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 /* 新增类型结果的辅助信息 */
