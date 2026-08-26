@@ -108,22 +108,22 @@ html, body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--border);
+  background: var(--scrollbar-thumb);
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--text-3);
+  background: var(--scrollbar-thumb-hover);
 }
 
 /* 选中文本色 */
 ::selection {
-  background: var(--brand-soft);
-  color: var(--text-1);
+  background: var(--selection-bg);
+  color: var(--selection-text);
 }
 
-/* 聚焦 outline */
+/* 聚焦 outline：跟随主题 token，键盘导航清晰可见 */
 :focus-visible {
-  outline: 2px solid var(--brand);
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 
@@ -339,9 +339,11 @@ html, body {
 
 /* 玻璃抽屉 / 面板 */
 .glass-panel {
-  background: var(--glass-bg-trans) !important;
+  background: var(--panel-bg) !important;
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--panel-border);
+  box-shadow: var(--panel-shadow);
 }
 
 /* 玻璃滑块轨道（深/浅通用） */
@@ -362,12 +364,12 @@ html, body {
    （Naive 类名全局渲染到 body，此处直接覆盖，一处定义全项目生效）
    ================================================================ */
 
-/* 弹框遮罩：柔和玻璃底 + light blur */
+/* 弹框遮罩：柔和玻璃底 + 统一模糊 */
 .n-modal-mask,
 .n-drawer-mask {
-  background-color: color-mix(in srgb, var(--bg-page) 55%, transparent) !important;
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  background-color: var(--overlay-bg) !important;
+  backdrop-filter: blur(var(--overlay-blur));
+  -webkit-backdrop-filter: blur(var(--overlay-blur));
 }
 
 /* 弹框本体（无 preset 的 .n-modal / preset=dialog 的 .n-dialog / preset=card 的 .n-card）→ 玻璃卡片 */
@@ -394,18 +396,18 @@ html, body {
 /* 抽屉 → 玻璃面板 */
 .n-drawer,
 .n-drawer-content-wrapper {
-  background: var(--glass-bg-trans) !important;
+  background: var(--panel-bg) !important;
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
 }
 
 /* Popover → 玻璃浮层 */
 .n-popover {
-  background: var(--glass-bg-trans) !important;
+  background: var(--panel-bg) !important;
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid var(--glass-border);
-  box-shadow: var(--glass-shadow) !important;
+  border: 1px solid var(--panel-border);
+  box-shadow: var(--panel-shadow) !important;
 }
 
 /* 弹框/抽屉/浮层内 输入框 → 玻璃输入框 + 聚焦辉光 */
@@ -493,6 +495,105 @@ html.custom-cursor-active.dragging * {
 .item-row {
   content-visibility: auto;
   contain-intrinsic-size: auto 80px;
+}
+
+/* ================================================================
+   全局密度：紧凑模式（ui.density = compact）
+   通过覆盖布局/间距 token + 高频列表/卡片/页头间距实现。
+   移动端保持最小 32px 触控目标，不做过度压缩。
+   ================================================================ */
+.app-density-compact {
+  --layout-page-gutter: 16px;
+  --layout-page-padding: 8px 16px 0;
+  --layout-panel-padding: 14px 16px;
+  --header-height: 52px;
+  --tabbar-height: 50px;
+  --space-xs: 3px;
+  --space-sm: 6px;
+  --space-md: 12px;
+  --space-lg: 18px;
+  --space-xl: 24px;
+}
+
+/* 主内容区 / 面板 */
+.app-density-compact .content-area {
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+.app-density-compact .folder-column {
+  padding: 10px 10px;
+}
+.app-density-compact .folder-panel-title {
+  margin-bottom: 8px;
+}
+
+/* 页面头 / 模块工具栏 / 筛选条 */
+.app-density-compact .j-page-header {
+  padding-bottom: 8px;
+}
+.app-density-compact .j-page-header-title {
+  font-size: 18px;
+}
+.app-density-compact .module-toolbar {
+  margin-bottom: 8px;
+  gap: 6px;
+}
+.app-density-compact .chip-bar {
+  margin-bottom: 10px;
+  gap: 6px;
+}
+.app-density-compact .tag-bar {
+  margin-bottom: 8px;
+  padding: 6px 10px;
+}
+
+/* Chip 与标签 */
+.app-density-compact .chip {
+  padding: 4px 10px;
+  font-size: var(--fs-sm);
+}
+
+/* 列表行 */
+.app-density-compact .note-row,
+.app-density-compact .collection-row {
+  padding: 8px 12px;
+}
+.app-density-compact .note-row .row-summary,
+.app-density-compact .collection-row .row-summary {
+  font-size: var(--fs-sm);
+}
+
+/* 网格卡片 */
+.app-density-compact .grid-cards,
+.app-density-compact .virtual-row {
+  gap: 10px;
+}
+.app-density-compact .virtual-row {
+  margin-bottom: 10px;
+}
+.app-density-compact .bookmark-card .card-body {
+  padding: 10px 12px 12px;
+  gap: 6px;
+}
+
+/* 玻璃面板 */
+.app-density-compact .glass-panel {
+  padding: 20px 16px !important;
+}
+
+@media (max-width: 767px) {
+  /* 移动端仍保留合适间距；只压缩次要留白，避免触控变窄 */
+  .app-density-compact .content-area {
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+  .app-density-compact .chip-bar {
+    margin-bottom: 8px;
+  }
+  .app-density-compact .note-row,
+  .app-density-compact .collection-row {
+    padding: 10px 12px;
+  }
 }
 
 /* ---- Reduced motion ---- */

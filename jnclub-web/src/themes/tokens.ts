@@ -88,6 +88,20 @@ export interface DesignTokens {
   glassTextSecondary: string
   glassTextPlaceholder: string
   focusRing: string
+  // 主题级交互/反馈色（M1：滚动条、选区、遮罩、骨架、卡片态、面板）
+  scrollbarThumb: string
+  scrollbarThumbHover: string
+  selectionBg: string
+  selectionText: string
+  overlayBg: string
+  overlayBlur: string
+  skeletonBase: string
+  skeletonHighlight: string
+  cardHoverBg: string
+  selectedBg: string
+  panelBg: string
+  panelBorder: string
+  panelShadow: string
   fontSans: string
   fontMono: string
   fsXs: string
@@ -197,6 +211,19 @@ export const lightTokens: DesignTokens = {
   glassTextSecondary: 'rgba(29, 29, 31, 0.6)',
   glassTextPlaceholder: 'rgba(29, 29, 31, 0.35)',
   focusRing: 'rgba(236, 91, 142, 0.2)',
+  scrollbarThumb: 'rgba(0, 0, 0, 0.14)',
+  scrollbarThumbHover: 'rgba(0, 0, 0, 0.24)',
+  selectionBg: 'rgba(236, 91, 142, 0.18)',
+  selectionText: '#1D1D1F',
+  overlayBg: 'rgba(245, 245, 247, 0.55)',
+  overlayBlur: '6px',
+  skeletonBase: 'rgba(0, 0, 0, 0.06)',
+  skeletonHighlight: 'rgba(0, 0, 0, 0.03)',
+  cardHoverBg: '#F2F2F7',
+  selectedBg: 'rgba(236, 91, 142, 0.10)',
+  panelBg: 'rgba(255, 255, 255, 0.72)',
+  panelBorder: 'rgba(255, 255, 255, 0.6)',
+  panelShadow: '0 24px 64px -12px rgba(236, 91, 142, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
   fontSans: '"DM Sans", "Noto Sans SC", "PingFang SC", system-ui, -apple-system, sans-serif',
   fontMono: '"JetBrains Mono", "SF Mono", monospace',
   fsXs: '11px',
@@ -305,6 +332,19 @@ export const darkTokens: DesignTokens = {
   glassTextSecondary: 'rgba(245, 245, 247, 0.6)',
   glassTextPlaceholder: 'rgba(245, 245, 247, 0.35)',
   focusRing: 'rgba(255, 143, 171, 0.28)',
+  scrollbarThumb: 'rgba(255, 255, 255, 0.14)',
+  scrollbarThumbHover: 'rgba(255, 255, 255, 0.24)',
+  selectionBg: 'rgba(255, 143, 171, 0.26)',
+  selectionText: '#F5F5F7',
+  overlayBg: 'rgba(0, 0, 0, 0.55)',
+  overlayBlur: '6px',
+  skeletonBase: 'rgba(255, 255, 255, 0.08)',
+  skeletonHighlight: 'rgba(255, 255, 255, 0.04)',
+  cardHoverBg: '#2C2C2E',
+  selectedBg: 'rgba(255, 143, 171, 0.16)',
+  panelBg: 'rgba(28, 28, 30, 0.72)',
+  panelBorder: 'rgba(255, 255, 255, 0.12)',
+  panelShadow: '0 24px 64px -12px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.08)',
   fontSans: '"DM Sans", "Noto Sans SC", "PingFang SC", system-ui, -apple-system, sans-serif',
   fontMono: '"JetBrains Mono", "SF Mono", monospace',
   fsXs: '11px',
@@ -413,6 +453,19 @@ export function tokensToCSSVars(tokens: DesignTokens): Record<string, string> {
     '--glass-text-secondary': tokens.glassTextSecondary,
     '--glass-text-placeholder': tokens.glassTextPlaceholder,
     '--focus-ring': tokens.focusRing,
+    '--scrollbar-thumb': tokens.scrollbarThumb,
+    '--scrollbar-thumb-hover': tokens.scrollbarThumbHover,
+    '--selection-bg': tokens.selectionBg,
+    '--selection-text': tokens.selectionText,
+    '--overlay-bg': tokens.overlayBg,
+    '--overlay-blur': tokens.overlayBlur,
+    '--skeleton-base': tokens.skeletonBase,
+    '--skeleton-highlight': tokens.skeletonHighlight,
+    '--card-hover-bg': tokens.cardHoverBg,
+    '--selected-bg': tokens.selectedBg,
+    '--panel-bg': tokens.panelBg,
+    '--panel-border': tokens.panelBorder,
+    '--panel-shadow': tokens.panelShadow,
     '--font-sans': tokens.fontSans,
     '--font-mono': tokens.fontMono,
     '--fs-xs': tokens.fsXs,

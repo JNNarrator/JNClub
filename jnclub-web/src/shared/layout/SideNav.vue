@@ -8,6 +8,7 @@ import NavItem from '../../modules/bookmark/components/NavItem.vue'
 import NavEditorDrawer from './NavEditorDrawer.vue'
 import CursorSettingsDrawer from './CursorSettingsDrawer.vue'
 import ParticlesSettingsDrawer from './ParticlesSettingsDrawer.vue'
+import { useUiDensity } from '../composables/useUiDensity'
 import { useDraggableSort } from '../../modules/bookmark/composables/useDraggableSort'
 import { useRouter, useRoute } from 'vue-router'
 import { NAV_META, DEFAULT_ORDER, normalizeNavKeys, completeOrder, type NavDef, type NavKey } from './navConfig'
@@ -41,6 +42,7 @@ const moduleLabel = computed(() => {
 })
 
 const prefs = useUserPreferences()
+const { density, toggle } = useUiDensity()
 
 /** 全量导航项（顺序 = 可见在前 + 隐藏在后，供拖拽/偏好维护） */
 const allItems = ref<NavDef[]>(DEFAULT_ORDER.map(k => ({ key: k, ...NAV_META[k] })))
@@ -111,17 +113,19 @@ const showCursorSettings = ref(false)
 /** 背景特效设置抽屉 */
 const showParticlesSettings = ref(false)
 
-/** 个性化设置入口（收纳光标/背景/导航编辑） */
-const settingsOptions = [
+/** 个性化设置入口（收纳光标/背景/导航编辑/密度） */
+const settingsOptions = computed(() => [
   { label: '光标样式', key: 'cursor' },
   { label: '背景特效', key: 'particles' },
   { label: '编辑导航', key: 'nav' },
-]
+  { label: density.value === 'compact' ? '切换舒适模式' : '切换紧凑模式', key: 'density' },
+])
 
-const handleSettingsSelect = (key: string) => {
+const handleSettingsSelect = async (key: string) => {
   if (key === 'cursor') showCursorSettings.value = true
   else if (key === 'particles') showParticlesSettings.value = true
   else if (key === 'nav') showNavEditor.value = true
+  else if (key === 'density') await toggle()
 }
 </script>
 

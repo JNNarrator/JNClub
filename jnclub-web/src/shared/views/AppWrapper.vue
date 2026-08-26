@@ -12,6 +12,7 @@ import RecycleView from '../../modules/bookmark/views/RecycleView.vue'
 import HelpDrawer from '../components/HelpDrawer.vue'
 import { useAppShortcuts } from '../composables/useAppShortcuts'
 import { useUserPreferences } from '../composables/useUserPreferences'
+import { useUiDensity } from '../composables/useUiDensity'
 
 defineProps<{
   isDark: boolean
@@ -27,6 +28,7 @@ const MODULES: ModuleKey[] = ['bookmarks', 'notes', 'files', 'vault']
 const route = useRoute()
 const router = useRouter()
 const prefs = useUserPreferences()
+const { density } = useUiDensity()
 
 /** 回收站独立路由：同样进入主布局壳（侧边栏/移动端 TabBar 保持），仅内容区不同 */
 const isRecycle = computed(() => route.name === 'recycle')
@@ -75,6 +77,7 @@ useAppShortcuts({
   <MainLayout
     :is-dark="isDark"
     :active-module="activeModule"
+    :class="density === 'compact' ? 'app-density-compact' : ''"
     @toggle-theme="emit('toggle-theme')"
     @module-change="handleModuleChange"
   >
