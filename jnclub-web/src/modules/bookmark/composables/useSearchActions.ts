@@ -46,6 +46,8 @@ export function useSearchActions(opts: {
       case 'vault.lock': useVaultStore().lock(); break
       case 'theme.toggle': opts.onToggleTheme(); break
       case 'module.music': router.push('/music'); break
+      case 'go.todos': router.push('/todos'); break
+      case 'go.feeds': router.push('/feeds'); break
       case 'go.recycle': router.push('/recycle'); break
       case 'go.overview': router.push('/overview'); break
       case 'go.extension': router.push('/extension'); break

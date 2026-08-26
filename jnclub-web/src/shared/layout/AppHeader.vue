@@ -4,12 +4,13 @@
  * 从 Home.vue 拆出：面包屑、搜索、多选、视图切换、刷新、主题、用户下拉。
  * 用户信息/退出/资料弹窗逻辑一并收口在此，Home 不再维护。
  */
-import { ref, h, computed } from 'vue'
+import { ref, h, computed, onMounted, onUnmounted } from 'vue'
 import {
-  NButton, NIcon, NBreadcrumb, NBreadcrumbItem, NAvatar, NDropdown, NModal, useDialog,
+  NButton, NIcon, NBadge, NPopover, NBreadcrumb, NBreadcrumbItem, NAvatar, NDropdown, NModal, useDialog,
 } from 'naive-ui'
-import { FolderOpen, Search, CheckSquare, RefreshCw, Sun, Moon, CircleUser, LogOut } from 'lucide-vue-next'
+import { FolderOpen, Search, CheckSquare, RefreshCw, Sun, Moon, CircleUser, LogOut, Bell, CheckCheck } from 'lucide-vue-next'
 import axios from 'axios'
+import { useRouter } from 'vue-router'
 import { useUserStore } from '../stores/user'
 import { openMenu } from '../composables/useContextMenu'
 import ViewSwitcher, { type ViewMode } from '../../modules/bookmark/components/ViewSwitcher.vue'
@@ -35,6 +36,101 @@ const emit = defineEmits<{
 
 const userStore = useUserStore()
 const dialog = useDialog()
+const router = useRouter()
+
+interface NotificationItem {
+  id: string | number
+  type?: string
+  title: string
+  content?: string
+  refType?: string
+  refId?: string | number
+  readFlag: number
+  createTime?: string
+}
+
+const notificationList = ref<NotificationItem[]>([])
+const notificationLoading = ref(false)
+const notificationUnread = ref(0)
+let notificationTimer: number | undefined
+
+const fetchNotificationUnread = async () => {
+  try {
+    const { data } = await axios.get('/api/notifications/unread-count')
+    notificationUnread.value = Number(data?.data?.count ?? 0)
+  } catch { /* 忽略 */ }
+}
+
+const fetchNotifications = async () => {
+  notificationLoading.value = true
+  try {
+    const { data } = await axios.get('/api/notifications', { params: { limit: 30, unreadOnly: false } })
+    notificationList.value = Array.isArray(data?.data) ? data.data : []
+    await fetchNotificationUnread()
+  } catch { /* 忽略 */ } finally {
+    notificationLoading.value = false
+  }
+}
+
+const openNotificationPanel = () => {
+  void fetchNotifications()
+}
+
+const markNotificationRead = async (n: NotificationItem) => {
+  if (n.readFlag === 1) return
+  try {
+    await axios.put(`/api/notifications/${n.id}/read`)
+  } catch { /* 忽略 */ }
+  n.readFlag = 1
+  notificationUnread.value = Math.max(0, notificationUnread.value - 1)
+}
+
+const markAllNotificationsRead = async () => {
+  try {
+    await axios.put('/api/notifications/read-all')
+  } catch { /* 忽略 */ }
+  notificationList.value.forEach((n) => { n.readFlag = 1 })
+  notificationUnread.value = 0
+}
+
+const notificationTypeLabel = (type?: string) => {
+  const labels: Record<string, string> = {
+    TODO_REMIND: '待办提醒',
+    SYSTEM: '系统通知',
+  }
+  return (type && labels[type]) || type || '通知'
+}
+
+const formatNotificationTime = (value?: string) => {
+  if (!value) return ''
+  const raw = String(value).includes(' ') ? String(value).replace(' ', 'T') : String(value)
+  const d = new Date(raw)
+  if (!Number.isNaN(d.getTime())) {
+    const p = (v: number) => String(v).padStart(2, '0')
+    return `${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
+  }
+  return String(value).slice(5, 16)
+}
+
+const handleNotificationClick = async (n: NotificationItem) => {
+  await markNotificationRead(n)
+  if (n.refType === 'todo' && n.refId) {
+    router.push('/todos')
+  }
+}
+
+onMounted(() => {
+  void fetchNotificationUnread()
+  notificationTimer = window.setInterval(() => {
+    void fetchNotificationUnread()
+  }, 60_000)
+})
+
+onUnmounted(() => {
+  if (notificationTimer !== undefined) {
+    window.clearInterval(notificationTimer)
+  }
+})
 
 const userDropdownOptions = [
   { label: '用户信息', key: 'profile', icon: () => h(NIcon, null, { default: () => h(CircleUser) }) },
@@ -117,6 +213,62 @@ const handleBreadcrumbRoot = () => {
       <NButton quaternary circle size="small" class="refresh-btn" @click="emit('open-search')" title="搜索 (Ctrl/⌘+K)">
         <template #icon><NIcon :component="Search" size="16" /></template>
       </NButton>
+
+      <NPopover
+        trigger="click"
+        placement="bottom-end"
+        :show-arrow="false"
+        :width="360"
+        class="notification-popover"
+        @update:show="(show: boolean) => { if (show) openNotificationPanel() }"
+      >
+        <template #trigger>
+          <NButton quaternary circle size="small" class="refresh-btn" title="通知">
+            <template #icon>
+              <NBadge :value="notificationUnread" :max="99" :show="notificationUnread > 0" dot>
+                <NIcon :component="Bell" size="16" />
+              </NBadge>
+            </template>
+          </NButton>
+        </template>
+        <div class="notification-panel">
+          <div class="notification-header">
+            <span class="notification-title">通知</span>
+            <span class="notification-subtitle">
+              {{ notificationUnread > 0 ? `${notificationUnread} 条未读` : '没有未读' }}
+            </span>
+            <NButton
+              v-if="notificationUnread > 0"
+              text size="tiny" type="primary"
+              class="notification-mark-all"
+              @click="markAllNotificationsRead"
+            >
+              <template #icon><NIcon :component="CheckCheck" size="14" /></template>
+              全部已读
+            </NButton>
+          </div>
+          <div v-if="notificationLoading" class="notification-status">加载中…</div>
+          <div v-else-if="notificationList.length === 0" class="notification-status">暂无通知</div>
+          <div v-else class="notification-list">
+            <button
+              v-for="n in notificationList" :key="n.id"
+              type="button"
+              :class="['notification-item', { unread: n.readFlag !== 1 }]"
+              @click="handleNotificationClick(n)"
+            >
+              <span v-if="n.readFlag !== 1" class="notification-dot" />
+              <span class="notification-item-main">
+                <span class="notification-item-title">{{ n.title }}</span>
+                <span v-if="n.content" class="notification-item-content">{{ n.content }}</span>
+                <span class="notification-item-meta">
+                  {{ notificationTypeLabel(n.type) }} · {{ formatNotificationTime(n.createTime) }}
+                </span>
+              </span>
+            </button>
+          </div>
+        </div>
+      </NPopover>
+
       <NButton
         v-if="activeModule === 'bookmarks' || activeModule === 'notes'"
         quaternary circle size="small"
@@ -275,6 +427,105 @@ const handleBreadcrumbRoot = () => {
   background: var(--glass-chip-bg);
   padding: 2px 6px;
   border-radius: var(--radius-pill);
+}
+
+.notification-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 440px;
+  min-height: 120px;
+}
+.notification-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 2px 6px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.notification-title {
+  font-size: var(--fs-md);
+  font-weight: 600;
+  color: var(--text-1);
+}
+.notification-subtitle {
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  margin-right: auto;
+}
+.notification-mark-all {
+  flex-shrink: 0;
+}
+.notification-status {
+  padding: 28px 0;
+  text-align: center;
+  font-size: var(--fs-sm);
+  color: var(--text-3);
+}
+.notification-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+  max-height: 360px;
+}
+.notification-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-1);
+  text-align: left;
+  cursor: pointer;
+  width: 100%;
+  transition: background-color 0.2s;
+}
+.notification-item:hover {
+  background: var(--hover-bg);
+}
+.notification-item.unread {
+  background: var(--primary-bg, rgba(24, 160, 88, 0.06));
+}
+.notification-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--primary-color, #18a058);
+  margin-top: 6px;
+  flex-shrink: 0;
+}
+.notification-item-main {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  flex: 1;
+}
+.notification-item-title {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-1);
+  word-break: break-word;
+}
+.notification-item.unread .notification-item-title {
+  font-weight: 700;
+}
+.notification-item-content {
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+  word-break: break-word;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.notification-item-meta {
+  font-size: var(--fs-xs);
+  color: var(--text-3);
 }
 
 .mobile-dir-btn {

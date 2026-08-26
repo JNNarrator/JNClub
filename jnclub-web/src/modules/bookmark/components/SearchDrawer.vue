@@ -5,8 +5,9 @@
  * 点击结果 → 切到对应模块并选中目录
  */
 import { ref, watch, computed, nextTick } from 'vue'
+import { useRouter } from 'vue-router'
 import { NDrawer, NInput, NIcon, NSpin, NEllipsis } from 'naive-ui'
-import { Search, Bookmark, StickyNote, FileText, KeyRound, Tag, Music, ArrowRight, Lock, Moon, Trash2, LayoutDashboard, Puzzle, Plus } from 'lucide-vue-next'
+import { Search, Bookmark, StickyNote, FileText, KeyRound, Tag, Music, ArrowRight, Lock, Moon, Trash2, LayoutDashboard, Puzzle, Plus, ListTodo, BookOpen, Rss, Newspaper, ExternalLink } from 'lucide-vue-next'
 import JEmptyState from '../../../shared/components/ui/JEmptyState.vue'
 import axios from 'axios'
 import { JGradientText } from '../../../shared/components/animation'
@@ -22,6 +23,8 @@ const emit = defineEmits<{
   'action': [key: string]
 }>()
 
+const router = useRouter()
+
 const keyword = ref('')
 const loading = ref(false)
 const searched = ref(false)
@@ -32,7 +35,30 @@ const result = ref<{
   vault: any[]
   tags: any[]
   tracks: any[]
-}>({ bookmarks: [], notes: [], files: [], vault: [], tags: [], tracks: [] })
+  todos: any[]
+  readLater: any[]
+  feeds: any[]
+  feedItems: any[]
+}>({ bookmarks: [], notes: [], files: [], vault: [], tags: [], tracks: [], todos: [], readLater: [], feeds: [], feedItems: [] })
+
+const typeFilter = ref<'all' | 'bookmarks' | 'notes' | 'files' | 'vault' | 'tags' | 'tracks' | 'todos' | 'readLater' | 'feeds' | 'feedItems'>('all')
+
+const typeFilterOptions: Array<{ label: string; value: typeof typeFilter.value }> = [
+  { label: '全部', value: 'all' },
+  { label: '收藏', value: 'bookmarks' },
+  { label: '便签', value: 'notes' },
+  { label: '云盘', value: 'files' },
+  { label: '密码库', value: 'vault' },
+  { label: '标签', value: 'tags' },
+  { label: '音乐', value: 'tracks' },
+  { label: '待办', value: 'todos' },
+  { label: '稍后读', value: 'readLater' },
+  { label: '订阅源', value: 'feeds' },
+  { label: '文章', value: 'feedItems' },
+]
+
+const shouldShowGroup = (key: 'bookmarks' | 'notes' | 'files' | 'vault' | 'tags' | 'tracks' | 'todos' | 'readLater' | 'feeds' | 'feedItems') =>
+  typeFilter.value === 'all' || typeFilter.value === key
 
 /* ─── 搜索历史（localStorage，最多 10 条） ─── */
 const HISTORY_KEY = 'jn-search-history'
@@ -75,7 +101,8 @@ let timer: ReturnType<typeof setTimeout> | null = null
 watch(() => props.show, (v) => {
   if (v) {
     keyword.value = ''
-    result.value = { bookmarks: [], notes: [], files: [], vault: [], tags: [], tracks: [] }
+    result.value = { bookmarks: [], notes: [], files: [], vault: [], tags: [], tracks: [], todos: [], readLater: [], feeds: [], feedItems: [] }
+    typeFilter.value = 'all'
     searched.value = false
     activeIndex.value = -1
     loadHistory()
@@ -86,7 +113,7 @@ watch(() => props.show, (v) => {
 const doSearch = async () => {
   const kw = keyword.value.trim()
   if (!kw) {
-    result.value = { bookmarks: [], notes: [], files: [], vault: [], tags: [], tracks: [] }
+    result.value = { bookmarks: [], notes: [], files: [], vault: [], tags: [], tracks: [], todos: [], readLater: [], feeds: [], feedItems: [] }
     searched.value = false
     return
   }
@@ -94,7 +121,7 @@ const doSearch = async () => {
   try {
     const res = await axios.get('/api/search', { params: { keyword: kw, limit: 20 } })
     if (res.data.code === 200) {
-      result.value = res.data.data || { bookmarks: [], notes: [], files: [], vault: [], tags: [], tracks: [] }
+      result.value = res.data.data || { bookmarks: [], notes: [], files: [], vault: [], tags: [], tracks: [], todos: [], readLater: [], feeds: [], feedItems: [] }
       searched.value = true
       activeIndex.value = -1
       pushHistory(kw)
@@ -116,11 +143,29 @@ const onInput = () => {
 
 const total = () => result.value.bookmarks.length + result.value.notes.length + result.value.files.length
   + result.value.vault.length + result.value.tags.length + result.value.tracks.length
+  + result.value.todos.length + result.value.readLater.length + result.value.feeds.length + result.value.feedItems.length
 
 const handleJump = (module: 'bookmarks' | 'notes' | 'files' | 'vault' | 'music', directoryId: number | null) => {
   emit('close')
   emit('jump', module, directoryId)
 }
+
+/* ─── 结果直接动作：跳路由 / 打开外链 / 下载文件 ─── */
+const goRoute = (path: string) => {
+  emit('close')
+  router.push(path)
+}
+const openUrl = (url?: string) => {
+  if (!url) return
+  emit('close')
+  window.open(url, '_blank', 'noopener,noreferrer')
+}
+const downloadFile = (id: number | string) => {
+  emit('close')
+  window.open(`/api/clouddisk/files/${id}/download`, '_blank')
+}
+const goTodos = () => goRoute('/todos')
+const goFeeds = () => goRoute('/feeds')
 
 /* ─── 快捷动作命令 ─── */
 interface CommandAction {
@@ -139,6 +184,8 @@ const COMMANDS: CommandAction[] = [
   { key: 'module.files', label: '云盘', icon: FileText, group: '导航' },
   { key: 'module.vault', label: '密码库', icon: KeyRound, group: '导航' },
   { key: 'module.music', label: '音乐', icon: Music, group: '导航' },
+  { key: 'go.todos', label: '待办清单', icon: ListTodo, group: '导航' },
+  { key: 'go.feeds', label: 'RSS 订阅', icon: Rss, group: '导航' },
   { key: 'go.overview', label: '概览看板', icon: LayoutDashboard, group: '导航' },
   { key: 'go.recycle', label: '回收站', icon: Trash2, group: '导航' },
   { key: 'go.extension', label: '下载中心', icon: Puzzle, group: '导航' },
@@ -177,7 +224,7 @@ interface SearchNavItem {
   key: string
   label: string
   group: string
-  type: 'command' | 'bookmark' | 'note' | 'file' | 'vault' | 'tag' | 'track'
+  type: 'command' | 'bookmark' | 'note' | 'file' | 'vault' | 'tag' | 'track' | 'todo' | 'readLater' | 'feed' | 'feedItem'
   run: () => void
 }
 
@@ -186,23 +233,55 @@ const navItems = computed<SearchNavItem[]>(() => {
   for (const c of filteredCommands.value) {
     items.push({ key: c.key, label: c.label, group: c.group, type: 'command', run: () => runCommand(c.key) })
   }
-  for (const b of result.value.bookmarks) {
-    items.push({ key: `b-${b.id}`, label: b.title || b.url, group: '收藏', type: 'bookmark', run: () => handleJump('bookmarks', b.directoryId) })
+  if (shouldShowGroup('bookmarks')) {
+    for (const b of result.value.bookmarks) {
+      items.push({ key: `b-${b.id}`, label: b.title || b.url, group: '收藏', type: 'bookmark', run: () => openUrl(b.url) })
+    }
   }
-  for (const n of result.value.notes) {
-    items.push({ key: `n-${n.id}`, label: n.title || '无标题', group: '便签', type: 'note', run: () => handleJump('notes', n.directoryId) })
+  if (shouldShowGroup('notes')) {
+    for (const n of result.value.notes) {
+      items.push({ key: `n-${n.id}`, label: n.title || '无标题', group: '便签', type: 'note', run: () => goRoute(`/notes/${n.id}`) })
+    }
   }
-  for (const f of result.value.files) {
-    items.push({ key: `f-${f.id}`, label: f.originalName, group: '云盘文件', type: 'file', run: () => handleJump('files', f.directoryId) })
+  if (shouldShowGroup('files')) {
+    for (const f of result.value.files) {
+      items.push({ key: `f-${f.id}`, label: f.originalName, group: '云盘文件', type: 'file', run: () => downloadFile(f.id) })
+    }
   }
-  for (const v of result.value.vault) {
-    items.push({ key: `v-${v.id}`, label: v.name, group: '密码库', type: 'vault', run: () => handleJump('vault', v.directoryId) })
+  if (shouldShowGroup('vault')) {
+    for (const v of result.value.vault) {
+      items.push({ key: `v-${v.id}`, label: v.name, group: '密码库', type: 'vault', run: () => handleJump('vault', v.directoryId) })
+    }
   }
-  for (const t of result.value.tags) {
-    items.push({ key: `t-${t.id}`, label: t.name, group: '标签', type: 'tag', run: () => handleJump('bookmarks', null) })
+  if (shouldShowGroup('tags')) {
+    for (const t of result.value.tags) {
+      items.push({ key: `t-${t.id}`, label: t.name, group: '标签', type: 'tag', run: () => handleJump('bookmarks', null) })
+    }
   }
-  for (const t of result.value.tracks) {
-    items.push({ key: `track-${t.trackId}`, label: t.name, group: '音乐', type: 'track', run: () => handleJump('music', null) })
+  if (shouldShowGroup('tracks')) {
+    for (const t of result.value.tracks) {
+      items.push({ key: `track-${t.trackId}`, label: t.name, group: '音乐', type: 'track', run: () => handleJump('music', null) })
+    }
+  }
+  if (shouldShowGroup('todos')) {
+    for (const td of result.value.todos) {
+      items.push({ key: `todo-${td.id}`, label: td.title || '未命名待办', group: '待办', type: 'todo', run: () => goTodos() })
+    }
+  }
+  if (shouldShowGroup('readLater')) {
+    for (const r of result.value.readLater) {
+      items.push({ key: `rl-${r.id}`, label: r.title || r.url, group: '稍后读', type: 'readLater', run: () => openUrl(r.url) })
+    }
+  }
+  if (shouldShowGroup('feeds')) {
+    for (const f of result.value.feeds) {
+      items.push({ key: `feed-${f.id}`, label: f.title || f.url, group: '订阅源', type: 'feed', run: () => goFeeds() })
+    }
+  }
+  if (shouldShowGroup('feedItems')) {
+    for (const fi of result.value.feedItems) {
+      items.push({ key: `fi-${fi.id}`, label: fi.title || '未命名文章', group: '文章', type: 'feedItem', run: () => goFeeds() })
+    }
   }
   return items
 })
@@ -286,6 +365,15 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
         <template #prefix><NIcon :component="Search" size="16" /></template>
       </NInput>
 
+      <!-- 结果类型筛选（命令区始终展示） -->
+      <div v-if="searched && total() > 0" class="type-filter">
+        <button
+          v-for="opt in typeFilterOptions" :key="opt.value"
+          type="button" :class="['type-filter-chip', 'jnclub-bouncy', { active: typeFilter === opt.value }]"
+          @click="typeFilter = opt.value"
+        >{{ opt.label }}</button>
+      </div>
+
       <!-- 搜索历史（空输入时展示） -->
       <div v-if="!keyword.trim() && history.length" class="history-section">
         <div class="history-head">
@@ -338,14 +426,14 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
         <!-- 结果 -->
         <div v-else class="search-results">
           <!-- 收藏 -->
-          <div v-if="result.bookmarks.length" class="result-group">
+          <div v-if="shouldShowGroup('bookmarks') && result.bookmarks.length" class="result-group">
             <div class="group-title">
               <NIcon :component="Bookmark" size="14" /> 收藏
               <span class="group-count">{{ result.bookmarks.length }}</span>
             </div>
             <div
               v-for="(b, idx) in result.bookmarks" :key="b.id"
-              :class="['result-item', 'jnclub-bouncy', { 'search-nav-active': activeIndex === navIndex(`b-${b.id}`) }]" @click="handleJump('bookmarks', b.directoryId)"
+              :class="['result-item', 'jnclub-bouncy', { 'search-nav-active': activeIndex === navIndex(`b-${b.id}`) }]" @click="openUrl(b.url)"
               :style="{ animationDelay: `${Math.min(idx * 35, 300)}ms` }"
             >
               <img v-if="b.icon" :src="b.icon" class="item-icon" @error="(e: Event) => ((e.target as HTMLImageElement).style.display = 'none')" />
@@ -359,14 +447,14 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
           </div>
 
           <!-- 便签 -->
-          <div v-if="result.notes.length" class="result-group">
+          <div v-if="shouldShowGroup('notes') && result.notes.length" class="result-group">
             <div class="group-title">
               <NIcon :component="StickyNote" size="14" /> 便签
               <span class="group-count">{{ result.notes.length }}</span>
             </div>
             <div
               v-for="(n, idx) in result.notes" :key="n.id"
-              :class="['result-item', 'jnclub-bouncy', { 'search-nav-active': activeIndex === navIndex(`n-${n.id}`) }]" @click="handleJump('notes', n.directoryId)"
+              :class="['result-item', 'jnclub-bouncy', { 'search-nav-active': activeIndex === navIndex(`n-${n.id}`) }]" @click="goRoute(`/notes/${n.id}`)"
               :style="{ animationDelay: `${Math.min(idx * 35, 300)}ms` }"
             >
               <NIcon :component="StickyNote" size="15" class="item-fallback" />
@@ -379,14 +467,14 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
           </div>
 
           <!-- 云盘 -->
-          <div v-if="result.files.length" class="result-group">
+          <div v-if="shouldShowGroup('files') && result.files.length" class="result-group">
             <div class="group-title">
               <NIcon :component="FileText" size="14" /> 云盘文件
               <span class="group-count">{{ result.files.length }}</span>
             </div>
             <div
               v-for="(f, idx) in result.files" :key="f.id"
-              :class="['result-item', 'jnclub-bouncy', { 'search-nav-active': activeIndex === navIndex(`f-${f.id}`) }]" @click="handleJump('files', f.directoryId)"
+              :class="['result-item', 'jnclub-bouncy', { 'search-nav-active': activeIndex === navIndex(`f-${f.id}`) }]" @click="downloadFile(f.id)"
               :style="{ animationDelay: `${Math.min(idx * 35, 300)}ms` }"
             >
               <NIcon :component="FileText" size="15" class="item-fallback" />
@@ -399,7 +487,7 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
           </div>
 
           <!-- 密码库（仅标题，安全） -->
-          <div v-if="result.vault.length" class="result-group">
+          <div v-if="shouldShowGroup('vault') && result.vault.length" class="result-group">
             <div class="group-title">
               <NIcon :component="KeyRound" size="14" /> 密码库
               <span class="group-count">{{ result.vault.length }}</span>
@@ -419,7 +507,7 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
           </div>
 
           <!-- 标签 -->
-          <div v-if="result.tags.length" class="result-group">
+          <div v-if="shouldShowGroup('tags') && result.tags.length" class="result-group">
             <div class="group-title">
               <NIcon :component="Tag" size="14" /> 标签
               <span class="group-count">{{ result.tags.length }}</span>
@@ -439,7 +527,7 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
           </div>
 
           <!-- 音乐曲目 -->
-          <div v-if="result.tracks.length" class="result-group">
+          <div v-if="shouldShowGroup('tracks') && result.tracks.length" class="result-group">
             <div class="group-title">
               <NIcon :component="Music" size="14" /> 音乐
               <span class="group-count">{{ result.tracks.length }}</span>
@@ -457,6 +545,93 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
               <ArrowRight :size="14" class="item-arrow" />
             </div>
           </div>
+<!-- 待办 -->
+            <div v-if="shouldShowGroup('todos') && result.todos.length" class="result-group">
+              <div class="group-title">
+                <NIcon :component="ListTodo" size="14" /> 待办
+                <span class="group-count">{{ result.todos.length }}</span>
+              </div>
+              <div
+                v-for="(td, idx) in result.todos" :key="td.id"
+                :class="['result-item', 'jnclub-bouncy', { 'search-nav-active': activeIndex === navIndex(`todo-${td.id}`) }]" @click="goTodos()"
+                :style="{ animationDelay: `${Math.min(idx * 35, 300)}ms` }"
+              >
+                <NIcon :component="ListTodo" size="15" class="item-fallback" />
+                <div class="item-main">
+                  <div class="item-title hl-text" v-html="highlightText(td.title || '未命名待办', td.highlights, 'title')" />
+                  <div class="item-sub">
+                    <span v-if="td.dueDate" class="item-meta">{{ td.dueDate }}<template v-if="td.dueTime"> {{ String(td.dueTime).slice(0, 5) }}</template></span>
+                    <span v-if="td.itemCount != null" class="item-meta">{{ td.itemCompletedCount || 0 }}/{{ td.itemCount }}</span>
+                    <span v-if="td.recurrence" class="item-meta">{{ td.recurrence }}</span>
+                  </div>
+                </div>
+                <ArrowRight :size="14" class="item-arrow" />
+              </div>
+            </div>
+
+            <!-- 稍后读 -->
+            <div v-if="shouldShowGroup('readLater') && result.readLater.length" class="result-group">
+              <div class="group-title">
+                <NIcon :component="BookOpen" size="14" /> 稍后读
+                <span class="group-count">{{ result.readLater.length }}</span>
+              </div>
+              <div
+                v-for="(r, idx) in result.readLater" :key="r.id"
+                :class="['result-item', 'jnclub-bouncy', { 'search-nav-active': activeIndex === navIndex(`rl-${r.id}`) }]" @click="openUrl(r.url)"
+                :style="{ animationDelay: `${Math.min(idx * 35, 300)}ms` }"
+              >
+                <NIcon :component="BookOpen" size="15" class="item-fallback" />
+                <div class="item-main">
+                  <div class="item-title hl-text" v-html="highlightText(r.title || r.url, r.highlights, r.title ? 'title' : 'url')" />
+                  <NEllipsis class="item-sub">{{ r.url }}</NEllipsis>
+                </div>
+                <ExternalLink :size="14" class="item-arrow" />
+              </div>
+            </div>
+
+            <!-- 订阅源 -->
+            <div v-if="shouldShowGroup('feeds') && result.feeds.length" class="result-group">
+              <div class="group-title">
+                <NIcon :component="Rss" size="14" /> 订阅源
+                <span class="group-count">{{ result.feeds.length }}</span>
+              </div>
+              <div
+                v-for="(f, idx) in result.feeds" :key="f.id"
+                :class="['result-item', 'jnclub-bouncy', { 'search-nav-active': activeIndex === navIndex(`feed-${f.id}`) }]" @click="goFeeds()"
+                :style="{ animationDelay: `${Math.min(idx * 35, 300)}ms` }"
+              >
+                <NIcon :component="Rss" size="15" class="item-fallback" />
+                <div class="item-main">
+                  <div class="item-title hl-text" v-html="highlightText(f.title || f.url, f.highlights, f.title ? 'title' : 'url')" />
+                  <NEllipsis class="item-sub">{{ f.siteUrl || f.url }}</NEllipsis>
+                </div>
+                <ArrowRight :size="14" class="item-arrow" />
+              </div>
+            </div>
+
+            <!-- 文章 -->
+            <div v-if="shouldShowGroup('feedItems') && result.feedItems.length" class="result-group">
+              <div class="group-title">
+                <NIcon :component="Newspaper" size="14" /> 文章
+                <span class="group-count">{{ result.feedItems.length }}</span>
+              </div>
+              <div
+                v-for="(fi, idx) in result.feedItems" :key="fi.id"
+                :class="['result-item', 'jnclub-bouncy', { 'search-nav-active': activeIndex === navIndex(`fi-${fi.id}`) }]" @click="goFeeds()"
+                :style="{ animationDelay: `${Math.min(idx * 35, 300)}ms` }"
+              >
+                <NIcon :component="Newspaper" size="15" class="item-fallback" />
+                <div class="item-main">
+                  <div class="item-title hl-text" v-html="highlightText(fi.title || '未命名文章', fi.highlights, 'title')" />
+                  <div class="item-sub">
+                    <span v-if="fi.author" class="item-meta">{{ fi.author }}</span>
+                    <span v-if="fi.publishedAt" class="item-meta">{{ String(fi.publishedAt).slice(0, 16).replace('T', ' ') }}</span>
+                  </div>
+                  <NEllipsis v-if="fi.excerpt" class="item-sub">{{ fi.excerpt }}</NEllipsis>
+                </div>
+                <ArrowRight :size="14" class="item-arrow" />
+              </div>
+            </div>
         </div>
       </NSpin>
     </div>
@@ -655,4 +830,46 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
 .cmd-ic { color: var(--brand); flex-shrink: 0; }
 .cmd-label { flex: 1; }
 .cmd-group { font-size: var(--fs-xs); color: var(--text-3); }
+
+/* 结果类型筛选 */
+.type-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.type-filter-chip {
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--glass-chip-border);
+  background: var(--glass-chip-bg);
+  color: var(--glass-chip-text);
+  font-size: var(--fs-xs);
+  cursor: pointer;
+  transition: border-color var(--dur) var(--ease), color var(--dur) var(--ease), background var(--dur) var(--ease);
+}
+.type-filter-chip:hover,
+.type-filter-chip.active {
+  border-color: var(--brand);
+  color: var(--brand);
+}
+.type-filter-chip.active {
+  background: var(--brand-soft);
+}
+
+/* 新增类型结果的辅助信息 */
+.item-meta {
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  background: var(--glass-chip-bg);
+  border: 1px solid var(--glass-chip-border);
+  border-radius: var(--radius-pill);
+  padding: 0 6px;
+  white-space: nowrap;
+}
+.item-sub {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
 </style>

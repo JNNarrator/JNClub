@@ -1,20 +1,31 @@
 <script setup lang="ts">
 /**
- * TodoView.vue — 待办清单
- * 快速添加（标题/优先级/截止日期/备注）+ 筛选（全部/进行中/已完成/今天/逾期）
- * + 行内完成切换 + 编辑弹窗 + 桌面通知提醒（打开页面时检查逾期/今日到期）
+ * TodoView.vue — 待办清单 2.0
+ * 快速添加（标题/优先级/截止日期/截止时间/提醒/重复）+ 筛选
+ * （全部/进行中/已完成/今天/已逾期/明天/未来7天/无日期/高优先级）
+ * + 行内完成切换 + 子任务 + 编辑弹窗 + 桌面通知
  */
 import { ref, computed, watch, onMounted, h } from 'vue'
 import {
   NInput, NSelect, NButton, NIcon, NCheckbox, useMessage, NPopconfirm,
-  NTag, NModal, NDatePicker,
+  NTag, NModal, NDatePicker, NTimePicker, NInputNumber,
 } from 'naive-ui'
-import { Plus, Trash2, Pencil, Calendar, Bell } from 'lucide-vue-next'
+import { Plus, Trash2, Pencil, Calendar, Bell, ChevronDown, ChevronRight, ListChecks, Repeat2 } from 'lucide-vue-next'
 import axios from 'axios'
 import JSkeletonList from '../../../shared/components/ui/JSkeletonList.vue'
 import JFilterBar from '../../../shared/components/ui/JFilterBar.vue'
 import JEmptyState from '../../../shared/components/ui/JEmptyState.vue'
 import JErrorState from '../../../shared/components/ui/JErrorState.vue'
+
+interface TodoItem {
+  id: number
+  todoId?: number
+  title: string
+  completed: number
+  sortOrder?: number
+  createTime?: string | null
+  updateTime?: string | null
+}
 
 interface Todo {
   id: number
@@ -22,8 +33,16 @@ interface Todo {
   note?: string | null
   priority: number
   dueDate?: string | null
+  dueTime?: string | null
+  remindAt?: string | null
+  remindNotified?: number
+  recurrence?: string | null
+  recurrenceInterval?: number
   completed: number
   completedAt?: string | null
+  items?: TodoItem[] | null
+  itemCount?: number
+  itemCompletedCount?: number
   createTime?: string | null
 }
 
@@ -31,11 +50,22 @@ interface Todo {
 const toDateStr = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 
+const toDateTimeStr = (d: Date) =>
+  `${toDateStr(d)} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`
+
+const parseDateTime = (s?: string | null): number | null => {
+  if (!s) return null
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?/)
+  if (!m) return null
+  const [, y, mo, d, hh, mi, ss = '0'] = m
+  return new Date(Number(y), Number(mo) - 1, Number(d), Number(hh), Number(mi), Number(ss)).getTime()
+}
+
 const props = defineProps<{ refresh: number }>()
 const message = useMessage()
 
 const todos = ref<Todo[]>([])
-const filter = ref<'all' | 'active' | 'completed' | 'today' | 'overdue'>('all')
+const filter = ref<'all' | 'active' | 'completed' | 'today' | 'overdue' | 'tomorrow' | 'week' | 'noDate' | 'high'>('all')
 const loading = ref(false)
 const loadError = ref(false)
 
@@ -78,9 +108,21 @@ onMounted(() => { reload(); checkReminders() })
 const newTitle = ref('')
 const newPriority = ref(1)
 const newDue = ref<number | null>(null) // naive date picker 时间戳
+const newDueTime = ref<string | null>(null)
+const newRemindAt = ref<number | null>(null)
+const newRecurrence = ref('')
+const newRecurrenceInterval = ref(1)
 const newNote = ref('')
 const showNoteInput = ref(false)
 const adding = ref(false)
+
+const recurrenceOptions = [
+  { label: '不重复', value: '' },
+  { label: '每天', value: 'DAILY' },
+  { label: '每周', value: 'WEEKLY' },
+  { label: '每月', value: 'MONTHLY' },
+  { label: '每年', value: 'YEARLY' },
+]
 
 const addTodo = async () => {
   if (!newTitle.value.trim()) { message.warning('请输入待办内容'); return }
@@ -91,12 +133,22 @@ const addTodo = async () => {
       priority: newPriority.value,
     }
     if (newDue.value) payload.dueDate = toDateStr(new Date(newDue.value))
+    if (newDueTime.value) payload.dueTime = newDueTime.value
+    if (newRemindAt.value) payload.remindAt = toDateTimeStr(new Date(newRemindAt.value))
+    if (newRecurrence.value) {
+      payload.recurrence = newRecurrence.value
+      payload.recurrenceInterval = Math.max(1, newRecurrenceInterval.value || 1)
+    }
     if (newNote.value.trim()) payload.note = newNote.value.trim()
     const res = await axios.post('/api/todos', payload)
     if (res.data.code === 200) {
       message.success('已添加')
       newTitle.value = ''
       newDue.value = null
+      newDueTime.value = null
+      newRemindAt.value = null
+      newRecurrence.value = ''
+      newRecurrenceInterval.value = 1
       newNote.value = ''
       showNoteInput.value = false
       reload()
@@ -119,6 +171,8 @@ const toggleComplete = async (t: Todo) => {
   try {
     const res = await axios.put(`/api/todos/${t.id}/complete`, { completed: next })
     if (res.data.code !== 200) throw new Error(res.data.message || '操作失败')
+    // 重复待办完成后后端会自动推进到下个周期并保持进行中，需要重新拉取
+    if (t.recurrence) reload()
   } catch (e: any) {
     t.completed = prev
     fetchStats()
@@ -147,6 +201,10 @@ const removeTodo = async (t: Todo) => {
                 note: t.note || '',
                 priority: t.priority ?? 1,
                 dueDate: t.dueDate || null,
+                dueTime: t.dueTime || null,
+                remindAt: t.remindAt || null,
+                recurrence: t.recurrence || null,
+                recurrenceInterval: t.recurrenceInterval || 1,
               })
               message.success('已恢复')
               reload()
@@ -166,7 +224,16 @@ const removeTodo = async (t: Todo) => {
 
 /* ─── 编辑弹窗 ─── */
 const editing = ref<Todo | null>(null)
-const editForm = ref({ title: '', note: '', priority: 1, due: null as number | null })
+const editForm = ref({
+  title: '',
+  note: '',
+  priority: 1,
+  due: null as number | null,
+  dueTime: null as string | null,
+  remindAt: null as number | null,
+  recurrence: '',
+  recurrenceInterval: 1,
+})
 const savingEdit = ref(false)
 
 const openEdit = (t: Todo) => {
@@ -176,6 +243,10 @@ const openEdit = (t: Todo) => {
     note: t.note || '',
     priority: t.priority ?? 1,
     due: t.dueDate ? new Date(t.dueDate + 'T00:00:00').getTime() : null,
+    dueTime: t.dueTime || null,
+    remindAt: parseDateTime(t.remindAt),
+    recurrence: t.recurrence || '',
+    recurrenceInterval: t.recurrenceInterval ?? 1,
   }
 }
 
@@ -192,6 +263,21 @@ const saveEdit = async () => {
       payload.dueDate = dueStr
       if (dueStr === null) payload.clearDueDate = true
     }
+    const dueTimeStr = editForm.value.dueTime || null
+    if (dueTimeStr !== (editing.value.dueTime || null)) {
+      payload.dueTime = dueTimeStr
+      if (dueTimeStr === null) payload.clearDueTime = true
+    }
+    const remindStr = editForm.value.remindAt ? toDateTimeStr(new Date(editForm.value.remindAt)) : null
+    if (remindStr !== (editing.value.remindAt || null)) {
+      payload.remindAt = remindStr
+      if (remindStr === null) payload.clearRemindAt = true
+    }
+    const recurrence = editForm.value.recurrence || ''
+    if (recurrence !== (editing.value.recurrence || '')) {
+      payload.recurrence = recurrence
+      if (recurrence) payload.recurrenceInterval = Math.max(1, editForm.value.recurrenceInterval || 1)
+    }
     const res = await axios.put(`/api/todos/${editing.value.id}`, payload)
     if (res.data.code === 200) {
       message.success('已保存')
@@ -207,6 +293,116 @@ const saveEdit = async () => {
   }
 }
 
+/* ─── 子任务 ─── */
+const expandedIds = ref<number[]>([])
+const itemLoadingId = ref<number | null>(null)
+const addingItemId = ref<number | null>(null)
+const newItemTexts = ref<Record<number, string>>({})
+const editingItemId = ref<number | null>(null)
+const editingItemText = ref('')
+
+const isExpanded = (id: number) => expandedIds.value.includes(id)
+
+const toggleExpand = async (t: Todo) => {
+  if (isExpanded(t.id)) {
+    expandedIds.value = expandedIds.value.filter(id => id !== t.id)
+    return
+  }
+  if (!t.items) {
+    itemLoadingId.value = t.id
+    try {
+      const res = await axios.get(`/api/todos/${t.id}/items`)
+      if (res.data.code === 200) {
+        t.items = res.data.data || []
+      } else {
+        message.error(res.data.message || '子任务加载失败')
+      }
+    } catch (e: any) {
+      message.error(e.response?.data?.message || e.message || '子任务加载失败')
+    } finally {
+      itemLoadingId.value = null
+    }
+  }
+  expandedIds.value = [...expandedIds.value, t.id]
+}
+
+const addItem = async (t: Todo) => {
+  const title = (newItemTexts.value[t.id] || '').trim()
+  if (!title) { message.warning('请输入子任务内容'); return }
+  addingItemId.value = t.id
+  try {
+    const res = await axios.post(`/api/todos/${t.id}/items`, { title })
+    if (res.data.code === 200) {
+      if (!t.items) t.items = []
+      t.items.push(res.data.data)
+      t.itemCount = (t.itemCount || 0) + 1
+      newItemTexts.value[t.id] = ''
+    } else {
+      message.error(res.data.message || '添加子任务失败')
+    }
+  } catch (e: any) {
+    message.error(e.response?.data?.message || e.message || '添加子任务失败')
+  } finally {
+    addingItemId.value = null
+  }
+}
+
+const adjustItemCounts = (t: Todo, oldCompleted: number, newCompleted: number) => {
+  if (t.itemCompletedCount != null) t.itemCompletedCount += newCompleted - oldCompleted
+}
+
+const toggleItemComplete = async (t: Todo, item: TodoItem) => {
+  const next = item.completed === 1 ? false : true
+  const prev = item.completed
+  item.completed = next ? 1 : 0
+  adjustItemCounts(t, prev, next ? 1 : 0)
+  try {
+    const res = await axios.put(`/api/todos/${t.id}/items/${item.id}/complete`, { completed: next })
+    if (res.data.code !== 200) throw new Error(res.data.message || '操作失败')
+  } catch (e: any) {
+    item.completed = prev
+    adjustItemCounts(t, next ? 1 : 0, prev)
+    message.error(e.response?.data?.message || e.message || '操作失败')
+  }
+}
+
+const startEditItem = (item: TodoItem) => {
+  editingItemId.value = item.id
+  editingItemText.value = item.title
+}
+
+const saveEditItem = async (t: Todo, item: TodoItem) => {
+  const title = editingItemText.value.trim()
+  if (!title) { editingItemId.value = null; return }
+  try {
+    const res = await axios.put(`/api/todos/${t.id}/items/${item.id}`, { title })
+    if (res.data.code === 200) {
+      item.title = title
+      editingItemId.value = null
+    } else {
+      message.error(res.data.message || '保存子任务失败')
+    }
+  } catch (e: any) {
+    message.error(e.response?.data?.message || e.message || '保存子任务失败')
+  }
+}
+
+const removeItem = async (t: Todo, item: TodoItem) => {
+  if (t.items) t.items = t.items.filter(x => x.id !== item.id)
+  t.itemCount = Math.max(0, (t.itemCount || 0) - 1)
+  if (item.completed === 1) t.itemCompletedCount = Math.max(0, (t.itemCompletedCount || 0) - 1)
+  try {
+    const res = await axios.delete(`/api/todos/${t.id}/items/${item.id}`)
+    if (res.data.code !== 200) {
+      message.error(res.data.message || '删除子任务失败')
+      reload()
+    }
+  } catch (e: any) {
+    message.error(e.response?.data?.message || e.message || '删除子任务失败')
+    reload()
+  }
+}
+
 /* ─── 展示辅助 ─── */
 const todayStr = toDateStr(new Date())
 
@@ -215,6 +411,15 @@ const PRIORITY_META: Record<number, { label: string; type: 'error' | 'warning' |
   1: { label: '中', type: 'warning' },
   0: { label: '低', type: 'default' },
 }
+
+const REPEAT_META: Record<string, string> = {
+  DAILY: '每天',
+  WEEKLY: '每周',
+  MONTHLY: '每月',
+  YEARLY: '每年',
+}
+
+const recurrenceLabel = (r?: string | null) => (r ? REPEAT_META[r] || r : '')
 
 const isOverdue = (t: Todo) => t.completed === 0 && !!t.dueDate && t.dueDate < todayStr
 const isToday = (t: Todo) => !!t.dueDate && t.dueDate === todayStr
@@ -225,12 +430,23 @@ function fmtDue(d: string | null | undefined): string {
   return `${Number(m)}月${Number(day)}日`
 }
 
-const filterOptions: Array<{ label: string; value: 'all' | 'active' | 'completed' | 'today' | 'overdue' }> = [
+function fmtRemind(s: string | null | undefined): string {
+  if (!s) return ''
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/)
+  if (!m) return s
+  return `${Number(m[2])}月${Number(m[3])}日 ${m[4]}:${m[5]}`
+}
+
+const filterOptions: Array<{ label: string; value: 'all' | 'active' | 'completed' | 'today' | 'overdue' | 'tomorrow' | 'week' | 'noDate' | 'high' }> = [
   { label: '全部', value: 'all' },
   { label: '进行中', value: 'active' },
   { label: '已完成', value: 'completed' },
   { label: '今天', value: 'today' },
   { label: '已逾期', value: 'overdue' },
+  { label: '明天', value: 'tomorrow' },
+  { label: '未来7天', value: 'week' },
+  { label: '无日期', value: 'noDate' },
+  { label: '高优先级', value: 'high' },
 ]
 
 const priorityOptions = [
@@ -273,6 +489,10 @@ const emptyText = computed(() => {
     case 'completed': return '还没有完成的待办'
     case 'today': return '今天没有待办'
     case 'overdue': return '没有已逾期的待办'
+    case 'tomorrow': return '明天没有待办'
+    case 'week': return '未来 7 天没有待办'
+    case 'noDate': return '没有无日期的待办'
+    case 'high': return '没有高优先级待办'
     default: return '还没有待办，输入一条开始吧'
   }
 })
@@ -311,9 +531,44 @@ const emptyText = computed(() => {
         </NButton>
       </div>
       <div class="quick-add-sub">
-        <NButton size="tiny" quaternary @click="showNoteInput = !showNoteInput">
-          {{ showNoteInput ? '收起备注' : '+ 备注' }}
-        </NButton>
+        <div class="quick-extra-row">
+          <NTimePicker
+            v-model:formatted-value="newDueTime"
+            format="HH:mm:ss"
+            clearable
+            placeholder="截止时间"
+            size="small"
+            class="quick-time"
+          />
+          <NDatePicker
+            v-model:value="newRemindAt"
+            type="datetime"
+            clearable
+            placeholder="提醒时间"
+            size="small"
+            class="quick-remind"
+          />
+          <NSelect
+            v-model:value="newRecurrence"
+            :options="recurrenceOptions"
+            size="small"
+            clearable
+            placeholder="重复"
+            class="quick-recur"
+          />
+          <NInputNumber
+            v-if="newRecurrence"
+            v-model:value="newRecurrenceInterval"
+            :min="1"
+            :max="365"
+            size="small"
+            class="quick-interval"
+            placeholder="间隔"
+          />
+          <NButton size="tiny" quaternary @click="showNoteInput = !showNoteInput">
+            {{ showNoteInput ? '收起备注' : '+ 备注' }}
+          </NButton>
+        </div>
         <NInput
           v-if="showNoteInput"
           v-model:value="newNote"
@@ -358,9 +613,25 @@ const emptyText = computed(() => {
                 <NTag size="tiny" round :bordered="false" :type="PRIORITY_META[t.priority ?? 1]?.type || 'default'" class="todo-priority">
                   {{ PRIORITY_META[t.priority ?? 1]?.label || '中' }}
                 </NTag>
+                <NTag v-if="t.recurrence" size="tiny" round :bordered="false" type="info" class="todo-recur">
+                  <NIcon :component="Repeat2" size="11" /> {{ recurrenceLabel(t.recurrence) }}
+                </NTag>
                 <span v-if="t.dueDate" :class="['todo-due', { 'due-overdue': isOverdue(t), 'due-today': isToday(t) }]">
                   <NIcon :component="Calendar" size="12" />
-                  {{ fmtDue(t.dueDate) }}{{ isOverdue(t) ? ' · 已逾期' : isToday(t) ? ' · 今天' : '' }}
+                  {{ fmtDue(t.dueDate) }}{{ t.dueTime ? ' ' + t.dueTime.slice(0, 5) : '' }}{{ isOverdue(t) ? ' · 已逾期' : isToday(t) ? ' · 今天' : '' }}
+                </span>
+                <span v-if="t.remindAt" class="todo-remind">
+                  <NIcon :component="Bell" size="12" />
+                  {{ fmtRemind(t.remindAt) }}
+                </span>
+                <span
+                  v-if="t.itemCount != null && t.itemCount > 0"
+                  class="todo-items-toggle"
+                  @click="toggleExpand(t)"
+                >
+                  <NIcon :component="isExpanded(t.id) ? ChevronDown : ChevronRight" size="13" />
+                  <NIcon :component="ListChecks" size="13" />
+                  {{ t.itemCompletedCount || 0 }}/{{ t.itemCount }}
                 </span>
               </div>
               <div v-if="t.note" class="todo-note">{{ t.note }}</div>
@@ -378,6 +649,48 @@ const emptyText = computed(() => {
                 确定删除这条待办？
               </NPopconfirm>
             </div>
+
+            <!-- 子任务展开区 -->
+            <div v-if="isExpanded(t.id)" class="todo-subitems">
+              <div v-if="itemLoadingId === t.id" class="sub-loading">子任务加载中…</div>
+              <template v-else>
+                <div v-if="t.items?.length" class="sub-list">
+                  <div v-for="item in t.items" :key="item.id" class="sub-item">
+                    <NCheckbox :checked="item.completed === 1" size="small" @update:checked="() => toggleItemComplete(t, item)" />
+                    <template v-if="editingItemId === item.id">
+                      <NInput
+                        v-model:value="editingItemText"
+                        size="small"
+                        class="sub-edit-input"
+                        @keyup.enter="saveEditItem(t, item)"
+                        @blur="saveEditItem(t, item)"
+                      />
+                    </template>
+                    <span v-else :class="['sub-title', { 'sub-done': item.completed === 1 }]">{{ item.title }}</span>
+                    <div class="sub-actions">
+                      <NButton quaternary circle size="tiny" title="编辑子任务" @click="startEditItem(item)">
+                        <template #icon><NIcon :component="Pencil" size="12" /></template>
+                      </NButton>
+                      <NButton quaternary circle size="tiny" title="删除子任务" class="todo-del-btn" @click="removeItem(t, item)">
+                        <template #icon><NIcon :component="Trash2" size="12" /></template>
+                      </NButton>
+                    </div>
+                  </div>
+                </div>
+                <div v-else class="sub-empty">还没有子任务</div>
+                <div class="sub-add">
+                  <NInput
+                    v-model:value="newItemTexts[t.id]"
+                    size="small"
+                    placeholder="添加子任务，回车确认"
+                    @keyup.enter="addItem(t)"
+                  />
+                  <NButton size="small" secondary type="primary" :loading="addingItemId === t.id" @click="addItem(t)">
+                    添加
+                  </NButton>
+                </div>
+              </template>
+            </div>
           </div>
         </div>
       </template>
@@ -388,7 +701,7 @@ const emptyText = computed(() => {
       :show="!!editing"
       @update:show="(v: boolean) => !v && (editing = null)"
       preset="card"
-      :style="{ width: '520px', maxWidth: '92vw' }"
+      :style="{ width: '560px', maxWidth: '92vw' }"
       title="编辑待办"
     >
       <div class="edit-form">
@@ -404,6 +717,22 @@ const emptyText = computed(() => {
           <div class="edit-field">
             <label class="edit-label">截止日期</label>
             <NDatePicker v-model:value="editForm.due" type="date" clearable placeholder="不设截止" style="width: 100%" />
+          </div>
+          <div class="edit-field">
+            <label class="edit-label">截止时间</label>
+            <NTimePicker v-model:formatted-value="editForm.dueTime" format="HH:mm:ss" clearable placeholder="不设截止时间" style="width: 100%" />
+          </div>
+          <div class="edit-field">
+            <label class="edit-label">提醒时间</label>
+            <NDatePicker v-model:value="editForm.remindAt" type="datetime" clearable placeholder="不设提醒" style="width: 100%" />
+          </div>
+          <div class="edit-field">
+            <label class="edit-label">重复</label>
+            <NSelect v-model:value="editForm.recurrence" :options="recurrenceOptions" clearable placeholder="不重复" />
+          </div>
+          <div class="edit-field">
+            <label class="edit-label">重复间隔</label>
+            <NInputNumber v-model:value="editForm.recurrenceInterval" :min="1" :max="365" :disabled="!editForm.recurrence" style="width: 100%" />
           </div>
         </div>
         <div class="edit-field">
@@ -474,6 +803,16 @@ const emptyText = computed(() => {
 .quick-priority { width: 88px; }
 .quick-due { width: 148px; }
 .quick-add-sub { display: flex; flex-direction: column; gap: 8px; }
+.quick-extra-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.quick-time { width: 118px; }
+.quick-remind { width: 158px; }
+.quick-recur { width: 110px; }
+.quick-interval { width: 84px; }
 .quick-note { margin-top: 2px; }
 
 /* 筛选 */
@@ -510,6 +849,7 @@ const emptyText = computed(() => {
 .todo-item {
   display: flex;
   align-items: flex-start;
+  flex-wrap: wrap;
   gap: 10px;
   padding: 12px 14px;
   background: var(--glass-bg-trans);
@@ -544,6 +884,7 @@ const emptyText = computed(() => {
 }
 .todo-done .todo-title { text-decoration: line-through; color: var(--text-3); }
 .todo-priority { flex-shrink: 0; }
+.todo-recur { display: inline-flex; align-items: center; gap: 2px; flex-shrink: 0; }
 .todo-due {
   display: inline-flex;
   align-items: center;
@@ -554,6 +895,23 @@ const emptyText = computed(() => {
 }
 .todo-due.due-overdue { color: var(--danger); }
 .todo-due.due-today { color: var(--warning-text); }
+.todo-remind {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  flex-shrink: 0;
+}
+.todo-items-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--fs-xs);
+  color: var(--brand);
+  cursor: pointer;
+  flex-shrink: 0;
+}
 .todo-note {
   font-size: var(--fs-sm);
   color: var(--text-2);
@@ -575,6 +933,53 @@ const emptyText = computed(() => {
 .todo-del-btn { color: var(--text-3); }
 .todo-del-btn:hover { color: var(--danger); }
 
+/* 子任务 */
+.todo-subitems {
+  flex-basis: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 0 2px 24px;
+  border-top: 1px dashed var(--glass-chip-border);
+  margin-top: 2px;
+}
+.sub-list { display: flex; flex-direction: column; gap: 6px; }
+.sub-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+}
+.sub-item:hover { background: var(--glass-chip-bg); }
+.sub-edit-input { flex: 1; }
+.sub-title {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--fs-sm);
+  color: var(--text-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sub-title.sub-done { text-decoration: line-through; color: var(--text-3); }
+.sub-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity var(--dur) var(--ease);
+}
+.sub-item:hover .sub-actions { opacity: 1; }
+.sub-empty { font-size: var(--fs-sm); color: var(--text-3); padding: 4px 6px; }
+.sub-loading { font-size: var(--fs-sm); color: var(--text-3); }
+.sub-add {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sub-add .n-input { flex: 1; }
+
 /* 编辑弹窗 */
 .edit-form { display: flex; flex-direction: column; gap: 12px; }
 .edit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
@@ -590,5 +995,11 @@ const emptyText = computed(() => {
   .quick-priority { flex: 1; }
   .quick-due { flex: 1; }
   .todo-stats { flex-wrap: wrap; gap: 10px; }
+  .quick-time,
+  .quick-remind,
+  .quick-recur,
+  .quick-interval { flex: 1 1 40%; }
+  .edit-grid { grid-template-columns: 1fr; }
+  .todo-subitems { padding-left: 0; }
 }
 </style>

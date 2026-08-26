@@ -1,6 +1,7 @@
 package com.jnclub.bookmark.controller;
 
 import com.jnclub.bookmark.entity.Todo;
+import com.jnclub.bookmark.entity.TodoItem;
 import com.jnclub.bookmark.service.TodoService;
 import com.jnclub.common.model.R;
 import lombok.RequiredArgsConstructor;
@@ -19,7 +20,9 @@ public class TodoController {
 
     private final TodoService todoService;
 
-    /** 待办列表：filter = all|active|completed|today|overdue */
+    /**
+     * 待办列表：filter = all|active|completed|today|overdue|tomorrow|week|noDate|high
+     */
     @GetMapping
     public R<List<Todo>> list(@RequestParam(defaultValue = "all") String filter) {
         return R.ok(todoService.list(filter));
@@ -31,7 +34,7 @@ public class TodoController {
         return R.ok(todoService.create(todo));
     }
 
-    /** 编辑待办（标题/备注/优先级/截止日期） */
+    /** 编辑待办（标题/备注/优先级/截止日期/截止时间/提醒/重复） */
     @PutMapping("/{id}")
     public R<Void> update(@PathVariable Long id, @RequestBody Todo todo) {
         todoService.update(id, todo);
@@ -51,6 +54,43 @@ public class TodoController {
     @DeleteMapping("/{id}")
     public R<Void> delete(@PathVariable Long id) {
         todoService.delete(id);
+        return R.ok();
+    }
+
+    // ======================== 子任务 ========================
+
+    /** 子任务列表 */
+    @GetMapping("/{id}/items")
+    public R<List<TodoItem>> listItems(@PathVariable Long id) {
+        return R.ok(todoService.listItems(id));
+    }
+
+    /** 新增子任务 */
+    @PostMapping("/{id}/items")
+    public R<TodoItem> addItem(@PathVariable Long id, @RequestBody TodoItem item) {
+        return R.ok(todoService.addItem(id, item));
+    }
+
+    /** 编辑子任务（标题/完成/排序） */
+    @PutMapping("/{id}/items/{itemId}")
+    public R<Void> updateItem(@PathVariable Long id, @PathVariable Long itemId, @RequestBody TodoItem item) {
+        todoService.updateItem(id, itemId, item);
+        return R.ok();
+    }
+
+    /** 切换子任务完成状态：{ completed: true|false } */
+    @PutMapping("/{id}/items/{itemId}/complete")
+    public R<Void> setItemCompleted(@PathVariable Long id, @PathVariable Long itemId, @RequestBody Map<String, Object> body) {
+        boolean completed = Boolean.TRUE.equals(body.get("completed"))
+                || Integer.valueOf(1).equals(body.get("completed"));
+        todoService.setItemCompleted(id, itemId, completed);
+        return R.ok();
+    }
+
+    /** 删除子任务 */
+    @DeleteMapping("/{id}/items/{itemId}")
+    public R<Void> deleteItem(@PathVariable Long id, @PathVariable Long itemId) {
+        todoService.deleteItem(id, itemId);
         return R.ok();
     }
 }
