@@ -65,7 +65,7 @@ const { particles } = useCursorClickEffect()
 /* 爱心：用伪元素模拟 */
 .particle-heart {
   background: none;
-  color: var(--particle-color, #FF6B8A);
+  color: var(--particle-color, var(--brand));
 }
 .particle-heart::before,
 .particle-heart::after {
@@ -75,7 +75,7 @@ const { particles } = useCursorClickEffect()
   width: 50%;
   height: 80%;
   border-radius: 50% 50% 0 0;
-  background: var(--particle-color, #FF6B8A);
+  background: var(--particle-color, var(--brand));
 }
 .particle-heart::before {
   left: 0;
@@ -90,12 +90,12 @@ const { particles } = useCursorClickEffect()
 
 /* 花朵：圆形 + box-shadow 多重投影 */
 .particle-flower {
-  background: var(--particle-color, #FFB7D5);
+  background: var(--particle-color, var(--pink-peach));
   border-radius: 50%;
   box-shadow:
-    calc(var(--particle-size, 14px) * 0.5) 0 0 -1px var(--particle-color),
-    calc(var(--particle-size, 14px) * -0.5) 0 0 -1px var(--particle-color),
-    0 calc(var(--particle-size, 14px) * 0.5) 0 -1px var(--particle-color),
-    0 calc(var(--particle-size, 14px) * -0.5) 0 -1px var(--particle-color);
+    calc(var(--particle-size, 14px) * 0.5) 0 0 -1px var(--particle-color, var(--pink-peach)),
+    calc(var(--particle-size, 14px) * -0.5) 0 0 -1px var(--particle-color, var(--pink-peach)),
+    0 calc(var(--particle-size, 14px) * 0.5) 0 -1px var(--particle-color, var(--pink-peach)),
+    0 calc(var(--particle-size, 14px) * -0.5) 0 -1px var(--particle-color, var(--pink-peach));
 }
 </style>

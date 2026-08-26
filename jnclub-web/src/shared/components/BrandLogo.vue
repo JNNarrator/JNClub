@@ -60,9 +60,9 @@ const iconSize = Math.round(props.size * 0.5)
   align-items: center;
   justify-content: center;
   border-radius: 22%;
-  background: linear-gradient(135deg, #ec5b8e, #ff8fab);
+  background: var(--gradient-btn);
   box-shadow:
-    0 6px 16px -4px rgba(236, 91, 142, 0.4),
+    0 6px 16px -4px color-mix(in srgb, var(--brand) 40%, transparent),
     inset 0 1px 0 rgba(255, 255, 255, 0.35);
 }
 

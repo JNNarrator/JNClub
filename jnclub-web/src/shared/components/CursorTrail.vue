@@ -5,7 +5,7 @@
  * 用 SVG polyline 连线 + circle 点渲染彩色拖尾，三种颜色模式。
  * 优化：circle 使用 transform translate 替代 cx/cy 属性，避免重排触发。
  */
-import { computed } from 'vue'
+import { computed, type CSSProperties } from 'vue'
 import { useCustomCursor } from '../composables/useCustomCursor'
 import { useCursorTrailEffect } from '../composables/useCursorTrailEffect'
 
@@ -17,20 +17,34 @@ const pointsStr = computed(() =>
   points.value.map(p => `${p.x},${p.y}`).join(' '),
 )
 
-/** 根据颜色模式返回点的颜色 */
-function pointColor(p: { hue: number; age: number }, mode: string): string {
-  const alpha = Math.max(0, 1 - p.age)
+/** 根据颜色模式返回点的填充色（brand 使用主题 token） */
+function pointFill(p: { hue: number; age: number }, mode: string): string {
   switch (mode) {
     case 'rainbow':
-      return `hsla(${p.hue}, 80%, 65%, ${alpha})`
+      return `hsla(${p.hue}, 80%, 65%, ${Math.max(0, 1 - p.age)})`
     case 'pastel': {
       const pastelHues = [340, 20, 45, 280, 310]
       const h = pastelHues[p.hue % pastelHues.length]
-      return `hsla(${h}, 70%, 80%, ${alpha})`
+      return `hsla(${h}, 70%, 80%, ${Math.max(0, 1 - p.age)})`
     }
     case 'brand':
     default:
-      return `rgba(236, 91, 142, ${alpha * 0.8})`
+      return 'var(--brand)'
+  }
+}
+
+/** 点的透明度：brand 模式下 alpha 交给 opacity 控制，便于跟随主题 token */
+function pointOpacity(p: { age: number }, mode: string): number {
+  const alpha = Math.max(0, 1 - p.age)
+  if (mode === 'brand') return alpha * 0.8
+  return 1
+}
+
+/** 点样式：非品牌色在 fill 中携带 alpha，品牌色用 var(--brand) + opacity */
+function pointStyle(p: { hue: number; age: number }, mode: string): CSSProperties {
+  return {
+    fill: pointFill(p, mode),
+    opacity: pointOpacity(p, mode),
   }
 }
 
@@ -43,9 +57,15 @@ const strokeColor = computed(() => {
       return 'url(#trail-grad-pastel)'
     case 'brand':
     default:
-      return 'rgba(236, 91, 142, 0.5)'
+      return 'var(--brand)'
   }
 })
+
+/** 描边样式：品牌色走 token，透明度统一由 CSS 控制 */
+const strokeStyle = computed<CSSProperties>(() => ({
+  stroke: strokeColor.value,
+  opacity: 0.7,
+}))
 </script>
 
 <template>
@@ -76,19 +96,20 @@ const strokeColor = computed(() => {
     <polyline
       :points="pointsStr"
       fill="none"
-      :stroke="strokeColor"
+      :style="strokeStyle"
       stroke-width="2.5"
       stroke-linecap="round"
       stroke-linejoin="round"
-      opacity="0.7"
     />
     <!-- 各点粒子：使用 transform translate 替代 cx/cy，避免重排 -->
     <circle
       v-for="(p, i) in points"
       :key="i"
       :r="Math.max(1, 3.5 - p.age * 3)"
-      :fill="pointColor(p, cursor.trailEffect.value)"
-      :style="{ transform: `translate(${p.x}px, ${p.y}px)` }"
+      :style="{
+        ...pointStyle(p, cursor.trailEffect.value),
+        transform: `translate(${p.x}px, ${p.y}px)`,
+      }"
     />
   </svg>
 </template>

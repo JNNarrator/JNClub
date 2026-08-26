@@ -26,9 +26,9 @@ const MAX_POOL = 60
 
 /** 三种粒子的配色方案 */
 const PALETTE: Record<ParticleType, string[]> = {
-  star: ['#FFD700', '#FFA500', '#FF6347', '#FF69B4'],
-  heart: ['#FF6B8A', '#FF8FAB', '#EC5B8E', '#FFB3C6'],
-  flower: ['#FFB7D5', '#FF8FAB', '#EC5B8E', '#FFC3A0', '#FFDAB9'],
+  star: ['#FFD700', '#FFA500', '#FF6347', 'var(--brand)'],
+  heart: ['var(--brand)', 'var(--brand-hover)', 'var(--pink-rose)', 'var(--pink-peach)'],
+  flower: ['var(--pink-peach)', 'var(--pink-rose)', 'var(--brand)', 'var(--pink-adzuki)', 'var(--pink-cherry)'],
 }
 
 /** 创建初始粒子对象 */
