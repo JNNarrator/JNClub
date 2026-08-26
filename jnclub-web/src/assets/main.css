@@ -359,6 +359,36 @@ html, body {
   background: var(--glass-chip-bg) !important;
 }
 
+/* ---- M1-2：统一列表/卡片交互 ----
+   选中项：品牌色左侧条 + 柔光背景（列表行/卡片通用） */
+.j-row-active {
+  position: relative;
+  background: var(--brand-soft) !important;
+}
+.j-row-active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 5px;
+  bottom: 5px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--brand);
+}
+
+/* 卡片悬停浮起：轻量 lift + 投影（尊重 prefers-reduced-motion，动画被全局禁用） */
+.j-lift {
+  transition:
+    transform var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease),
+    border-color var(--dur) var(--ease),
+    background-color var(--dur) var(--ease);
+}
+.j-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-2);
+}
+
 /* ================================================================
    Naive UI 弹框 / 抽屉 / 浮层 全局玻璃化覆盖
    （Naive 类名全局渲染到 body，此处直接覆盖，一处定义全项目生效）
@@ -563,10 +593,10 @@ html.custom-cursor-active.dragging * {
   font-size: var(--fs-sm);
 }
 
-/* 网格卡片 */
+/* 网格卡片：普通 16px，紧凑 8px */
 .app-density-compact .grid-cards,
 .app-density-compact .virtual-row {
-  gap: 10px;
+  gap: 8px;
 }
 .app-density-compact .virtual-row {
   margin-bottom: 10px;
@@ -574,6 +604,38 @@ html.custom-cursor-active.dragging * {
 .app-density-compact .bookmark-card .card-body {
   padding: 10px 12px 12px;
   gap: 6px;
+}
+
+/* Feed / 条目 / 待办行：普通 40px，紧凑收紧 */
+.app-density-compact .feed-row {
+  padding: 2px 10px;
+}
+.app-density-compact .item-row {
+  padding: 6px 12px;
+}
+.app-density-compact .todo-item {
+  padding: 10px 12px;
+}
+
+/* 空态：紧凑模式尺寸克制、不喧宾夺主 */
+.app-density-compact .empty-state-card {
+  padding: 40px 16px 36px;
+}
+.app-density-compact .empty-icon-ring {
+  width: 64px;
+  height: 64px;
+  margin-bottom: 16px;
+}
+.app-density-compact .empty-icon-ring svg {
+  width: 34px;
+  height: 34px;
+}
+.app-density-compact .empty-title {
+  font-size: 16px;
+  margin-bottom: 6px;
+}
+.app-density-compact .empty-sub {
+  margin-bottom: 20px;
 }
 
 /* 玻璃面板 */
@@ -603,5 +665,14 @@ html.custom-cursor-active.dragging * {
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/* ---- 按钮按压反馈（仅在允许动效时生效） ---- */
+@media (prefers-reduced-motion: no-preference) {
+  .n-button:active:not(.n-button--disabled),
+  button:active:not(:disabled),
+  a:active {
+    transform: translateY(1px) scale(0.98);
   }
 }

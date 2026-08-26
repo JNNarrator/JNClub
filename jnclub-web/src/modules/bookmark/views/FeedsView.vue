@@ -627,12 +627,20 @@ const totalUnread = computed(() => feeds.value.reduce((s, f) => s + (f.unread ||
 
 .feed-row {
   display: flex; align-items: center; gap: 8px;
-  padding: 8px 10px;
+  padding: 6px 10px;
   cursor: pointer;
   border-bottom: 1px solid var(--glass-border);
 }
 .feed-row:hover { background: var(--hover-bg); }
-.feed-row.active { background: var(--brand-soft); }
+.feed-row.active { background: var(--brand-soft); position: relative; }
+.feed-row.active::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 5px; bottom: 5px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--brand);
+}
 .feed-badge-wrap { flex-shrink: 0; }
 .feed-row-icon {
   width: 28px; height: 28px;
@@ -653,7 +661,15 @@ const totalUnread = computed(() => feeds.value.reduce((s, f) => s + (f.unread ||
 
 .item-row { padding: 10px 12px; cursor: pointer; border-bottom: 1px solid var(--glass-border); }
 .item-row:hover { background: var(--hover-bg); }
-.item-row.selected { background: var(--brand-soft); }
+.item-row.selected {
+  background: var(--brand-soft);
+  position: relative;
+}
+.item-row.selected::before {
+  content: '';
+  position: absolute; left: 0; top: 5px; bottom: 5px;
+  width: 3px; border-radius: 0 3px 3px 0; background: var(--brand);
+}
 .item-row.item-row-highlight {
   background: var(--brand-soft);
   box-shadow: inset 3px 0 0 var(--brand);

@@ -12,6 +12,7 @@ import { openMenu } from '../../../shared/composables/useContextMenu'
 import MoveItemModal from './MoveItemModal.vue'
 import axios from 'axios'
 import { formatRelativeTime } from '../composables/formatDate'
+import { useRecentItems } from '../../../shared/composables/useRecentItems'
 
 export interface BookmarkItem {
   id: number
@@ -40,10 +41,13 @@ const emit = defineEmits<{
 }>()
 
 const message = useMessage()
+const { record: recordRecentItem } = useRecentItems()
 const showMoveModal = ref(false)
 
 const handleOpen = () => {
   window.open(props.bookmark.url, '_blank')
+  // 打开收藏 → 记入「最近打开」
+  recordRecentItem({ kind: 'bookmark', id: props.bookmark.id, title: props.bookmark.title || props.bookmark.url, url: props.bookmark.url })
 }
 const onRootClick = () => {
   if (props.batchMode) emit('toggle-select')

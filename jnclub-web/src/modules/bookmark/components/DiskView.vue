@@ -18,6 +18,7 @@ import { useChunkedUpload } from '../composables/useChunkedUpload'
 import { useDraggableSort } from '../composables/useDraggableSort'
 import { useItemDragContext } from '../composables/useItemDragContext'
 import { openMenu } from '../../../shared/composables/useContextMenu'
+import { useRecentItems } from '../../../shared/composables/useRecentItems'
 import axios from 'axios'
 
 const props = defineProps<{
@@ -113,11 +114,16 @@ const PDF_RE = /\.pdf$/i
 const AUDIO_RE = /\.(mp3|m4a|aac|wav|flac|ogg|oga|opus)$/i
 const VIDEO_RE = /\.(mp4|m4v|webm|mov|mkv|avi)$/i
 
+const { record: recordRecentItem } = useRecentItems()
 const preview = ref<{ file: DiskFile; kind: 'image' | 'pdf' | 'text' | 'audio' | 'video'; text?: string } | null>(null)
 const previewTextLoading = ref(false)
 
 const openPreview = async (file: DiskFile) => {
   const name = file.originalName || ''
+  // 命中任一支持类型 → 视为已打开，记入「最近打开」
+  if (PDF_RE.test(name) || IMAGE_RE.test(name) || AUDIO_RE.test(name) || VIDEO_RE.test(name) || TEXT_RE.test(name)) {
+    recordRecentItem({ kind: 'file', id: file.id, title: file.originalName || '未命名文件' })
+  }
   if (PDF_RE.test(name)) {
     preview.value = { file, kind: 'pdf' }
     return
@@ -563,7 +569,7 @@ const fileKindColor = (name: string) => FILE_KINDS.find(k => k.re.test(name))?.c
           </NButton>
         </div>
         <div v-if="preview.kind === 'image'" class="preview-body preview-image">
-          <img :src="preview.file.url" :alt="preview.file.originalName" />
+          <img :src="preview.file.url" :alt="preview.file.originalName" loading="lazy" decoding="async" />
         </div>
         <div v-else-if="preview.kind === 'pdf'" class="preview-body preview-pdf">
           <iframe :src="preview.file.url" />

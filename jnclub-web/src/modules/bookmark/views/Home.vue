@@ -658,8 +658,6 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
   min-height: 0;
   overflow: hidden;
   background: var(--glass-bg-trans);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-md);
   padding: 14px 12px;
@@ -673,8 +671,6 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
   min-width: 0;
   overflow-y: auto;
   background: var(--glass-bg-trans);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-md);
   padding: var(--layout-panel-padding, 18px 20px);

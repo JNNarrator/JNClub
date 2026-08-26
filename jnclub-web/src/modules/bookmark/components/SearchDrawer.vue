@@ -11,6 +11,7 @@ import { Search, Bookmark, StickyNote, FileText, KeyRound, Tag, Music, ArrowRigh
 import JEmptyState from '../../../shared/components/ui/JEmptyState.vue'
 import axios from 'axios'
 import { JGradientText } from '../../../shared/components/animation'
+import { useRecentItems, type RecentItem, type RecentItemKind } from '../../../shared/composables/useRecentItems'
 
 const props = defineProps<{
   show: boolean
@@ -24,6 +25,7 @@ const emit = defineEmits<{
 }>()
 
 const router = useRouter()
+const { items: recentItems, record: recordRecentItem, clear: clearRecent } = useRecentItems()
 
 const keyword = ref('')
 const loading = ref(false)
@@ -142,6 +144,8 @@ refreshHistory()
 loadRecentCommands()
 
 let timer: ReturnType<typeof setTimeout> | null = null
+/** 搜索结果 AbortController：新输入/关闭抽屉时取消未决请求，避免竞态覆盖 */
+let searchCtl: AbortController | null = null
 
 watch(() => props.show, (v) => {
   if (v) {
@@ -152,6 +156,9 @@ watch(() => props.show, (v) => {
     activeIndex.value = -1
     refreshHistory()
     loadRecentCommands()
+  } else {
+    searchCtl?.abort()
+    searchCtl = null
   }
 })
 
@@ -163,16 +170,21 @@ const doSearch = async () => {
     return
   }
   loading.value = true
+  searchCtl?.abort()
+  const ctl = new AbortController()
+  searchCtl = ctl
   try {
-    const res = await axios.get('/api/search', { params: { keyword: kw, limit: 20 } })
+    const res = await axios.get('/api/search', { params: { keyword: kw, limit: 20 }, signal: ctl.signal })
     if (res.data.code === 200) {
       result.value = res.data.data || { bookmarks: [], notes: [], files: [], vault: [], tags: [], tracks: [], todos: [], readLater: [], feeds: [], feedItems: [] }
       searched.value = true
       activeIndex.value = -1
       pushHistory(kw)
     }
-  } catch { /* 静默 */ }
-  finally { loading.value = false }
+  } catch { /* 吞掉（含 AbortError：新请求已接管） */ }
+  finally {
+    if (searchCtl === ctl) { searchCtl = null; loading.value = false }
+  }
 }
 
 const searchByHistory = (kw: string) => {
@@ -223,6 +235,34 @@ const goFeeds = (feedId?: number, itemId?: number) => {
   goRoute(qs ? `/feeds?${qs}` : '/feeds')
 }
 
+/* ─── 最近打开（本地记录，空输入时展示）─── */
+const RECENT_KIND_META: Record<RecentItemKind, { label: string; icon: any }> = {
+  note: { label: '便签', icon: StickyNote },
+  bookmark: { label: '收藏', icon: Bookmark },
+  file: { label: '文件', icon: FileText },
+  todo: { label: '待办', icon: ListTodo },
+}
+const recentRelativeTime = (at: number) => {
+  const diff = Date.now() - at
+  const m = Math.floor(diff / 60000)
+  if (m < 1) return '刚刚'
+  if (m < 60) return `${m} 分钟前`
+  const h = Math.floor(m / 60)
+  if (h < 24) return `${h} 小时前`
+  const d = Math.floor(h / 24)
+  if (d < 30) return `${d} 天前`
+  return new Date(at).toLocaleDateString()
+}
+const recentSub = (r: RecentItem) => `${RECENT_KIND_META[r.kind].label} · ${recentRelativeTime(r.at)}`
+/** 打开最近条目：再次打开 → 去重置顶刷新时间戳，然后按类型复用既有跳转 */
+const openRecent = (r: Omit<RecentItem, 'key' | 'at'>) => {
+  recordRecentItem(r)
+  if (r.kind === 'note') goRoute(`/notes/${r.id}`)
+  else if (r.kind === 'bookmark') openUrl(r.url)
+  else if (r.kind === 'file') downloadFile(r.id)
+  else if (r.kind === 'todo') goTodos(r.id)
+}
+
 /* ─── 搜索语法 chips ─── */
 const syntaxChips = computed(() => {
   const p = result.value.parsed || {}
@@ -271,6 +311,7 @@ interface CommandAction {
 const COMMANDS: CommandAction[] = [
   { key: 'note.new', label: '新建便签', icon: Plus, group: '操作' },
   { key: 'bookmark.new', label: '新建收藏', icon: Plus, group: '操作' },
+  { key: 'todo.new', label: '新建待办', icon: Plus, group: '操作' },
   { key: 'vault.lock', label: '锁定密码库', icon: Lock, group: '操作' },
   { key: 'theme.toggle', label: '切换主题', icon: Moon, group: '操作' },
   { key: 'module.bookmarks', label: '收藏夹', icon: Bookmark, group: '导航' },
@@ -327,19 +368,25 @@ const navItems = computed<SearchNavItem[]>(() => {
   for (const c of filteredCommands.value) {
     items.push({ key: c.key, label: c.label, group: c.group, type: 'command', run: () => runCommand(c.key) })
   }
+  // 空输入时“最近打开”同样可参与键盘导航
+  if (!keyword.value.trim()) {
+    for (const r of recentItems.value) {
+      items.push({ key: `recent-${r.key}`, label: r.title || '未命名', group: '最近打开', type: r.kind, run: () => openRecent(r) })
+    }
+  }
   if (shouldShowGroup('bookmarks')) {
     for (const b of result.value.bookmarks) {
-      items.push({ key: `b-${b.id}`, label: b.title || b.url, group: '收藏', type: 'bookmark', run: () => openUrl(b.url) })
+      items.push({ key: `b-${b.id}`, label: b.title || b.url, group: '收藏', type: 'bookmark', run: () => openRecent({ kind: 'bookmark', id: b.id, title: b.title || b.url, url: b.url }) })
     }
   }
   if (shouldShowGroup('notes')) {
     for (const n of result.value.notes) {
-      items.push({ key: `n-${n.id}`, label: n.title || '无标题', group: '便签', type: 'note', run: () => goRoute(`/notes/${n.id}`) })
+      items.push({ key: `n-${n.id}`, label: n.title || '无标题', group: '便签', type: 'note', run: () => openRecent({ kind: 'note', id: n.id, title: n.title || '无标题' }) })
     }
   }
   if (shouldShowGroup('files')) {
     for (const f of result.value.files) {
-      items.push({ key: `f-${f.id}`, label: f.originalName, group: '云盘文件', type: 'file', run: () => downloadFile(f.id) })
+      items.push({ key: `f-${f.id}`, label: f.originalName, group: '云盘文件', type: 'file', run: () => openRecent({ kind: 'file', id: f.id, title: f.originalName }) })
     }
   }
   if (shouldShowGroup('vault')) {
@@ -359,7 +406,7 @@ const navItems = computed<SearchNavItem[]>(() => {
   }
   if (shouldShowGroup('todos')) {
     for (const td of result.value.todos) {
-      items.push({ key: `todo-${td.id}`, label: td.title || '未命名待办', group: '待办', type: 'todo', run: () => goTodos(td.id) })
+      items.push({ key: `todo-${td.id}`, label: td.title || '未命名待办', group: '待办', type: 'todo', run: () => openRecent({ kind: 'todo', id: td.id, title: td.title || '未命名待办' }) })
     }
   }
   if (shouldShowGroup('readLater')) {
@@ -518,6 +565,27 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
         </div>
       </div>
 
+      <!-- 最近打开（空输入时展示，本地记录） -->
+      <div v-if="!keyword.trim() && recentItems.length" class="history-section">
+        <div class="history-head">
+          <span class="history-title">最近打开</span>
+          <button type="button" class="history-clear" @click="clearRecent">清空</button>
+        </div>
+        <div class="recent-list">
+          <div
+            v-for="r in recentItems" :key="r.key"
+            :class="['result-item', 'jnclub-bouncy', { 'search-nav-active': activeIndex === navIndex(`recent-${r.key}`) }]" @click="openRecent(r)"
+          >
+            <NIcon :component="RECENT_KIND_META[r.kind].icon" size="15" class="item-fallback" />
+            <div class="item-main">
+              <div class="item-title hl-text">{{ r.title || '未命名' }}</div>
+              <span class="recent-sub">{{ recentSub(r) }}</span>
+            </div>
+            <ArrowRight :size="14" class="item-arrow" />
+          </div>
+        </div>
+      </div>
+
       <!-- 服务端搜索建议（空输入时展示快捷入口） -->
       <div v-if="!keyword.trim() && (suggest.groups.length || suggest.commands.length)" class="suggest-section">
         <div v-if="suggest.groups.length" class="suggest-block">
@@ -568,6 +636,7 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
         <!-- 无结果 -->
         <div v-else-if="searched && total() === 0" class="no-result">
           <JEmptyState
+            variant="search"
             message="没有找到相关内容"
             hint="换个关键词试试"
             :show-cta="false"
@@ -585,10 +654,10 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
             </div>
             <div
               v-for="(b, idx) in result.bookmarks" :key="b.id"
-              :class="['result-item', 'jnclub-bouncy', { 'search-nav-active': activeIndex === navIndex(`b-${b.id}`) }]" @click="openUrl(b.url)"
+              :class="['result-item', 'jnclub-bouncy', { 'search-nav-active': activeIndex === navIndex(`b-${b.id}`) }]" @click="openRecent({ kind: 'bookmark', id: b.id, title: b.title || b.url, url: b.url })"
               :style="{ animationDelay: `${Math.min(idx * 35, 300)}ms` }"
             >
-              <img v-if="b.icon" :src="b.icon" class="item-icon" @error="(e: Event) => ((e.target as HTMLImageElement).style.display = 'none')" />
+              <img v-if="b.icon" :src="b.icon" class="item-icon" loading="lazy" decoding="async" @error="(e: Event) => ((e.target as HTMLImageElement).style.display = 'none')" />
               <NIcon v-else :component="Bookmark" size="15" class="item-fallback" />
               <div class="item-main">
                 <div class="item-title hl-text" v-html="highlightText(b.title || b.url, b.highlights, b.title ? 'title' : 'url')" />
@@ -606,7 +675,7 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
             </div>
             <div
               v-for="(n, idx) in result.notes" :key="n.id"
-              :class="['result-item', 'jnclub-bouncy', { 'search-nav-active': activeIndex === navIndex(`n-${n.id}`) }]" @click="goRoute(`/notes/${n.id}`)"
+              :class="['result-item', 'jnclub-bouncy', { 'search-nav-active': activeIndex === navIndex(`n-${n.id}`) }]" @click="openRecent({ kind: 'note', id: n.id, title: n.title || '无标题' })"
               :style="{ animationDelay: `${Math.min(idx * 35, 300)}ms` }"
             >
               <NIcon :component="StickyNote" size="15" class="item-fallback" />
@@ -626,7 +695,7 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
             </div>
             <div
               v-for="(f, idx) in result.files" :key="f.id"
-              :class="['result-item', 'jnclub-bouncy', { 'search-nav-active': activeIndex === navIndex(`f-${f.id}`) }]" @click="downloadFile(f.id)"
+              :class="['result-item', 'jnclub-bouncy', { 'search-nav-active': activeIndex === navIndex(`f-${f.id}`) }]" @click="openRecent({ kind: 'file', id: f.id, title: f.originalName })"
               :style="{ animationDelay: `${Math.min(idx * 35, 300)}ms` }"
             >
               <NIcon :component="FileText" size="15" class="item-fallback" />
@@ -705,7 +774,7 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
               </div>
               <div
                 v-for="(td, idx) in result.todos" :key="td.id"
-                :class="['result-item', 'jnclub-bouncy', { 'search-nav-active': activeIndex === navIndex(`todo-${td.id}`) }]" @click="goTodos(td.id)"
+                :class="['result-item', 'jnclub-bouncy', { 'search-nav-active': activeIndex === navIndex(`todo-${td.id}`) }]" @click="openRecent({ kind: 'todo', id: td.id, title: td.title || '未命名待办' })"
                 :style="{ animationDelay: `${Math.min(idx * 35, 300)}ms` }"
               >
                 <NIcon :component="ListTodo" size="15" class="item-fallback" />
@@ -1064,5 +1133,16 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
   align-items: center;
   flex-wrap: wrap;
   gap: 4px;
+}
+
+/* 最近打开 */
+.recent-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.recent-sub {
+  font-size: var(--fs-sm);
+  color: var(--text-3);
 }
 </style>

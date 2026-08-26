@@ -209,7 +209,7 @@ const toggle = (id: number) => {
                     :class="['dedup-item', { 'dedup-keep': tab === 'bookmarks' ? ii === 0 : false }]"
                   >
                     <NCheckbox :checked="selectedIds.has(it.id)" @update:checked="toggle(it.id)" size="small" />
-                    <img v-if="tab === 'bookmarks' && it.icon" :src="it.icon" class="dedup-favicon" alt="" @error="(e: Event) => ((e.target as HTMLImageElement).style.display = 'none')" />
+                    <img v-if="tab === 'bookmarks' && it.icon" :src="it.icon" class="dedup-favicon" alt="" loading="lazy" decoding="async" @error="(e: Event) => ((e.target as HTMLImageElement).style.display = 'none')" />
                     <div class="dedup-item-main">
                       <span class="dedup-item-title">{{ itemLabel(it) || '(无标题)' }}</span>
                       <span class="dedup-item-sub">{{ itemSub(it) }}</span>

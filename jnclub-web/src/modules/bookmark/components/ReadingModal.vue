@@ -5,10 +5,11 @@
  * 失败时回退"在新标签页打开原文"。
  * 传入 bookmarkId 时滚动跟踪阅读进度，回写 /api/bookmarks/{id}/progress（节流）。
  */
-import { ref, watch, onBeforeUnmount } from 'vue'
-import { NModal, NButton, NIcon, NSpin, NProgress } from 'naive-ui'
-import { ExternalLink, X, BookOpen } from 'lucide-vue-next'
+import { ref, watch, computed, onBeforeUnmount } from 'vue'
+import { NModal, NButton, NIcon, NSpin, NProgress, NSwitch } from 'naive-ui'
+import { ExternalLink, X, BookOpen, Settings2 } from 'lucide-vue-next'
 import JErrorState from '../../../shared/components/ui/JErrorState.vue'
+import { useUserPreferences } from '../../../shared/composables/useUserPreferences'
 import axios from 'axios'
 
 const props = defineProps<{
@@ -17,6 +18,53 @@ const props = defineProps<{
   bookmarkId?: number | null
 }>()
 const emit = defineEmits<{ 'update:show': [v: boolean] }>()
+
+const prefs = useUserPreferences()
+
+/* ─── 阅读器设置（字号 / 行距 / 栏宽 / 专注纸背景）持久化到用户偏好 ─── */
+const FONT_SIZES = [15, 16, 17, 18] as const
+const LINE_HEIGHTS = [1.6, 1.75, 1.85, 2.0] as const
+const COLUMN_WIDTHS = [
+  { key: 'narrow', label: '窄栏', value: 640 },
+  { key: 'medium', label: '适中', value: 720 },
+  { key: 'wide', label: '宽栏', value: 880 },
+] as const
+
+const settingsOpen = ref(false)
+const fontSize = ref<number>(prefs.get<number>('reader.fontSize', 16))
+const lineHeight = ref<number>(prefs.get<number>('reader.lineHeight', 1.85))
+const columnWidth = ref<number>(prefs.get<number>('reader.columnWidth', 720))
+const focusPaper = ref<boolean>(prefs.get<boolean>('reader.focusPaper', false))
+
+const setFontSize = (v: number) => { fontSize.value = v; prefs.set('reader.fontSize', v) }
+const setLineHeight = (v: number) => { lineHeight.value = v; prefs.set('reader.lineHeight', v) }
+const setColumnWidth = (v: number) => { columnWidth.value = v; prefs.set('reader.columnWidth', v) }
+const toggleFocusPaper = (v: boolean) => { focusPaper.value = v; prefs.set('reader.focusPaper', v) }
+
+/** 主题检测：token 内联在 <html>，用 --bg-page 区分亮/暗 */
+const isDarkMode = ref(false)
+const detectTheme = () => {
+  const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg-page').trim()
+  isDarkMode.value = bg === '#000000'
+}
+
+/** 正文排版样式：字号 / 行距 / 栏宽（专注纸模式下叠加暖色文字） */
+const articleStyle = computed(() => ({
+  fontSize: `${fontSize.value}px`,
+  lineHeight: lineHeight.value,
+  maxWidth: `${columnWidth.value}px`,
+  ...(focusPaper.value
+    ? { color: isDarkMode.value ? '#EDE4D4' : '#3A3229' }
+    : {}),
+}))
+/** 专注纸背景：暖纸色系（亮/暗主题分别适配），提升沉浸感 */
+const shellStyle = computed(() => {
+  if (!focusPaper.value) return {}
+  return isDarkMode.value
+    ? { background: 'linear-gradient(180deg, #2C271E 0%, #241F17 100%)' }
+    : { background: 'linear-gradient(180deg, #FBF5EA 0%, #F6EFDF 100%)' }
+})
+const shellClass = computed(() => ({ 'reading-shell--paper': focusPaper.value }))
 
 const loading = ref(false)
 const error = ref('')
@@ -28,6 +76,7 @@ let progressTimer: ReturnType<typeof setTimeout> | null = null
 
 watch(() => props.show, (v) => {
   if (v && props.url) {
+    detectTheme()
     progress.value = 0
     load()
   }
@@ -95,7 +144,7 @@ onBeforeUnmount(() => {
     :style="{ width: 'min(880px, 94vw)' }"
     class="reading-modal"
   >
-    <div class="reading-shell">
+    <div class="reading-shell" :class="shellClass" :style="shellStyle">
       <div class="reading-head">
         <div class="reading-title-wrap">
           <NIcon :component="BookOpen" size="16" class="reading-title-icon" />
@@ -105,6 +154,58 @@ onBeforeUnmount(() => {
           <a v-if="props.url" :href="props.url" target="_blank" rel="noopener" class="reading-open">
             <NIcon :component="ExternalLink" size="14" /> 打开原文
           </a>
+          <!-- 阅读器设置 -->
+          <div class="reader-settings">
+            <NButton quaternary circle size="small" title="阅读设置" :class="{ 'is-active': settingsOpen }" @click="settingsOpen = !settingsOpen">
+              <template #icon><NIcon :component="Settings2" size="16" /></template>
+            </NButton>
+            <Transition name="reader-pop">
+              <div v-if="settingsOpen" class="reader-settings-panel glass-card--modal">
+                <div class="reader-setting-row">
+                  <span class="reader-setting-label">字号</span>
+                  <div class="reader-seg">
+                    <button
+                      v-for="s in FONT_SIZES" :key="s"
+                      type="button"
+                      class="reader-seg-btn"
+                      :class="{ active: fontSize === s }"
+                      @click="setFontSize(s)"
+                    >{{ s }}</button>
+                  </div>
+                </div>
+                <div class="reader-setting-row">
+                  <span class="reader-setting-label">行距</span>
+                  <div class="reader-seg">
+                    <button
+                      v-for="lh in LINE_HEIGHTS" :key="lh"
+                      type="button"
+                      class="reader-seg-btn"
+                      :class="{ active: lineHeight === lh }"
+                      @click="setLineHeight(lh)"
+                    >{{ lh }}×</button>
+                  </div>
+                </div>
+                <div class="reader-setting-row">
+                  <span class="reader-setting-label">栏宽</span>
+                  <div class="reader-seg">
+                    <button
+                      v-for="cw in COLUMN_WIDTHS" :key="cw.key"
+                      type="button"
+                      class="reader-seg-btn"
+                      :class="{ active: columnWidth === cw.value }"
+                      @click="setColumnWidth(cw.value)"
+                    >{{ cw.label }}</button>
+                  </div>
+                </div>
+                <div class="reader-setting-row">
+                  <span class="reader-setting-label">专注纸背景</span>
+                  <NSwitch :value="focusPaper" size="small" @update:value="toggleFocusPaper" />
+                </div>
+              </div>
+            </Transition>
+            <!-- 点击设置面板外部关闭 -->
+            <div v-if="settingsOpen" class="reader-settings-mask" @click="settingsOpen = false"></div>
+          </div>
           <NButton quaternary circle size="small" @click="close">
             <template #icon><NIcon :component="X" size="16" /></template>
           </NButton>
@@ -120,7 +221,7 @@ onBeforeUnmount(() => {
               在新标签页打开原文 →
             </a>
           </div>
-          <article v-else-if="article" class="reading-article" v-html="article.content" />
+          <article v-else-if="article" class="reading-article" :style="articleStyle" v-html="article.content" />
         </NSpin>
       </div>
 
@@ -196,6 +297,82 @@ onBeforeUnmount(() => {
   overflow-y: auto;
   padding: 8px 0;
 }
+
+/* ─── 阅读器设置 ─── */
+.reader-settings { position: relative; }
+.reader-settings .n-button.is-active {
+  color: var(--brand);
+  background: var(--brand-soft);
+}
+.reader-settings-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 232px;
+  z-index: 30;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.reader-setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.reader-setting-label {
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+  flex-shrink: 0;
+}
+.reader-seg {
+  display: inline-flex;
+  background: var(--glass-chip-bg);
+  border: 1px solid var(--glass-chip-border);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+  gap: 2px;
+}
+.reader-seg-btn {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--text-2);
+  font-size: 12px;
+  line-height: 1;
+  padding: 5px 8px;
+  border-radius: calc(var(--radius-sm) - 2px);
+  cursor: pointer;
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+.reader-seg-btn:hover { color: var(--text-1); }
+.reader-seg-btn.active {
+  background: var(--brand);
+  color: #fff;
+  font-weight: 600;
+}
+.reader-settings-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  background: transparent;
+}
+
+/* 设置面板弹出动效 */
+.reader-pop-enter-active,
+.reader-pop-leave-active {
+  transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease);
+  transform-origin: top right;
+}
+.reader-pop-enter-from,
+.reader-pop-leave-to {
+  opacity: 0;
+  transform: translateY(-4px) scale(0.97);
+}
+
+/* 专注纸背景：由 shellStyle 内联暖纸渐变实现，此处仅兜底 */
+.reading-shell--paper { border-radius: var(--radius-lg); }
 .reading-progress { flex-shrink: 0; }
 .reading-hint {
   padding: 60px 0;

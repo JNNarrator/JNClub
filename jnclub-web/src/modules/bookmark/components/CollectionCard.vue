@@ -13,6 +13,7 @@ import ShareModal from './ShareModal.vue'
 import SnapshotModal from './SnapshotModal.vue'
 import axios from 'axios'
 import type { BookmarkItem } from './CollectionRow.vue'
+import { useRecentItems } from '../../../shared/composables/useRecentItems'
 
 const props = defineProps<{
   bookmark: BookmarkItem
@@ -28,6 +29,7 @@ const emit = defineEmits<{
 }>()
 
 const message = useMessage()
+const { record: recordRecentItem } = useRecentItems()
 const imgError = ref(false)
 const showMoveModal = ref(false)
 const showShare = ref(false)
@@ -56,6 +58,8 @@ const getDomain = (url: string) => {
 
 const handleOpen = () => {
   window.open(props.bookmark.url, '_blank')
+  // 打开收藏 → 记入「最近打开」
+  recordRecentItem({ kind: 'bookmark', id: props.bookmark.id, title: props.bookmark.title || props.bookmark.url, url: props.bookmark.url })
 }
 const onRootClick = () => {
   if (props.batchMode) emit('toggle-select')
@@ -273,6 +277,7 @@ const handleDropdown = (key: string) => {
   cursor: pointer;
   overflow: hidden;
   box-shadow: var(--shadow-1);
+  transition: transform var(--dur) var(--ease-bouncy), border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
 }
 
 .bookmark-card:hover {

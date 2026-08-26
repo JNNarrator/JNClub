@@ -18,6 +18,7 @@ import JFilterBar from '../../../shared/components/ui/JFilterBar.vue'
 import JEmptyState from '../../../shared/components/ui/JEmptyState.vue'
 import JErrorState from '../../../shared/components/ui/JErrorState.vue'
 import { parseTodoNlp } from '../../../shared/utils/todoNlp'
+import { useRecentItems } from '../../../shared/composables/useRecentItems'
 
 interface TodoItem {
   id: number
@@ -66,6 +67,7 @@ const parseDateTime = (s?: string | null): number | null => {
 const props = defineProps<{ refresh: number }>()
 const message = useMessage()
 const route = useRoute()
+const { record: recordRecentItem } = useRecentItems()
 
 const todos = ref<Todo[]>([])
 const highlightTodoId = ref<number | null>(null)
@@ -249,6 +251,8 @@ const editForm = ref({
 const savingEdit = ref(false)
 
 const openEdit = (t: Todo) => {
+  // 编辑待办 → 记入「最近打开」
+  recordRecentItem({ kind: 'todo', id: t.id, title: t.title || '未命名待办' })
   editing.value = t
   editForm.value = {
     title: t.title,
@@ -320,6 +324,8 @@ const toggleExpand = async (t: Todo) => {
     expandedIds.value = expandedIds.value.filter(id => id !== t.id)
     return
   }
+  // 展开待办查看子任务 → 记入「最近打开」
+  recordRecentItem({ kind: 'todo', id: t.id, title: t.title || '未命名待办' })
   if (!t.items) {
     itemLoadingId.value = t.id
     try {
@@ -616,7 +622,7 @@ const emptyText = computed(() => {
         <div v-else class="todo-list">
           <div
             v-for="t in todos" :key="t.id"
-            :class="['todo-item', 'jnclub-bouncy', { 'todo-done': t.completed === 1, 'todo-overdue': isOverdue(t), 'todo-highlight': highlightTodoId === t.id }]"
+            :class="['todo-item', 'jnclub-bouncy', 'prio-' + (t.priority ?? 1), { 'todo-done': t.completed === 1, 'todo-overdue': isOverdue(t), 'todo-highlight': highlightTodoId === t.id }]"
           >
             <NCheckbox :checked="t.completed === 1" class="todo-check" @update:checked="() => toggleComplete(t)" />
             <div class="todo-main">
@@ -645,6 +651,9 @@ const emptyText = computed(() => {
                   <NIcon :component="ListChecks" size="13" />
                   {{ t.itemCompletedCount || 0 }}/{{ t.itemCount }}
                 </span>
+              </div>
+              <div v-if="t.itemCount != null && t.itemCount > 0" class="todo-progress" aria-hidden="true">
+                <div class="todo-progress-bar" :style="{ width: ((t.itemCompletedCount || 0) / t.itemCount * 100) + '%' }" />
               </div>
               <div v-if="t.note" class="todo-note">{{ t.note }}</div>
             </div>
@@ -870,7 +879,10 @@ const emptyText = computed(() => {
   transition: border-color var(--dur) var(--ease), opacity var(--dur) var(--ease);
 }
 .todo-item:hover { border-color: var(--brand); }
+.todo-item.prio-2 { border-left: 3px solid var(--danger); }
+.todo-item.prio-2:hover { border-left-color: var(--danger); }
 .todo-item.todo-overdue { border-left: 3px solid var(--danger); }
+.todo-item.todo-overdue:hover { border-left-color: var(--danger); }
 .todo-item.todo-done { opacity: 0.55; }
 .todo-item.todo-highlight {
   outline: 2px solid var(--brand);
@@ -904,7 +916,7 @@ const emptyText = computed(() => {
   white-space: nowrap;
 }
 .todo-done .todo-title { text-decoration: line-through; color: var(--text-3); }
-.todo-priority { flex-shrink: 0; }
+.todo-priority { flex-shrink: 0; min-width: 28px; justify-content: center; }
 .todo-recur { display: inline-flex; align-items: center; gap: 2px; flex-shrink: 0; }
 .todo-due {
   display: inline-flex;
@@ -913,9 +925,18 @@ const emptyText = computed(() => {
   font-size: var(--fs-xs);
   color: var(--text-3);
   flex-shrink: 0;
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--glass-chip-bg);
 }
-.todo-due.due-overdue { color: var(--danger); }
-.todo-due.due-today { color: var(--warning-text); }
+.todo-due.due-overdue {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+}
+.todo-due.due-today {
+  color: var(--warning-text);
+  background: color-mix(in srgb, var(--warning-text) 14%, transparent);
+}
 .todo-remind {
   display: inline-flex;
   align-items: center;
@@ -932,6 +953,10 @@ const emptyText = computed(() => {
   color: var(--brand);
   cursor: pointer;
   flex-shrink: 0;
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--brand-soft);
+  font-weight: 600;
 }
 .todo-note {
   font-size: var(--fs-sm);
@@ -942,6 +967,20 @@ const emptyText = computed(() => {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
 }
+.todo-progress {
+  height: 3px;
+  margin-top: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--glass-chip-bg);
+  overflow: hidden;
+}
+.todo-progress-bar {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--brand), color-mix(in srgb, var(--brand) 60%, var(--warning-text)));
+  transition: width 0.3s var(--ease);
+}
+.todo-done .todo-progress-bar { opacity: 0.6; }
 .todo-actions {
   display: flex;
   align-items: center;

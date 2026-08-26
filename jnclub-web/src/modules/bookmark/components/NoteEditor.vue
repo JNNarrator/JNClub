@@ -6,10 +6,10 @@
  * 能力：自动保存（3s）+ Ctrl/⌘+S + 保存状态指示 + 空态引导 + 快捷键帮助 + 图片上传
  * 扩展（highlight.js 等）走 unpkg CDN 按需加载
  */
-import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount, defineComponent, h, type PropType } from 'vue'
 import { NButton, NIcon, NInput, NModal, NSwitch, NSpin, useMessage, useDialog } from 'naive-ui'
-import { Keyboard, ArrowLeft, CheckCircle2, CloudOff, LoaderCircle, Download, Upload, History, LayoutTemplate, Link2 } from 'lucide-vue-next'
-import { MdEditor, MdPreview, type ExposeParam, type ToolbarNames, type HeadList } from 'md-editor-v3'
+import { Keyboard, ArrowLeft, CheckCircle2, CloudOff, LoaderCircle, Download, Upload, History, LayoutTemplate, Link2, Focus } from 'lucide-vue-next'
+import { MdEditor, MdPreview, NormalToolbar, type ExposeParam, type ToolbarNames, type HeadList, type Insert } from 'md-editor-v3'
 import 'md-editor-v3/lib/style.css'
 import 'md-editor-v3/lib/preview.css'
 import axios from 'axios'
@@ -17,9 +17,52 @@ import type { Note } from '../stores/note'
 import TagPicker from './TagPicker.vue'
 import NoteVersionsModal from './NoteVersionsModal.vue'
 import { extractDataUris, dataUriToFile, uploadImage, downloadFile, exportMarkdown } from '../composables/markdownIO'
+import { useUserPreferences } from '../../../shared/composables/useUserPreferences'
+import { useRecentItems } from '../../../shared/composables/useRecentItems'
 
 /** md-editor-v3 实例 id（MdEditor 与 MdCatalog 通过它联动） */
 const EDITOR_ID = 'jnclub-note-editor'
+
+/* ─── 自定义工具栏：插入双链 [[ ]]（md-editor-v3 defToolbars 机制） ─── */
+/**
+ * 编辑器渲染工具栏时会对 defToolbars 中的自定义 VNode 做克隆，并注入 `insert`
+ * 回调（direct: universal 直接插入命令）。NormalToolbar 自身不消费 insert，
+ * 因此包一层自定义组件，在点击时调用它完成内容写入。
+ */
+const LinkInsertToolbar = defineComponent({
+  name: 'LinkInsertToolbar',
+  props: {
+    title: { type: String, default: '插入双链' },
+    /** 编辑器注入的插入回调 */
+    insert: { type: Function as PropType<Insert>, default: undefined },
+    disabled: { type: Boolean, default: false },
+    showToolbarName: { type: Boolean, default: false },
+  },
+  setup(props) {
+    return () =>
+      h(NormalToolbar, {
+        title: props.title,
+        disabled: props.disabled,
+        showToolbarName: props.showToolbarName,
+        onClick: () =>
+          props.insert?.((selectedText: string) => ({
+            // 有选中文本 → 用双链包裹；无选中 → 插入 [[ ]] 并整体选中便于直接输入笔记名
+            targetValue: selectedText ? `[[${selectedText}]]` : '[[ ]]',
+            select: !selectedText,
+          })),
+      }, {
+        default: () => h(Link2, { size: 16 }),
+      })
+  },
+})
+
+/** 双链按钮在 defToolbars 中的下标（toolbars 里的数字条目按此索引取值） */
+const LINK_INSERT_TOOLBAR_IDX = 0
+/**
+ * defToolbars：库的 d.ts 把类型声明成了 string | VNode，但运行时实为「自定义 VNode 数组
+ * 按下标取」，两者不一致，此处按运行时用法传数组（as any 以通过 vue-tsc 的 props 检查）。
+ */
+const defToolbars = [h(LinkInsertToolbar, { title: '插入双链' })] as any
 
 const props = defineProps<{
   note: Note | null
@@ -35,6 +78,23 @@ const emit = defineEmits<{
 
 const message = useMessage()
 const dialog = useDialog()
+
+const prefs = useUserPreferences()
+const { record: recordRecentItem } = useRecentItems()
+
+/* ─── 专注模式：只保留标题与保存状态，隐藏非必要按钮（持久化） ─── */
+const focusMode = ref<boolean>(prefs.get<boolean>('note.focusMode', false))
+const toggleFocusMode = (v: boolean) => { focusMode.value = v; prefs.set('note.focusMode', v) }
+
+/* ─── 只读预览栏宽：窄栏 / 适中（默认）/ 全宽（持久化） ─── */
+const PREVIEW_WIDTHS = [
+  { key: 'narrow', label: '窄栏' },
+  { key: 'medium', label: '适中' },
+  { key: 'wide', label: '全宽' },
+] as const
+type PreviewWidthKey = (typeof PREVIEW_WIDTHS)[number]['key']
+const previewWidth = ref<PreviewWidthKey>(prefs.get<PreviewWidthKey>('note.previewWidth', 'medium'))
+const setPreviewWidth = (k: PreviewWidthKey) => { previewWidth.value = k; prefs.set('note.previewWidth', k) }
 
 const mdEditor = ref<ExposeParam | null>(null)
 /** 只读模式：查看已有便签默认只读，新建默认可编辑 */
@@ -338,7 +398,7 @@ const shortcutRows = [
 /** md-editor-v3 工具栏（对齐原 vditor 精简工具栏） */
 const toolbars: ToolbarNames[] = [
   'revoke', 'next', '-',
-  'title', 'bold', 'italic', 'strikeThrough', 'link', '-',
+  'title', 'bold', 'italic', 'strikeThrough', 'link', LINK_INSERT_TOOLBAR_IDX, '-',
   'unorderedList', 'orderedList', 'task', '-',
   'quote', 'code', 'codeRow', 'table', '-',
   'image', '-', 'fullscreen', 'pageFullscreen', 'preview', 'previewOnly', '-', 'save',
@@ -421,6 +481,8 @@ const handleSave = async (silent = false) => {
         emit('saved', res.data.data as Note)
         // 新建：emit 同步回填 props.note.id 后，触发标签持久化
         saveTick.value++
+        // 成功保存 → 记入「最近打开」
+        recordRecentItem({ kind: 'note', id: (res.data.data as Note).id, title: title.value || '无标题' })
       } else {
         saveState.value = 'dirty'
         message.error(res.data.message || '创建失败')
@@ -437,6 +499,8 @@ const handleSave = async (silent = false) => {
       if (!silent) message.success('已保存')
       emit('saved', { ...props.note, title: title.value, content: content.value } as Note)
       saveTick.value++
+      // 成功保存 → 记入「最近打开」
+      recordRecentItem({ kind: 'note', id: props.note.id, title: title.value || '无标题' })
     }
   } catch (e: any) {
     saveState.value = 'dirty'
@@ -573,7 +637,7 @@ defineExpose({ hasUnsavedChanges })
 </script>
 
 <template>
-  <div class="note-editor-shell" :class="{ 'readonly-mode': readonlyMode }">
+  <div class="note-editor-shell" :class="[{ 'readonly-mode': readonlyMode, 'focus-mode': focusMode }, 'pv-' + previewWidth]">
     <div class="note-editor" :class="{ 'readonly-mode': readonlyMode }">
     <div class="editor-topbar">
       <NButton quaternary circle size="small" @click="handleRequestClose" title="返回列表（有未保存修改时二次确认）">
@@ -594,7 +658,17 @@ defineExpose({ hasUnsavedChanges })
         <span class="mode-toggle-label" :class="{ active: !readonlyMode }">编辑</span>
         <NSwitch :value="!readonlyMode" size="small" @update:value="toggleReadonly" />
       </div>
-      <div class="template-wrap">
+      <!-- 预览栏宽切换（仅只读态显示） -->
+      <div v-if="readonlyMode && !focusMode" class="preview-width-seg" title="预览栏宽">
+        <button
+          v-for="w in PREVIEW_WIDTHS" :key="w.key"
+          type="button"
+          class="pv-seg-btn"
+          :class="{ active: previewWidth === w.key }"
+          @click="setPreviewWidth(w.key)"
+        >{{ w.label }}</button>
+      </div>
+      <div v-if="!focusMode" class="template-wrap">
         <NButton quaternary circle size="small" title="使用模板" @click="showTemplatePicker = !showTemplatePicker">
           <template #icon><NIcon :component="LayoutTemplate" size="16" /></template>
         </NButton>
@@ -610,17 +684,17 @@ defineExpose({ hasUnsavedChanges })
           </button>
         </div>
       </div>
-      <NButton quaternary circle size="small" title="快捷键帮助" @click="showHelp = true">
+      <NButton v-if="!focusMode" quaternary circle size="small" title="快捷键帮助" @click="showHelp = true">
         <template #icon><NIcon :component="Keyboard" size="16" /></template>
       </NButton>
-      <NButton quaternary circle size="small" class="io-btn" title="导出 Markdown" @click="handleExportMd">
+      <NButton v-if="!focusMode" quaternary circle size="small" class="io-btn" title="导出 Markdown" @click="handleExportMd">
         <template #icon><NIcon :component="Download" size="16" /></template>
       </NButton>
-      <NButton quaternary circle size="small" class="io-btn" title="导入 Markdown" @click="handleImportClick">
+      <NButton v-if="!focusMode" quaternary circle size="small" class="io-btn" title="导入 Markdown" @click="handleImportClick">
         <template #icon><NIcon :component="Upload" size="16" /></template>
       </NButton>
       <NButton
-        v-if="isViewNote"
+        v-if="isViewNote && !focusMode"
         quaternary circle size="small" class="io-btn" title="历史版本" @click="showVersions = true"
       >
         <template #icon><NIcon :component="History" size="16" /></template>
@@ -632,6 +706,16 @@ defineExpose({ hasUnsavedChanges })
         style="display: none"
         @change="handleImportFile"
       />
+      <!-- 专注模式开关（编辑态）：只保留标题与保存状态 -->
+      <NButton
+        v-if="!readonlyMode"
+        quaternary circle size="small"
+        title="专注模式：只保留标题与保存状态"
+        :class="['focus-btn', { 'is-active': focusMode }]"
+        @click="toggleFocusMode(!focusMode)"
+      >
+        <template #icon><NIcon :component="Focus" size="16" /></template>
+      </NButton>
       <!-- 保存同步状态图标（自动保存已开启，点击手动保存） -->
       <NButton
         v-if="!readonlyMode"
@@ -647,7 +731,7 @@ defineExpose({ hasUnsavedChanges })
     </div>
 
     <!-- 标签行（编辑态）：保存时随便签一并持久化 -->
-    <div v-if="!readonlyMode" class="editor-tags">
+    <div v-if="!readonlyMode && !focusMode" class="editor-tags">
       <span class="tags-label">标签</span>
       <TagPicker
         ref="tagPickerRef"
@@ -669,6 +753,7 @@ defineExpose({ hasUnsavedChanges })
           :theme="isDark ? 'dark' : 'light'"
           language="zh-CN"
           :toolbars="toolbars"
+          :defToolbars="defToolbars"
           :placeholder="'支持 Markdown 语法，试试输入 # 标题，或 ** 加粗；输入 [[笔记名]] 创建双链'"
           :no-upload-img="false"
           :auto-detect-code="true"
@@ -824,6 +909,52 @@ defineExpose({ hasUnsavedChanges })
   margin: 0 auto;
   padding: 0 16px;
 }
+/* 预览栏宽切换：窄栏 / 适中（默认 1040px）/ 全宽 */
+.note-editor-shell.readonly-mode.pv-narrow {
+  max-width: 760px;
+}
+.note-editor-shell.readonly-mode.pv-wide {
+  max-width: none;
+  padding: 0;
+}
+/* 专注模式：隐藏状态栏快捷键提示 */
+.note-editor-shell.focus-mode .statusbar-keys {
+  display: none;
+}
+/* 栏宽切换分段控件（与阅读器风格一致） */
+.preview-width-seg {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--glass-chip-border);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+  gap: 2px;
+  background: var(--glass-chip-bg);
+}
+.pv-seg-btn {
+  border: none;
+  background: transparent;
+  color: var(--text-2);
+  font-size: 12px;
+  line-height: 1;
+  padding: 5px 8px;
+  border-radius: calc(var(--radius-sm) - 2px);
+  cursor: pointer;
+  transition: color 0.2s var(--ease), background 0.2s var(--ease);
+}
+.pv-seg-btn:hover {
+  color: var(--text-1);
+}
+.pv-seg-btn.active {
+  background: var(--brand);
+  color: #fff;
+  font-weight: 600;
+}
+/* 专注模式开关激活态 */
+.editor-topbar .focus-btn.is-active {
+  color: var(--brand);
+  background: var(--brand-soft);
+}
 .note-editor {
   position: relative;
   display: flex;
@@ -926,8 +1057,8 @@ defineExpose({ hasUnsavedChanges })
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-md);
   background: var(--glass-bg-trans);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
   box-shadow: var(--glass-shadow);
 }
 .backlinks-panel:not(:has(.backlinks-body)) {
@@ -1545,6 +1676,9 @@ defineExpose({ hasUnsavedChanges })
     font-size: 15px;
   }
   .mode-toggle-label {
+    display: none;
+  }
+  .preview-width-seg {
     display: none;
   }
   .statusbar-keys {
