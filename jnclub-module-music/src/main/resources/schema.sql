@@ -30,10 +30,12 @@ CREATE TABLE IF NOT EXISTS music_user_favorite (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户收藏表';
 
 CREATE TABLE IF NOT EXISTS music_play_history (
-    id          BIGINT        PRIMARY KEY AUTO_INCREMENT COMMENT '播放历史ID',
-    device_id   VARCHAR(128)  NOT NULL COMMENT '匿名设备ID',
-    track_id    VARCHAR(32)   NOT NULL COMMENT '歌曲ID',
-    played_at   DATETIME      DEFAULT CURRENT_TIMESTAMP COMMENT '最近播放时间',
+    id                BIGINT        PRIMARY KEY AUTO_INCREMENT COMMENT '播放历史ID',
+    device_id         VARCHAR(128)  NOT NULL COMMENT '匿名设备ID',
+    track_id          VARCHAR(32)   NOT NULL COMMENT '歌曲ID',
+    played_at         DATETIME      DEFAULT CURRENT_TIMESTAMP COMMENT '最近播放时间',
+    progress_seconds  INT           DEFAULT 0 COMMENT '最近播放进度（秒）',
+    updated_at        DATETIME      DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最近上报时间',
     UNIQUE KEY uk_history_device_track (device_id, track_id),
     INDEX idx_history_device_played (device_id, played_at),
     INDEX idx_history_track (track_id)
@@ -64,3 +66,23 @@ CREATE TABLE IF NOT EXISTS music_lyrics_cache (
     lyrics     MEDIUMTEXT    NOT NULL COMMENT '歌词文本',
     updated_at DATETIME      DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='歌词缓存表';
+
+CREATE TABLE IF NOT EXISTS music_playlist (
+    id          BIGINT        PRIMARY KEY AUTO_INCREMENT COMMENT '歌单ID',
+    device_id   VARCHAR(128)  NOT NULL COMMENT '匿名设备ID',
+    name        VARCHAR(128)  NOT NULL COMMENT '歌单名称',
+    created_at  DATETIME      DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at  DATETIME      DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    INDEX idx_playlist_device (device_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='歌单表';
+
+CREATE TABLE IF NOT EXISTS music_playlist_item (
+    id          BIGINT        PRIMARY KEY AUTO_INCREMENT COMMENT '歌单曲目ID',
+    playlist_id BIGINT        NOT NULL COMMENT '歌单ID',
+    track_id    VARCHAR(32)   NOT NULL COMMENT '歌曲ID',
+    position    INT           NOT NULL COMMENT '排序位置，从0开始',
+    created_at  DATETIME      DEFAULT CURRENT_TIMESTAMP COMMENT '添加时间',
+    UNIQUE KEY uk_playlist_item_track (playlist_id, track_id),
+    INDEX idx_playlist_item_playlist (playlist_id, position),
+    INDEX idx_playlist_item_track (track_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='歌单曲目表';

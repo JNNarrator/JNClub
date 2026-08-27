@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { computed, ref, onMounted, defineAsyncComponent } from 'vue'
 import { ElIcon } from 'element-plus'
+import { showDialog } from 'vant'
 import { Sunny, Moon, Download, Back } from '@element-plus/icons-vue'
 import TrackList from './components/TrackList.vue'
 import PlayerBar from './components/PlayerBar.vue'
 import LyricsPanel from './components/LyricsPanel.vue'
+import PlaylistPanel from './components/PlaylistPanel.vue'
 const PlayerPage = defineAsyncComponent(() => import('./components/PlayerPage.vue'))
 import BrandLogo from './components/BrandLogo.vue'
 import LanzouAuthPanel from './components/LanzouAuthPanel.vue'
@@ -55,7 +57,35 @@ onMounted(() => {
   }
   window.addEventListener('beforeinstallprompt', () => { pwaInstallable.value = true })
   window.addEventListener('appinstalled', () => { pwaInstallable.value = false })
+  maybeResume()
 })
+
+/** 格式化秒数为 mm:ss */
+function fmtTime(seconds: number) {
+  const s = Math.floor(seconds)
+  if (!Number.isFinite(s) || s < 0) return '0:00'
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
+}
+
+/** 启动时提示「继续播放」上次听到的位置（跨设备进度同步） */
+async function maybeResume() {
+  try {
+    const last = await player.restoreLastPlay()
+    if (!last || last.progressSeconds <= 30) return
+    const track = last.track
+    const confirmed = await showDialog({
+      title: '继续播放',
+      message: `上次听到 ${track.name} - ${track.artist || '未知艺人'}（${fmtTime(last.progressSeconds)}），接着听？`,
+      confirmButtonText: '继续',
+      cancelButtonText: '不了',
+    })
+    if (confirmed) {
+      await player.resumeTrack(track, last.progressSeconds)
+    }
+  } catch {
+    // 取消或失败均忽略
+  }
+}
 
 const hasFatalError = ref(false)
 const reloadPage = () => { location.reload() }
@@ -148,6 +178,7 @@ if (typeof window !== 'undefined') {
     <PlayerBar />
     <PlayerPage />
     <LyricsPanel />
+    <PlaylistPanel mode="manage" />
   </div>
 </template>
 

@@ -2,12 +2,16 @@
 import { onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import { showToast } from 'vant'
 import { ElIcon } from 'element-plus'
-import { Search, VideoPlay, Refresh, Loading, RefreshRight, WarningFilled, CircleCheckFilled } from '@element-plus/icons-vue'
+import { Search, VideoPlay, Refresh, Loading, RefreshRight, WarningFilled, CircleCheckFilled, Plus, FolderOpened, Star } from '@element-plus/icons-vue'
 import { usePlayerStore, type Track } from '../stores/player'
 import { useThemeStore } from '../stores/theme'
+import { usePlaylistsStore } from '../stores/playlists'
+import { api } from '../utils/api'
+import PlaylistPanel from './PlaylistPanel.vue'
 
 const player = usePlayerStore()
 const theme = useThemeStore()
+const playlists = usePlaylistsStore()
 const tracks = ref<Track[]>([])
 const total = ref(0)
 const page = ref(1)
@@ -117,6 +121,36 @@ function onRowActivate(track: Track, idx: number) {
     return
   }
   playAll(idx)
+}
+
+/** 猜你喜欢：拉取推荐曲目并直接播放 */
+async function playRecommend() {
+  try {
+    const res = await api<Track[]>('/api/v1/recommend?limit=20')
+    if (!res.success) {
+      showToast({ message: res.error?.message || '推荐加载失败', type: 'error' })
+      return
+    }
+    const list = res.data || []
+    if (!list.length) {
+      showToast('暂无推荐曲目')
+      return
+    }
+    player.setQueue(list, 0)
+    showToast(`已加载 ${list.length} 首推荐曲目`)
+  } catch {
+    showToast({ message: '网络异常', type: 'error' })
+  }
+}
+
+/** 打开「加入歌单」选择面板 */
+const pickShow = ref(false)
+const pickTrack = ref<Track | null>(null)
+
+function openPickPlaylist(track: Track) {
+  pickTrack.value = track
+  playlists.fetchPlaylists()
+  pickShow.value = true
 }
 
 function onSearch() {
@@ -259,6 +293,14 @@ onBeforeUnmount(() => {
           <span v-if="!cacheRefreshing">刷新缓存</span>
           <span v-else>{{ cacheProgress ? `${cacheProgress.completed}/${cacheProgress.total}` : '刷新中…' }}</span>
         </button>
+        <button class="btn-ghost" @click="playlists.openPanel()">
+          <el-icon :size="14"><FolderOpened /></el-icon>
+          <span>歌单</span>
+        </button>
+        <button class="btn-ghost recommend" @click="playRecommend">
+          <el-icon :size="14"><Star /></el-icon>
+          <span>猜你喜欢</span>
+        </button>
         <button class="play-all" @click="playAll(0)" :disabled="!tracks.length">
           <el-icon :size="16"><VideoPlay /></el-icon>
           <span>播放全部</span>
@@ -339,7 +381,9 @@ onBeforeUnmount(() => {
             <p class="row-artist">{{ track.artist || '未知艺人' }}</p>
           </div>
           <div class="row-meta">
-
+            <button class="row-add" title="加入歌单" aria-label="加入歌单" @click.stop="openPickPlaylist(track)">
+              <el-icon :size="15"><Plus /></el-icon>
+            </button>
           </div>
         </div>
       </div>
@@ -355,6 +399,8 @@ onBeforeUnmount(() => {
     </div>
 
   </section>
+
+  <PlaylistPanel mode="pick" v-model:show="pickShow" :target-track="pickTrack" />
 </template>
 
 <style scoped>
@@ -710,6 +756,51 @@ onBeforeUnmount(() => {
 }
 .spin { animation: spin 0.8s linear infinite; }
 .no-more { color: var(--jn-ink-muted); }
+
+/* 歌单 / 猜你喜欢入口 */
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: 1px solid var(--jn-hair);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--jn-ink-dim);
+  font-size: 12.5px;
+  font-family: 'IBM Plex Mono', monospace;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+.btn-ghost:hover { color: var(--jn-accent); border-color: var(--jn-accent); background: var(--jn-accent-soft); }
+.btn-ghost.recommend { color: var(--jn-accent); border-color: var(--jn-accent); }
+.btn-ghost.recommend:hover { background: var(--jn-accent); color: var(--jn-accent-ink); }
+
+/* 行内「加入歌单」 */
+.row-add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--jn-hair-strong);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--jn-ink-dim);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s, border-color 0.15s, transform 0.15s;
+}
+.row:hover .row-add { opacity: 1; }
+.row-add:hover { color: var(--jn-accent); border-color: var(--jn-accent); transform: scale(1.08); }
+.row.active:hover .row-add { opacity: 1; }
+
+@media (max-width: 720px) {
+  .row-add { opacity: 1; }
+  .btn-ghost { padding: 6px 12px; font-size: 11px; }
+}
 
 @media (max-width: 720px) {
   .library { 

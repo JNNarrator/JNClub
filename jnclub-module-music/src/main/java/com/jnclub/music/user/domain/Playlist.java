@@ -10,27 +10,23 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * 匿名设备播放历史，单曲只保留最近一次播放时间。
+ * 匿名设备歌单。
  */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@TableName("music_play_history")
-public class PlayHistory {
+@TableName("music_playlist")
+public class Playlist {
 
     @TableId(type = IdType.AUTO)
     private Long id;
 
     private String deviceId;
 
-    private String trackId;
+    private String name;
 
-    private LocalDateTime playedAt;
+    private LocalDateTime createdAt;
 
-    /** 最近播放进度（秒） */
-    private Integer progressSeconds;
-
-    /** 最近上报时间（跨设备继续播放排序用） */
     private LocalDateTime updatedAt;
 }

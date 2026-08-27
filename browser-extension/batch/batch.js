@@ -3,12 +3,10 @@
  * chrome.tabs.query 列出全部标签页 → 排除受保护协议 → 勾选 → 选目录 → 批量收藏（去重：已收藏的标记）
  */
 import { getState, saveState, api, fetchDirectories, flattenDirs, fetchBookmarks } from '../lib/api.js'
+import { BROWSER_SCHEMES, normalizeUrl } from '../lib/urls.js'
 
 const $ = (id) => document.getElementById(id)
 const listEl = $('tabList')
-
-/** 浏览器内置协议页不可注入/不可用 */
-const BROWSER_SCHEMES = /^(chrome|chrome-extension|edge|about|devtools|view-source|moz-extension|opera):/
 
 let tabs = []
 let savedUrls = new Set()
@@ -45,14 +43,6 @@ async function loadSavedUrls(directoryId) {
   const list = await fetchBookmarks(directoryId)
   for (const b of list || []) {
     if (b.url) savedUrls.add(normalizeUrl(b.url))
-  }
-}
-
-function normalizeUrl(u) {
-  try {
-    return new URL(u).href.replace(/\/$/, '')
-  } catch {
-    return u
   }
 }
 

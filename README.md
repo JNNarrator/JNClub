@@ -87,19 +87,17 @@ VALUES ('JNClub', 'app-jnclub', 'http://localhost:19005/sso/login', 'http://loca
 
 ## 功能特性
 
-- ✅ 目录管理（树形目录、CRUD、拖拽排序、级联删除、删除保护；type 区分模块：1 收藏夹 / 2 便签 / 3 云盘 / 5 密码库）
-- ✅ 网页收藏（CRUD、Favicon 自动提取、URL 预览、拖拽排序）
-- ✅ 便签（CRUD、Markdown 编辑、图片上传、拖拽排序、可拖拽悬浮大纲/目录）
-- ✅ 云盘（单文件分片上传、断点续传、暂停/恢复、文件列表、下载还原原始文件名、删除）
-- ✅ 密码库（AES 加密存储、主密钥 PBKDF2 派生、解锁/锁定、同用户重复密码健康检查）
-- ✅ 标签（收藏/便签多对多打标、按标签筛选）
-- ✅ 回收站（软删除统一查看/恢复/彻底删除/清空，覆盖收藏/便签/云盘/密码库）
-- ✅ 音乐（JNMUSIC 融合：曲目/收藏/播放历史/搜索历史/播放队列，蓝奏云+dufs 存储）
-- ✅ 浏览器收藏助手（Chrome 扩展：一键收藏当前页、批量收藏标签页、右键菜单收藏）
+- ✅ 收藏夹/便签/云盘/密码库（CRUD、目录、拖拽排序、标签、回收站、导入导出、全量备份）
+- ✅ 待办 2.0（优先级/截止时间/子任务/重复规则/提醒/自然语言快速添加）
+- ✅ 日历 2.0（月/周视图、拖拽改期、重复待办动态展开、待办提醒）
+- ✅ RSS 订阅阅读器、稍后读（阅读进度）、网页快照、分享管理
+- ✅ 便签增强（Markdown、图片、双链与反向链接、模板、字数统计、版本历史）
+- ✅ 全局搜索 2.0（10+ 分组、`type:`/`date:`/`#标签` 语法、服务端历史、建议词、结果深链）
+- ✅ Dashboard 2.0（今日必办、近期动态、趋势、自定义布局）
+- ✅ 通知中心、用户偏好跨会话记忆、日/夜间模式（跟随系统）
+- ✅ 音乐（JNMUSIC 融合：曲目/收藏/播放历史/搜索历史/播放队列/**歌单管理**/**猜你喜欢**/**跨设备播放进度同步**，蓝奏云+dufs 存储）
+- ✅ 浏览器收藏助手（Chrome 扩展：一键/批量收藏、右键菜单、网页转便签、**稍后读**、**网页快照**、**保存去重提示**）
 - ✅ SSO 单点登录
-- ✅ 日/夜间模式（跟随系统）
-- ✅ 用户偏好记忆（模块/视图/目录/导航顺序跨会话记忆）
-- ✅ 全局搜索、自定义光标、背景粒子特效
 
 ## 配置说明
 
@@ -240,10 +238,14 @@ jnclub:
 - `POST /api/v1/favorites` - 添加收藏
 - `DELETE /api/v1/favorites/{trackId}` - 取消收藏
 - `GET /api/v1/favorites/{trackId}/exists` - 是否已收藏
-- `GET /api/v1/history` / `POST /api/v1/history` / `DELETE /api/v1/history` - 播放历史
+- `GET /api/v1/history` / `POST /api/v1/history` / `DELETE /api/v1/history` - 播放历史（POST 可携带 `progress` 秒数，用于跨设备「继续播放」）
+- `GET /api/v1/history/latest` - 最近一次播放（含进度，供「继续播放」）
 - `GET /api/v1/search-history` / `POST /api/v1/search-history` / `DELETE /api/v1/search-history` - 搜索历史
 - `GET /api/v1/queue` / `PUT /api/v1/queue` - 播放队列（读取/保存）
 - `POST /api/v1/queue/items` / `DELETE /api/v1/queue/items/{trackId}` - 队列增删
+- `GET /api/v1/recommend?limit=` - 猜你喜欢（收藏/历史优先 + 随机补足）
+- `GET /api/v1/playlists` / `POST /api/v1/playlists` / `PUT /api/v1/playlists/{id}` / `DELETE /api/v1/playlists/{id}` - 歌单 CRUD
+- `GET /api/v1/playlists/{id}/tracks` / `POST /api/v1/playlists/{id}/tracks` / `DELETE /api/v1/playlists/{id}/tracks/{trackId}` - 歌单曲目管理
 - `GET /api/v1/admin/lanzou/status` - 蓝奏云状态（管理端）
 - `POST /api/v1/admin/lanzou/login` / `POST /api/v1/admin/lanzou/cookie` / `POST /api/v1/admin/lanzou/refresh-cache` - 蓝奏云登录/缓存管理（管理端）
 

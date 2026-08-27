@@ -3,6 +3,7 @@ package com.jnclub.music.user.api;
 import com.jnclub.music.common.ApiResponse;
 import com.jnclub.music.common.PageResponse;
 import com.jnclub.music.user.dto.HistoryTrackDTO;
+import com.jnclub.music.user.dto.LatestPlayDTO;
 import com.jnclub.music.user.dto.TrackIdRequest;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -28,6 +29,10 @@ public interface HistoryApi {
     ApiResponse<Void> recordPlay(
             @RequestHeader(value = "X-Device-Id", required = false) String deviceId,
             @RequestBody TrackIdRequest request);
+
+    @GetMapping("/latest")
+    ApiResponse<LatestPlayDTO> latestPlay(
+            @RequestHeader(value = "X-Device-Id", required = false) String deviceId);
 
     @DeleteMapping
     ApiResponse<Void> clearHistory(@RequestHeader(value = "X-Device-Id", required = false) String deviceId);

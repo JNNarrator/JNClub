@@ -6,6 +6,7 @@ import { api, getState, saveState, serverRoot, DEFAULT_SERVER, createNote } from
 
 const MENU_ID = 'jnclub-save-page'
 const MENU_NOTE_ID = 'jnclub-save-note'
+const MENU_READ_LATER_ID = 'jnclub-save-read-later'
 
 /**
  * 旧版本迁移：老默认地址为 localhost（本地开发），现默认线上地址。
@@ -34,6 +35,11 @@ chrome.runtime.onInstalled.addListener(() => {
     title: '保存为 JNClub 便签',
     contexts: ['page'],
   })
+  chrome.contextMenus.create({
+    id: MENU_READ_LATER_ID,
+    title: '收藏为稍后读',
+    contexts: ['page', 'link'],
+  })
   migrateDefaultServer()
 })
 
@@ -44,6 +50,10 @@ migrateDefaultServer()
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (info.menuItemId === MENU_NOTE_ID) {
     savePageAsNote(tab)
+    return
+  }
+  if (info.menuItemId === MENU_READ_LATER_ID) {
+    savePageAsReadLater(info, tab)
     return
   }
   if (info.menuItemId !== MENU_ID) return
@@ -68,6 +78,30 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     notify('收藏失败', res.message)
   }
 })
+
+/** 右键菜单：收藏为稍后读（默认收藏目录，readLater=1） */
+async function savePageAsReadLater(info, tab) {
+  const url = info.linkUrl || info.pageUrl
+  const title = info.selectionText ? info.selectionText.slice(0, 100) : tab?.title || url
+  const state = await getState()
+  if (!state.token) {
+    notify('未登录', '请先打开 JNClub 收藏助手完成登录')
+    return
+  }
+  const dirId = state.defaultDirId
+  if (!dirId) {
+    notify('未设置默认目录', '请在插件弹窗中先收藏一次或选择默认目录')
+    return
+  }
+  const res = await createBookmarkSafe({ title, url, directoryId: dirId, readLater: 1 })
+  if (res.ok) {
+    notify('已加入稍后读', `${title} → ${dirName(dirId)}`)
+  } else if (res.status === 401) {
+    notify('登录已过期', '请打开 JNClub 收藏助手重新登录')
+  } else {
+    notify('收藏失败', res.message)
+  }
+}
 
 /** 右键菜单：把当前页转为 Markdown 便签（默认便签目录，无则取第一个并记忆） */
 async function savePageAsNote(tab) {
@@ -130,23 +164,23 @@ function notify(title, message) {
 }
 
 /** 收藏（带默认目录兜底：无默认目录时用第一个目录） */
-async function createBookmarkSafe({ title, url, directoryId }) {
+async function createBookmarkSafe({ title, url, directoryId, readLater = 0 }) {
   if (!directoryId) {
     const dirs = await fetchDirs()
     const first = dirs[0]
     if (first) {
       await saveState({ defaultDirId: first.id })
-      return createBookmarkWithDir({ title, url, directoryId: first.id })
+      return createBookmarkWithDir({ title, url, directoryId: first.id, readLater })
     }
     return { ok: false, message: '收藏夹还没有目录，请先在 JNClub 创建' }
   }
-  return createBookmarkWithDir({ title, url, directoryId })
+  return createBookmarkWithDir({ title, url, directoryId, readLater })
 }
 
-async function createBookmarkWithDir({ title, url, directoryId }) {
+async function createBookmarkWithDir({ title, url, directoryId, readLater = 0 }) {
   const res = await api('/api/bookmarks', {
     method: 'POST',
-    body: { title, url, directoryId },
+    body: { title, url, directoryId, ...(readLater ? { readLater: 1 } : {}) },
   })
   if (!res.ok && res.code === 401) {
     return { ok: false, status: 401, message: res.message }

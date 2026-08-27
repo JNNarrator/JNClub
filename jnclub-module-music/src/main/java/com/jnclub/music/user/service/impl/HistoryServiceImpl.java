@@ -7,6 +7,7 @@ import com.jnclub.music.track.dto.TrackDTO;
 import com.jnclub.music.track.service.TrackService;
 import com.jnclub.music.user.domain.PlayHistory;
 import com.jnclub.music.user.dto.HistoryTrackDTO;
+import com.jnclub.music.user.dto.LatestPlayDTO;
 import com.jnclub.music.user.mapper.PlayHistoryMapper;
 import com.jnclub.music.user.service.HistoryService;
 import java.time.LocalDateTime;
@@ -57,10 +58,11 @@ public class HistoryServiceImpl extends UserDataSupport implements HistoryServic
     }
 
     @Override
-    public void recordPlay(String deviceId, String trackId) {
+    public void recordPlay(String deviceId, String trackId, Integer progress) {
         String normalizedDeviceId = normalizeDeviceId(deviceId);
         String normalizedTrackId = requireTrackId(trackId);
         ensureTrackExists(normalizedTrackId);
+        int normalizedProgress = progress == null || progress < 0 ? 0 : progress;
         PlayHistory existing = historyMapper.selectOne(Wrappers.<PlayHistory>lambdaQuery()
                 .eq(PlayHistory::getDeviceId, normalizedDeviceId)
                 .eq(PlayHistory::getTrackId, normalizedTrackId));
@@ -70,11 +72,36 @@ public class HistoryServiceImpl extends UserDataSupport implements HistoryServic
                     .deviceId(normalizedDeviceId)
                     .trackId(normalizedTrackId)
                     .playedAt(now)
+                    .progressSeconds(normalizedProgress)
                     .build());
             return;
         }
         existing.setPlayedAt(now);
+        existing.setProgressSeconds(normalizedProgress);
         historyMapper.updateById(existing);
+    }
+
+    @Override
+    public LatestPlayDTO latestPlay(String deviceId) {
+        String normalizedDeviceId = normalizeDeviceId(deviceId);
+        PlayHistory latest = historyMapper.selectOne(Wrappers.<PlayHistory>lambdaQuery()
+                .eq(PlayHistory::getDeviceId, normalizedDeviceId)
+                .orderByDesc(PlayHistory::getUpdatedAt)
+                .orderByDesc(PlayHistory::getPlayedAt)
+                .last("LIMIT 1"));
+        if (latest == null) {
+            return null;
+        }
+        Map<String, TrackDTO> trackMap = loadTrackMap(List.of(latest.getTrackId()));
+        TrackDTO track = trackMap.get(latest.getTrackId());
+        if (track == null) {
+            return null;
+        }
+        return LatestPlayDTO.builder()
+                .track(track)
+                .progressSeconds(latest.getProgressSeconds() == null ? 0 : latest.getProgressSeconds())
+                .playedAt(toOffsetDateTime(latest.getPlayedAt()))
+                .build();
     }
 
     @Override

@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref, watch, reactive } from 'vue'
 import { fetchLyricsCached } from '../utils/lrc'
+import { api } from '../utils/api'
 
 // 蓝奏云会话过期标志（全局共享）
 export const lanzouSessionExpired = ref(false)
@@ -57,6 +58,27 @@ async function releaseWakeLock() {
 
 // 前端直链缓存：trackId -> { url, format, expiresAt }
 const urlCache = new Map<string, { url: string; format: string; expiresAt: number }>()
+
+// ─── 播放进度上报（跨设备「继续播放」） ───
+let lastReportedTrackId: string | null = null
+let lastReportedAt = 0
+const REPORT_INTERVAL = 15000
+
+async function reportProgress(trackId: string | null | undefined, progress: number) {
+  if (!trackId) return
+  const now = Date.now()
+  if (trackId === lastReportedTrackId && now - lastReportedAt < REPORT_INTERVAL) return
+  lastReportedTrackId = trackId
+  lastReportedAt = now
+  try {
+    await api('/api/v1/history', {
+      method: 'POST',
+      body: JSON.stringify({ trackId, progress: Math.max(0, Math.floor(progress)) }),
+    })
+  } catch {
+    // 上报失败静默，不影响播放
+  }
+}
 
 async function fetchMediaUrl(trackId: string, force = false): Promise<{ url: string; format: string } | null> {
   // 先查缓存
@@ -279,6 +301,10 @@ export const usePlayerStore = defineStore('player', () => {
   async function playIndex(index: number) {
     if (!audio) return
     if (index < 0 || index >= queue.value.length) return
+    // 切歌前上报上一曲进度
+    if (currentIndex.value >= 0 && audio.currentTime > 5) {
+      reportProgress(queue.value[currentIndex.value]?.trackId, audio.currentTime)
+    }
     currentIndex.value = index
     const track = queue.value[index]
     if (!track) return
@@ -336,6 +362,34 @@ export const usePlayerStore = defineStore('player', () => {
     if (currentIndex.value >= 0) {
       playIndex(currentIndex.value)
     }
+  }
+
+  /** 获取最近一次播放记录（跨设备「继续播放」用） */
+  async function restoreLastPlay(): Promise<{ track: Track; progressSeconds: number } | null> {
+    try {
+      const res = await api<{ track: Track; progressSeconds: number }>('/api/v1/history/latest')
+      if (res.success && res.data?.track) {
+        return { track: res.data.track, progressSeconds: res.data.progressSeconds || 0 }
+      }
+    } catch {
+      // 静默
+    }
+    return null
+  }
+
+  /** 用户确认后：从指定进度继续播放 */
+  async function resumeTrack(track: Track, seconds: number) {
+    setQueue([track], 0)
+    if (audio) {
+      const onReady = () => {
+        audio.removeEventListener('canplay', onReady)
+        try {
+          audio.currentTime = Math.max(0, Math.min(seconds, audio.duration || seconds))
+        } catch { /* seek 失败忽略 */ }
+      }
+      audio.addEventListener('canplay', onReady)
+    }
+    toggle()
   }
 
   function stop() {
@@ -455,6 +509,10 @@ export const usePlayerStore = defineStore('player', () => {
     })
     audio.addEventListener('timeupdate', () => {
       currentTime.value = audio.currentTime
+      // 节流上报播放进度（切歌/暂停/结束时另有上报）
+      if (audio.currentTime > 5) {
+        reportProgress(currentTrack.value?.trackId, audio.currentTime)
+      }
       // 更新 Media Session 播放位置，保持音频会话活跃
       if ('mediaSession' in navigator && 'setPositionState' in navigator.mediaSession) {
         try {
@@ -480,6 +538,10 @@ export const usePlayerStore = defineStore('player', () => {
       loading.value = true
     })
     audio.addEventListener('ended', () => {
+      // 播完上报整曲进度（可视为「已听到结尾」）
+      if (currentTrack.value) {
+        reportProgress(currentTrack.value.trackId, audio.duration || 0)
+      }
       next(false)
       // 锁屏/后台切歌标记：iOS 可能接受 play() 但不输出声音
       if (document.hidden) {
@@ -561,6 +623,8 @@ export const usePlayerStore = defineStore('player', () => {
     playIndex,
     toggle,
     retryCurrent,
+    restoreLastPlay,
+    resumeTrack,
     next,
     prev,
     seek,

@@ -1,7 +1,11 @@
 /**
- * popup/popup.js — 弹窗：当前页一键收藏 + 网页转便签 + 登录态管理 + 入口
+ * popup/popup.js — 弹窗：当前页一键收藏（稍后读 / 网页快照 / 保存去重）+ 网页转便签 + 登录态管理 + 入口
  */
-import { getState, saveState, serverRoot, api, fetchDirectories, fetchNoteDirs, flattenDirs } from '../lib/api.js'
+import {
+  getState, saveState, serverRoot, api,
+  fetchDirectories, fetchNoteDirs, flattenDirs, fetchBookmarks, captureSnapshot,
+} from '../lib/api.js'
+import { normalizeUrl } from '../lib/urls.js'
 
 const $ = (id) => document.getElementById(id)
 
@@ -43,6 +47,28 @@ async function fillDirs(state) {
   }
 }
 
+/** 恢复/记忆保存选项偏好 */
+async function loadSaveOptions() {
+  const st = await getState()
+  $('chkReadLater').checked = !!st.saveReadLater
+  $('chkSnapshot').checked = !!st.saveSnapshot
+}
+async function persistSaveOptions() {
+  await saveState({
+    saveReadLater: $('chkReadLater').checked,
+    saveSnapshot: $('chkSnapshot').checked,
+  })
+}
+
+/** 目标目录内查重复收藏；目录过大（>500 条）时跳过，避免弹窗卡顿 */
+async function findDuplicate(url, directoryId) {
+  if (!url || !directoryId) return null
+  const target = normalizeUrl(url)
+  const list = await fetchBookmarks(directoryId)
+  if (!list || list.length > 500) return null
+  return list.find((b) => b.url && normalizeUrl(b.url) === target) || null
+}
+
 function setStatus(text, type = '') {
   statusEl.textContent = text
   statusEl.className = `status ${type}`
@@ -80,6 +106,7 @@ async function render() {
 
   try {
     await fillDirs(state)
+    await loadSaveOptions()
   } catch (e) {
     setStatus(e?.status === 401 ? '登录已过期，请重新登录' : (e?.message || '加载目录失败'), 'err')
   }
@@ -158,17 +185,46 @@ $('btnSave').addEventListener('click', async () => {
   if (!url) { setStatus('请输入网址', 'err'); return }
   if (!directoryId) { setStatus('请选择目录', 'err'); return }
 
+  await persistSaveOptions()
+
+  // 保存前去重提示（目标目录已存在同链接）
+  let dup = null
+  try {
+    dup = await findDuplicate(url, directoryId)
+  } catch { dup = null }
+  if (dup) {
+    const dupLabel = dup.title || dup.url || '同名收藏'
+    if (!confirm(`「${dupLabel}」已在所选目录中，仍要保存吗？`)) {
+      setStatus('已取消（目录中已有该链接）', 'err')
+      return
+    }
+  }
+
   setStatus('收藏中…')
   const res = await chrome.runtime.sendMessage({
     type: 'FAVORITE',
-    data: { title, url, directoryId },
+    data: {
+      title,
+      url,
+      directoryId,
+      readLater: $('chkReadLater').checked ? 1 : 0,
+    },
   })
   if (res?.ok) {
     setStatus('已收藏 ✓', 'ok')
     const st = await getState()
     // 首次成功收藏的目录记为右键菜单默认目录
     await saveState({ lastDirId: directoryId, defaultDirId: st.defaultDirId || directoryId })
-    setTimeout(() => window.close(), 600)
+    // 联动快照：收藏成功后触发（失败不阻断，给提示即可）
+    if ($('chkSnapshot').checked && res.data?.id) {
+      setStatus('收藏成功，保存快照中…')
+      const snap = await captureSnapshot(res.data.id)
+      setStatus(
+        snap.ok ? '已收藏 ✓ · 快照已保存' : '已收藏 ✓ · 快照失败（稍后可在 Web 端重试）',
+        snap.ok ? 'ok' : 'err',
+      )
+    }
+    setTimeout(() => window.close(), 1200)
   } else if (res?.status === 401) {
     setStatus('登录已过期，请重新登录', 'err')
   } else {
