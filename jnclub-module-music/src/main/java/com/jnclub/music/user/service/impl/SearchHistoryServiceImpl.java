@@ -4,7 +4,7 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.jnclub.music.track.service.TrackService;
 import com.jnclub.music.user.domain.SearchHistory;
 import com.jnclub.music.user.dto.SearchKeywordDTO;
-import com.jnclub.music.user.mapper.SearchHistoryMapper;
+import com.jnclub.music.user.mapper.MusicSearchHistoryMapper;
 import com.jnclub.music.user.service.SearchHistoryService;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
@@ -18,9 +18,9 @@ import org.springframework.stereotype.Service;
 @Service
 public class SearchHistoryServiceImpl extends UserDataSupport implements SearchHistoryService {
 
-    private final SearchHistoryMapper searchHistoryMapper;
+    private final MusicSearchHistoryMapper searchHistoryMapper;
 
-    public SearchHistoryServiceImpl(TrackService trackService, SearchHistoryMapper searchHistoryMapper) {
+    public SearchHistoryServiceImpl(TrackService trackService, MusicSearchHistoryMapper searchHistoryMapper) {
         super(trackService);
         this.searchHistoryMapper = searchHistoryMapper;
     }

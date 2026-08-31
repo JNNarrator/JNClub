@@ -5,5 +5,5 @@ import com.jnclub.music.user.domain.SearchHistory;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper
-public interface SearchHistoryMapper extends BaseMapper<SearchHistory> {
+public interface MusicSearchHistoryMapper extends BaseMapper<SearchHistory> {
 }
