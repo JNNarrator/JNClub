@@ -82,9 +82,45 @@ push 后 gm 服务器最长 5 分钟内自动构建部署。
    - 检查音乐后端/前端进程或端口：
      ```bash
      ss -ltnp | grep 19005
-     ls -lt /home/jiangnan/music-frontend/dist/assets | head
+     ls -lt /home/jiangnan/music-frontend/assets | head
      ```
 3. 若自动部署未触发或需要手动部署，再通过 `terminal_start` 在 gm 上执行构建脚本。
+
+### 5.3 GitHub fetch 不通时的手动部署（git bundle）
+
+服务器访问 GitHub 偶发超时，自动部署可能一直 `git fetch` 失败。此时可用 git bundle 手动同步：
+
+1. 本地生成增量 bundle：
+   ```bash
+   cd /Users/jiangnan/Documents/workspace/JNClub
+   git bundle create /tmp/jnclub.bundle master ^<当前服务器版本>
+   ```
+2. 用 Netcatty MCP `sftp_upload` 上传到 `/tmp/jnclub.bundle`。
+3. 在 gm 会话执行：
+   ```bash
+   cd /home/jiangnan/JNClub-src
+   git fetch /tmp/jnclub.bundle master:refs/remotes/origin/master
+   git merge --ff-only origin/master
+   ```
+4. 在 gm 上构建后端（`music-frontend` / `jnclub-web` 也可用仓库内 `deploy.sh` 统一构建）：
+   ```bash
+   cd /home/jiangnan/JNClub-src
+   mvn clean package -pl jnclub-gateway -am -Dmaven.test.skip=true -q
+   ```
+5. 部署并重启：
+   ```bash
+   cp -f /home/jiangnan/JNClub-src/jnclub-gateway/target/jnclub-gateway-1.0.0-SNAPSHOT.jar \
+         /home/jiangnan/JNClub/jnclub-gateway/target/jnclub-gateway-1.0.0-SNAPSHOT.jar
+   cp -f /home/jiangnan/JNClub/jnclub-gateway/target/jnclub-gateway-1.0.0-SNAPSHOT.jar \
+         /home/jiangnan/JNClub/jnclub-gateway/target/jnclub-gateway-1.0.0-SNAPSHOT.jar.bak
+   systemctl restart jnclub
+   ```
+6. 验证：
+   ```bash
+   systemctl is-active jnclub
+   ss -tlnp | grep 19005
+   curl -s -o /dev/null -w '%{http_code}\n' http://localhost:19005/music/api/v1/tracks
+   ```
 
 ## 6. 注意
 
