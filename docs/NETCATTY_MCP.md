@@ -122,7 +122,28 @@ push 后 gm 服务器最长 5 分钟内自动构建部署。
    curl -s -o /dev/null -w '%{http_code}\n' http://localhost:19005/music/api/v1/tracks
    ```
 
-## 6. 注意
+## 6. gm 服务器 GitHub 拉取配置
+
+> 2026-08-31 处理记录：服务器上的 `mihomo`（Clash Meta）代理服务挂起，导致自动部署 `git fetch` 一直失败。
+
+当前已改为 **直连 GitHub**，不再依赖 mihomo：
+
+- `mihomo.service` 已停止并禁用：
+  ```bash
+  systemctl stop mihomo
+  systemctl disable mihomo
+  ```
+- 已移除 `/root/.ssh/config` 中 github.com 的 `ProxyCommand nc -X connect -x 127.0.0.1:7890 ...`
+- 已移除 git 全局配置中的 GitHub `http.proxy` 条目。
+- 验证命令：
+  ```bash
+  cd /home/jiangnan/JNClub-src
+  timeout 40 git fetch origin master
+  ```
+
+如果以后要恢复 mihomo 加速，必须先确认 `mihomo.service` 健康、`127.0.0.1:7890` 可访问，再重新加回 SSH `ProxyCommand` 和 git proxy 配置，否则自动部署会再次卡死。
+
+## 7. 注意
 
 - 不要把 `discovery.json`、Netcatty token、服务器密码/私钥写进仓库。
 - 不要再用 Xterminal 作为 AI 运维通道；已有 Xterminal 相关文档/习惯逐步迁移到 Netcatty MCP。
