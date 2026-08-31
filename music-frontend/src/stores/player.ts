@@ -23,6 +23,14 @@ const MODE_STORAGE_KEY = 'player.mode'
 const VOLUME_STORAGE_KEY = 'player.volume'
 const MODE_ORDER: PlayMode[] = ['list', 'one', 'shuffle']
 
+// 播放稳定性参数：
+// - 单曲加载/播放失败后，等待多久自动切到下一首
+// - 从开始加载到真正可播放/出声的超时时间，超时视为卡死并进入失败跳过流程
+// - 拉取直链接口的超时时间，避免后端/蓝奏云慢响应时前端一直转圈
+const FAILED_PLAY_SKIP_DELAY_MS = 5000
+const PLAY_STALL_TIMEOUT_MS = 12000
+const MEDIA_URL_FETCH_TIMEOUT_MS = 15000
+
 function readInitialMode(): PlayMode {
   if (typeof window === 'undefined') return 'list'
   const saved = window.localStorage.getItem(MODE_STORAGE_KEY)
@@ -80,16 +88,26 @@ async function reportProgress(trackId: string | null | undefined, progress: numb
   }
 }
 
+async function fetchJsonWithTimeout(input: string, timeoutMs: number): Promise<any> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    const res = await fetch(input, { signal: controller.signal })
+    return await res.json()
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 async function fetchMediaUrl(trackId: string, force = false): Promise<{ url: string; format: string } | null> {
   // 先查缓存
   const cached = urlCache.get(trackId)
   if (!force && cached && Date.now() < cached.expiresAt) return { url: cached.url, format: cached.format }
   try {
-    const res = await fetch(`/music/api/v1/tracks/${trackId}/media-url`)
-    const payload = await res.json()
-    if (!payload.success || !payload.data?.mediaUrl) {
+    const payload = await fetchJsonWithTimeout(`/music/api/v1/tracks/${trackId}/media-url`, MEDIA_URL_FETCH_TIMEOUT_MS)
+    if (!payload || !payload.success || !payload.data?.mediaUrl) {
       // 检测蓝奏云会话过期错误码
-      if (payload.error?.code === 'LANZOU_SESSION_EXPIRED') {
+      if (payload?.error?.code === 'LANZOU_SESSION_EXPIRED') {
         lanzouSessionExpired.value = true
       }
       return null
@@ -122,9 +140,8 @@ async function fetchMediaUrls(trackIds: string[]): Promise<Map<string, { url: st
   if (idsToFetch.length === 0) return result
   
   try {
-    const res = await fetch(`/music/api/v1/tracks/media-urls?ids=${idsToFetch.join(',')}`)
-    const payload = await res.json()
-    if (payload.success && payload.data) {
+    const payload = await fetchJsonWithTimeout(`/music/api/v1/tracks/media-urls?ids=${idsToFetch.join(',')}`, MEDIA_URL_FETCH_TIMEOUT_MS)
+    if (payload && payload.success && payload.data) {
       for (const [trackId, data] of Object.entries(payload.data)) {
         const mediaData = data as { mediaUrl: string; format?: string; expiresAt?: string }
         if (mediaData.mediaUrl) {
@@ -201,6 +218,13 @@ export const usePlayerStore = defineStore('player', () => {
   let needsResume = false  // 后台切歌后需前台恢复播放
   let mediaRetryCount = 0  // 播放失败(403/网络)后强制重取直链的重试次数
 
+  // 播放稳定性辅助状态
+  let playRequestId = 0        // 每次 playIndex/重试递增，用于丢弃过期异步结果
+  let failureSkipTimer: ReturnType<typeof setTimeout> | null = null
+  let stallTimer: ReturnType<typeof setTimeout> | null = null
+  let consecutiveFailures = 0  // 连续失败自动跳过的计数，避免全部死链时无限循环
+  let switchingSource = false  // 主动清空/切换 src 时抑制空源 error 事件
+
   // 每首歌的就绪状态：idle(未加载) | loading(取直链中) | ready(可播放) | error(失败)
   const readyStates = reactive(new Map<string, 'idle' | 'loading' | 'ready' | 'error'>())
   function setReady(trackId: string, s: 'idle' | 'loading' | 'ready' | 'error') {
@@ -210,6 +234,70 @@ export const usePlayerStore = defineStore('player', () => {
   function getTrackState(trackId?: string): 'idle' | 'loading' | 'ready' | 'error' {
     if (!trackId) return 'idle'
     return readyStates.get(trackId) || 'idle'
+  }
+
+  function clearStallTimer() {
+    if (stallTimer) {
+      clearTimeout(stallTimer)
+      stallTimer = null
+    }
+  }
+
+  function clearFailureSkipTimer() {
+    if (failureSkipTimer) {
+      clearTimeout(failureSkipTimer)
+      failureSkipTimer = null
+    }
+  }
+
+  function clearPlaybackTimers() {
+    clearStallTimer()
+    clearFailureSkipTimer()
+  }
+
+  /** 从开始加载到可播放的超时兜底：防止 CDN/网络卡住时永远转圈 */
+  function scheduleStallTimeout(trackId: string) {
+    clearStallTimer()
+    stallTimer = setTimeout(() => {
+      stallTimer = null
+      if (currentTrack.value?.trackId === trackId && !isPlaying.value) {
+        handlePlaybackFailure(trackId, 'stall-timeout')
+      }
+    }, PLAY_STALL_TIMEOUT_MS)
+  }
+
+  /** 播放失败后等待一小段时间再自动切下一首 */
+  function scheduleFailureSkip(trackId: string) {
+    clearFailureSkipTimer()
+    failureSkipTimer = setTimeout(() => {
+      failureSkipTimer = null
+      if (currentTrack.value?.trackId !== trackId) return
+      // 等待期间已经恢复播放，取消跳过
+      if (isPlaying.value) {
+        consecutiveFailures = 0
+        return
+      }
+      consecutiveFailures++
+      setReady(trackId, 'error')
+      // 队列只有一首，或已经连续失败跳过一整轮：停止，避免死循环
+      if (queue.value.length <= 1 || consecutiveFailures >= queue.value.length) {
+        consecutiveFailures = 0
+        return
+      }
+      // 使用 userTriggered=true 绕过「单曲循环」，失败时一定要真正切到下一首
+      next(true)
+    }, FAILED_PLAY_SKIP_DELAY_MS)
+  }
+
+  /** 统一失败入口：标记错误、停止加载，并安排自动切歌 */
+  function handlePlaybackFailure(trackId: string, _reason: string) {
+    if (currentTrack.value?.trackId !== trackId) return
+    clearStallTimer()
+    loading.value = false
+    isPlaying.value = false
+    mediaRetryCount = 0
+    setReady(trackId, 'error')
+    scheduleFailureSkip(trackId)
   }
 
   const currentTrack = computed(() =>
@@ -233,9 +321,11 @@ export const usePlayerStore = defineStore('player', () => {
       audio.removeEventListener('canplay', pendingReady)
       pendingReady = null
     }
+    clearFailureSkipTimer()
     loading.value = true
     isPlaying.value = false
     // 彻底终止并重置音频元素，避免旧音频残留
+    switchingSource = true
     audio.pause()
     audio.removeAttribute('src')
     audio.load()
@@ -243,6 +333,8 @@ export const usePlayerStore = defineStore('player', () => {
     audio.src = url
     audio.currentTime = 0
     audio.volume = volume.value
+    // 加载/播放超时兜底：CDN 卡住时不再无限转圈
+    scheduleStallTimeout(currentTrack.value?.trackId || '')
 
     // 尝试播放（含锁屏重试）
     // 注意：不在这里设 isPlaying，由 play/pause 事件监听器管理，
@@ -301,6 +393,10 @@ export const usePlayerStore = defineStore('player', () => {
   async function playIndex(index: number) {
     if (!audio) return
     if (index < 0 || index >= queue.value.length) return
+    // 每次手动/自动切歌都使旧的异步取链结果失效，避免慢请求“回头”覆盖新歌
+    const requestId = ++playRequestId
+    clearPlaybackTimers()
+    mediaRetryCount = 0
     // 切歌前上报上一曲进度
     if (currentIndex.value >= 0 && audio.currentTime > 5) {
       reportProgress(queue.value[currentIndex.value]?.trackId, audio.currentTime)
@@ -311,6 +407,7 @@ export const usePlayerStore = defineStore('player', () => {
 
     // 停止旧音频并清空源，防止旧歌在加载期间继续播放
     loading.value = true
+    switchingSource = true
     audio.pause()
     audio.removeAttribute('src')
     audio.load()
@@ -321,10 +418,9 @@ export const usePlayerStore = defineStore('player', () => {
     // 避免直接使用列表里可能已失效的直链导致"点了没声音"。
     setReady(track.trackId, 'loading')
     const result = await fetchMediaUrl(track.trackId)
+    if (requestId !== playRequestId || currentIndex.value !== index) return
     if (!result) {
-      isPlaying.value = false
-      loading.value = false
-      setReady(track.trackId, 'error')
+      handlePlaybackFailure(track.trackId, 'url-fetch')
       return
     }
     setReady(track.trackId, 'ready')
@@ -394,10 +490,14 @@ export const usePlayerStore = defineStore('player', () => {
 
   function stop() {
     if (!audio) return
+    ++playRequestId
+    clearPlaybackTimers()
+    switchingSource = true
     audio.pause()
     audio.removeAttribute('src')
     audio.load()
     isPlaying.value = false
+    loading.value = false
     currentTime.value = 0
     duration.value = 0
   }
@@ -499,9 +599,23 @@ export const usePlayerStore = defineStore('player', () => {
       })
     }
 
+    audio.addEventListener('loadstart', () => {
+      // 新源开始加载后，不再抑制 error 事件，避免漏掉真实播放失败
+      switchingSource = false
+    })
     audio.addEventListener('play', () => {
       isPlaying.value = true
+      clearStallTimer()
+      clearFailureSkipTimer()
+      consecutiveFailures = 0
       requestWakeLock()
+    })
+    audio.addEventListener('playing', () => {
+      isPlaying.value = true
+      clearStallTimer()
+      clearFailureSkipTimer()
+      consecutiveFailures = 0
+      loading.value = false
     })
     audio.addEventListener('pause', () => {
       isPlaying.value = false
@@ -530,12 +644,20 @@ export const usePlayerStore = defineStore('player', () => {
     })
     audio.addEventListener('canplay', () => {
       loading.value = false
-      // 真正可播放：重置 403 重试计数
+      // 真正可播放：重置 403 重试计数和失败跳过计数。
+      // 注意这里不清理 stallTimer：canplay 后若 play() 因浏览器策略被拒，
+      // 仍需超时兜底自动切歌；真正开始出声由 play/playing 清理。
       mediaRetryCount = 0
+      consecutiveFailures = 0
       if (currentTrack.value) setReady(currentTrack.value.trackId, 'ready')
     })
     audio.addEventListener('waiting', () => {
       loading.value = true
+      // 播放中途缓冲太久也走同一套超时跳过逻辑；
+      // 已在失败跳过的等待期内时不再重复计时，避免无限延后切歌
+      if (currentTrack.value && !stallTimer && !failureSkipTimer) {
+        scheduleStallTimeout(currentTrack.value.trackId)
+      }
     })
     audio.addEventListener('ended', () => {
       // 播完上报整曲进度（可视为「已听到结尾」）
@@ -549,33 +671,45 @@ export const usePlayerStore = defineStore('player', () => {
       }
     })
     audio.addEventListener('error', () => {
+      // 主动清空 src / 切歌过程中的空源 error 不参与失败处理
+      if (switchingSource || !audio.currentSrc) return
       loading.value = false
       isPlaying.value = false
+      clearStallTimer()
+      if (!currentTrack.value) return
+
       // 播放失败（直链被 CDN 拒 403 等）：清除该曲直链缓存并强制重取一次
       // 蓝奏云直链有时效，列表里缓存的旧直链可能已失效，重新拉取往往可恢复。
-      if (mediaRetryCount < 2 && currentTrack.value) {
+      if (mediaRetryCount < 2) {
         const tid = currentTrack.value.trackId
+        const retryRequestId = ++playRequestId
         mediaRetryCount++
         setReady(tid, 'loading')
         urlCache.delete(tid)
         // 清源后异步重新拉直链播放
+        switchingSource = true
         audio.removeAttribute('src')
         audio.load()
         fetchMediaUrl(tid, true).then((result) => {
-          if (result && currentIndex.value >= 0) {
+          if (retryRequestId !== playRequestId || currentIndex.value < 0
+              || currentTrack.value?.trackId !== tid) {
+            return
+          }
+          if (result) {
             queue.value = queue.value.map((t, i) =>
               i === currentIndex.value ? { ...t, mediaUrl: result.url } : t)
             setReady(tid, 'ready')
             doPlay(result.url)
           } else {
-            mediaRetryCount = 0
-            setReady(tid, 'error')
+            handlePlaybackFailure(tid, 'retry-fetch-failed')
           }
         })
         return
       }
-      mediaRetryCount = 0
-      if (currentTrack.value) setReady(currentTrack.value.trackId, 'error')
+      // 重试仍失败：标记 error 并等待一定时间后自动切下一首
+      if (currentTrack.value) {
+        handlePlaybackFailure(currentTrack.value.trackId, 'media-error')
+      }
     })
 
     // iOS PWA 后台切歌恢复：回到前台时若需要恢复播放，pause+play 重连音频输出

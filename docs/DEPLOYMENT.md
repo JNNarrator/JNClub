@@ -85,6 +85,8 @@ npm run dev        # http://localhost:5173/jnclub/
 ## 二、线上（服务器）部署
 
 > ⚠️ **JNClub 已接入服务器自动部署**：本地 `git push` 到 master 后，gm 服务器最长 5 分钟内自动构建部署（源码 `/home/jiangnan/JNClub-src` → 产物回填 `/home/jiangnan/JNClub/`，外置 `/home/jiangnan/JNClub/jnclub-gateway/application.yml` 不受影响）。框架说明见 `服务器服务操作/AUTO-DEPLOY.md`；以下为部署环境要素说明。
+>
+> 🔌 **gm 服务器运维通道**：统一使用 Netcatty External MCP，不再使用 Xterminal。连接配置与常用工具见 [NETCATTY_MCP.md](./NETCATTY_MCP.md)。
 
 线上与本地差异集中在 `dufs.base-url` 与 SSO 地址（走 `application.example.yml` 作为模板）。核心原则：**前端和浏览器不接触 dufs 内网地址**，读写都经后端中转。
 
