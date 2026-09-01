@@ -32,6 +32,7 @@ const moduleLabel = computed(() => {
   const n = route.name
   if (n === 'recycle') return '回收站'
   if (n === 'music') return '音乐'
+  if (n === 'webdav') return 'WebDAV'
   if (n === 'extension') return '浏览器插件'
   const m = props.activeModule
   return m === 'bookmarks' ? '收藏夹'

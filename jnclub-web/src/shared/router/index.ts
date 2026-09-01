@@ -76,6 +76,12 @@ const router = createRouter({
       name: 'feeds',
       component: () => import('../layout/FeedsLayout.vue'),
     },
+    // WebDAV 站点管理独立页面（套用与主界面一致的壳：MainLayout 侧栏/TabBar + 模块顶栏）
+    {
+      path: '/webdav',
+      name: 'webdav',
+      component: () => import('../layout/WebdavLayout.vue'),
+    },
   ],
 })
 
@@ -154,6 +160,7 @@ const TITLE_BY_NAME: Record<string, string> = {
   calendar: '日历 - JNClub',
   feeds: '订阅 - JNClub',
   music: '音乐 - JNClub',
+  webdav: 'WebDAV - JNClub',
   'note-create': '新建便签 - JNClub',
   'note-view': '便签 - JNClub',
   'sso-callback': '登录 - JNClub',

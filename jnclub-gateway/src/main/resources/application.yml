@@ -42,6 +42,9 @@ jnclub:
   sa-token-dao:
     crypto-key: ${JNCLUB_DAO_CRYPTO_KEY:jnclub-dev-crypto-key-change-me}
   frontend-url: http://localhost:5173/jnclub/
+  # WebDAV 站点管理：站点密码 AES 加密密钥（生产环境务必通过环境变量覆盖）
+  webdav:
+    crypto-key: ${JNCLUB_WEBDAV_CRYPTO_KEY:jnclub-webdav-dev-key-2026}
   dufs:
     base-url: http://localhost:8000
     public-url: /api/files/jnclub/images/

@@ -201,3 +201,21 @@ CREATE TABLE IF NOT EXISTS sa_token_data (
   expire   BIGINT       DEFAULT 0 COMMENT '过期毫秒时间戳，0 表示永不过期',
   PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Sa-Token 客户端会话持久化表';
+
+-- ==========================================
+-- P4 迁移：WebDAV 站点管理（2026-09）
+-- ⚠️ 一般无需手工执行：后端 WebDavTableInit 启动时幂等自建本表。
+-- 生产库手工执行示例：
+-- CREATE TABLE IF NOT EXISTS t_webdav_server (
+--   id BIGINT PRIMARY KEY AUTO_INCREMENT,
+--   user_id VARCHAR(64) NOT NULL COMMENT 'SSO用户标识',
+--   name VARCHAR(200) DEFAULT '' COMMENT '站点名称',
+--   url VARCHAR(1024) NOT NULL COMMENT 'WebDAV 服务地址',
+--   username VARCHAR(300) DEFAULT '' COMMENT '登录账号，可为空(匿名)',
+--   password VARCHAR(1024) DEFAULT NULL COMMENT '密码(AES密文)',
+--   notes VARCHAR(1000) DEFAULT '' COMMENT '备注',
+--   create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+--   update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+--   INDEX idx_user (user_id)
+-- ) ENGINE=InnoDB DEFAULT
+ CHARSET=utf8mb4 COMMENT='WebDAV 站点管理表';

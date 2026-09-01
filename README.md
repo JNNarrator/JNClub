@@ -1,6 +1,6 @@
 # JNClub - 个人工作台服务
 
-JNClub 是一个前后端分离的个人工作台 Web 服务，包含「收藏夹」「便签」「云盘」「密码库」四大模块，并配套「回收站」（软删除统一管理）、「浏览器收藏助手」（Chrome 扩展）、内嵌「音乐」模块（JNMUSIC 融合，对外路径 `/music/`）。
+JNClub 是一个前后端分离的个人工作台 Web 服务，包含「收藏夹」「便签」「云盘」「密码库」四大模块，并配套「回收站」（软删除统一管理）、「浏览器收藏助手」（Chrome 扩展）、内嵌「音乐」模块（JNMUSIC 融合，对外路径 `/music/`）与「WebDAV」站点管理模块（站内简单文件管理）。
 
 ## 技术栈
 
@@ -96,6 +96,7 @@ VALUES ('JNClub', 'app-jnclub', 'http://localhost:19005/sso/login', 'http://loca
 - ✅ Dashboard 2.0（今日必办、近期动态、趋势、自定义布局）
 - ✅ 通知中心、用户偏好跨会话记忆、日/夜间模式（跟随系统）
 - ✅ 音乐（JNMUSIC 融合：曲目/收藏/播放历史/搜索历史/播放队列/**歌单管理**/**猜你喜欢**/**跨设备播放进度同步**，蓝奏云+dufs 存储）
+- ✅ WebDAV 站点管理（URL + 独立账号密码配置，站内简单文件管理：浏览/上传/下载/新建/删除/重命名，密码 AES 加密存储）
 - ✅ 浏览器收藏助手（Chrome 扩展：一键/批量收藏、右键菜单、网页转便签、**稍后读**、**网页快照**、**保存去重提示**）
 - ✅ SSO 单点登录
 
@@ -142,6 +143,9 @@ jnclub:
     max-size-mb: 500                         # 云盘单文件大小上限
     chunk-size-mb: 2                         # 云盘分片大小
     # temp-dir: /path/to/jnclub-upload       # 分片暂存目录，默认 <tmp>/jnclub-upload
+  # WebDAV 站点管理：站点密码 AES 加密密钥（生产用环境变量 JNCLUB_WEBDAV_CRYPTO_KEY 覆盖）
+  webdav:
+    crypto-key: ${JNCLUB_WEBDAV_CRYPTO_KEY:jnclub-webdav-dev-key-2026}
 ```
 
 **要点**：
@@ -249,12 +253,25 @@ jnclub:
 - `GET /api/v1/admin/lanzou/status` - 蓝奏云状态（管理端）
 - `POST /api/v1/admin/lanzou/login` / `POST /api/v1/admin/lanzou/cookie` / `POST /api/v1/admin/lanzou/refresh-cache` - 蓝奏云登录/缓存管理（管理端）
 
+### WebDAV 站点管理（需登录）
+- `GET /api/webdav/servers` - 我的站点列表（密码不回传）
+- `POST /api/webdav/servers` - 新增站点（密码 AES 加密存储）
+- `PUT /api/webdav/servers/{id}` - 更新站点（password 传空 = 不变）
+- `DELETE /api/webdav/servers/{id}` - 删除站点配置（不影响服务器文件）
+- `POST /api/webdav/servers/{id}/test` - 测试连接（PROPFIND 根目录）
+- `GET /api/webdav/servers/{id}/list?path=` - 列目录（PROPFIND，"" 为根目录）
+- `POST /api/webdav/servers/{id}/mkdir` - 新建文件夹（MKCOL）
+- `POST /api/webdav/servers/{id}/upload?path=` - 上传文件（PUT，multipart）
+- `GET /api/webdav/servers/{id}/download?path=` - 下载文件（GET）
+- `DELETE /api/webdav/servers/{id}/delete?path=&isDir=` - 删除文件/文件夹（DELETE，目录递归）
+- `PUT /api/webdav/servers/{id}/rename` - 重命名（MOVE）
+
 ### 文件读取代理
 - `GET /api/files/**` - 反向代理 dufs 文件（无需登录，只读）
 
 ## 数据库
 
-`docs/init.sql` 包含核心 DDL：`t_directory`、`t_bookmark`、`t_note`、`t_note_asset`、`t_file`、`t_user_preference`、`sa_token_data`；标签/密码库/回收站为增量迁移（`t_tag`、`t_tag_relation`、`t_vault`、`t_vault_meta` 及软删除 `deleted` 列），见 init.sql 底部「迁移脚本」注释。音乐模块表见 `jnclub-module-music/src/main/resources/schema.sql`（`music_track` 等 6 张表）。
+`docs/init.sql` 包含核心 DDL：`t_directory`、`t_bookmark`、`t_note`、`t_note_asset`、`t_file`、`t_user_preference`、`sa_token_data`；标签/密码库/回收站为增量迁移（`t_tag`、`t_tag_relation`、`t_vault`、`t_vault_meta` 及软删除 `deleted` 列），见 init.sql 底部「迁移脚本」注释。音乐模块表见 `jnclub-module-music/src/main/resources/schema.sql`（`music_track` 等 6 张表）。WebDAV 站点表 `t_webdav_server` 由 `WebDavTableInit` 启动幂等自建（无需手工迁移）。
 
 ## 许可证
 
