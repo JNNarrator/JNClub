@@ -101,6 +101,11 @@ public class TrackServiceImpl implements TrackService {
     private final CacheService cacheService;
     private final CacheManager cacheManager;
 
+    /** 单曲「不可播」冷却：trackId -> 在此时刻前视为不可播，避免对持续坏链/坏 URL 每请求都回源蓝奏云。 */
+    private static final long UNPLAYABLE_COOLDOWN_MS = 60_000L;
+    private final java.util.concurrent.ConcurrentHashMap<String, Long> unplayableUntil =
+            new java.util.concurrent.ConcurrentHashMap<>();
+
     public TrackServiceImpl(MusicStorage musicStorage, TrackMapper trackMapper, LyricsCacheMapper lyricsCacheMapper, CacheService cacheService, CacheManager cacheManager) {
         this.musicStorage = musicStorage;
         this.trackMapper = trackMapper;
@@ -163,38 +168,116 @@ public class TrackServiceImpl implements TrackService {
         return PageResponse.<TrackDTO>builder().items(items).page(1).pageSize(0).total((long) items.size()).hasMore(false).build();
     }
 
+    /**
+     * 获取可播放直链。
+     * <p>缓存策略（显式 Caffeine，避免把「不可播」的负面结果缓存住阻碍重试恢复）：
+     * 只有可播放的直链才写入 mediaUrls 缓存；命中且可播则快速返回，否则回源刷新 + 健康预检。</p>
+     */
     @Override
-    @Cacheable(value = "mediaUrls", key = "#trackId")
     public MediaUrlDTO getMediaUrl(String trackId) {
         String id = requireTrackId(trackId);
-        // L2: 先查 MySQL 缓存的直链（双重校验：数据库过期时间 + 直链 e 参数，防死链）
-        var cachedTrack = trackMapper.selectById(id);
-        if (cachedTrack != null && isMediaUrlFresh(cachedTrack)) {
-            // 有效缓存 → 直接返回，不调蓝奏云
-            String fmt = cachedTrack.getFormat() != null ? cachedTrack.getFormat() : "";
-            return MediaUrlDTO.builder().trackId(id).mediaUrl(cachedTrack.getMediaUrl()).format(fmt)
-                    .expiresAt(cachedTrack.getUrlExpiresAt()).build();
+        // 先查内存缓存（可播结果才在缓存里）
+        Cache cache = cacheManager.getCache("mediaUrls");
+        MediaUrlDTO hit = cacheGet(cache, id);
+        if (hit != null && Boolean.TRUE.equals(hit.getPlayable())) {
+            return hit;
         }
-        // 缓存失效 → 调蓝奏云 → 回写 MySQL
+        // L2: 再查 MySQL 缓存的直链（双重校验：数据库过期时间 + 直链 e 参数 + 健康标志）
+        var cachedTrack = trackMapper.selectById(id);
+        if (cachedTrack != null && isMediaUrlFresh(cachedTrack) && isPlayable(cachedTrack)) {
+            String fmt = cachedTrack.getFormat() != null ? cachedTrack.getFormat() : "";
+            var dto = MediaUrlDTO.builder().trackId(id).mediaUrl(cachedTrack.getMediaUrl()).format(fmt)
+                    .expiresAt(cachedTrack.getUrlExpiresAt()).playable(true).build();
+            putMediaUrlCache(cache, id, dto);
+            return dto;
+        }
+        // 缓存/Mysql 失效或上次预检失败 → 强制回源刷新直链，并对新直链做健康预检
+        return refreshAndCheck(id);
+    }
+
+    private void putMediaUrlCache(Cache cache, String id, MediaUrlDTO dto) {
+        if (cache != null && Boolean.TRUE.equals(dto.getPlayable())) {
+            cache.put(id, dto);
+        }
+    }
+
+    /**
+     * 强制回源拉直链 + 对新直链做健康预检，回写 MySQL 并返回带 playable 结果的 DTO。
+     * 蓝奏云可用但个别文件 403 时，返回 playable=false（mediaUrl 保留，供前端兜底/手动重试），
+     * 不抛异常，避免把「单曲坏链」误判为整个模块失败。
+     */
+    private MediaUrlDTO refreshAndCheck(String id) {
+        // 冷却期内：最近刚判定不可播，直接返回不可播，避免每请求都回源蓝奏云
+        Long until = unplayableUntil.get(id);
+        if (until != null && until > System.currentTimeMillis()) {
+            return MediaUrlDTO.builder().trackId(id).playable(false).message("MEDIA_UNAVAILABLE").build();
+        }
         String format = "";
         for (SongFolder sf : loadSongFolders()) {
             if (id.equals(sf.audioFile().id())) { format = sf.parseFolderName().format(); break; }
         }
         try {
             var dl = musicStorage.getDownloadUrlWithExpiry(id);
-            var dto = MediaUrlDTO.builder().trackId(id).mediaUrl(dl.url()).format(format)
-                    .expiresAt(toOffsetDateTime(dl.expiresAt())).build();
-            // 回写 MySQL
-            if (cachedTrack != null) {
-                cachedTrack.setMediaUrl(dto.getMediaUrl());
-                cachedTrack.setUrlExpiresAt(dto.getExpiresAt());
-                cachedTrack.setFormat(format);
-                trackMapper.updateById(cachedTrack);
+            boolean ok = checkPlayable(dl.url());
+            if (ok) {
+                unplayableUntil.remove(id);
+            } else {
+                unplayableUntil.put(id, System.currentTimeMillis() + UNPLAYABLE_COOLDOWN_MS);
+                if (dl.url() == null || dl.url().isBlank()) {
+                    markUnplayable(id, "MEDIA_UNAVAILABLE");
+                    return MediaUrlDTO.builder().trackId(id).playable(false).message("MEDIA_UNAVAILABLE").build();
+                }
             }
+            var dto = MediaUrlDTO.builder().trackId(id).mediaUrl(dl.url()).format(format)
+                    .expiresAt(toOffsetDateTime(dl.expiresAt()))
+                    .playable(ok).message(ok ? null : "MEDIA_UNAVAILABLE").build();
+            persistUrl(id, dto);
+            putMediaUrlCache(cacheManager.getCache("mediaUrls"), id, dto);
             return dto;
+        } catch (BusinessException e) {
+            throw e;
         } catch (Exception e) {
-            throw toLanzouBusinessException(e, "获取播放链接失败");
+            // 用与全局一致的异常映射判断：会话失效是全局问题 → 抛出提示重新认证；
+            // 其余单曲取链失败 → 返回不可播标志让前端快速跳过，不抛 500。
+            BusinessException be = toLanzouBusinessException(e, "获取播放链接失败");
+            if (be.getErrorCode() == ErrorCode.LANZOU_SESSION_EXPIRED) {
+                unplayableUntil.remove(id);
+                throw be;
+            }
+            log.warn("单曲直链不可用 trackId={}: {}", id, e.getMessage());
+            markUnplayable(id, "MEDIA_UNAVAILABLE");
+            unplayableUntil.put(id, System.currentTimeMillis() + UNPLAYABLE_COOLDOWN_MS);
+            return MediaUrlDTO.builder().trackId(id).playable(false).message("MEDIA_UNAVAILABLE").build();
         }
+    }
+
+    /** 回写 MySQL：更新直链、过期时间、可播放标志与失败原因。 */
+    private void persistUrl(String id, MediaUrlDTO dto) {
+        Track t = trackMapper.selectById(id);
+        if (t == null) return;
+        t.setMediaUrl(dto.getMediaUrl());
+        t.setUrlExpiresAt(dto.getExpiresAt());
+        t.setFormat(dto.getFormat());
+        t.setPlayable(Boolean.TRUE.equals(dto.getPlayable()) ? 1 : 0);
+        t.setLastError(dto.getMessage());
+        trackMapper.updateById(t);
+    }
+
+    /** 记录单曲不可用（保留旧 URL 兜底，仅更新标志）。 */
+    private void markUnplayable(String id, String reason) {
+        try {
+            Track t = trackMapper.selectById(id);
+            if (t != null) {
+                t.setPlayable(0);
+                t.setLastError(reason);
+                trackMapper.updateById(t);
+            }
+        } catch (Exception ignore) { /* 记录失败不影响主流程 */ }
+    }
+
+    /** 缓存条目是否可用：fresh 且上次预检为可播放（playable 缺省视为可播放，兼容旧数据）。 */
+    private static boolean isPlayable(Track t) {
+        return t.getPlayable() == null || t.getPlayable() == 1;
     }
 
     @Override
@@ -204,15 +287,19 @@ public class TrackServiceImpl implements TrackService {
         try {
             // 强制调蓝奏云拉取新直链，不走缓存
             var dl = musicStorage.getDownloadUrlWithExpiry(id);
+            boolean ok = checkPlayable(dl.url());
             var dto = MediaUrlDTO.builder().trackId(id)
                     .mediaUrl(dl.url())
-                    .expiresAt(toOffsetDateTime(dl.expiresAt())).build();
+                    .expiresAt(toOffsetDateTime(dl.expiresAt()))
+                    .playable(ok).message(ok ? null : "MEDIA_UNAVAILABLE").build();
             // 回写 MySQL
             Track cachedTrack = trackMapper.selectById(id);
             if (cachedTrack != null) {
                 cachedTrack.setMediaUrl(dto.getMediaUrl());
                 cachedTrack.setUrlExpiresAt(dto.getExpiresAt());
                 cachedTrack.setFormat(dto.getFormat());
+                cachedTrack.setPlayable(ok ? 1 : 0);
+                cachedTrack.setLastError(ok ? null : "MEDIA_UNAVAILABLE");
                 trackMapper.updateById(cachedTrack);
             }
             return dto;
@@ -238,7 +325,7 @@ public class TrackServiceImpl implements TrackService {
             if (ct != null && isMediaUrlFresh(ct)) {
                 String fmt = ct.getFormat() != null ? ct.getFormat() : "";
                 result.put(id, MediaUrlDTO.builder().trackId(id).mediaUrl(ct.getMediaUrl()).format(fmt)
-                        .expiresAt(ct.getUrlExpiresAt()).build());
+                        .expiresAt(ct.getUrlExpiresAt()).playable(isPlayable(ct)).build());
             } else {
                 missing.add(id);
             }
@@ -251,13 +338,16 @@ public class TrackServiceImpl implements TrackService {
                 if (urlMap.containsKey(id)) {
                     var dl = urlMap.get(id);
                     var dto = MediaUrlDTO.builder().trackId(id).mediaUrl(dl.url())
-                            .format(sf.parseFolderName().format()).expiresAt(toOffsetDateTime(dl.expiresAt())).build();
+                            .format(sf.parseFolderName().format()).expiresAt(toOffsetDateTime(dl.expiresAt()))
+                            .playable(true).build();
                     result.put(id, dto);
                     // 回写 MySQL — 从 cacheMap 复用避免二次查询
                     Track ct = cacheMap.get(id);
                     if (ct != null) {
                         ct.setMediaUrl(dto.getMediaUrl());
                         ct.setUrlExpiresAt(dto.getExpiresAt());
+                        ct.setPlayable(1);
+                        ct.setLastError(null);
                         trackMapper.updateById(ct);
                     }
                 }
@@ -516,6 +606,56 @@ public class TrackServiceImpl implements TrackService {
         if (expiresAt == null || !expiresAt.isAfter(OffsetDateTime.now())) return false;
         return LanzouApiClient.resolveRealExpiry(url).isAfter(Instant.now());
     }
+
+    /**
+     * 直链健康预检：用 Range 请求（bytes=0-0）探测直链是否真的可拉取，尽量贴近浏览器播放的
+     * 真实可达性（不带会话 Cookie，避免「带 Cookie 才能下」的假阳性）。
+     * <ul>
+     *   <li>200/206 → 可播放（音频服务常返回 206 部分内容）</li>
+     *   <li>403/404/410 等明确 4xx → 不可播（链接失效/被拒）</li>
+     *   <li>5xx / 超时 / 网络异常 → 视为可播放（保守，避免把临时抖动误判为死链而反复回源）</li>
+     * </ul>
+     * 单次预检结果是「建议性」：即便误判为不可播，上层因不缓存负面结果，下个请求会重新校验自愈。
+     */
+    private static boolean checkPlayable(String url) {
+        if (url == null || url.isBlank()) return false;
+        try {
+            okhttp3.Request req = new okhttp3.Request.Builder()
+                    .url(url)
+                    .header("Range", "bytes=0-0")
+                    .header("User-Agent", UA)
+                    .header("Accept", "*/*")
+                    .header("Accept-Encoding", "identity")
+                    .get()
+                    .build();
+            try (okhttp3.Response resp = mediaHealthClient.newCall(req).execute()) {
+                int code = resp.code();
+                if (code == 200 || code == 206) return true;
+                if (code >= 400 && code < 500) {
+                    // 403 常见为 CDN 拒绝失效链接；404/410 为文件不存在/已取消。这些视为不可播。
+                    // 429(限流)/401(鉴权) 语义模糊，保守按可播处理，避免误判死链。
+                    if (code == 403 || code == 404 || code == 410) return false;
+                    return true;
+                }
+                // 5xx / 其它 → 保守按可播处理
+                return true;
+            }
+        } catch (Exception e) {
+            // 网络/超时等异常：保守按可播处理，避免单次抖动触发反复回源
+            return true;
+        }
+    }
+
+    private static final String UA =
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                    + "(KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36";
+
+    private static final okhttp3.OkHttpClient mediaHealthClient = new okhttp3.OkHttpClient.Builder()
+            .connectTimeout(6, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(6, java.util.concurrent.TimeUnit.SECONDS)
+            .followRedirects(true)
+            .followSslRedirects(true)
+            .build();
 
     private String downloadText(String url) {
         okhttp3.Request req = new okhttp3.Request.Builder().url(url).build();

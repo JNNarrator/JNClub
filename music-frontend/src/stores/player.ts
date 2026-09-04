@@ -30,6 +30,8 @@ const MODE_ORDER: PlayMode[] = ['list', 'one', 'shuffle']
 const FAILED_PLAY_SKIP_DELAY_MS = 5000
 const PLAY_STALL_TIMEOUT_MS = 12000
 const MEDIA_URL_FETCH_TIMEOUT_MS = 15000
+// 取链即失败 / 明确不可播（playable=false）时，不等 5s，尽快跳到下一可播曲目
+const FAST_FAIL_SKIP_DELAY_MS = 1000
 
 function readInitialMode(): PlayMode {
   if (typeof window === 'undefined') return 'list'
@@ -67,6 +69,15 @@ async function releaseWakeLock() {
 // 前端直链缓存：trackId -> { url, format, expiresAt }
 const urlCache = new Map<string, { url: string; format: string; expiresAt: number }>()
 
+// 可播放候选池：trackId -> true=已知可播（直链已成功取得），false=已知坏链（取链失败/播放认证失败）
+// 失败自动切换时优先在此池中找下一首「确定可播」的，而不是傻顺序切索引。
+const knownPool = new Map<string, boolean>()
+
+function markKnownGood(trackId?: string) { if (trackId) knownPool.set(trackId, true) }
+function markKnownBad(trackId?: string) { if (trackId) knownPool.set(trackId, false) }
+function isKnownGood(trackId?: string) { return !!trackId && knownPool.get(trackId) === true }
+function isKnownBad(trackId?: string) { return !!trackId && knownPool.get(trackId) === false }
+
 // ─── 播放进度上报（跨设备「继续播放」） ───
 let lastReportedTrackId: string | null = null
 let lastReportedAt = 0
@@ -99,25 +110,36 @@ async function fetchJsonWithTimeout(input: string, timeoutMs: number): Promise<a
   }
 }
 
-async function fetchMediaUrl(trackId: string, force = false): Promise<{ url: string; format: string } | null> {
+// 取链结果：null=网络/接口异常；{ playable:false }=后端明确判定不可播（直接快跳）；
+// { url, format }=可播放直链。
+type MediaUrlResult = { url: string; format: string; playable: true } | { url: null; format: ''; playable: false; message?: string } | null
+
+async function fetchMediaUrl(trackId: string, force = false): Promise<MediaUrlResult> {
   // 先查缓存
   const cached = urlCache.get(trackId)
-  if (!force && cached && Date.now() < cached.expiresAt) return { url: cached.url, format: cached.format }
+  if (!force && cached && Date.now() < cached.expiresAt) {
+    return { url: cached.url, format: cached.format, playable: true }
+  }
   try {
     const payload = await fetchJsonWithTimeout(`/music/api/v1/tracks/${trackId}/media-url`, MEDIA_URL_FETCH_TIMEOUT_MS)
-    if (!payload || !payload.success || !payload.data?.mediaUrl) {
-      // 检测蓝奏云会话过期错误码
-      if (payload?.error?.code === 'LANZOU_SESSION_EXPIRED') {
-        lanzouSessionExpired.value = true
-      }
+    if (payload?.error?.code === 'LANZOU_SESSION_EXPIRED') {
+      lanzouSessionExpired.value = true
+      markKnownBad(trackId)
       return null
+    }
+    // 后端明确判定不可播（playable=false 或缺少 mediaUrl）→ 直接标记坏链
+    if (!payload || !payload.success || !payload.data?.mediaUrl || payload.data.playable === false) {
+      markKnownBad(trackId)
+      return { url: null, format: '', playable: false, message: payload?.data?.message }
     }
     const expiresAt = payload.data.expiresAt
       ? new Date(payload.data.expiresAt).getTime()
       : Date.now() + 3.5 * 60 * 60 * 1000
     urlCache.set(trackId, { url: payload.data.mediaUrl, format: payload.data.format || '', expiresAt })
-    return { url: payload.data.mediaUrl, format: payload.data.format || '' }
+    markKnownGood(trackId)
+    return { url: payload.data.mediaUrl, format: payload.data.format || '', playable: true }
   } catch {
+    // 网络/超时异常：不标记坏链（可能是临时抖动），让上层走正常失败流程
     return null
   }
 }
@@ -132,6 +154,7 @@ async function fetchMediaUrls(trackIds: string[]): Promise<Map<string, { url: st
     const cached = urlCache.get(id)
     if (cached && Date.now() < cached.expiresAt) {
       result.set(id, { url: cached.url, format: cached.format })
+      markKnownGood(id)
     } else {
       idsToFetch.push(id)
     }
@@ -143,13 +166,17 @@ async function fetchMediaUrls(trackIds: string[]): Promise<Map<string, { url: st
     const payload = await fetchJsonWithTimeout(`/music/api/v1/tracks/media-urls?ids=${idsToFetch.join(',')}`, MEDIA_URL_FETCH_TIMEOUT_MS)
     if (payload && payload.success && payload.data) {
       for (const [trackId, data] of Object.entries(payload.data)) {
-        const mediaData = data as { mediaUrl: string; format?: string; expiresAt?: string }
-        if (mediaData.mediaUrl) {
+        const mediaData = data as { mediaUrl: string; format?: string; expiresAt?: string; playable?: boolean }
+        const playable = mediaData.playable !== false
+        if (mediaData.mediaUrl && playable) {
           const expiresAt = mediaData.expiresAt
             ? new Date(mediaData.expiresAt).getTime()
             : Date.now() + 3.5 * 60 * 60 * 1000
           urlCache.set(trackId, { url: mediaData.mediaUrl, format: mediaData.format || '', expiresAt })
           result.set(trackId, { url: mediaData.mediaUrl, format: mediaData.format || '' })
+          markKnownGood(trackId)
+        } else if (!playable) {
+          markKnownBad(trackId)
         }
       }
     }
@@ -157,8 +184,8 @@ async function fetchMediaUrls(trackIds: string[]): Promise<Map<string, { url: st
     // 批量获取失败，回退到单个获取
     for (const id of idsToFetch) {
       const singleResult = await fetchMediaUrl(id)
-      if (singleResult) {
-        result.set(id, singleResult)
+      if (singleResult?.url) {
+        result.set(id, { url: singleResult.url, format: singleResult.format })
       }
     }
   }
@@ -266,8 +293,8 @@ export const usePlayerStore = defineStore('player', () => {
     }, PLAY_STALL_TIMEOUT_MS)
   }
 
-  /** 播放失败后等待一小段时间再自动切下一首 */
-  function scheduleFailureSkip(trackId: string) {
+  /** 播放失败后等待一小段时间再自动切到「可播放」的下一首 */
+  function scheduleFailureSkip(trackId: string, fastSkip = false) {
     clearFailureSkipTimer()
     failureSkipTimer = setTimeout(() => {
       failureSkipTimer = null
@@ -279,25 +306,59 @@ export const usePlayerStore = defineStore('player', () => {
       }
       consecutiveFailures++
       setReady(trackId, 'error')
+      markKnownBad(trackId)
       // 队列只有一首，或已经连续失败跳过一整轮：停止，避免死循环
       if (queue.value.length <= 1 || consecutiveFailures >= queue.value.length) {
         consecutiveFailures = 0
         return
       }
-      // 使用 userTriggered=true 绕过「单曲循环」，失败时一定要真正切到下一首
-      next(true)
-    }, FAILED_PLAY_SKIP_DELAY_MS)
+      // 智能跳到「已知可播放」的下一首；找不到时按顺序前进（并跳过已知坏链）。
+      // userTriggered=true 绕过「单曲循环」，失败时一定要真正切歌。
+      nextPlayable(true)
+    }, fastSkip ? FAST_FAIL_SKIP_DELAY_MS : FAILED_PLAY_SKIP_DELAY_MS)
   }
 
-  /** 统一失败入口：标记错误、停止加载，并安排自动切歌 */
-  function handlePlaybackFailure(trackId: string, _reason: string) {
+  /** 统一失败入口：标记错误、停止加载，并安排自动切歌。
+   *  fastSkip=true 表示「确定性失败」（取链失败/后端判不可播），尽快跳走，不等 5s。 */
+  function handlePlaybackFailure(trackId: string, _reason: string, fastSkip = false) {
     if (currentTrack.value?.trackId !== trackId) return
     clearStallTimer()
     loading.value = false
     isPlaying.value = false
     mediaRetryCount = 0
     setReady(trackId, 'error')
-    scheduleFailureSkip(trackId)
+    markKnownBad(trackId)
+    scheduleFailureSkip(trackId, fastSkip)
+  }
+
+  /**
+   * 智能跳过：优先选下一个「已知可播」曲目；无则顺序前进，但跳过「已知坏链」。
+   * 全部候选都被试过（consecutiveFailures 已达一整轮）时由调用方停止，这里不防死循环。
+   */
+  function nextPlayable(userTriggered = true) {
+    if (!queue.value.length) return
+    const n = queue.value.length
+    if (n <= 1) { next(userTriggered); return }
+    let start = currentIndex.value
+    // 1) 优先：从当前起向后找已知可播的曲目
+    for (let step = 1; step <= n - 1; step++) {
+      const idx = (start + step) % n
+      const t = queue.value[idx]
+      if (t && isKnownGood(t.trackId) && idx !== currentIndex.value) {
+        playIndex(idx)
+        return
+      }
+    }
+    // 2) 没有已知可播：顺序前进，但跳过已知坏链
+    for (let step = 1; step <= n; step++) {
+      const idx = (start + step) % n
+      const t = queue.value[idx]
+      if (t && isKnownBad(t.trackId)) continue
+      playIndex(idx)
+      return
+    }
+    // 3) 全是坏链：退化为顺序 next（让连败保护决定是否停止）
+    next(userTriggered)
   }
 
   const currentTrack = computed(() =>
@@ -420,10 +481,17 @@ export const usePlayerStore = defineStore('player', () => {
     const result = await fetchMediaUrl(track.trackId)
     if (requestId !== playRequestId || currentIndex.value !== index) return
     if (!result) {
+      // 网络/超时等异常（非确定性坏链）→ 走正常失败流程，等 5s 再切
       handlePlaybackFailure(track.trackId, 'url-fetch')
       return
     }
+    if (!result.playable) {
+      // 后端明确判定不可播 → 快速跳过到下一可播曲目
+      handlePlaybackFailure(track.trackId, 'not-playable', true)
+      return
+    }
     setReady(track.trackId, 'ready')
+    markKnownGood(track.trackId)
     // 回写到 queue 中，后续切回这首歌不再请求
     queue.value = queue.value.map((t, i) => i === index ? { ...t, mediaUrl: result.url } : t)
     doPlay(result.url)
@@ -695,13 +763,14 @@ export const usePlayerStore = defineStore('player', () => {
               || currentTrack.value?.trackId !== tid) {
             return
           }
-          if (result) {
+          if (result?.playable) {
             queue.value = queue.value.map((t, i) =>
               i === currentIndex.value ? { ...t, mediaUrl: result.url } : t)
             setReady(tid, 'ready')
             doPlay(result.url)
           } else {
-            handlePlaybackFailure(tid, 'retry-fetch-failed')
+            // 重取后仍不可播（含后端 playable=false）：快速跳到下一可播曲目
+            handlePlaybackFailure(tid, 'retry-fetch-failed', true)
           }
         })
         return

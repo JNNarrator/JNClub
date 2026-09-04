@@ -54,6 +54,11 @@ public class MusicPlaylistTableInit implements ApplicationRunner {
                 "ALTER TABLE music_play_history ADD COLUMN progress_seconds INT DEFAULT 0 COMMENT '最近播放进度（秒）' AFTER played_at");
         ensureColumn("music_play_history", "updated_at",
                 "ALTER TABLE music_play_history ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最近上报时间' AFTER progress_seconds");
+        // 播放直链健康预检：记录最近一次预检是否可播放及失败原因，供 getMediaUrl 快速判断
+        ensureColumn("music_track", "playable",
+                "ALTER TABLE music_track ADD COLUMN playable TINYINT(1) DEFAULT 1 COMMENT '直链健康预检：1可播放 0不可播' AFTER url_expires_at");
+        ensureColumn("music_track", "last_error",
+                "ALTER TABLE music_track ADD COLUMN last_error VARCHAR(128) DEFAULT NULL COMMENT '最近直链预检失败原因' AFTER playable");
     }
 
     private void ensureColumn(String table, String column, String alterSql) {

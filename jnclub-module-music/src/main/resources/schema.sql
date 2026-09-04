@@ -12,6 +12,8 @@ CREATE TABLE IF NOT EXISTS music_track (
     lyric_url    VARCHAR(512)  DEFAULT NULL COMMENT '歌词文件相对路径',
     media_url    VARCHAR(512)  DEFAULT NULL COMMENT '播放直链缓存',
     url_expires_at DATETIME    DEFAULT NULL COMMENT '直链过期时间',
+    playable     TINYINT(1)    DEFAULT 1 COMMENT '直链健康预检：1可播放 0不可播',
+    last_error   VARCHAR(128)  DEFAULT NULL COMMENT '最近直链预检失败原因',
     created_at   DATETIME      DEFAULT CURRENT_TIMESTAMP COMMENT '入库时间',
     updated_at   DATETIME      DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     INDEX idx_name (name),
