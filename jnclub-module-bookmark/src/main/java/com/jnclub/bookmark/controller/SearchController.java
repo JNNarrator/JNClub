@@ -75,9 +75,6 @@ public class SearchController {
         addGroup(groups, "files", "云盘");
         addGroup(groups, "vault", "密码库");
         addGroup(groups, "todos", "待办");
-        addGroup(groups, "readLater", "稍后读");
-        addGroup(groups, "feeds", "订阅");
-        addGroup(groups, "feedItems", "文章");
         addGroup(groups, "tracks", "音乐");
 
         Map<String, Object> result = new LinkedHashMap<>();
@@ -85,7 +82,6 @@ public class SearchController {
         result.put("groups", groups);
         result.put("commands", List.of(
                 Map.of("key", "go.todos", "label", "待办清单"),
-                Map.of("key", "go.feeds", "label", "RSS 订阅"),
                 Map.of("key", "note.new", "label", "新建便签"),
                 Map.of("key", "bookmark.new", "label", "新建收藏")
         ));

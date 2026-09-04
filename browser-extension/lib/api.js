@@ -102,17 +102,12 @@ export function flattenDirs(dirs, depth = 0, out = []) {
   return out
 }
 
-/** 创建收藏（readLater: 0/1 透传给后端稍后读标记） */
-export async function createBookmark({ title, url, directoryId, readLater = 0 }) {
+/** 创建收藏 */
+export async function createBookmark({ title, url, directoryId }) {
   return api('/api/bookmarks', {
     method: 'POST',
-    body: { title, url, directoryId, readLater },
+    body: { title, url, directoryId },
   })
-}
-
-/** 捕获网页快照（服务端抓取，需先有收藏记录） */
-export async function captureSnapshot(bookmarkId) {
-  return api(`/api/snapshots/${bookmarkId}`, { method: 'POST' })
 }
 
 /** 查询某目录全部收藏（批量去重用） */

@@ -115,7 +115,6 @@ public class TodoTableInit implements ApplicationRunner {
         ensureIndex("t_todo", "idx_user_completed", "user_id, completed, due_date");
         ensureIndex("t_todo", "idx_remind", "remind_at, remind_notified");
         ensureIndex("t_bookmark", "idx_user_updated", "user_id, update_time");
-        ensureIndex("t_feed_item", "idx_feed_created", "feed_id, create_time");
         ensureIndex("t_notification", "idx_user_read", "user_id, read_flag, create_time");
         ensureIndex("t_search_history", "idx_user_time", "user_id, create_time");
     }

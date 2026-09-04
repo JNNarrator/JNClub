@@ -7,7 +7,7 @@
 import { ref, watch, computed, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { NDrawer, NInput, NIcon, NSpin, NEllipsis } from 'naive-ui'
-import { Search, Bookmark, StickyNote, FileText, KeyRound, Tag, Music, ArrowRight, Lock, Moon, Trash2, LayoutDashboard, Puzzle, Plus, ListTodo, BookOpen, Rss, Newspaper, ExternalLink } from 'lucide-vue-next'
+import { Search, Bookmark, StickyNote, FileText, KeyRound, Tag, Music, ArrowRight, Lock, Moon, Trash2, LayoutDashboard, Puzzle, Plus, ListTodo } from 'lucide-vue-next'
 import JEmptyState from '../../../shared/components/ui/JEmptyState.vue'
 import axios from 'axios'
 import { JGradientText } from '../../../shared/components/animation'
@@ -38,13 +38,10 @@ const result = ref<{
   tags: any[]
   tracks: any[]
   todos: any[]
-  readLater: any[]
-  feeds: any[]
-  feedItems: any[]
   parsed?: any
-}>({ bookmarks: [], notes: [], files: [], vault: [], tags: [], tracks: [], todos: [], readLater: [], feeds: [], feedItems: [] })
+}>({ bookmarks: [], notes: [], files: [], vault: [], tags: [], tracks: [], todos: [] })
 
-const typeFilter = ref<'all' | 'bookmarks' | 'notes' | 'files' | 'vault' | 'tags' | 'tracks' | 'todos' | 'readLater' | 'feeds' | 'feedItems'>('all')
+const typeFilter = ref<'all' | 'bookmarks' | 'notes' | 'files' | 'vault' | 'tags' | 'tracks' | 'todos'>('all')
 
 const typeFilterOptions: Array<{ label: string; value: typeof typeFilter.value }> = [
   { label: '全部', value: 'all' },
@@ -55,12 +52,9 @@ const typeFilterOptions: Array<{ label: string; value: typeof typeFilter.value }
   { label: '标签', value: 'tags' },
   { label: '音乐', value: 'tracks' },
   { label: '待办', value: 'todos' },
-  { label: '稍后读', value: 'readLater' },
-  { label: '订阅源', value: 'feeds' },
-  { label: '文章', value: 'feedItems' },
 ]
 
-const shouldShowGroup = (key: 'bookmarks' | 'notes' | 'files' | 'vault' | 'tags' | 'tracks' | 'todos' | 'readLater' | 'feeds' | 'feedItems') =>
+const shouldShowGroup = (key: 'bookmarks' | 'notes' | 'files' | 'vault' | 'tags' | 'tracks' | 'todos') =>
   typeFilter.value === 'all' || typeFilter.value === key
 
 /* ─── 搜索历史（服务端为主，localStorage 兜底，最多 10 条） ─── */
@@ -150,7 +144,7 @@ let searchCtl: AbortController | null = null
 watch(() => props.show, (v) => {
   if (v) {
     keyword.value = ''
-    result.value = { bookmarks: [], notes: [], files: [], vault: [], tags: [], tracks: [], todos: [], readLater: [], feeds: [], feedItems: [] }
+    result.value = { bookmarks: [], notes: [], files: [], vault: [], tags: [], tracks: [], todos: [] }
     typeFilter.value = 'all'
     searched.value = false
     activeIndex.value = -1
@@ -165,7 +159,7 @@ watch(() => props.show, (v) => {
 const doSearch = async () => {
   const kw = keyword.value.trim()
   if (!kw) {
-    result.value = { bookmarks: [], notes: [], files: [], vault: [], tags: [], tracks: [], todos: [], readLater: [], feeds: [], feedItems: [] }
+    result.value = { bookmarks: [], notes: [], files: [], vault: [], tags: [], tracks: [], todos: [] }
     searched.value = false
     return
   }
@@ -176,7 +170,7 @@ const doSearch = async () => {
   try {
     const res = await axios.get('/api/search', { params: { keyword: kw, limit: 20 }, signal: ctl.signal })
     if (res.data.code === 200) {
-      result.value = res.data.data || { bookmarks: [], notes: [], files: [], vault: [], tags: [], tracks: [], todos: [], readLater: [], feeds: [], feedItems: [] }
+      result.value = res.data.data || { bookmarks: [], notes: [], files: [], vault: [], tags: [], tracks: [], todos: [] }
       searched.value = true
       activeIndex.value = -1
       pushHistory(kw)
@@ -205,7 +199,7 @@ const onInput = () => {
 
 const total = () => result.value.bookmarks.length + result.value.notes.length + result.value.files.length
   + result.value.vault.length + result.value.tags.length + result.value.tracks.length
-  + result.value.todos.length + result.value.readLater.length + result.value.feeds.length + result.value.feedItems.length
+  + result.value.todos.length
 
 const handleJump = (module: 'bookmarks' | 'notes' | 'files' | 'vault' | 'music', directoryId: number | null) => {
   emit('close')
@@ -227,13 +221,6 @@ const downloadFile = (id: number | string) => {
   window.open(`/api/clouddisk/files/${id}/download`, '_blank')
 }
 const goTodos = (id?: number) => goRoute(id ? `/todos?highlight=${id}` : '/todos')
-const goFeeds = (feedId?: number, itemId?: number) => {
-  const params = new URLSearchParams()
-  if (feedId != null) params.set('feedId', String(feedId))
-  if (itemId != null) params.set('itemId', String(itemId))
-  const qs = params.toString()
-  goRoute(qs ? `/feeds?${qs}` : '/feeds')
-}
 
 /* ─── 最近打开（本地记录，空输入时展示）─── */
 const RECENT_KIND_META: Record<RecentItemKind, { label: string; icon: any }> = {
@@ -288,7 +275,7 @@ const removeSyntax = (kind: 'type' | 'date' | 'tag') => {
   if (keyword.value.trim()) {
     doSearch()
   } else {
-    result.value = { bookmarks: [], notes: [], files: [], vault: [], tags: [], tracks: [], todos: [], readLater: [], feeds: [], feedItems: [] }
+    result.value = { bookmarks: [], notes: [], files: [], vault: [], tags: [], tracks: [], todos: [] }
     searched.value = false
     refreshHistory()
   }
@@ -320,7 +307,6 @@ const COMMANDS: CommandAction[] = [
   { key: 'module.vault', label: '密码库', icon: KeyRound, group: '导航' },
   { key: 'module.music', label: '音乐', icon: Music, group: '导航' },
   { key: 'go.todos', label: '待办清单', icon: ListTodo, group: '导航' },
-  { key: 'go.feeds', label: 'RSS 订阅', icon: Rss, group: '导航' },
   { key: 'go.overview', label: '概览看板', icon: LayoutDashboard, group: '导航' },
   { key: 'go.recycle', label: '回收站', icon: Trash2, group: '导航' },
   { key: 'go.extension', label: '下载中心', icon: Puzzle, group: '导航' },
@@ -359,7 +345,7 @@ interface SearchNavItem {
   key: string
   label: string
   group: string
-  type: 'command' | 'bookmark' | 'note' | 'file' | 'vault' | 'tag' | 'track' | 'todo' | 'readLater' | 'feed' | 'feedItem'
+  type: 'command' | 'bookmark' | 'note' | 'file' | 'vault' | 'tag' | 'track' | 'todo'
   run: () => void
 }
 
@@ -407,21 +393,6 @@ const navItems = computed<SearchNavItem[]>(() => {
   if (shouldShowGroup('todos')) {
     for (const td of result.value.todos) {
       items.push({ key: `todo-${td.id}`, label: td.title || '未命名待办', group: '待办', type: 'todo', run: () => openRecent({ kind: 'todo', id: td.id, title: td.title || '未命名待办' }) })
-    }
-  }
-  if (shouldShowGroup('readLater')) {
-    for (const r of result.value.readLater) {
-      items.push({ key: `rl-${r.id}`, label: r.title || r.url, group: '稍后读', type: 'readLater', run: () => openUrl(r.url) })
-    }
-  }
-  if (shouldShowGroup('feeds')) {
-    for (const f of result.value.feeds) {
-      items.push({ key: `feed-${f.id}`, label: f.title || f.url, group: '订阅源', type: 'feed', run: () => goFeeds(f.id) })
-    }
-  }
-  if (shouldShowGroup('feedItems')) {
-    for (const fi of result.value.feedItems) {
-      items.push({ key: `fi-${fi.id}`, label: fi.title || '未命名文章', group: '文章', type: 'feedItem', run: () => goFeeds(fi.feedId, fi.id) })
     }
   }
   return items
@@ -785,70 +756,6 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
                     <span v-if="td.itemCount != null" class="item-meta">{{ td.itemCompletedCount || 0 }}/{{ td.itemCount }}</span>
                     <span v-if="td.recurrence" class="item-meta">{{ td.recurrence }}</span>
                   </div>
-                </div>
-                <ArrowRight :size="14" class="item-arrow" />
-              </div>
-            </div>
-
-            <!-- 稍后读 -->
-            <div v-if="shouldShowGroup('readLater') && result.readLater.length" class="result-group">
-              <div class="group-title">
-                <NIcon :component="BookOpen" size="14" /> 稍后读
-                <span class="group-count">{{ result.readLater.length }}</span>
-              </div>
-              <div
-                v-for="(r, idx) in result.readLater" :key="r.id"
-                :class="['result-item', 'jnclub-bouncy', { 'search-nav-active': activeIndex === navIndex(`rl-${r.id}`) }]" @click="openUrl(r.url)"
-                :style="{ animationDelay: `${Math.min(idx * 35, 300)}ms` }"
-              >
-                <NIcon :component="BookOpen" size="15" class="item-fallback" />
-                <div class="item-main">
-                  <div class="item-title hl-text" v-html="highlightText(r.title || r.url, r.highlights, r.title ? 'title' : 'url')" />
-                  <NEllipsis class="item-sub">{{ r.url }}</NEllipsis>
-                </div>
-                <ExternalLink :size="14" class="item-arrow" />
-              </div>
-            </div>
-
-            <!-- 订阅源 -->
-            <div v-if="shouldShowGroup('feeds') && result.feeds.length" class="result-group">
-              <div class="group-title">
-                <NIcon :component="Rss" size="14" /> 订阅源
-                <span class="group-count">{{ result.feeds.length }}</span>
-              </div>
-              <div
-                v-for="(f, idx) in result.feeds" :key="f.id"
-                :class="['result-item', 'jnclub-bouncy', { 'search-nav-active': activeIndex === navIndex(`feed-${f.id}`) }]" @click="goFeeds(f.id)"
-                :style="{ animationDelay: `${Math.min(idx * 35, 300)}ms` }"
-              >
-                <NIcon :component="Rss" size="15" class="item-fallback" />
-                <div class="item-main">
-                  <div class="item-title hl-text" v-html="highlightText(f.title || f.url, f.highlights, f.title ? 'title' : 'url')" />
-                  <NEllipsis class="item-sub">{{ f.siteUrl || f.url }}</NEllipsis>
-                </div>
-                <ArrowRight :size="14" class="item-arrow" />
-              </div>
-            </div>
-
-            <!-- 文章 -->
-            <div v-if="shouldShowGroup('feedItems') && result.feedItems.length" class="result-group">
-              <div class="group-title">
-                <NIcon :component="Newspaper" size="14" /> 文章
-                <span class="group-count">{{ result.feedItems.length }}</span>
-              </div>
-              <div
-                v-for="(fi, idx) in result.feedItems" :key="fi.id"
-                :class="['result-item', 'jnclub-bouncy', { 'search-nav-active': activeIndex === navIndex(`fi-${fi.id}`) }]" @click="goFeeds(fi.feedId, fi.id)"
-                :style="{ animationDelay: `${Math.min(idx * 35, 300)}ms` }"
-              >
-                <NIcon :component="Newspaper" size="15" class="item-fallback" />
-                <div class="item-main">
-                  <div class="item-title hl-text" v-html="highlightText(fi.title || '未命名文章', fi.highlights, 'title')" />
-                  <div class="item-sub">
-                    <span v-if="fi.author" class="item-meta">{{ fi.author }}</span>
-                    <span v-if="fi.publishedAt" class="item-meta">{{ String(fi.publishedAt).slice(0, 16).replace('T', ' ') }}</span>
-                  </div>
-                  <NEllipsis v-if="fi.excerpt" class="item-sub">{{ fi.excerpt }}</NEllipsis>
                 </div>
                 <ArrowRight :size="14" class="item-arrow" />
               </div>

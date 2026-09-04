@@ -1,9 +1,9 @@
 /**
- * popup/popup.js — 弹窗：当前页一键收藏（稍后读 / 网页快照 / 保存去重）+ 网页转便签 + 登录态管理 + 入口
+ * popup/popup.js — 弹窗：当前页一键收藏（保存去重）+ 网页转便签 + 登录态管理 + 入口
  */
 import {
   getState, saveState, serverRoot, api,
-  fetchDirectories, fetchNoteDirs, flattenDirs, fetchBookmarks, captureSnapshot,
+  fetchDirectories, fetchNoteDirs, flattenDirs, fetchBookmarks,
 } from '../lib/api.js'
 import { normalizeUrl } from '../lib/urls.js'
 
@@ -45,19 +45,6 @@ async function fillDirs(state) {
     const exists = dirs.some((d) => d.value === preferred)
     if (exists) select.value = String(preferred)
   }
-}
-
-/** 恢复/记忆保存选项偏好 */
-async function loadSaveOptions() {
-  const st = await getState()
-  $('chkReadLater').checked = !!st.saveReadLater
-  $('chkSnapshot').checked = !!st.saveSnapshot
-}
-async function persistSaveOptions() {
-  await saveState({
-    saveReadLater: $('chkReadLater').checked,
-    saveSnapshot: $('chkSnapshot').checked,
-  })
 }
 
 /** 目标目录内查重复收藏；目录过大（>500 条）时跳过，避免弹窗卡顿 */
@@ -106,7 +93,6 @@ async function render() {
 
   try {
     await fillDirs(state)
-    await loadSaveOptions()
   } catch (e) {
     setStatus(e?.status === 401 ? '登录已过期，请重新登录' : (e?.message || '加载目录失败'), 'err')
   }

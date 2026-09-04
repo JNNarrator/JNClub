@@ -45,30 +45,27 @@ public class StatsService {
     private final DirectoryMapper directoryMapper;
     private final TodoMapper todoMapper;
 
-    /** 概览摘要：数量 / 磁盘 / 最近动态 / 密码库指纹健康 / 待办概览 / 稍后读 / 今日行动提醒 */
+    /** 概览摘要：数量 / 磁盘 / 最近动态 / 密码库指纹健康 / 待办概览 / 今日行动提醒 */
     public Map<String, Object> summary() {
         String userId = StpUtil.getLoginIdAsString();
         Map<String, Object> result = new LinkedHashMap<>();
         Map<String, Object> counts = counts(userId);
         Map<String, Object> vault = vaultHealth(userId);
         Map<String, Object> todos = todoCounts(userId);
-        Map<String, Object> readLater = readLater(userId);
         result.put("counts", counts);
         result.put("disk", disk(userId));
         result.put("recent", recent(userId));
         result.put("vault", vault);
         result.put("todos", todos);
-        result.put("readLater", readLater);
-        result.put("alerts", buildAlerts(counts, vault, todos, readLater));
+        result.put("alerts", buildAlerts(counts, vault, todos));
         return result;
     }
 
-    /** 今日必办提醒：按优先级聚合待办/回收站/密码库/稍后读，空列表表示无需处理 */
+    /** 今日必办提醒：按优先级聚合待办/回收站/密码库，空列表表示无需处理 */
     private List<Map<String, Object>> buildAlerts(
             Map<String, Object> counts,
             Map<String, Object> vault,
-            Map<String, Object> todos,
-            Map<String, Object> readLater) {
+            Map<String, Object> todos) {
         List<Map<String, Object>> alerts = new ArrayList<>();
 
         int dueToday = ((Number) todos.getOrDefault("dueToday", 0)).intValue();
@@ -114,18 +111,6 @@ public class StatsService {
             alerts.add(alert);
         }
 
-        int readLaterCount = ((Number) readLater.getOrDefault("count", 0)).intValue();
-        if (readLaterCount > 0) {
-            Map<String, Object> alert = new LinkedHashMap<>();
-            alert.put("type", "readLater");
-            alert.put("level", "info");
-            alert.put("title", "继续阅读");
-            alert.put("desc", "还有 " + readLaterCount + " 篇内容未读完");
-            alert.put("count", readLaterCount);
-            alert.put("action", "/?module=bookmarks");
-            alerts.add(alert);
-        }
-
         return alerts;
     }
 
@@ -136,30 +121,6 @@ public class StatsService {
         if (a > 0 && b > 0) sb.append("，");
         if (b > 0) sb.append(b).append(bText);
         return sb.toString();
-    }
-
-    /** 稍后读：未读完的稍后读收藏（progress<100），按最近阅读时间倒序取前 10 */
-    private Map<String, Object> readLater(String userId) {
-        List<Map<String, Object>> list = new ArrayList<>();
-        bookmarkMapper.selectList(new LambdaQueryWrapper<Bookmark>()
-                        .eq(Bookmark::getUserId, userId)
-                        .eq(Bookmark::getDeleted, 0)
-                        .eq(Bookmark::getReadLater, 1)
-                        .orderByDesc(Bookmark::getReadAt)
-                        .last("LIMIT 10"))
-                .forEach(b -> {
-                    Map<String, Object> m = new LinkedHashMap<>();
-                    m.put("id", b.getId());
-                    m.put("title", b.getTitle());
-                    m.put("url", b.getUrl());
-                    m.put("progress", b.getReadProgress() == null ? 0 : b.getReadProgress());
-                    m.put("readAt", b.getReadAt());
-                    list.add(m);
-                });
-        Map<String, Object> rl = new LinkedHashMap<>();
-        rl.put("count", list.size());
-        rl.put("list", list);
-        return rl;
     }
 
     /** 待办概览：进行中 / 今日到期 / 已逾期 */

@@ -70,12 +70,6 @@ const router = createRouter({
       name: 'calendar',
       component: () => import('../layout/CalendarLayout.vue'),
     },
-    // RSS 阅读器独立页面（套用与主界面一致的壳：MainLayout 侧栏/TabBar + 模块顶栏）
-    {
-      path: '/feeds',
-      name: 'feeds',
-      component: () => import('../layout/FeedsLayout.vue'),
-    },
     // WebDAV 站点管理独立页面（套用与主界面一致的壳：MainLayout 侧栏/TabBar + 模块顶栏）
     {
       path: '/webdav',
@@ -158,7 +152,6 @@ const TITLE_BY_NAME: Record<string, string> = {
   recycle: '回收站 - JNClub',
   todos: '待办 - JNClub',
   calendar: '日历 - JNClub',
-  feeds: '订阅 - JNClub',
   music: '音乐 - JNClub',
   webdav: 'WebDAV - JNClub',
   'note-create': '新建便签 - JNClub',

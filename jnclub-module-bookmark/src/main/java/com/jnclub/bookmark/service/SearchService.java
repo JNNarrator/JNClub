@@ -4,8 +4,6 @@ import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.jnclub.bookmark.entity.Bookmark;
-import com.jnclub.bookmark.entity.Feed;
-import com.jnclub.bookmark.entity.FeedItem;
 import com.jnclub.bookmark.entity.FileRecord;
 import com.jnclub.bookmark.entity.Note;
 import com.jnclub.bookmark.entity.Tag;
@@ -13,8 +11,6 @@ import com.jnclub.bookmark.entity.TagRelation;
 import com.jnclub.bookmark.entity.Todo;
 import com.jnclub.bookmark.entity.Vault;
 import com.jnclub.bookmark.mapper.BookmarkMapper;
-import com.jnclub.bookmark.mapper.FeedItemMapper;
-import com.jnclub.bookmark.mapper.FeedMapper;
 import com.jnclub.bookmark.mapper.FileMapper;
 import com.jnclub.bookmark.mapper.NoteMapper;
 import com.jnclub.bookmark.mapper.TagMapper;
@@ -33,7 +29,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 全局搜索服务 — 收藏 / 便签 / 云盘 / 密码库(仅标题) / 标签 / 音乐曲目 / 待办 / 稍后读 / RSS 跨模块聚合
+ * 全局搜索服务 — 收藏 / 便签 / 云盘 / 密码库(仅标题) / 标签 / 音乐曲目 / 待办 跨模块聚合
  * 多关键词按空格拆分做 AND 匹配；返回匹配高亮区间 [{field, ranges:[[s,e]]}]，前端渲染高亮。
  */
 @Service
@@ -47,12 +43,10 @@ public class SearchService {
     private final TagMapper tagMapper;
     private final TagRelationMapper tagRelationMapper;
     private final TodoMapper todoMapper;
-    private final FeedMapper feedMapper;
-    private final FeedItemMapper feedItemMapper;
     private final JdbcTemplate jdbcTemplate;
 
     /**
-     * 跨模块搜索。返回 {bookmarks, notes, files, vault, tags, tracks, todos, readLater, feeds, feedItems}；
+     * 跨模块搜索。返回 {bookmarks, notes, files, vault, tags, tracks, todos}；
      * 每个结果含 score（越大越靠前）。
      */
     public Map<String, Object> search(String keyword, int limit) {
@@ -65,9 +59,6 @@ public class SearchService {
         result.put("tags", List.of());
         result.put("tracks", List.of());
         result.put("todos", List.of());
-        result.put("readLater", List.of());
-        result.put("feeds", List.of());
-        result.put("feedItems", List.of());
 
         Map<String, Object> parsed = parseSyntax(keyword);
         result.put("parsed", parsed);
@@ -236,83 +227,6 @@ public class SearchService {
             todoResults.add(m);
         }
 
-        // 稍后读：read_later=1 的收藏
-        List<Bookmark> readLaters = bookmarkMapper.selectPage(new Page<>(1, size),
-                        new LambdaQueryWrapper<Bookmark>()
-                                .eq(Bookmark::getUserId, userId)
-                                .eq(Bookmark::getDeleted, 0)
-                                .eq(Bookmark::getReadLater, 1)
-                                .and(w -> {
-                                    for (String t : terms) w.and(x -> x.like(Bookmark::getTitle, t).or().like(Bookmark::getUrl, t));
-                                })
-                                .orderByDesc(Bookmark::getReadAt))
-                .getRecords();
-        List<Map<String, Object>> readLaterResults = new ArrayList<>();
-        for (Bookmark r : readLaters) {
-            Map<String, Object> m = new LinkedHashMap<>();
-            m.put("id", r.getId());
-            m.put("title", r.getTitle());
-            m.put("url", r.getUrl());
-            m.put("icon", r.getIcon());
-            m.put("directoryId", r.getDirectoryId());
-            m.put("readProgress", r.getReadProgress());
-            m.put("highlights", buildHighlights(Map.of("title", r.getTitle(), "url", r.getUrl()), terms));
-            m.put("score", score(Map.of("title", r.getTitle(), "url", r.getUrl()), terms, r.getReadAt()));
-            readLaterResults.add(m);
-        }
-
-        // RSS 订阅源：标题 + 地址 + 站点
-        List<Feed> feeds = feedMapper.selectPage(new Page<>(1, size),
-                        new LambdaQueryWrapper<Feed>()
-                                .eq(Feed::getUserId, userId)
-                                .eq(Feed::getDeleted, 0)
-                                .and(w -> {
-                                    for (String t : terms) w.and(x -> x.like(Feed::getTitle, t).or().like(Feed::getUrl, t)
-                                            .or().like(Feed::getSiteUrl, t));
-                                })
-                                .orderByDesc(Feed::getCreateTime))
-                .getRecords();
-        List<Map<String, Object>> feedResults = new ArrayList<>();
-        for (Feed fd : feeds) {
-            Map<String, Object> m = new LinkedHashMap<>();
-            m.put("id", fd.getId());
-            m.put("title", fd.getTitle());
-            m.put("url", fd.getUrl());
-            m.put("siteUrl", fd.getSiteUrl());
-            m.put("icon", fd.getIcon());
-            m.put("highlights", buildHighlights(Map.of("title", fd.getTitle(), "url", fd.getUrl(), "siteUrl", fd.getSiteUrl()), terms));
-            m.put("score", score(Map.of("title", fd.getTitle(), "url", fd.getUrl(), "siteUrl", fd.getSiteUrl()), terms, fd.getCreateTime()));
-            feedResults.add(m);
-        }
-
-        // RSS 条目：标题 + 摘要 + 正文（正文转纯文本）
-        List<FeedItem> feedItems = feedItemMapper.selectPage(new Page<>(1, size),
-                        new LambdaQueryWrapper<FeedItem>()
-                                .eq(FeedItem::getUserId, userId)
-                                .eq(FeedItem::getDeleted, 0)
-                                .and(w -> {
-                                    for (String t : terms) w.and(x -> x.like(FeedItem::getTitle, t).or().like(FeedItem::getSummary, t)
-                                            .or().like(FeedItem::getContent, t));
-                                })
-                                .orderByDesc(FeedItem::getPublishedAt))
-                .getRecords();
-        List<Map<String, Object>> feedItemResults = new ArrayList<>();
-        for (FeedItem fi : feedItems) {
-            String plain = plainText(fi.getContent());
-            Map<String, Object> m = new LinkedHashMap<>();
-            m.put("id", fi.getId());
-            m.put("feedId", fi.getFeedId());
-            m.put("title", fi.getTitle());
-            m.put("link", fi.getLink());
-            m.put("author", fi.getAuthor());
-            m.put("publishedAt", fi.getPublishedAt());
-            m.put("readFlag", fi.getReadFlag());
-            m.put("excerpt", excerpt(plain, 120));
-            m.put("highlights", buildHighlights(Map.of("title", fi.getTitle(), "summary", fi.getSummary(), "content", plain), terms));
-            m.put("score", score(Map.of("title", fi.getTitle(), "summary", fi.getSummary(), "content", plain), terms, fi.getPublishedAt()));
-            feedItemResults.add(m);
-        }
-
         if (dateFilter != null && !dateFilter.isBlank()) {
             filterByDate(bookmarkResults, dateFilter, "createTime");
             filterByDate(noteResults, dateFilter, "createTime");
@@ -320,9 +234,6 @@ public class SearchService {
             filterByDate(vaultResults, dateFilter, "createTime");
             filterByDate(tagResults, dateFilter, "createTime");
             filterByDate(todoResults, dateFilter, "dueDate");
-            filterByDate(readLaterResults, dateFilter, "createTime");
-            filterByDate(feedResults, dateFilter, "createTime");
-            filterByDate(feedItemResults, dateFilter, "publishedAt");
         }
 
         if (tagFilter != null) {
@@ -333,9 +244,6 @@ public class SearchService {
             vaultResults.clear();
             trackResults.clear();
             todoResults.clear();
-            readLaterResults.clear();
-            feedResults.clear();
-            feedItemResults.clear();
         }
 
         if (typeFilter != null && !typeFilter.isBlank()) {
@@ -346,9 +254,6 @@ public class SearchService {
             if (!"tags".equals(typeFilter)) tagResults.clear();
             if (!"tracks".equals(typeFilter)) trackResults.clear();
             if (!"todos".equals(typeFilter)) todoResults.clear();
-            if (!"readLater".equals(typeFilter)) readLaterResults.clear();
-            if (!"feeds".equals(typeFilter)) feedResults.clear();
-            if (!"feedItems".equals(typeFilter)) feedItemResults.clear();
         }
 
         sortByScore(bookmarkResults);
@@ -358,9 +263,6 @@ public class SearchService {
         sortByScore(tagResults);
         sortByScore(trackResults);
         sortByScore(todoResults);
-        sortByScore(readLaterResults);
-        sortByScore(feedResults);
-        sortByScore(feedItemResults);
 
         result.put("bookmarks", bookmarkResults);
         result.put("notes", noteResults);
@@ -369,9 +271,6 @@ public class SearchService {
         result.put("tags", tagResults);
         result.put("tracks", trackResults);
         result.put("todos", todoResults);
-        result.put("readLater", readLaterResults);
-        result.put("feeds", feedResults);
-        result.put("feedItems", feedItemResults);
         result.put("parsed", parsed);
         return result;
     }
@@ -540,12 +439,6 @@ public class SearchService {
             return plain.substring(0, maxLen) + "…";
         }
         return plain;
-    }
-
-    /** HTML 转纯文本（用于 RSS 搜索结果摘要） */
-    private String plainText(String html) {
-        if (html == null || html.isBlank()) return "";
-        return org.jsoup.Jsoup.parse(html).text();
     }
 
     /** 轻量评分：标题前缀 > 标题命中 > 其他字段命中；近期数据额外加分 */
