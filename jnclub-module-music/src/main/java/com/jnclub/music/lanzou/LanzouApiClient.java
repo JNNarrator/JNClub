@@ -80,7 +80,21 @@ public class LanzouApiClient {
     private static final Pattern JS_DATA_PATTERN = Pattern.compile("data[:\\s]+(\\{[^}]+})");
     private static final Pattern JS_KV_PATTERN = Pattern.compile("'(.+?)':('?([^' },]*)'?)");
     private static final Pattern JS_VAR_FUNC_PATTERN = Pattern.compile("var\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*=\\s*['\"]?([^;'\"}]+)['\"]?;");
-    private static final Pattern FIND_FILE_ID_PATTERN = Pattern.compile("['\"]/ajax(?:m|file)\\.php\\?file=(\\d+)['\"]");
+    /**
+     * 匹配分享页里的文件下载接口并捕获 file 参数。
+     * <p>新版分享页输出的是<b>绝对地址</b>（{@code url : 'https://apifile.woozooo.com/ajaxfile.php?file=296366223'}），
+     * 旧版为相对路径（{@code '/ajaxm.php?file=123'}）；这里同时兼容两种写法，
+     * 否则新版页面会导致 "not find file id in down_p" 而完全无法取链。</p>
+     */
+    private static final Pattern FIND_FILE_ID_PATTERN =
+            Pattern.compile("(?:https?://[^'\"\\s]+)?/ajax(?:m|file)\\.php\\?file=(\\d+)");
+    /**
+     * 捕获分享页中声明的下载接口地址（不含 file 查询参数），如
+     * {@code https://apifile.woozooo.com/ajaxfile.php}。
+     * <p>该接口固定在 apifile 域，不能用分享域名（is_newd）拼接，否则会被拒绝。</p>
+     */
+    private static final Pattern FIND_AJAX_ENDPOINT_PATTERN =
+            Pattern.compile("['\"](https?://[^'\"]*?/ajax(?:m|file)\\.php)\\?file=\\d+['\"]");
 
     private static final Pattern FIND_DOWN_PAGE_PARAM = Pattern.compile("<iframe.*?src=\"([^\"]+)\"");
     /** 蓝奏云 CDN 直链 URL 中的真实过期时间戳参数：e=<epochSecondsHex> */
@@ -1382,7 +1396,12 @@ public class LanzouApiClient {
             if (c == '/' && i + 1 < data.length()) {
                 char next = data.charAt(i + 1);
                 if (next == '*') { inBlockComment = true; i++; continue; }
-                if (next == '/') { inLineComment = true; i++; continue; }
+                if (next == '/') {
+                    // 协议分隔符（如 https://）不是注释起始，必须保留，
+                    // 否则绝对 URL 会被整行截断，导致新版分享页解析失败。
+                    boolean isSchemeSeparator = i > 0 && data.charAt(i - 1) == ':';
+                    if (!isSchemeSeparator) { inLineComment = true; i++; continue; }
+                }
             }
             result.append(c);
         }
@@ -1438,8 +1457,19 @@ public class LanzouApiClient {
         return value;
     }
 
-    /** 按页面内容选择新版 ajaxfile.php 或旧版 ajaxm.php 分享下载接口 */
+    /**
+     * 按页面内容选择新版 ajaxfile.php 或旧版 ajaxm.php 分享下载接口。
+     * <p>优先使用分享页中声明的<b>绝对接口地址</b>：新版蓝奏云把接口固定在
+     * {@code apifile.woozooo.com}，与分享域名（is_newd，如 {@code jnnarrator.lanzouw.com}）
+     * 不同；用分享域名拼接会拿到 407/超时等错误而取不到直链。</p>
+     */
     private static String shareAjaxUrl(String base, String pageData, String fileId) {
+        if (pageData != null) {
+            Matcher endpointMatcher = FIND_AJAX_ENDPOINT_PATTERN.matcher(pageData);
+            if (endpointMatcher.find()) {
+                return endpointMatcher.group(1) + "?file=" + fileId;
+            }
+        }
         String endpoint = pageData != null && pageData.contains("ajaxfile.php")
                 ? AJAXFILE_PATH
                 : AJAXM_PATH;
