@@ -90,6 +90,12 @@ public class TrackServiceImpl implements TrackService {
     private static final int MAX_PAGES = 20;
     /** 批量直链 Redis 缓存 TTL：对齐蓝奏云直链约 45 分钟有效期（留 30 秒裕量） */
     private static final Duration MUSIC_URLS_TTL = Duration.ofMinutes(30);
+    /**
+     * 直链安全余量：剩余有效期低于该值即视为「需要续期」，不再直接交给播放器。
+     * <p>蓝奏云直链约 45 分钟有效，而无损曲目单曲播放就要数分钟；若把即将失效的链接返回，
+     * 会出现「点了能播、播到一半断掉」。宁可回源换一条新链。</p>
+     */
+    private static final Duration URL_SAFETY_MARGIN = Duration.ofMinutes(5);
     /** Caffeine 缓存名（与 @CacheEvict 注解值保持一致，手动读写同源缓存） */
     private static final String CACHE_SONG_FOLDERS = "songFolders";
     private static final String CACHE_TRACK_SUMMARIES = "trackSummaries";
@@ -176,10 +182,13 @@ public class TrackServiceImpl implements TrackService {
     @Override
     public MediaUrlDTO getMediaUrl(String trackId) {
         String id = requireTrackId(trackId);
-        // 先查内存缓存（可播结果才在缓存里）
+        // 先查内存缓存（可播结果才在缓存里）。
+        // 注意：必须同时校验 expiresAt —— 缓存 TTL（45min）与直链有效期（45min）几乎相同，
+        // 若只判断 playable，缓存中「已失效但尚未被 Caffeine 淘汰」的链接会被原样返回，
+        // 表现为歌曲播到一半中断或点了没声音。
         Cache cache = cacheManager.getCache("mediaUrls");
         MediaUrlDTO hit = cacheGet(cache, id);
-        if (hit != null && Boolean.TRUE.equals(hit.getPlayable())) {
+        if (hit != null && Boolean.TRUE.equals(hit.getPlayable()) && isFreshEnough(hit.getExpiresAt())) {
             return hit;
         }
         // L2: 再查 MySQL 缓存的直链（双重校验：数据库过期时间 + 直链 e 参数 + 健康标志）
@@ -207,6 +216,11 @@ public class TrackServiceImpl implements TrackService {
      * 不抛异常，避免把「单曲坏链」误判为整个模块失败。
      */
     private MediaUrlDTO refreshAndCheck(String id) {
+        // 已确认源文件永久不可用（分享取消/文件不存在）→ 直接返回，不再回源蓝奏云
+        Track known = trackMapper.selectById(id);
+        if (known != null && SOURCE_GONE.equals(known.getLastError())) {
+            return MediaUrlDTO.builder().trackId(id).playable(false).message(SOURCE_GONE).build();
+        }
         // 冷却期内：最近刚判定不可播，直接返回不可播，避免每请求都回源蓝奏云
         Long until = unplayableUntil.get(id);
         if (until != null && until > System.currentTimeMillis()) {
@@ -244,6 +258,12 @@ public class TrackServiceImpl implements TrackService {
                 unplayableUntil.remove(id);
                 throw be;
             }
+            if (isPermanentSourceGone(e)) {
+                // 分享已取消 / 文件不存在：重试无意义，清空死链并打标，后续续期任务跳过
+                log.warn("单曲源文件已不可用 trackId={}: {}", id, e.getMessage());
+                markSourceGone(id);
+                return MediaUrlDTO.builder().trackId(id).playable(false).message(SOURCE_GONE).build();
+            }
             log.warn("单曲直链不可用 trackId={}: {}", id, e.getMessage());
             markUnplayable(id, "MEDIA_UNAVAILABLE");
             unplayableUntil.put(id, System.currentTimeMillis() + UNPLAYABLE_COOLDOWN_MS);
@@ -273,6 +293,38 @@ public class TrackServiceImpl implements TrackService {
                 trackMapper.updateById(t);
             }
         } catch (Exception ignore) { /* 记录失败不影响主流程 */ }
+    }
+
+    /**
+     * 标记源文件永久不可用：清空死链并写入 {@link #SOURCE_GONE}。
+     * <p>清空 mediaUrl 可避免继续把死链暴露给前端；打标后续期任务会跳过该曲目，
+     * 不再每轮都回源重试。若用户重新分享，可通过管理端手动全量刷新恢复。</p>
+     */
+    private void markSourceGone(String id) {
+        try {
+            Track t = trackMapper.selectById(id);
+            if (t != null) {
+                t.setPlayable(0);
+                t.setLastError(SOURCE_GONE);
+                t.setMediaUrl(null);
+                t.setUrlExpiresAt(null);
+                trackMapper.updateById(t);
+            }
+        } catch (Exception ignore) { /* 记录失败不影响主流程 */ }
+    }
+
+    /** 是否为「源文件永久不可用」类错误（分享被取消 / 文件不存在）——此类重试无意义。 */
+    private static boolean isPermanentSourceGone(Throwable e) {
+        Throwable cause = e;
+        while (cause != null) {
+            String m = cause.getMessage() == null ? "" : cause.getMessage().toLowerCase(Locale.ROOT);
+            if (m.contains("share cancelled") || m.contains("file not exist")
+                    || m.contains("取消分享") || m.contains("文件不存在")) {
+                return true;
+            }
+            cause = cause.getCause();
+        }
+        return false;
     }
 
     /** 缓存条目是否可用：fresh 且上次预检为可播放（playable 缺省视为可播放，兼容旧数据）。 */
@@ -305,6 +357,10 @@ public class TrackServiceImpl implements TrackService {
             return dto;
         } catch (Exception e) {
             log.warn("强制刷新直链失败 trackId={}: {}", id, e.getMessage());
+            if (isPermanentSourceGone(e)) {
+                // 分享已取消/文件不存在：打标清链，让续期任务跳过，避免每轮无谓回源与告警
+                markSourceGone(id);
+            }
             throw toLanzouBusinessException(e, "刷新直链失败");
         }
     }
@@ -478,11 +534,37 @@ public class TrackServiceImpl implements TrackService {
     public List<TrackSummaryDTO> getCachedSummaries() {
         Cache cache = cacheManager.getCache(CACHE_TRACK_SUMMARIES);
         List<TrackSummaryDTO> hit = cacheGet(cache, CACHE_KEY_ALL);
-        if (hit != null) return hit;
+        // 缓存存活期（45min）与直链有效期（45min）相当，命中时链接可能已失效，
+        // 因此返回前再剔除一次，保证交给前端的 mediaUrl 始终可用
+        // （否则前端会误判「已取到链接」而跳过预取，切歌时才开始现取）。
+        if (hit != null) return stripStaleUrls(hit);
 
         List<TrackSummaryDTO> out = loadAllAudioSummaries();
         if (!out.isEmpty() && cache != null) {
             cache.put(CACHE_KEY_ALL, out);
+        }
+        return out;
+    }
+
+    /**
+     * 剔除已失效或余量不足的直链（置空 mediaUrl / urlExpiresAt）。
+     * <p>不修改入参对象，避免污染 Caffeine 中的缓存条目。</p>
+     */
+    private static List<TrackSummaryDTO> stripStaleUrls(List<TrackSummaryDTO> src) {
+        List<TrackSummaryDTO> out = new ArrayList<>(src.size());
+        OffsetDateTime threshold = OffsetDateTime.now().plus(URL_SAFETY_MARGIN);
+        for (TrackSummaryDTO t : src) {
+            if (t.getMediaUrl() != null && t.getUrlExpiresAt() != null
+                    && t.getUrlExpiresAt().isAfter(threshold)) {
+                out.add(t);
+            } else {
+                out.add(TrackSummaryDTO.builder()
+                        .trackId(t.getTrackId()).name(t.getName()).artist(t.getArtist())
+                        .album(t.getAlbum()).coverUrl(t.getCoverUrl()).duration(t.getDuration())
+                        .format(t.getFormat()).fileSize(t.getFileSize()).hasLyric(t.getHasLyric())
+                        .mediaUrl(null).urlExpiresAt(null)
+                        .build());
+            }
         }
         return out;
     }
@@ -500,10 +582,13 @@ public class TrackServiceImpl implements TrackService {
         for (SongFolder sf : loadSongFolders()) {
             ParsedName pn = sf.parseFolderName();
             var cached = cacheMap.get(sf.audioFile().id());
+            // 只把「仍有余量」的直链带给前端：过期死链会让前端误判为已取到链接而跳过预取
+            // （prefetchNextUrls 仅对 mediaUrl 为空的曲目取链），反而让切歌时才开始现取、等待变长。
+            boolean usable = cached != null && isMediaUrlFresh(cached);
             out.add(TrackSummaryDTO.builder().trackId(sf.audioFile().id()).name(pn.name()).artist(pn.artist())
                     .format(pn.format()).fileSize(sf.audioFile().size()).hasLyric(sf.lyricFile() != null)
-                    .mediaUrl(cached != null ? cached.getMediaUrl() : null)
-                    .urlExpiresAt(cached != null ? cached.getUrlExpiresAt() : null)
+                    .mediaUrl(usable ? cached.getMediaUrl() : null)
+                    .urlExpiresAt(usable ? cached.getUrlExpiresAt() : null)
                     .build());
         }
         return out;
@@ -603,8 +688,13 @@ public class TrackServiceImpl implements TrackService {
         String url = track.getMediaUrl();
         OffsetDateTime expiresAt = track.getUrlExpiresAt();
         if (url == null || url.isBlank()) return false;
-        if (expiresAt == null || !expiresAt.isAfter(OffsetDateTime.now())) return false;
-        return LanzouApiClient.resolveRealExpiry(url).isAfter(Instant.now());
+        if (!isFreshEnough(expiresAt)) return false;
+        return LanzouApiClient.resolveRealExpiry(url).isAfter(Instant.now().plus(URL_SAFETY_MARGIN));
+    }
+
+    /** 直链是否仍有足够的安全余量（低于 {@link #URL_SAFETY_MARGIN} 视为需要续期）。 */
+    private static boolean isFreshEnough(OffsetDateTime expiresAt) {
+        return expiresAt != null && expiresAt.isAfter(OffsetDateTime.now().plus(URL_SAFETY_MARGIN));
     }
 
     /**

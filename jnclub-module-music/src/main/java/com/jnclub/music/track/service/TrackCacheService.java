@@ -32,6 +32,11 @@ public class TrackCacheService {
      */
     private static final String CACHE_NAME = "mediaUrls";
     private static final Duration SCHEDULED_LOCK_TTL = Duration.ofMinutes(10);
+    /**
+     * 续期提前量：直链剩余有效期低于该值即提前换新。
+     * <p>蓝奏云直链仅约 45 分钟有效，必须在失效前完成续期，才能保证用户随时点播都有可用链接。</p>
+     */
+    private static final Duration REFRESH_AHEAD = Duration.ofMinutes(20);
 
     private final TrackMapper trackMapper;
     private final TrackService trackService;
@@ -42,6 +47,8 @@ public class TrackCacheService {
     private final AtomicInteger refreshCompleted = new AtomicInteger(0);
     /** 真正刷新成功的数量：与 refreshCompleted（已处理数）区分，避免全部失败时日志仍显示 "完成 N/N"。 */
     private final AtomicInteger refreshSucceeded = new AtomicInteger(0);
+    /** 本轮中「源文件已永久不可用」的数量：属正常情况，不应触发失败告警。 */
+    private final AtomicInteger refreshSourceGone = new AtomicInteger(0);
     private volatile boolean refreshing = false;
     private volatile boolean initialized = false;
 
@@ -86,10 +93,12 @@ public class TrackCacheService {
         }
         initialized = true;
         log.info("TrackCacheService: L1 预热完成 {} 首", all.size());
-        // 逐首刷新过期/缺失的 URL，失败时保留旧值，避免蓝奏云失效时清空所有链接
+        // 逐首刷新「缺失或余量不足」的 URL，失败时保留旧值，避免蓝奏云失效时清空所有链接
         List<String> expired = new ArrayList<>();
+        OffsetDateTime startupThreshold = OffsetDateTime.now().plus(REFRESH_AHEAD);
         for (Track t : all) {
-            if (t.getMediaUrl() == null || t.getUrlExpiresAt() == null || t.getUrlExpiresAt().isBefore(OffsetDateTime.now())) {
+            if (t.getMediaUrl() == null || t.getUrlExpiresAt() == null
+                    || !t.getUrlExpiresAt().isAfter(startupThreshold)) {
                 expired.add(t.getTrackId());
             }
         }
@@ -98,26 +107,65 @@ public class TrackCacheService {
         }
     }
 
-    @Scheduled(cron = "0 0 */2 * * ?")
+    /**
+     * 直链续期巡检。
+     * <p>蓝奏云直链仅约 45 分钟有效，必须在失效前提前换新。此前为「每 2 小时全量刷新」，
+     * 间隔远大于直链有效期，导致每轮刷新前都有近一小时全站歌曲取不到可用链接（空窗）。
+     * 现改为每 5 分钟巡检一次，只对剩余有效期不足 {@link #REFRESH_AHEAD} 的曲目续期，
+     * 使链接在被使用前始终保有充足余量，同时避免无谓的回源请求。</p>
+     */
+    @Scheduled(cron = "0 */5 * * * ?")
     public void scheduledRefresh() {
         String lockKey = CacheKey.lock("scheduled", "track-refresh");
         String token = redisLock.tryLock(lockKey, SCHEDULED_LOCK_TTL);
         if (token == null) {
-            log.info("TrackCacheService: 直链刷新已被其他实例执行，跳过");
+            log.warn("TrackCacheService: 未取得续期锁（上一轮可能仍在执行，或 Redis 异常），本轮跳过");
             return;
         }
         try {
             List<String> ids = trackService.getAllTrackIds();
             if (ids.isEmpty()) {
-                // 曲目列表依赖蓝奏云目录接口：为空说明目录/会话异常，此时刷新被静默跳过，
+                // 曲目列表依赖蓝奏云目录接口：为空说明目录/会话异常，此时续期被静默跳过，
                 // 会导致所有直链在 45 分钟后集体失效且无人知晓，必须显式告警。
-                log.error("TrackCacheService: 未获取到任何曲目（蓝奏云目录/会话可能异常），本次直链刷新被跳过！");
+                log.error("TrackCacheService: 未获取到任何曲目（蓝奏云目录/会话可能异常），本次直链续期被跳过！");
                 return;
             }
-            refreshAll(ids);
+            List<String> due = selectDueForRefresh(ids);
+            if (due.isEmpty()) {
+                log.debug("TrackCacheService: 全部直链余量充足，本轮无需续期");
+                return;
+            }
+            log.info("TrackCacheService: {} 首直链余量不足 {} 分钟，开始续期", due.size(), REFRESH_AHEAD.toMinutes());
+            refreshAll(due);
         } finally {
             redisLock.unlock(lockKey, token);
         }
+    }
+
+    /**
+     * 挑出需要续期的曲目：没有直链，或剩余有效期不足 {@link #REFRESH_AHEAD}。
+     * <p>以蓝奏云目录返回的 id 为准（避免已删除曲目残留），过期时间取自 MySQL。</p>
+     */
+    private List<String> selectDueForRefresh(List<String> ids) {
+        OffsetDateTime threshold = OffsetDateTime.now().plus(REFRESH_AHEAD);
+        Map<String, Track> cached = new java.util.HashMap<>();
+        for (Track t : trackMapper.selectList(null)) {
+            cached.put(t.getTrackId(), t);
+        }
+        List<String> due = new ArrayList<>();
+        for (String id : ids) {
+            Track t = cached.get(id);
+            // 源文件已永久不可用（分享被取消/文件不存在）→ 跳过：重试无意义，
+            // 否则每轮巡检都会为这些曲目白白回源并刷失败日志。
+            if (t != null && TrackService.SOURCE_GONE.equals(t.getLastError())) {
+                continue;
+            }
+            if (t == null || t.getMediaUrl() == null || t.getMediaUrl().isBlank()
+                    || t.getUrlExpiresAt() == null || !t.getUrlExpiresAt().isAfter(threshold)) {
+                due.add(id);
+            }
+        }
+        return due;
     }
 
     /** 全量刷新：从 lanzou 获取指定 trackId 列表的直链 → 写入/更新 MySQL + L1，失败时保留旧值 */
@@ -129,6 +177,7 @@ public class TrackCacheService {
             refreshTotal.set(ids.size());
             refreshCompleted.set(0);
             refreshSucceeded.set(0);
+            refreshSourceGone.set(0);
             Cache cache = cacheManager.getCache(CACHE_NAME);
 
             for (String id : ids) {
@@ -157,20 +206,34 @@ public class TrackCacheService {
                     } else {
                         t.setMediaUrl(dto.getMediaUrl());
                         t.setUrlExpiresAt(dto.getExpiresAt());
+                        // 续期成功即恢复健康状态：清除历史失败原因与不可播标记，
+                        // 否则 SOURCE_GONE / MEDIA_UNAVAILABLE 会残留，令该曲目被永久跳过。
+                        t.setPlayable(1);
+                        t.setLastError(null);
                         trackMapper.updateById(t);
                     }
                     if (cache != null) cache.put(id, dto);
                     refreshSucceeded.incrementAndGet();
                 } catch (Exception e) {
-                    log.warn("TrackCacheService: {} 刷新失败: {}，保留旧值", id, e.getMessage());
+                    String msg = e.getMessage() == null ? "" : e.getMessage().toLowerCase(java.util.Locale.ROOT);
+                    if (msg.contains("cancelled") || msg.contains("not exist")
+                            || msg.contains("取消") || msg.contains("不存在")) {
+                        // 源文件本身没了（分享被取消等），属正常情况，已由 TrackService 打标跳过
+                        log.warn("TrackCacheService: {} 源文件已不可用，已标记跳过: {}", id, e.getMessage());
+                        refreshSourceGone.incrementAndGet();
+                    } else {
+                        log.warn("TrackCacheService: {} 刷新失败: {}，保留旧值", id, e.getMessage());
+                    }
                 } finally {
                     refreshCompleted.incrementAndGet();
                 }
             }
-            int ok = refreshSucceeded.get(), total = ids.size();
-            if (total > 0 && ok == 0) {
+            int ok = refreshSucceeded.get(), total = ids.size(), gone = refreshSourceGone.get();
+            if (total > 0 && ok == 0 && gone < total) {
                 // 全军覆没通常意味着蓝奏云改版/会话异常，必须显式告警而非静默"完成"
                 log.error("TrackCacheService: 直链刷新全部失败 0/{}，播放链接将无法续期，请检查蓝奏云取链逻辑！", total);
+            } else if (total > 0 && ok == 0) {
+                log.warn("TrackCacheService: 本轮 {} 首均为源文件已不可用（分享取消等），已标记跳过", total);
             } else {
                 log.info("TrackCacheService: 刷新完成 成功 {}/{}（已处理 {}）", ok, total, refreshCompleted.get());
             }

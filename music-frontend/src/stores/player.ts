@@ -69,6 +69,19 @@ async function releaseWakeLock() {
 // 前端直链缓存：trackId -> { url, format, expiresAt }
 const urlCache = new Map<string, { url: string; format: string; expiresAt: number }>()
 
+// 取链余量：直链剩余有效期低于该值时不再复用缓存，改为重新取链。
+// 蓝奏云直链约 45 分钟有效，无损单曲播放可能持续数分钟，必须留出余量，
+// 否则会出现「点了能播、播到一半断掉」。
+const URL_SAFETY_MARGIN_MS = 5 * 60 * 1000
+
+// 后端未返回 expiresAt 时的兜底有效期。必须贴近蓝奏云真实有效期（约 45 分钟），
+// 此前按 3.5 小时缓存，会让前端长期复用早已失效的链接。
+const URL_FALLBACK_TTL_MS = 40 * 60 * 1000
+
+function isUrlUsable(expiresAt: number): boolean {
+  return Date.now() + URL_SAFETY_MARGIN_MS < expiresAt
+}
+
 // 可播放候选池：trackId -> true=已知可播（直链已成功取得），false=已知坏链（取链失败/播放认证失败）
 // 失败自动切换时优先在此池中找下一首「确定可播」的，而不是傻顺序切索引。
 const knownPool = new Map<string, boolean>()
@@ -115,9 +128,9 @@ async function fetchJsonWithTimeout(input: string, timeoutMs: number): Promise<a
 type MediaUrlResult = { url: string; format: string; playable: true } | { url: null; format: ''; playable: false; message?: string } | null
 
 async function fetchMediaUrl(trackId: string, force = false): Promise<MediaUrlResult> {
-  // 先查缓存
+  // 先查缓存（须留有安全余量，避免复用即将失效的链接）
   const cached = urlCache.get(trackId)
-  if (!force && cached && Date.now() < cached.expiresAt) {
+  if (!force && cached && isUrlUsable(cached.expiresAt)) {
     return { url: cached.url, format: cached.format, playable: true }
   }
   try {
@@ -134,7 +147,7 @@ async function fetchMediaUrl(trackId: string, force = false): Promise<MediaUrlRe
     }
     const expiresAt = payload.data.expiresAt
       ? new Date(payload.data.expiresAt).getTime()
-      : Date.now() + 3.5 * 60 * 60 * 1000
+      : Date.now() + URL_FALLBACK_TTL_MS
     urlCache.set(trackId, { url: payload.data.mediaUrl, format: payload.data.format || '', expiresAt })
     markKnownGood(trackId)
     return { url: payload.data.mediaUrl, format: payload.data.format || '', playable: true }
@@ -152,7 +165,7 @@ async function fetchMediaUrls(trackIds: string[]): Promise<Map<string, { url: st
   const idsToFetch: string[] = []
   for (const id of trackIds) {
     const cached = urlCache.get(id)
-    if (cached && Date.now() < cached.expiresAt) {
+    if (cached && isUrlUsable(cached.expiresAt)) {
       result.set(id, { url: cached.url, format: cached.format })
       markKnownGood(id)
     } else {
@@ -171,7 +184,7 @@ async function fetchMediaUrls(trackIds: string[]): Promise<Map<string, { url: st
         if (mediaData.mediaUrl && playable) {
           const expiresAt = mediaData.expiresAt
             ? new Date(mediaData.expiresAt).getTime()
-            : Date.now() + 3.5 * 60 * 60 * 1000
+            : Date.now() + URL_FALLBACK_TTL_MS
           urlCache.set(trackId, { url: mediaData.mediaUrl, format: mediaData.format || '', expiresAt })
           result.set(trackId, { url: mediaData.mediaUrl, format: mediaData.format || '' })
           markKnownGood(trackId)

@@ -10,6 +10,13 @@ import java.util.Map;
 
 public interface TrackService {
 
+    /**
+     * 源文件已永久不可用（蓝奏云分享被取消 / 文件不存在）的标记，写入 music_track.last_error。
+     * <p>这类失败重试无意义，续期任务应跳过，避免无谓回源与持续告警；
+     * 若用户重新分享，可通过管理端手动全量刷新恢复。</p>
+     */
+    String SOURCE_GONE = "SOURCE_GONE";
+
     java.util.List<String> getAllTrackIds();
 
     PageResponse<TrackSummaryDTO> searchTracks(String keyword, Integer page, Integer pageSize);
