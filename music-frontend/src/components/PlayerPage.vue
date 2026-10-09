@@ -68,43 +68,70 @@ let rafId = 0
 let lastProgressUpdate = 0
 const PROGRESS_THROTTLE = 50
 
-function syncLyrics() {
+/**
+ * 计算当前歌词行与行内进度。
+ * @param now 当前时间戳（performance.now()）
+ * @param allowScroll 是否同步滚动歌词容器到当前行（仅播放页打开时需要）
+ */
+function updateLineState(now: number, allowScroll: boolean) {
   const lines = lyricLines.value
-  if (lines.length) {
-    const now = performance.now()
-    const idx = findCurrentLine(lines, player.currentTime)
-    if (idx !== currentLineIdx.value) {
-      currentLineIdx.value = idx
-      lineProgress.value = getLineProgress(lines, idx, player.currentTime)
-      lastProgressUpdate = now
-      if (ui.showPlayerPage) {
-        nextTick(() => {
-          const container = lyricsContainer.value
-          const el = lineRefs.value[idx]
-          if (container && el) {
-            const containerHeight = container.clientHeight
-            const scrollTo = el.offsetTop - containerHeight / 2 + el.offsetHeight / 2
-            container.scrollTo({ top: scrollTo, behavior: 'smooth' })
-          }
-        })
-      }
-    } else if (now - lastProgressUpdate > PROGRESS_THROTTLE) {
-      lineProgress.value = getLineProgress(lines, idx, player.currentTime)
-      lastProgressUpdate = now
+  if (!lines.length) return
+  const idx = findCurrentLine(lines, player.currentTime)
+  if (idx !== currentLineIdx.value) {
+    currentLineIdx.value = idx
+    lineProgress.value = getLineProgress(lines, idx, player.currentTime)
+    lastProgressUpdate = now
+    if (allowScroll) {
+      nextTick(() => {
+        const container = lyricsContainer.value
+        const el = lineRefs.value[idx]
+        if (container && el) {
+          const containerHeight = container.clientHeight
+          const scrollTo = el.offsetTop - containerHeight / 2 + el.offsetHeight / 2
+          container.scrollTo({ top: scrollTo, behavior: 'smooth' })
+        }
+      })
     }
+  } else if (now - lastProgressUpdate > PROGRESS_THROTTLE) {
+    lineProgress.value = getLineProgress(lines, idx, player.currentTime)
+    lastProgressUpdate = now
   }
-  rafId = requestAnimationFrame(syncLyrics)
 }
 
-watch(() => player.isPlaying, (playing) => {
-  if (playing) {
-    rafId = requestAnimationFrame(syncLyrics)
-  } else {
+function rafLoop() {
+  updateLineState(performance.now(), true)
+  rafId = requestAnimationFrame(rafLoop)
+}
+
+function startRaf() {
+  // 幂等：避免重复启动导致多个 rAF 链并行
+  if (rafId) return
+  rafId = requestAnimationFrame(rafLoop)
+}
+
+function stopRaf() {
+  if (rafId) {
     cancelAnimationFrame(rafId)
+    rafId = 0
   }
+}
+
+// rAF 只在「播放中 且 播放页打开」时运行。
+// 播放页关闭后行内进度条不可见（整页模板在 v-if 内不渲染），只有 document.title 需要「当前行」，
+// 而 currentTime 由 audio 的 timeupdate 事件驱动（约 4Hz），足够驱动标题更新，
+// 无需让 rAF 在后台以 60fps 空转。
+watch([() => player.isPlaying, () => ui.showPlayerPage], ([playing, pageOpen]) => {
+  if (playing && pageOpen) startRaf()
+  else stopRaf()
 }, { immediate: true })
 
-onUnmounted(() => cancelAnimationFrame(rafId))
+// 播放页关闭期间的「当前行」更新：由 currentTime 变化驱动，不滚动。
+watch(() => player.currentTime, () => {
+  if (!player.isPlaying || ui.showPlayerPage) return
+  updateLineState(performance.now(), false)
+})
+
+onUnmounted(stopRaf)
 
 function fmt(seconds: number) {
   if (!Number.isFinite(seconds) || seconds < 0) return '0:00'

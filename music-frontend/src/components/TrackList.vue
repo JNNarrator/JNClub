@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import { showToast } from 'vant'
 import { ElIcon } from 'element-plus'
 import { Search, VideoPlay, Refresh, Loading, RefreshRight, WarningFilled, CircleCheckFilled, Plus, FolderOpened, Star } from '@element-plus/icons-vue'
@@ -26,6 +26,59 @@ const cacheRefreshing = ref(false)
 const cacheProgress = ref<{ total: number; completed: number; inProgress: boolean } | null>(null)
 let cachePollTimer: ReturnType<typeof setInterval> | null = null
 
+// 轮询参数：
+// - 后端已改为「同步抢占名额」，正常情况下首次轮询就能看到 inProgress=true；
+//   但为防极端时序误判，要求至少见过一次 inProgress=true 才允许收敛，否则需等满宽限次数。
+// - 总超时兜底：后端卡住时不能无限轮询。
+const CACHE_POLL_INTERVAL_MS = 1500
+const CACHE_POLL_GRACE_COUNT = 4
+const CACHE_POLL_MAX_MS = 10 * 60 * 1000
+
+const cacheProgressLabel = computed(() => {
+  const p = cacheProgress.value
+  if (!p) return '刷新中…'
+  if (!p.total) return '准备中…'
+  return `${p.completed}/${p.total}`
+})
+
+function stopCachePoll() {
+  if (cachePollTimer) {
+    clearInterval(cachePollTimer)
+    cachePollTimer = null
+  }
+}
+
+function startCachePoll() {
+  stopCachePoll()
+  const startedAt = Date.now()
+  let polls = 0
+  let seenInProgress = false
+  cachePollTimer = setInterval(async () => {
+    polls++
+    if (Date.now() - startedAt > CACHE_POLL_MAX_MS) {
+      stopCachePoll()
+      cacheRefreshing.value = false
+      showToast({ message: '刷新耗时过长，请稍后查看结果', type: 'warning' })
+      return
+    }
+    try {
+      const st = await fetch('/music/api/v1/tracks/cache/status')
+      const sp = await st.json()
+      if (!sp.success || !sp.data) return
+      cacheProgress.value = sp.data
+      if (sp.data.inProgress) {
+        seenInProgress = true
+        return
+      }
+      // 还没确认本轮真正开始过 → 继续等待，避免「触发即完成」的假象
+      if (!seenInProgress && polls < CACHE_POLL_GRACE_COUNT) return
+      stopCachePoll()
+      cacheRefreshing.value = false
+      doRefresh()
+    } catch { /* 轮询失败忽略，等待下一次 */ }
+  }, CACHE_POLL_INTERVAL_MS)
+}
+
 async function refreshCache() {
   cacheRefreshing.value = true
   cacheProgress.value = null
@@ -37,25 +90,14 @@ async function refreshCache() {
       cacheRefreshing.value = false
       return
     }
-    showToast({ message: '缓存刷新已触发', type: 'success' })
-    cachePollTimer = setInterval(async () => {
-      try {
-        const st = await fetch('/music/api/v1/tracks/cache/status')
-        const sp = await st.json()
-        if (sp.success && sp.data) {
-          cacheProgress.value = sp.data
-          if (!sp.data.inProgress) {
-            clearInterval(cachePollTimer!)
-            cachePollTimer = null
-            cacheRefreshing.value = false
-            doRefresh()
-          }
-        }
-      } catch { /* ignore poll errors */ }
-    }, 1500)
-  } catch (e) { showToast({ message: '网络异常', type: 'error' }); cacheRefreshing.value = false }
+    // 后端区分「已触发」与「已有任务在执行」，两种情况都应继续轮询等待
+    showToast({ message: p.data || '缓存刷新已触发', type: 'success' })
+    startCachePoll()
+  } catch (e) {
+    showToast({ message: '网络异常', type: 'error' })
+    cacheRefreshing.value = false
+  }
 }
-
 
 // --- pull-to-refresh ---
 const pullRef = ref<HTMLElement | null>(null)
@@ -169,7 +211,19 @@ async function doRefresh() {
   refreshing.value = false
 }
 
-function onScroll(e: Event) {
+// 滚动事件每帧可能触发多次，而下面的探测要读 scrollHeight/clientHeight
+// （会强制浏览器同步布局）。用 rAF 合并为每帧最多一次，避免滚动时反复布局造成掉帧。
+let scrollRaf = 0
+
+function onScroll() {
+  if (scrollRaf) return
+  scrollRaf = requestAnimationFrame(() => {
+    scrollRaf = 0
+    detectNearBottom()
+  })
+}
+
+function detectNearBottom() {
   // 兼容两种滚动容器：
   //  桌面(shell=relative): 滚动在 window/body
   //  移动(shell=fixed):     滚动在 .track-scroll
@@ -261,7 +315,8 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
-  if (cachePollTimer) clearInterval(cachePollTimer)
+  stopCachePoll()
+  if (scrollRaf) cancelAnimationFrame(scrollRaf)
   unbindTouch(scrollRef.value)
   window.removeEventListener('scroll', onWindowScroll)
 })
@@ -291,7 +346,7 @@ onBeforeUnmount(() => {
             <RefreshRight v-else />
           </el-icon>
           <span v-if="!cacheRefreshing">刷新缓存</span>
-          <span v-else>{{ cacheProgress ? `${cacheProgress.completed}/${cacheProgress.total}` : '刷新中…' }}</span>
+          <span v-else>{{ cacheProgressLabel }}</span>
         </button>
         <button class="btn-ghost" @click="playlists.openPanel()">
           <el-icon :size="14"><FolderOpened /></el-icon>
@@ -655,6 +710,20 @@ onBeforeUnmount(() => {
   border-bottom: 1px solid var(--jn-hair);
   transition: background 0.15s ease;
   cursor: default;
+}
+
+/*
+ * 长列表渲染优化：曲目行数量随无限滚动只增不减（每页 20 条），
+ * 屏外行用 content-visibility 跳过渲染/布局/绘制。
+ * 选它而不是虚拟滚动的原因：DOM 结构不变，scrollHeight 语义保持一致，
+ * 因此不影响现有的「触底加载」与「下拉刷新」判定逻辑。
+ * contain-intrinsic-size 用 auto 关键字：先按 61px 估算，之后浏览器按实测值记忆，
+ * 可自适应桌面/移动端不同的行高（移动端 padding 与字号更小）。
+ * 老浏览器（iOS Safari < 18）不支持时自动降级为普通渲染。
+ */
+.track-rows .row {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 61px;
 }
 
 .row:hover { background: var(--jn-row-hover); }

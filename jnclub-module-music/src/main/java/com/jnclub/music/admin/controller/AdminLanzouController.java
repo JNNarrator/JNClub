@@ -99,8 +99,12 @@ public class AdminLanzouController {
     @Operation(summary = "刷新歌曲直链缓存", description = "手动触发全量刷新所有歌曲的播放直链")
     @PostMapping("/refresh-cache")
     public ApiResponse<String> refreshCache() {
-        cacheService.manualRefresh();
-        return ApiResponse.success("缓存刷新已触发");
+        // 明确区分「已触发」与「已有任务在执行」：此前无论哪种情况都返回“已触发”，
+        // 前端会误以为本次请求已经开始了新一轮刷新。
+        boolean triggered = cacheService.manualRefresh();
+        return triggered
+                ? ApiResponse.success("缓存刷新已触发")
+                : ApiResponse.success("已有刷新任务在执行，本次未重复触发");
     }
 
 }

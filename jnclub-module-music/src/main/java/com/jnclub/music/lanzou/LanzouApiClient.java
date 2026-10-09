@@ -147,12 +147,39 @@ public class LanzouApiClient {
     private final Object bootstrapLock = new Object();
 
     /**
+     * 会话代际（时间戳）：每次会话真正重建（重新加载 Cookie 或账号登录成功）都刷新。
+     * <p>用于让「在重建之前就已经失败」的并发请求不必再清一次会话状态：旧请求本就不属于新会话，
+     * 若它再去清 uid/vei 与 Cookie，会把刚建立好的新会话一起抹掉，造成请求反复失败。</p>
+     */
+    private final java.util.concurrent.atomic.AtomicLong sessionGeneration =
+            new java.util.concurrent.atomic.AtomicLong(0);
+
+    /**
      * 会话初始化：优先复用本地缓存 Cookie，失效则尝试账号密码登录并落盘。
      * <p>幂等：多次调用只有第一次真跑；线程安全。</p>
      * @return true 表示会话可用；false 表示需要人工干预（滑块/凭据错误等）。
      */
     public boolean bootstrap() {
+        return bootstrap(false);
+    }
+
+    /**
+     * 会话初始化 / 重建。
+     * <p>{@code force=true} 用于「已确认会话失效」的场景：此时内存里的 uid/vei 只是
+     * 「曾经登录过」的残留，必须先清掉，否则第一步的早退判断会直接返回 true，
+     * 导致既不重读磁盘 Cookie 也不走账号登录——表现为会话失效后永久无法自愈。</p>
+     * <p>清理动作放在 {@code bootstrapLock} 内，避免锁外的清理抹掉其它线程刚重建好的会话。</p>
+     *
+     * @param force 是否强制重建会话
+     * @return true 表示会话可用；false 表示需要人工干预（滑块/凭据错误等）
+     */
+    public boolean bootstrap(boolean force) {
         synchronized (bootstrapLock) {
+            if (force) {
+                // 丢弃可能已失效的内存态，强制走「加载磁盘 Cookie → 账号登录」流程
+                sessionCookies.clear();
+                uid = ""; vei = "";
+            }
             // 1) 已经拿到 uid/vei → 认为会话可用
             if (!uid.isEmpty() && !vei.isEmpty()) return true;
 
@@ -160,6 +187,8 @@ public class LanzouApiClient {
             if (loadCookieCache()) {
                 try {
                     getUidVei();
+                    // 会话（重新）就绪 → 推进代际，让此前失败的并发请求走「直接重试」分支
+                    sessionGeneration.set(System.currentTimeMillis());
                     return true;
                 } catch (Exception e) {
                     // 缓存失效，落到下面账号密码登录
@@ -186,6 +215,7 @@ public class LanzouApiClient {
                 getUidVei();
                 saveCookieCache();
                 loginFailCount.set(0);
+                sessionGeneration.set(System.currentTimeMillis());
                 return true;
             } catch (Exception e) {
                 sessionCookies.clear();
@@ -209,15 +239,19 @@ public class LanzouApiClient {
      * 供内部包装用。
      */
     private <T> T withAutoRelogin(java.util.function.Supplier<T> action) {
+        long generation = sessionGeneration.get();
         try {
             return action.get();
         } catch (LanzouSessionException e) {
             if (!isSessionExpired(e)) throw e;
             if (!properties.isAutoRelogin()) throw e;
-            // 清掉本地状态，走 bootstrap
-            uid = ""; vei = ""; sessionCookies.clear();
-            boolean ok = bootstrap();
-            if (!ok) throw e;
+            // 代际已变：说明其它线程已经完成了一次会话重建，直接重试即可。
+            // 关键点：不要在锁外清 uid/vei/sessionCookies —— 那会抹掉刚建好的新会话。
+            if (sessionGeneration.get() == generation) {
+                // 仍属同一代际，由本次请求强制重建会话（bootstrap(force) 在锁内清理并重读 Cookie/重新登录）。
+                // 必须 force：否则 bootstrap 会因内存里残留的 uid/vei 直接早退，会话永远无法自愈。
+                bootstrap(true);
+            }
             return action.get();
         }
     }
@@ -301,6 +335,8 @@ public class LanzouApiClient {
         if (!sessionCookies.containsKey("phpdisk_info")) {
             throw new LanzouSessionException("missing cookie: phpdisk_info");
         }
+        // 手动替换 Cookie 同样是「会话重建」，推进代际避免并发请求互相清理会话
+        sessionGeneration.set(System.currentTimeMillis());
     }
 
     public void setAcwScV2(String value) {
@@ -341,6 +377,12 @@ public class LanzouApiClient {
      * </ol>
      */
     public void login(String username, String password) {
+        loginInternal(username, password);
+        // 会话已被替换 → 推进代际，让此前失败的并发请求走「直接重试」而不是再次清理会话
+        sessionGeneration.set(System.currentTimeMillis());
+    }
+
+    private void loginInternal(String username, String password) {
         Objects.requireNonNull(username, "username");
         Objects.requireNonNull(password, "password");
 
@@ -1518,11 +1560,12 @@ public class LanzouApiClient {
             getUidVei();
             return;
         } catch (LanzouSessionException e) {
-            // uid/vei 抓不到 → 会话失效 → 尝试 bootstrap（走缓存/自动登录）
+            // uid/vei 抓不到 → 会话失效 → 强制重建（走磁盘 Cookie / 账号登录）
             if (!properties.isAutoRelogin()) throw e;
-            sessionCookies.clear();
-            boolean ok = bootstrap();
-            if (!ok) throw e;
+            // 注意：不要在锁外 sessionCookies.clear()。并发场景下若另一线程刚完成会话重建，
+            // 这里的清理会把新会话一并抹掉，导致两边都失败、反复重建。
+            // bootstrap(true) 会在锁内完成清理，并自行判断磁盘 Cookie 是否可用。
+            if (!bootstrap(true)) throw e;
             // bootstrap 内部已经调用了 getUidVei，成功即返回
         }
     }

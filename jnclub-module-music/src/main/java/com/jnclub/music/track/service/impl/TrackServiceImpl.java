@@ -33,6 +33,16 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import jakarta.annotation.PreDestroy;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -100,6 +110,26 @@ public class TrackServiceImpl implements TrackService {
     private static final String CACHE_SONG_FOLDERS = "songFolders";
     private static final String CACHE_TRACK_SUMMARIES = "trackSummaries";
     private static final String CACHE_KEY_ALL = "all";
+    /** 目录扫描并发度：过大易触发蓝奏云反爬，过小则首次加载阻塞过久。 */
+    /**
+     * 目录扫描失败（蓝奏云会话失效）后的冷却截止时间。
+     * <p>空结果本身不写缓存，若不设冷却，未认证状态下每个请求都会重跑一次全量扫树。</p>
+     */
+    private volatile long folderScanBlockedUntil = 0;
+    /** 会话失效后的扫树冷却窗口。 */
+    private static final long FOLDER_SCAN_FAILURE_COOLDOWN_MS = 30_000L;
+    private static final int FOLDER_SCAN_CONCURRENCY = 4;
+    /**
+     * 单层扫描的等待上限。
+     * <p>依据：单个子文件夹的扫描是「第 1 页 listFiles」，而单次 listFiles 内部有 2 次 douploadPost，
+     * 每次最多 3 轮反爬重试（含 800ms/2000ms 退避）+ OkHttp 读超时 30s，最坏约 90s；正常仅 1~3s。
+     * 取 60s 既能给出上界，又不会把偶发的慢响应误判为失败。</p>
+     */
+    private static final long FOLDER_SCAN_LEVEL_TIMEOUT_MS = 60_000L;
+    /** 整轮扫描的总预算：超过即视为扫描失败（不缓存部分结果），并进入冷却。 */
+    private static final long FOLDER_SCAN_TOTAL_TIMEOUT_MS = 120_000L;
+    /** 单飞锁条带数：定长数组，按 trackId 哈希取模，无需清理。 */
+    private static final int MEDIA_URL_LOCK_STRIPES = 64;
 
     private final MusicStorage musicStorage;
     private final TrackMapper trackMapper;
@@ -112,12 +142,46 @@ public class TrackServiceImpl implements TrackService {
     private final java.util.concurrent.ConcurrentHashMap<String, Long> unplayableUntil =
             new java.util.concurrent.ConcurrentHashMap<>();
 
+    /** 目录扫描专用线程池：有界并发，把「每层每页一次 HTTP」的串行扫描压缩到可接受耗时。 */
+    private final ExecutorService folderScanExecutor = Executors.newFixedThreadPool(
+            FOLDER_SCAN_CONCURRENCY, daemonThreadFactory("music-folder-scan-"));
+    /** 取链单飞锁条带：同一 trackId 的并发取链合并为一次回源，避免重复请求放大蓝奏云反爬风险。 */
+    private final Object[] mediaUrlLocks = createLockStripes();
+
     public TrackServiceImpl(MusicStorage musicStorage, TrackMapper trackMapper, LyricsCacheMapper lyricsCacheMapper, CacheService cacheService, CacheManager cacheManager) {
         this.musicStorage = musicStorage;
         this.trackMapper = trackMapper;
         this.lyricsCacheMapper = lyricsCacheMapper;
         this.cacheService = cacheService;
         this.cacheManager = cacheManager;
+    }
+
+    /** 目录扫描线程池使用守护线程，这里显式关闭以保证优雅停机。 */
+    @PreDestroy
+    void shutdownFolderScanExecutor() {
+        folderScanExecutor.shutdownNow();
+    }
+
+    /** 目录全量扫描的单飞锁：同一时刻只允许一次扫树。 */
+    private final Object folderScanLock = new Object();
+
+    /** 守护线程工厂：命名 + daemon，避免线程池阻止 JVM 退出。 */
+    private static ThreadFactory daemonThreadFactory(String prefix) {
+        AtomicInteger seq = new AtomicInteger(1);
+        return r -> {
+            Thread t = new Thread(r, prefix + seq.getAndIncrement());
+            t.setDaemon(true);
+            return t;
+        };
+    }
+
+    /** 定长条带锁：同一 trackId 恒定映射到同一把锁，且无需清理，避免锁对象泄漏。 */
+    private static Object[] createLockStripes() {
+        Object[] stripes = new Object[MEDIA_URL_LOCK_STRIPES];
+        for (int i = 0; i < stripes.length; i++) {
+            stripes[i] = new Object();
+        }
+        return stripes;
     }
 
     @Override
@@ -160,33 +224,57 @@ public class TrackServiceImpl implements TrackService {
 
     @Override
     public PageResponse<TrackDTO> getTracksByIds(List<String> ids) {
+        // 原实现是 ids × folders 的双重循环，且内层每轮都重新调用 loadSongFolders()；
+        // 批量接口最多 50 个 id，改为一趟建索引后 O(n) 查表。
+        Map<String, SongFolder> byId = indexSongFoldersById();
         List<TrackDTO> items = new ArrayList<>();
         for (String id : ids) {
-            for (SongFolder sf : loadSongFolders()) {
-                if (sf.audioFile().id().equals(id)) {
-                    ParsedName pn = sf.parseFolderName();
-                    items.add(TrackDTO.builder().trackId(sf.audioFile().id()).name(pn.name()).artist(pn.artist())
-                            .format(pn.format()).fileSize(sf.audioFile().size()).hasLyric(sf.lyricFile() != null).build());
-                    break;
-                }
-            }
+            SongFolder sf = byId.get(id);
+            if (sf == null) continue;
+            ParsedName pn = sf.parseFolderName();
+            items.add(TrackDTO.builder().trackId(sf.audioFile().id()).name(pn.name()).artist(pn.artist())
+                    .format(pn.format()).fileSize(sf.audioFile().size()).hasLyric(sf.lyricFile() != null).build());
         }
         return PageResponse.<TrackDTO>builder().items(items).page(1).pageSize(0).total((long) items.size()).hasMore(false).build();
+    }
+
+    /** 建立 audioFileId -> SongFolder 索引；同一 id 只保留首个匹配，与原实现的 break 语义一致。 */
+    private Map<String, SongFolder> indexSongFoldersById() {
+        Map<String, SongFolder> byId = new HashMap<>();
+        for (SongFolder sf : loadSongFolders()) {
+            byId.putIfAbsent(sf.audioFile().id(), sf);
+        }
+        return byId;
     }
 
     /**
      * 获取可播放直链。
      * <p>缓存策略（显式 Caffeine，避免把「不可播」的负面结果缓存住阻碍重试恢复）：
      * 只有可播放的直链才写入 mediaUrls 缓存；命中且可播则快速返回，否则回源刷新 + 健康预检。</p>
+     * <p>未命中时按 trackId 加单飞锁：并发点播同一首歌只触发一次蓝奏云回源，其余请求复用结果。</p>
      */
     @Override
     public MediaUrlDTO getMediaUrl(String trackId) {
         String id = requireTrackId(trackId);
-        // 先查内存缓存（可播结果才在缓存里）。
+        MediaUrlDTO fast = cachedMediaUrl(id);
+        if (fast != null) return fast;
+        // 单飞：冷取链需 3~5 次蓝奏云 HTTP 且可能被反爬拦截，重复回源既拖慢响应又放大风控概率。
+        synchronized (mediaUrlLocks[Math.floorMod(id.hashCode(), MEDIA_URL_LOCK_STRIPES)]) {
+            MediaUrlDTO again = cachedMediaUrl(id);
+            if (again != null) return again;
+            return refreshAndCheck(id);
+        }
+    }
+
+    /**
+     * 只读缓存命中判定：L1（Caffeine，需可播且余量充足）→ L2（MySQL，需双重校验有效）。
+     * <p>未命中返回 null，由调用方决定是否回源。</p>
+     */
+    private MediaUrlDTO cachedMediaUrl(String id) {
+        Cache cache = cacheManager.getCache("mediaUrls");
         // 注意：必须同时校验 expiresAt —— 缓存 TTL（45min）与直链有效期（45min）几乎相同，
         // 若只判断 playable，缓存中「已失效但尚未被 Caffeine 淘汰」的链接会被原样返回，
         // 表现为歌曲播到一半中断或点了没声音。
-        Cache cache = cacheManager.getCache("mediaUrls");
         MediaUrlDTO hit = cacheGet(cache, id);
         if (hit != null && Boolean.TRUE.equals(hit.getPlayable()) && isFreshEnough(hit.getExpiresAt())) {
             return hit;
@@ -200,8 +288,7 @@ public class TrackServiceImpl implements TrackService {
             putMediaUrlCache(cache, id, dto);
             return dto;
         }
-        // 缓存/Mysql 失效或上次预检失败 → 强制回源刷新直链，并对新直链做健康预检
-        return refreshAndCheck(id);
+        return null;
     }
 
     private void putMediaUrlCache(Cache cache, String id, MediaUrlDTO dto) {
@@ -226,10 +313,7 @@ public class TrackServiceImpl implements TrackService {
         if (until != null && until > System.currentTimeMillis()) {
             return MediaUrlDTO.builder().trackId(id).playable(false).message("MEDIA_UNAVAILABLE").build();
         }
-        String format = "";
-        for (SongFolder sf : loadSongFolders()) {
-            if (id.equals(sf.audioFile().id())) { format = sf.parseFolderName().format(); break; }
-        }
+        String format = resolveFormat(id);
         try {
             var dl = musicStorage.getDownloadUrlWithExpiry(id);
             boolean ok = checkPlayable(dl.url());
@@ -271,27 +355,32 @@ public class TrackServiceImpl implements TrackService {
         }
     }
 
-    /** 回写 MySQL：更新直链、过期时间、可播放标志与失败原因。 */
+    /**
+     * 回写 MySQL：更新直链、过期时间、可播放标志与失败原因。
+     * <p>改为定向 UPDATE（而非 selectById + updateById 的全字段读改写）：
+     * 既省掉一次 SELECT，也避免用陈旧快照覆盖并发写入的其他字段（如另一线程刚续期的直链）。</p>
+     */
     private void persistUrl(String id, MediaUrlDTO dto) {
-        Track t = trackMapper.selectById(id);
-        if (t == null) return;
-        t.setMediaUrl(dto.getMediaUrl());
-        t.setUrlExpiresAt(dto.getExpiresAt());
-        t.setFormat(dto.getFormat());
-        t.setPlayable(Boolean.TRUE.equals(dto.getPlayable()) ? 1 : 0);
-        t.setLastError(dto.getMessage());
-        trackMapper.updateById(t);
+        var update = com.baomidou.mybatisplus.core.toolkit.Wrappers.<Track>lambdaUpdate()
+                .eq(Track::getTrackId, id)
+                .set(Track::getMediaUrl, dto.getMediaUrl())
+                .set(Track::getUrlExpiresAt, dto.getExpiresAt())
+                .set(Track::getPlayable, Boolean.TRUE.equals(dto.getPlayable()) ? 1 : 0)
+                .set(Track::getLastError, dto.getMessage());
+        // format 为派生信息，取链结果里可能缺失，缺失时不要覆盖库里已有的值
+        if (dto.getFormat() != null) {
+            update.set(Track::getFormat, dto.getFormat());
+        }
+        trackMapper.update(null, update);
     }
 
     /** 记录单曲不可用（保留旧 URL 兜底，仅更新标志）。 */
     private void markUnplayable(String id, String reason) {
         try {
-            Track t = trackMapper.selectById(id);
-            if (t != null) {
-                t.setPlayable(0);
-                t.setLastError(reason);
-                trackMapper.updateById(t);
-            }
+            trackMapper.update(null, com.baomidou.mybatisplus.core.toolkit.Wrappers.<Track>lambdaUpdate()
+                    .eq(Track::getTrackId, id)
+                    .set(Track::getPlayable, 0)
+                    .set(Track::getLastError, reason));
         } catch (Exception ignore) { /* 记录失败不影响主流程 */ }
     }
 
@@ -302,14 +391,12 @@ public class TrackServiceImpl implements TrackService {
      */
     private void markSourceGone(String id) {
         try {
-            Track t = trackMapper.selectById(id);
-            if (t != null) {
-                t.setPlayable(0);
-                t.setLastError(SOURCE_GONE);
-                t.setMediaUrl(null);
-                t.setUrlExpiresAt(null);
-                trackMapper.updateById(t);
-            }
+            trackMapper.update(null, com.baomidou.mybatisplus.core.toolkit.Wrappers.<Track>lambdaUpdate()
+                    .eq(Track::getTrackId, id)
+                    .set(Track::getPlayable, 0)
+                    .set(Track::getLastError, SOURCE_GONE)
+                    .set(Track::getMediaUrl, null)
+                    .set(Track::getUrlExpiresAt, null));
         } catch (Exception ignore) { /* 记录失败不影响主流程 */ }
     }
 
@@ -340,20 +427,13 @@ public class TrackServiceImpl implements TrackService {
             // 强制调蓝奏云拉取新直链，不走缓存
             var dl = musicStorage.getDownloadUrlWithExpiry(id);
             boolean ok = checkPlayable(dl.url());
+            // 注意：必须带上 format。此前该 DTO 未设置 format，回写时会把库里的格式清成 null。
             var dto = MediaUrlDTO.builder().trackId(id)
                     .mediaUrl(dl.url())
+                    .format(resolveFormat(id))
                     .expiresAt(toOffsetDateTime(dl.expiresAt()))
                     .playable(ok).message(ok ? null : "MEDIA_UNAVAILABLE").build();
-            // 回写 MySQL
-            Track cachedTrack = trackMapper.selectById(id);
-            if (cachedTrack != null) {
-                cachedTrack.setMediaUrl(dto.getMediaUrl());
-                cachedTrack.setUrlExpiresAt(dto.getExpiresAt());
-                cachedTrack.setFormat(dto.getFormat());
-                cachedTrack.setPlayable(ok ? 1 : 0);
-                cachedTrack.setLastError(ok ? null : "MEDIA_UNAVAILABLE");
-                trackMapper.updateById(cachedTrack);
-            }
+            persistUrl(id, dto);
             return dto;
         } catch (Exception e) {
             log.warn("强制刷新直链失败 trackId={}: {}", id, e.getMessage());
@@ -389,10 +469,14 @@ public class TrackServiceImpl implements TrackService {
         // 未命中 → 调蓝奏云批量获取
         if (!missing.isEmpty()) {
             Map<String, com.jnclub.music.storage.DownloadUrl> urlMap = musicStorage.getDownloadUrlsWithExpiry(missing);
-            for (SongFolder sf : loadSongFolders()) {
-                String id = sf.audioFile().id();
-                if (urlMap.containsKey(id)) {
-                    var dl = urlMap.get(id);
+            if (!urlMap.isEmpty()) {
+                // 原实现遍历整个目录树去匹配 urlMap，是 folders × missing 的双重循环；改为按 id 建索引后直接查。
+                Map<String, SongFolder> byId = indexSongFoldersById();
+                for (Map.Entry<String, com.jnclub.music.storage.DownloadUrl> e : urlMap.entrySet()) {
+                    String id = e.getKey();
+                    var dl = e.getValue();
+                    SongFolder sf = byId.get(id);
+                    if (dl == null || sf == null) continue;
                     var dto = MediaUrlDTO.builder().trackId(id).mediaUrl(dl.url())
                             .format(sf.parseFolderName().format()).expiresAt(toOffsetDateTime(dl.expiresAt()))
                             .playable(true).build();
@@ -480,20 +564,60 @@ public class TrackServiceImpl implements TrackService {
         List<SongFolder> hit = cacheGet(cache, CACHE_KEY_ALL);
         if (hit != null) return hit;
 
-        List<SongFolder> folders;
+        // 单飞：Caffeine 不做 read-through，缓存过期瞬间若并发请求各自扫树，
+        // 会对蓝奏云发起成倍请求（每次扫描是「每层每页一次 + 每个文件夹一次」HTTP），
+        // 既拖慢首屏也极易触发反爬。这里让并发未命中只跑一次全量扫描。
+        synchronized (folderScanLock) {
+            List<SongFolder> second = cacheGet(cache, CACHE_KEY_ALL);
+            if (second != null) return second;
+            // 会话失效冷却期内直接返回空：空结果不写缓存，若不加冷却，
+            // 未认证状态下每个列表/搜索/取链请求都会重跑一次全量扫树，
+            // 请求量被放大成「请求数 × 目录规模」，持续冲击蓝奏云反爬风控。
+            if (System.currentTimeMillis() < folderScanBlockedUntil) {
+                return new ArrayList<>();
+            }
+            List<SongFolder> folders = scanAllSongFolders();
+            if (!folders.isEmpty() && cache != null) {
+                cache.put(CACHE_KEY_ALL, folders);
+            }
+            return folders;
+        }
+    }
+
+    /**
+     * 全量扫描目录树。
+     * <p>两类失败都按「扫描失败」处理（返回空列表、不写缓存、进入短冷却），不向接口抛 500：
+     * 蓝奏云会话失效，以及扫描超时（网络挂起/反爬退避）。其余异常原样抛出。</p>
+     * <p>关键约束：任何失败路径都不得把已扫到的部分结果写入缓存——否则曲库会以不完整状态被缓存 45 分钟。</p>
+     */
+    private List<SongFolder> scanAllSongFolders() {
         try {
-            folders = new ArrayList<>();
+            List<SongFolder> folders = new ArrayList<>();
             loadSongFoldersRecursively(ROOT_FOLDER_ID, folders);
-        } catch (com.jnclub.music.lanzou.LanzouSessionException e) {
-            // 蓝奏云会话失效：不向接口抛 500，返回空列表由上层展示/引导重新认证，
-            // 同时保留 Caffeine 中可能仍存在的旧缓存值供播放直链兜底。
-            log.warn("loadSongFolders: 蓝奏云会话失效，返回空列表，请重新认证。原因: {}", e.getMessage());
-            folders = new ArrayList<>();
+            folderScanBlockedUntil = 0;
+            return folders;
+        } catch (Exception e) {
+            // 并发扫描会把底层异常包进 CompletionException，先解包再判定类型。
+            Throwable root = rootCauseOf(e);
+            if (root instanceof LanzouSessionException) {
+                // 蓝奏云会话失效：返回空列表由上层展示/引导重新认证，
+                // 同时保留 Caffeine 中可能仍存在的旧缓存值供播放直链兜底。
+                // 冷却窗口取 30s：既能挡住放大效应，又不至于让管理员重新认证后长时间看不到曲目。
+                folderScanBlockedUntil = System.currentTimeMillis() + FOLDER_SCAN_FAILURE_COOLDOWN_MS;
+                log.warn("loadSongFolders: 蓝奏云会话失效，返回空列表并进入 {}s 冷却，请重新认证。原因: {}",
+                        FOLDER_SCAN_FAILURE_COOLDOWN_MS / 1000, root.getMessage());
+                return new ArrayList<>();
+            }
+            if (root instanceof FolderScanTimeoutException) {
+                // 扫描超时同样进入冷却，避免卡住时后续请求立刻再来一轮全量扫描
+                folderScanBlockedUntil = System.currentTimeMillis() + FOLDER_SCAN_FAILURE_COOLDOWN_MS;
+                log.warn("loadSongFolders: 目录扫描超时，返回空列表并进入 {}s 冷却，保留旧缓存兜底。原因: {}",
+                        FOLDER_SCAN_FAILURE_COOLDOWN_MS / 1000, root.getMessage());
+                return new ArrayList<>();
+            }
+            if (root instanceof RuntimeException re) throw re;
+            throw new IllegalStateException(root);
         }
-        if (!folders.isEmpty() && cache != null) {
-            cache.put(CACHE_KEY_ALL, folders);
-        }
-        return folders;
     }
 
     /** 从 Caffeine 缓存按 key 读值；未命中返回 null（泛型强转，存入与读取同类型，安全）。 */
@@ -504,27 +628,119 @@ public class TrackServiceImpl implements TrackService {
         return vw == null ? null : (T) vw.get();
     }
 
+    /**
+     * 扫描目录树，收集歌曲文件夹。
+     * <p>扫描成本是「每层每页一次 HTTP + 每个子文件夹一次 HTTP」，原实现完全串行，
+     * 首次加载或 songFolders 缓存过期后会把请求阻塞数十秒。现改为按层并发：
+     * 层内并发（{@link #FOLDER_SCAN_CONCURRENCY}）、层间串行，任务不会向同一线程池嵌套提交，
+     * 因此不会出现线程池饥饿（提交的任务等待自己所在池的线程）而死锁。</p>
+     */
     private void loadSongFoldersRecursively(String folderId, List<SongFolder> out) {
-        for (int page = 1; page <= MAX_PAGES; page++) {
-            StorageListResult r = musicStorage.listFiles(folderId, page);
-            if (r == null || (r.files().isEmpty() && r.folders().isEmpty())) break;
-            for (StorageFolder f : r.folders()) {
-                SongFolder sf = scanSongFolder(f.id(), f.name());
-                if (sf != null) out.add(sf);
-                else loadSongFoldersRecursively(f.id(), out);
+        long deadline = System.currentTimeMillis() + FOLDER_SCAN_TOTAL_TIMEOUT_MS;
+        List<StorageFolder> level = listChildFolders(folderId);
+        while (!level.isEmpty()) {
+            List<CompletableFuture<LevelScan>> futures = new ArrayList<>(level.size());
+            for (StorageFolder f : level) {
+                futures.add(CompletableFuture.supplyAsync(() -> scanLevelItem(f), folderScanExecutor));
             }
+            List<StorageFolder> next = new ArrayList<>();
+            for (CompletableFuture<LevelScan> fu : futures) {
+                // 按 futures 顺序取结果，保证输出顺序与串行扫描一致
+                LevelScan r = awaitLevelScan(fu, deadline);
+                if (r.song() != null) out.add(r.song());
+                else next.addAll(r.childFolders());
+            }
+            level = next;
         }
     }
 
-    private SongFolder scanSongFolder(String folderId, String folderName) {
-        StorageListResult r = musicStorage.listFiles(folderId, 1);
-        if (r == null || r.files().isEmpty()) return null;
-        StorageFile audioFile = null, lyricFile = null;
-        for (StorageFile f : r.files()) {
-            if (isAudio(f.name())) audioFile = f;
-            else if (f.name().toLowerCase(Locale.ROOT).endsWith(".txt")) lyricFile = f;
+    /**
+     * 等待单个目录扫描任务，带「单层上限 + 整轮预算」双重超时。
+     * <p>此前用无超时的 {@code join()}：单个任务卡住（网络挂起 / 反爬退避）会让调用线程无限等待，
+     * 而所有走 {@code loadSongFolders} 的接口（列表、搜索、取链时的 format 解析、歌词）都会被一起阻塞。</p>
+     *
+     * @throws FolderScanTimeoutException 超时（交由 {@code scanAllSongFolders} 统一按扫描失败处理）
+     */
+    private LevelScan awaitLevelScan(CompletableFuture<LevelScan> future, long deadline) {
+        long remaining = deadline - System.currentTimeMillis();
+        long waitMs = Math.min(FOLDER_SCAN_LEVEL_TIMEOUT_MS, remaining);
+        if (waitMs <= 0) {
+            throw new FolderScanTimeoutException(
+                    "目录扫描已超出整轮预算 " + FOLDER_SCAN_TOTAL_TIMEOUT_MS + "ms");
         }
-        return audioFile != null ? new SongFolder(folderId, folderName, audioFile, lyricFile) : null;
+        try {
+            return future.get(waitMs, TimeUnit.MILLISECONDS);
+        } catch (TimeoutException e) {
+            throw new FolderScanTimeoutException("目录扫描单层等待超过 " + waitMs + "ms", e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new FolderScanTimeoutException("目录扫描被中断", e);
+        } catch (ExecutionException e) {
+            // 解包真实原因（例如 LanzouSessionException），保持与串行实现一致的异常语义
+            Throwable cause = e.getCause();
+            if (cause instanceof RuntimeException re) throw re;
+            throw new FolderScanTimeoutException("目录扫描任务失败", cause == null ? e : cause);
+        }
+    }
+
+    /**
+     * 目录扫描超时：属可重试的临时失败。
+     * <p>不作为 500 抛出——与「会话失效」同样按扫描失败处理（返回空列表、不写缓存、进入冷却），
+     * 避免一次网络抖动让整个音乐模块的列表/搜索接口报错。</p>
+     */
+    private static final class FolderScanTimeoutException extends RuntimeException {
+        FolderScanTimeoutException(String message) { super(message); }
+        FolderScanTimeoutException(String message, Throwable cause) { super(message, cause); }
+    }
+
+    /** 分页列出目录下的子文件夹（忽略散落文件，与原实现一致）。 */
+    private List<StorageFolder> listChildFolders(String folderId) {
+        List<StorageFolder> folders = new ArrayList<>();
+        for (int page = 1; page <= MAX_PAGES; page++) {
+            StorageListResult r = musicStorage.listFiles(folderId, page);
+            if (r == null || (r.files().isEmpty() && r.folders().isEmpty())) break;
+            folders.addAll(r.folders());
+        }
+        return folders;
+    }
+
+    /**
+     * 扫描单个子文件夹：第 1 页能找到音频文件即视为歌曲文件夹（与原 {@code scanSongFolder} 判定一致）；
+     * 否则当作目录，返回其全部子文件夹供下一层继续扫描（复用已取到的第 1 页结果，少一次请求）。
+     */
+    private LevelScan scanLevelItem(StorageFolder folder) {
+        StorageListResult first = musicStorage.listFiles(folder.id(), 1);
+        if (first != null && !first.files().isEmpty()) {
+            StorageFile audioFile = null, lyricFile = null;
+            for (StorageFile f : first.files()) {
+                if (isAudio(f.name())) audioFile = f;
+                else if (f.name().toLowerCase(Locale.ROOT).endsWith(".txt")) lyricFile = f;
+            }
+            if (audioFile != null) {
+                return new LevelScan(new SongFolder(folder.id(), folder.name(), audioFile, lyricFile), List.of());
+            }
+        }
+        List<StorageFolder> children = first == null ? new ArrayList<>() : new ArrayList<>(first.folders());
+        for (int page = 2; page <= MAX_PAGES; page++) {
+            StorageListResult r = musicStorage.listFiles(folder.id(), page);
+            if (r == null || (r.files().isEmpty() && r.folders().isEmpty())) break;
+            children.addAll(r.folders());
+        }
+        return new LevelScan(null, children);
+    }
+
+    /** 单层扫描结果：要么是歌曲文件夹，要么是需要继续下探的子文件夹列表。 */
+    private record LevelScan(SongFolder song, List<StorageFolder> childFolders) {}
+
+    /** 解包 CompletableFuture/包装异常，取出真正的根因。 */
+    private static Throwable rootCauseOf(Throwable e) {
+        Throwable root = e;
+        while ((root instanceof java.util.concurrent.CompletionException
+                || root instanceof java.util.concurrent.ExecutionException)
+                && root.getCause() != null) {
+            root = root.getCause();
+        }
+        return root;
     }
 
     /**
@@ -551,8 +767,20 @@ public class TrackServiceImpl implements TrackService {
      * <p>不修改入参对象，避免污染 Caffeine 中的缓存条目。</p>
      */
     private static List<TrackSummaryDTO> stripStaleUrls(List<TrackSummaryDTO> src) {
-        List<TrackSummaryDTO> out = new ArrayList<>(src.size());
         OffsetDateTime threshold = OffsetDateTime.now().plus(URL_SAFETY_MARGIN);
+        // 绝大多数曲目的直链余量充足，先探测一次：无失效项就直接复用缓存列表，
+        // 避免每次列表请求都重建 N 个 DTO（列表是高频接口）。
+        boolean hasStale = false;
+        for (TrackSummaryDTO t : src) {
+            if (t.getMediaUrl() != null
+                    && (t.getUrlExpiresAt() == null || !t.getUrlExpiresAt().isAfter(threshold))) {
+                hasStale = true;
+                break;
+            }
+        }
+        if (!hasStale) return src;
+
+        List<TrackSummaryDTO> out = new ArrayList<>(src.size());
         for (TrackSummaryDTO t : src) {
             if (t.getMediaUrl() != null && t.getUrlExpiresAt() != null
                     && t.getUrlExpiresAt().isAfter(threshold)) {
@@ -765,6 +993,12 @@ public class TrackServiceImpl implements TrackService {
         int total = all.size(), from = Math.min((page - 1) * pageSize, total), to = Math.min(from + pageSize, total);
         return PageResponse.<T>builder().items(new ArrayList<>(all.subList(from, to)))
                 .page(page).pageSize(pageSize).total((long) total).hasMore(to < total).build();
+    }
+
+    /** 从目录树解析音频格式（扩展名）；找不到返回空串，避免把库里的 format 写成 null。 */
+    private String resolveFormat(String id) {
+        SongFolder sf = indexSongFoldersById().get(id);
+        return sf == null ? "" : sf.parseFolderName().format();
     }
 
     private static boolean isAudio(String fileName) {

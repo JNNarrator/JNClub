@@ -127,12 +127,33 @@ async function fetchJsonWithTimeout(input: string, timeoutMs: number): Promise<a
 // { url, format }=可播放直链。
 type MediaUrlResult = { url: string; format: string; playable: true } | { url: null; format: ''; playable: false; message?: string } | null
 
+// 同一 trackId 的在途取链：并发点播/预取同一首歌时复用同一个请求，避免重复回源蓝奏云
+// （取链是重操作且易触发风控，重复请求既拖慢响应也放大被限流的概率）。
+const inFlightMediaUrl = new Map<string, Promise<MediaUrlResult>>()
+
 async function fetchMediaUrl(trackId: string, force = false): Promise<MediaUrlResult> {
   // 先查缓存（须留有安全余量，避免复用即将失效的链接）
   const cached = urlCache.get(trackId)
   if (!force && cached && isUrlUsable(cached.expiresAt)) {
     return { url: cached.url, format: cached.format, playable: true }
   }
+  // force=true 用于播放失败后的强制重取，必须真正发起新请求，不能复用旧结果
+  if (!force) {
+    const pending = inFlightMediaUrl.get(trackId)
+    if (pending) return pending
+  }
+  const task = fetchMediaUrlUncached(trackId)
+  if (!force) {
+    inFlightMediaUrl.set(trackId, task)
+    void task.then(
+      () => inFlightMediaUrl.delete(trackId),
+      () => inFlightMediaUrl.delete(trackId),
+    )
+  }
+  return task
+}
+
+async function fetchMediaUrlUncached(trackId: string): Promise<MediaUrlResult> {
   try {
     const payload = await fetchJsonWithTimeout(`/music/api/v1/tracks/${trackId}/media-url`, MEDIA_URL_FETCH_TIMEOUT_MS)
     if (payload?.error?.code === 'LANZOU_SESSION_EXPIRED') {
@@ -214,7 +235,9 @@ async function prefetchNextUrls(tracks: Track[], currentIdx: number) {
   for (let i = 1; i <= prefetchCount; i++) {
     const idx = (currentIdx + i) % tracks.length
     const track = tracks[idx]
-    if (track?.trackId && !track.mediaUrl) {
+    // 已在途的单曲取链（如刚点播的当前曲）不必再发一次批量请求：
+    // 快速连点切歌时，预取会为同一批 trackId 反复发起重复请求。
+    if (track?.trackId && !track.mediaUrl && !inFlightMediaUrl.has(track.trackId)) {
       idsToPrefetch.push(track.trackId)
     }
   }
@@ -262,8 +285,15 @@ export const usePlayerStore = defineStore('player', () => {
   let playRequestId = 0        // 每次 playIndex/重试递增，用于丢弃过期异步结果
   let failureSkipTimer: ReturnType<typeof setTimeout> | null = null
   let stallTimer: ReturnType<typeof setTimeout> | null = null
+  // 播放重试与「3 秒兜底播放」的句柄。此前它们没有保存句柄，切歌/停止时无法取消：
+  // 旧闭包仍会在稍后调用 audio.play()，把已经切走（甚至用户已暂停）的播放重新拉起。
+  let playRetryTimer: ReturnType<typeof setTimeout> | null = null
+  let fallbackPlayTimer: ReturnType<typeof setTimeout> | null = null
   let consecutiveFailures = 0  // 连续失败自动跳过的计数，避免全部死链时无限循环
   let switchingSource = false  // 主动清空/切换 src 时抑制空源 error 事件
+  // 用户主动暂停标志：暂停后不应再由兜底/重试定时器把音频重新拉起，
+  // 也不应把「用户暂停」误判为「缓冲卡死」而自动切歌。
+  let userPaused = false
 
   // 每首歌的就绪状态：idle(未加载) | loading(取直链中) | ready(可播放) | error(失败)
   const readyStates = reactive(new Map<string, 'idle' | 'loading' | 'ready' | 'error'>())
@@ -290,9 +320,21 @@ export const usePlayerStore = defineStore('player', () => {
     }
   }
 
+  function clearPendingPlayTimers() {
+    if (playRetryTimer) {
+      clearTimeout(playRetryTimer)
+      playRetryTimer = null
+    }
+    if (fallbackPlayTimer) {
+      clearTimeout(fallbackPlayTimer)
+      fallbackPlayTimer = null
+    }
+  }
+
   function clearPlaybackTimers() {
     clearStallTimer()
     clearFailureSkipTimer()
+    clearPendingPlayTimers()
   }
 
   /** 从开始加载到可播放的超时兜底：防止 CDN/网络卡住时永远转圈 */
@@ -300,6 +342,8 @@ export const usePlayerStore = defineStore('player', () => {
     clearStallTimer()
     stallTimer = setTimeout(() => {
       stallTimer = null
+      // 用户主动暂停不是「卡死」：暂停后不得自动切歌并重新开始播放
+      if (userPaused) return
       if (currentTrack.value?.trackId === trackId && !isPlaying.value) {
         handlePlaybackFailure(trackId, 'stall-timeout')
       }
@@ -312,6 +356,11 @@ export const usePlayerStore = defineStore('player', () => {
     failureSkipTimer = setTimeout(() => {
       failureSkipTimer = null
       if (currentTrack.value?.trackId !== trackId) return
+      // 用户主动暂停：取消本轮自动跳过（恢复播放时由 toggle 重新触发）
+      if (userPaused) {
+        consecutiveFailures = 0
+        return
+      }
       // 等待期间已经恢复播放，取消跳过
       if (isPlaying.value) {
         consecutiveFailures = 0
@@ -396,6 +445,8 @@ export const usePlayerStore = defineStore('player', () => {
       pendingReady = null
     }
     clearFailureSkipTimer()
+    // 取消上一次切歌遗留的「重试播放 / 兜底播放」，否则旧闭包会把新歌重新拉起
+    clearPendingPlayTimers()
     loading.value = true
     isPlaying.value = false
     // 彻底终止并重置音频元素，避免旧音频残留
@@ -409,6 +460,10 @@ export const usePlayerStore = defineStore('player', () => {
     audio.volume = volume.value
     // 加载/播放超时兜底：CDN 卡住时不再无限转圈
     scheduleStallTimeout(currentTrack.value?.trackId || '')
+
+    // 本次播放的代际：定时器回调执行前需确认仍是同一代，避免切歌后旧回调误播
+    const generation = playRequestId
+    const isCurrentGeneration = () => generation === playRequestId
 
     // 尝试播放（含锁屏重试）
     // 注意：不在这里设 isPlaying，由 play/pause 事件监听器管理，
@@ -426,7 +481,11 @@ export const usePlayerStore = defineStore('player', () => {
           // 如果没 pause，play 事件会设 isPlaying = true
         }).catch(() => {
           // 锁屏或后台模式下播放可能被拒绝，延迟重试一次
-          setTimeout(() => {
+          playRetryTimer = setTimeout(() => {
+            playRetryTimer = null
+            if (!isCurrentGeneration()) return
+            // 用户已主动暂停：不要用重试把音频重新拉起
+            if (userPaused) return
             audio.play().then(() => {
               if (audio.paused) isPlaying.value = false
             }).catch(() => {
@@ -439,12 +498,11 @@ export const usePlayerStore = defineStore('player', () => {
 
     // 等待缓冲就绪后播放，同时设超时兜底（锁屏下 canplay 可能延迟较大）
     let played = false
-    let timeoutId: ReturnType<typeof setTimeout> | null = null
 
     const onReady = () => {
       if (played) return
       played = true
-      if (timeoutId) clearTimeout(timeoutId)
+      clearFallbackPlayTimer()
       audio.removeEventListener('canplay', onReady)
       pendingReady = null
       tryPlay()
@@ -452,16 +510,24 @@ export const usePlayerStore = defineStore('player', () => {
 
     pendingReady = onReady
     audio.addEventListener('canplay', onReady)
-
     // 超时兜底：3 秒后无论如何尝试播放（处理锁屏/后台场景）
-    timeoutId = setTimeout(() => {
-      if (!played) {
-        played = true
-        audio.removeEventListener('canplay', onReady)
-        pendingReady = null
-        tryPlay()
-      }
+    fallbackPlayTimer = setTimeout(() => {
+      fallbackPlayTimer = null
+      if (played) return
+      // 用户已主动暂停：不要用兜底播放把音频重新拉起
+      if (userPaused) return
+      played = true
+      audio.removeEventListener('canplay', onReady)
+      pendingReady = null
+      tryPlay()
     }, 3000)
+  }
+
+  function clearFallbackPlayTimer() {
+    if (fallbackPlayTimer) {
+      clearTimeout(fallbackPlayTimer)
+      fallbackPlayTimer = null
+    }
   }
 
   async function playIndex(index: number) {
@@ -482,6 +548,8 @@ export const usePlayerStore = defineStore('player', () => {
     // 停止旧音频并清空源，防止旧歌在加载期间继续播放
     loading.value = true
     switchingSource = true
+    // 切歌是新的播放意图：清除「用户暂停」状态
+    userPaused = false
     audio.pause()
     audio.removeAttribute('src')
     audio.load()
@@ -494,12 +562,16 @@ export const usePlayerStore = defineStore('player', () => {
     const result = await fetchMediaUrl(track.trackId)
     if (requestId !== playRequestId || currentIndex.value !== index) return
     if (!result) {
-      // 网络/超时等异常（非确定性坏链）→ 走正常失败流程，等 5s 再切
+      // 网络/超时等异常（非确定性坏链）→ 走正常失败流程，等 5s 再切。
+      // 必须先解除 switchingSource：此时源已被清空且不会再有成功的 doPlay 去复位它，
+      // 若一直为 true，后续真实的 error 事件会被当成「空源噪声」吞掉，自动切歌随之失效。
+      switchingSource = false
       handlePlaybackFailure(track.trackId, 'url-fetch')
       return
     }
     if (!result.playable) {
-      // 后端明确判定不可播 → 快速跳过到下一可播曲目
+      // 后端明确判定不可播 → 快速跳过到下一可播曲目（同样需解除 switchingSource）
+      switchingSource = false
       handlePlaybackFailure(track.trackId, 'not-playable', true)
       return
     }
@@ -510,8 +582,9 @@ export const usePlayerStore = defineStore('player', () => {
     doPlay(result.url)
     // 更新 Media Session 元数据（锁屏/控制中心显示）
     updateMediaSession(track)
-    // 后台预取下一首 + 预加载当前歌词
-    prefetchNextUrls(queue.value, index)
+    // 后台预取下一首 + 预加载当前歌词。预取属后台任务，吞掉异常避免未处理的
+    // Promise rejection 被全局 error 监听捕获后弹出整屏错误遮罩。
+    prefetchNextUrls(queue.value, index).catch(() => {})
     fetchLyricsCached(track.trackId)
   }
 
@@ -528,8 +601,12 @@ export const usePlayerStore = defineStore('player', () => {
       return
     }
     if (audio.paused) {
+      // 用户主动恢复播放：清除暂停标志
+      userPaused = false
       audio.play().catch(() => {})
     } else {
+      // 用户主动暂停：置位，避免兜底/重试定时器与自动切歌把音频重新拉起
+      userPaused = true
       audio.pause()
     }
   }
@@ -655,10 +732,13 @@ export const usePlayerStore = defineStore('player', () => {
       // 用户按锁屏/方向盘播放键时强制重连音频会话
       navigator.mediaSession.setActionHandler('play', () => {
         if (currentTrack.value) {
+          userPaused = false
           audio.play().catch(() => {})
         }
       })
       navigator.mediaSession.setActionHandler('pause', () => {
+        // 锁屏/车机暂停同样视为「用户主动暂停」
+        userPaused = true
         if (!audio.paused) audio.pause()
       })
       navigator.mediaSession.setActionHandler('previoustrack', () => {
