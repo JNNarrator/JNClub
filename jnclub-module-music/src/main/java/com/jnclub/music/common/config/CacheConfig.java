@@ -25,7 +25,8 @@ public class CacheConfig {
         // 兜底默认值：未单独声明的缓存沿用
         manager.setCaffeine(Caffeine.newBuilder()
                 .maximumSize(200)
-                .expireAfterWrite(Duration.ofMinutes(45)));
+                .expireAfterWrite(Duration.ofMinutes(45))
+                .recordStats());
         // 目录树 / 歌曲摘要：单 key（"all"）持有整份列表，容量不需要大，但要长 TTL
         manager.registerCustomCache("songFolders", cache(4, Duration.ofMinutes(45)));
         manager.registerCustomCache("trackSummaries", cache(4, Duration.ofMinutes(45)));
@@ -36,11 +37,17 @@ public class CacheConfig {
         return manager;
     }
 
-    /** 构建独立配置的 Caffeine 缓存实例（registerCustomCache 需要实例，而非构建器）。 */
+    /**
+     * 构建独立配置的 Caffeine 缓存实例（registerCustomCache 需要实例，而非构建器）。
+     * <p>{@code recordStats()} 让 Micrometer 能采集命中率等指标：既消除启动时的
+     * 「is not recording statistics」告警，也让「直链是否还在被相互驱逐」变得可观测
+     * ——这正是本次容量分档要解决的问题。</p>
+     */
     private static com.github.benmanes.caffeine.cache.Cache<Object, Object> cache(long maximumSize, Duration ttl) {
         return Caffeine.newBuilder()
                 .maximumSize(maximumSize)
                 .expireAfterWrite(ttl)
+                .recordStats()
                 .build();
     }
 }
