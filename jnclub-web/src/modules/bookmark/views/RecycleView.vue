@@ -303,7 +303,7 @@ onMounted(() => { fetchItems(); fetchConfig() })
     </div>
 
     <!-- 自动清理设置弹窗 -->
-    <NModal v-model:show="showConfigModal" preset="card" title="回收站自动清理设置" style="width: 380px" :bordered="false">
+    <NModal v-model:show="showConfigModal" preset="card" title="回收站自动清理设置" style="width: min(380px, 92vw)" :bordered="false">
       <p class="config-tip">超过保留天数的回收站条目将被自动彻底删除（每日 03:40 执行，多实例互斥）。</p>
       <div class="config-form">
         <NInputNumber v-model:value="newKeepDays" :min="7" :max="180" class="config-input" />

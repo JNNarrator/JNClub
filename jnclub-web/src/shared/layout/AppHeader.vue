@@ -11,7 +11,8 @@ import {
 import { FolderOpen, Search, CheckSquare, RefreshCw, Sun, Moon, CircleUser, LogOut, Bell, CheckCheck } from 'lucide-vue-next'
 import axios from 'axios'
 import { useUserStore } from '../stores/user'
-import { openMenu } from '../composables/useContextMenu'
+import { openMenu, openMenuAt } from '../composables/useContextMenu'
+import { useLongPress } from '../composables/useLongPress'
 import ViewSwitcher, { type ViewMode } from '../../modules/bookmark/components/ViewSwitcher.vue'
 
 const props = defineProps<{
@@ -34,6 +35,7 @@ const emit = defineEmits<{
 }>()
 
 const userStore = useUserStore()
+const longPress = useLongPress()
 const dialog = useDialog()
 
 interface NotificationItem {
@@ -308,7 +310,7 @@ const handleBreadcrumbRoot = () => {
       </button>
 
       <NDropdown :options="userDropdownOptions" @select="handleUserDropdown" placement="bottom-end" trigger="click">
-        <div class="user-row jnclub-bouncy" @contextmenu.prevent="openMenu($event, userDropdownOptions, handleUserDropdown)">
+        <div class="user-row jnclub-bouncy jnclub-longpress" @contextmenu.prevent="openMenu($event, userDropdownOptions, handleUserDropdown)" v-on="longPress((ev) => openMenuAt(ev.clientX, ev.clientY, userDropdownOptions, handleUserDropdown))">
           <NAvatar round size="small" :src="userStore.userinfo?.avatar" class="user-avatar">
             <template v-if="!userStore.userinfo?.avatar">
               {{ userStore.userinfo?.nickname?.charAt(0) || 'U' }}

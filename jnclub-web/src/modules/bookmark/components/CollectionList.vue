@@ -10,6 +10,7 @@ import CollectionRow from './CollectionRow.vue'
 import type { BookmarkItem } from './CollectionRow.vue'
 import { useDraggableSort } from '../composables/useDraggableSort'
 import { useItemDragContext } from '../composables/useItemDragContext'
+import { useBreakpoint } from '../../../shared/composables/useBreakpoint'
 
 const props = defineProps<{
   bookmarks: BookmarkItem[]
@@ -30,6 +31,7 @@ const emit = defineEmits<{
 const visible = ref(false)
 const listRef = ref<HTMLElement | null>(null)
 const { setDragging } = useItemDragContext()
+const { isCoarse } = useBreakpoint()
 
 const handleDragStart = (e: DragEvent, item: BookmarkItem) => {
   setDragging({
@@ -94,7 +96,7 @@ watch(isVirtual, async (v) => {
           :data-id="bk.id"
           class="list-item-wrap"
           :style="{ '--i': i }"
-          draggable="true"
+          :draggable="!isCoarse"
           @dragstart="handleDragStart($event, bk)"
           @dragend="handleDragEnd"
         >

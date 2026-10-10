@@ -11,6 +11,7 @@ import NoteCard from './NoteCard.vue'
 import type { Note } from '../stores/note'
 import { useDraggableSort } from '../composables/useDraggableSort'
 import { useItemDragContext } from '../composables/useItemDragContext'
+import { useBreakpoint } from '../../../shared/composables/useBreakpoint'
 
 const props = defineProps<{
   notes: Note[]
@@ -31,6 +32,7 @@ const emit = defineEmits<{
 const visible = ref(false)
 const gridRef = ref<HTMLElement | null>(null)
 const { setDragging } = useItemDragContext()
+const { isCoarse } = useBreakpoint()
 
 const handleDragStart = (e: DragEvent, item: Note) => {
   setDragging({
@@ -101,7 +103,7 @@ watch(isVirtual, async (v) => {
               :key="note.id"
               :data-id="note.id"
               class="grid-item-wrap virtual-item"
-              draggable="true"
+              :draggable="!isCoarse"
               @dragstart="handleDragStart($event, note)"
               @dragend="handleDragEnd"
             >
@@ -126,7 +128,7 @@ watch(isVirtual, async (v) => {
           :data-id="note.id"
           class="grid-item-wrap"
           :style="{ '--i': i }"
-          draggable="true"
+          :draggable="!isCoarse"
           @dragstart="handleDragStart($event, note)"
           @dragend="handleDragEnd"
         >

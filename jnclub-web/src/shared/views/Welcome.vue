@@ -311,7 +311,7 @@ const goRegister = () => {
   to { opacity: 1; transform: translateY(0); }
 }
 
-@media (max-width: 720px) {
+@media (max-width: 767px) {
   .features { grid-template-columns: 1fr 1fr; }
   .brand-name { font-size: 32px; }
   .welcome-inner { padding: 32px 20px 32px; }

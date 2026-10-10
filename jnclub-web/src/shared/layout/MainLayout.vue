@@ -4,10 +4,11 @@
  * 嵌入 SideNav（三段式）+ 内容区
  * 移动端（<768px）：侧栏自动折叠为窄条，顶栏隐藏 FAB 标签文字由 Home 处理
  */
-import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
+import { ref, watch } from 'vue'
 import { NLayout, NLayoutContent } from 'naive-ui'
 import SideNav from './SideNav.vue'
 import MobileTabBar from './MobileTabBar.vue'
+import { useBreakpoint } from '../composables/useBreakpoint'
 
 const props = defineProps<{
   isDark: boolean
@@ -24,26 +25,14 @@ const handleModuleChange = (module: 'bookmarks' | 'notes' | 'files' | 'vault') =
   emit('module-change', module)
 }
 
-// ========== 移动端响应式：侧栏自动折叠 ==========
+// ========== 移动端响应式：侧栏自动折叠（统一断点） ==========
 const collapsed = ref(false)
-const isMobile = ref(false)
+const { isMobile } = useBreakpoint()
 
-const checkMobile = () => {
-  isMobile.value = window.innerWidth < 768
-  if (isMobile.value) collapsed.value = true
-  else collapsed.value = false
-}
-
-onMounted(() => {
-  checkMobile()
-  window.addEventListener('resize', checkMobile)
-})
-onBeforeUnmount(() => window.removeEventListener('resize', checkMobile))
-
+// 移动端强制折叠；切回桌面展开
 watch(isMobile, (m) => {
-  // 移动端强制折叠；切回桌面展开
   collapsed.value = m
-})
+}, { immediate: true })
 </script>
 
 <template>

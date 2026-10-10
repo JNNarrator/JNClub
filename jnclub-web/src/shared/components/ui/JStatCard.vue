@@ -94,7 +94,7 @@ const emit = defineEmits<{
   50% { opacity: 0.3; }
 }
 
-@media (max-width: 699px) {
+@media (max-width: 767px) {
   .j-stat-card {
     flex-direction: column;
     align-items: flex-start;

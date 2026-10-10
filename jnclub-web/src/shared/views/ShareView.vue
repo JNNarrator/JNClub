@@ -204,4 +204,11 @@ const bookmarkDomain = computed(() => {
 .file-name { font-weight: 600; color: var(--text-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .file-meta { font-size: var(--fs-sm); color: var(--text-3); }
 .pwd-input { width: 100%; max-width: 320px; }
+
+/* 窄屏：压缩内外边距并顶部对齐，避免分享页在手机上内容过窄/溢出 */
+@media (max-width: 767px) {
+  .share-page { padding: 12px; align-items: flex-start; }
+  .share-card { padding: 20px 16px; border-radius: var(--radius-md); }
+  .share-title { font-size: 19px; }
+}
 </style>

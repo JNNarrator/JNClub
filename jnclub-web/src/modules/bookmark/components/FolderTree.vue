@@ -12,6 +12,7 @@ import { useDirectoryStore } from '../stores/directory'
 import { openMenu } from '../../../shared/composables/useContextMenu'
 import { useItemDragContext } from '../composables/useItemDragContext'
 import axios from 'axios'
+import { useBreakpoint } from '../../../shared/composables/useBreakpoint'
 
 interface Directory {
   id: number
@@ -35,6 +36,7 @@ const ICON_OPTIONS = [
   { key: 'archive', icon: Archive, label: '归档' },
 ]
 const iconMap: Record<string, any> = Object.fromEntries(ICON_OPTIONS.map(o => [o.key, o.icon]))
+const { isCoarse } = useBreakpoint()
 
 const props = defineProps<{
   directories: Directory[]
@@ -352,7 +354,7 @@ const handleRenameSubmit = async () => {
     <NTree
       :data="treeData"
       :selected-keys="selectedId ? [selectedId] : []"
-      selectable default-expand-all block-line draggable
+      selectable default-expand-all block-line :draggable="!isCoarse"
       :render-switcher-icon="renderSwitcherIcon"
       :render-label="renderLabel"
       @update:selected-keys="handleSelect"
@@ -480,6 +482,11 @@ const handleRenameSubmit = async () => {
 :deep(.n-tree-node:hover) { background: var(--glass-chip-bg); }
 :deep(.n-tree-node:hover .node-menu-btn) { opacity: 1 !important; }
 :deep(.n-tree-node--selected .node-menu-btn) { opacity: 1 !important; }
+
+/* 触屏无 hover：节点操作按钮常显，避免必须先选中才看到入口 */
+@media (hover: none) {
+  ::deep(.node-menu-btn) { opacity: 1 !important; }
+}
 
 /* 拖拽排序视觉优化 */
 :deep(.n-tree-node-content--drag-over) {

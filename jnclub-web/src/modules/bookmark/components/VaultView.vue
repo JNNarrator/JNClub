@@ -15,7 +15,9 @@ import { useVaultStore, type VaultItem } from '../stores/vault'
 import { useUserStore } from '../../../shared/stores/user'
 import { useDraggableSort } from '../composables/useDraggableSort'
 import { useItemDragContext } from '../composables/useItemDragContext'
-import { openMenu } from '../../../shared/composables/useContextMenu'
+import { openMenu, openMenuAt } from '../../../shared/composables/useContextMenu'
+import { useLongPress } from '../../../shared/composables/useLongPress'
+import { useBreakpoint } from '../../../shared/composables/useBreakpoint'
 import PasswordEditorModal from './PasswordEditorModal.vue'
 import PasswordRevealPopover from './PasswordRevealPopover.vue'
 import EmptyState from './EmptyState.vue'
@@ -34,6 +36,8 @@ const emit = defineEmits<{
 }>()
 
 const message = useMessage()
+const longPress = useLongPress()
+const { isCoarse } = useBreakpoint()
 const dialog = useDialog()
 const vaultStore = useVaultStore()
 const userStore = useUserStore()
@@ -519,16 +523,17 @@ defineExpose({ openCreate })
             v-for="item in vaultStore.items"
             :key="item.id"
             :data-id="item.id"
-            class="vault-item jnclub-bouncy"
+            class="vault-item jnclub-bouncy jnclub-longpress"
             role="button"
             tabindex="0"
             :aria-label="`编辑密码 ${item.name}`"
-            draggable="true"
+            :draggable="!isCoarse"
             @click="handleRowClick(item)"
             @keydown="handleRowKeydown($event, item)"
             @dragstart="handleDragStart($event, item)"
             @dragend="handleDragEnd"
             @contextmenu.prevent="openMenu($event, rowMenu(), (key: string) => handleRowMenu(key, item))"
+            v-on="longPress((ev) => openMenuAt(ev.clientX, ev.clientY, rowMenu(), (key: string) => handleRowMenu(key, item)))"
           >
             <div class="item-icon"><NIcon :component="KeyRound" size="20" /></div>
             <div class="item-main">
@@ -597,7 +602,7 @@ defineExpose({ openCreate })
     />
 
     <!-- TOTP 双因素弹窗 -->
-    <NModal v-model:show="showTotpModal" preset="card" :title="totpItem ? `TOTP 验证码 · ${totpItem.name}` : 'TOTP'" style="width: 400px" :bordered="false" @close="closeTotp">
+    <NModal v-model:show="showTotpModal" preset="card" :title="totpItem ? `TOTP 验证码 · ${totpItem.name}` : 'TOTP'" style="width: min(400px, 92vw)" :bordered="false" @close="closeTotp">
       <div class="totp-body">
         <div v-if="totpState === 'loading'" class="totp-loading">加载中…</div>
 

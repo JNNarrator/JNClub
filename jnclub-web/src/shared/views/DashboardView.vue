@@ -628,10 +628,10 @@ const openFile = (f: { id: number }) => {
 @media (min-width: 1400px) {
   .stat-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 }
-@media (max-width: 699px) {
+@media (max-width: 767px) {
   .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
-@media (max-width: 419px) {
+@media (max-width: 480px) {
   .stat-grid { grid-template-columns: 1fr; }
 }
 .stat-card {
@@ -684,7 +684,7 @@ const openFile = (f: { id: number }) => {
 @keyframes dash-blink {
   50% { opacity: 0.3; }
 }
-@media (max-width: 699px) {
+@media (max-width: 767px) {
   /* 移动端窄卡：改回纵向排布，避免横向挤压 */
   .stat-card {
     flex-direction: column;
@@ -802,7 +802,7 @@ const openFile = (f: { id: number }) => {
 @media (max-width: 1199px) {
   .recent-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
-@media (max-width: 699px) {
+@media (max-width: 767px) {
   .recent-grid { grid-template-columns: 1fr; }
 }
 .recent-list { display: flex; flex-direction: column; gap: 8px; }
@@ -830,7 +830,7 @@ const openFile = (f: { id: number }) => {
   opacity: 1;
   transform: translateX(0);
 }
-@media (max-width: 699px) {
+@media (max-width: 767px) {
   .recent-arrow { opacity: 0.55; transform: none; }
 }
 
@@ -1002,7 +1002,7 @@ const openFile = (f: { id: number }) => {
   font-size: var(--fs-xs);
   color: var(--text-3);
 }
-@media (max-width: 699px) {
+@media (max-width: 767px) {
   .trend-bars { gap: 6px; }
   .trend-bar { width: 7px; }
   .dash-toolbar { gap: 4px; }

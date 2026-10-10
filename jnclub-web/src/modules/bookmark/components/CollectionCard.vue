@@ -7,7 +7,8 @@
 import { h, ref } from 'vue'
 import { NButton, NIcon, NDropdown, NEllipsis, NTag, useMessage, NCheckbox } from 'naive-ui'
 import { Pencil, Trash2, EllipsisVertical, ExternalLink, FolderInput, Link2, BookOpen } from 'lucide-vue-next'
-import { openMenu } from '../../../shared/composables/useContextMenu'
+import { openMenu, openMenuAt } from '../../../shared/composables/useContextMenu'
+import { useLongPress } from '../../../shared/composables/useLongPress'
 import MoveItemModal from './MoveItemModal.vue'
 import ShareModal from './ShareModal.vue'
 import axios from 'axios'
@@ -28,6 +29,7 @@ const emit = defineEmits<{
 }>()
 
 const message = useMessage()
+const longPress = useLongPress()
 const { record: recordRecentItem } = useRecentItems()
 const imgError = ref(false)
 const showMoveModal = ref(false)
@@ -97,13 +99,14 @@ const handleDropdown = (key: string) => {
 
 <template>
   <div
-    class="bookmark-card jnclub-bouncy"
+    class="bookmark-card jnclub-bouncy jnclub-longpress"
     role="link"
     tabindex="0"
     @click="onRootClick"
     @keydown.enter.prevent="onRootClick"
     @keydown.space.prevent="onRootClick"
     @contextmenu.prevent="openMenu($event, dropdownOptions, handleDropdown)"
+    v-on="longPress((ev) => openMenuAt(ev.clientX, ev.clientY, dropdownOptions, handleDropdown))"
   >
       <div v-if="props.batchMode" class="batch-check" @click.stop="emit('toggle-select')">
         <NCheckbox :checked="props.selected" @update:checked="emit('toggle-select')" size="small" />

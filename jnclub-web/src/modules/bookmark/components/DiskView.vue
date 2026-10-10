@@ -17,7 +17,9 @@ import { useCloudDiskStore, type DiskFile } from '../stores/clouddisk'
 import { useChunkedUpload } from '../composables/useChunkedUpload'
 import { useDraggableSort } from '../composables/useDraggableSort'
 import { useItemDragContext } from '../composables/useItemDragContext'
-import { openMenu } from '../../../shared/composables/useContextMenu'
+import { openMenu, openMenuAt } from '../../../shared/composables/useContextMenu'
+import { useLongPress } from '../../../shared/composables/useLongPress'
+import { useBreakpoint } from '../../../shared/composables/useBreakpoint'
 import { useRecentItems } from '../../../shared/composables/useRecentItems'
 import axios from 'axios'
 
@@ -33,6 +35,8 @@ const emit = defineEmits<{
 }>()
 
 const message = useMessage()
+const longPress = useLongPress()
+const { isCoarse } = useBreakpoint()
 const dialog = useDialog()
 const diskStore = useCloudDiskStore()
 const uploader = useChunkedUpload()
@@ -479,16 +483,17 @@ const fileKindColor = (name: string) => FILE_KINDS.find(k => k.re.test(name))?.c
           <div ref="fileListRef" class="file-list">
             <div
               v-for="file in diskStore.files" :key="file.id" :data-id="file.id"
-              :class="['file-item', 'jnclub-bouncy', { 'file-item-selected': isSelected(file.id) }]"
+              :class="['file-item', 'jnclub-bouncy', 'jnclub-longpress', { 'file-item-selected': isSelected(file.id) }]"
               role="button"
               tabindex="0"
               :aria-label="file.originalName"
-              draggable="true"
+              :draggable="!isCoarse"
               @click="handleRowClick(file)"
               @keydown="handleRowKeydown($event, file)"
               @dragstart="handleDragStart($event, file)"
               @dragend="handleDragEnd"
               @contextmenu.prevent="openMenu($event, rowMenu(), (key: string) => handleRowMenu(key, file))"
+              v-on="longPress((ev) => openMenuAt(ev.clientX, ev.clientY, rowMenu(), (key: string) => handleRowMenu(key, file)))"
             >
               <NCheckbox
                 v-if="batchMode"

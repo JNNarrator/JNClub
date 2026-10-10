@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, onMounted, watch, computed, onBeforeUnmount } from 'vue'
+import { ref, onMounted, watch, computed } from 'vue'
+import { useBreakpoint } from '../../../shared/composables/useBreakpoint'
 import {
   NIcon,
   useMessage,
@@ -105,17 +106,12 @@ const viewMode = ref<ViewMode>(prefs.get(`view.${props.activeModule}`, props.act
 
 /** 移动端目录抽屉开关（<768px 时替代左侧目录树） */
 const showDirDrawer = ref(false)
-const isMobile = ref(false)
+const { isMobile } = useBreakpoint()
 
-const checkMobile = () => {
-  isMobile.value = window.innerWidth < 768
-  if (!isMobile.value) showDirDrawer.value = false
-}
-onMounted(() => {
-  checkMobile()
-  window.addEventListener('resize', checkMobile)
+// 切回桌面时关闭移动端目录抽屉
+watch(isMobile, (m) => {
+  if (!m) showDirDrawer.value = false
 })
-onBeforeUnmount(() => window.removeEventListener('resize', checkMobile))
 
 // 收藏创建/编辑表单
 const showCreateModal = ref(false)

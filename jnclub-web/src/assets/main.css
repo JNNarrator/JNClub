@@ -6,6 +6,12 @@
   padding: 0;
 }
 
+/* ---- 触控目标最小尺寸（M2-3）---- */
+:root {
+  /* 移动端最小点击区（PLAN-2026-16 规范：最小 32px） */
+  --tap-min: 32px;
+}
+
 html, body {
   height: 100%;
   -webkit-font-smoothing: antialiased;
@@ -652,6 +658,26 @@ html.custom-cursor-active.dragging * {
   .app-density-compact .note-row,
   .app-density-compact .collection-row {
     padding: 10px 12px;
+  }
+}
+
+/* ---- 触控目标尺寸（M2-3）：窄屏下图标按钮不小于 --tap-min ---- */
+@media (max-width: 767px) {
+  .n-button.n-button--circle.n-button--tiny-size,
+  .n-button.n-button--circle.n-button--small-size {
+    min-width: var(--tap-min, 32px);
+    min-height: var(--tap-min, 32px);
+  }
+}
+
+/* ---- 触屏长按目标（M1-2）：禁用文本选择与 iOS callout，避免与长按手势冲突 ---- */
+@media (pointer: coarse) {
+  .jnclub-longpress {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+    /* 保留滚动/缩放，仅去掉双击缩放延迟 */
+    touch-action: manipulation;
   }
 }
 

@@ -99,7 +99,7 @@ const copyLink = async () => {
     :show="show"
     preset="card"
     :title="`分享 · ${name}`"
-    style="width: 440px"
+    style="width: min(440px, 92vw)"
     :bordered="false"
     @update:show="(v: boolean) => emit('update:show', v)"
   >

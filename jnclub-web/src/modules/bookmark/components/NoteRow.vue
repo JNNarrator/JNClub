@@ -9,9 +9,11 @@ import { NButton, NIcon, NDropdown, NEllipsis, NTag, NCheckbox, useMessage } fro
 import { Pencil, Trash2, Eye, Ellipsis, StickyNote, Clock, FolderInput, Link2, Share2, Pin, PinOff, Archive } from 'lucide-vue-next'
 import { formatRelativeTime } from '../composables/formatDate'
 import { stripMarkdown } from '../composables/stripMarkdown'
-import { openMenu } from '../../../shared/composables/useContextMenu'
+import { openMenu, openMenuAt } from '../../../shared/composables/useContextMenu'
+import { useLongPress } from '../../../shared/composables/useLongPress'
 import ShareModal from './ShareModal.vue'
 import { useItemDragContext } from '../composables/useItemDragContext'
+import { useBreakpoint } from '../../../shared/composables/useBreakpoint'
 import MoveItemModal from './MoveItemModal.vue'
 import { useNoteStore, type Note } from '../stores/note'
 
@@ -30,6 +32,8 @@ const emit = defineEmits<{
 }>()
 
 const message = useMessage()
+const longPress = useLongPress()
+const { isCoarse } = useBreakpoint()
 const noteStore = useNoteStore()
 
 const showMoveModal = ref(false)
@@ -107,16 +111,17 @@ const handleDragEnd = () => setDragging(null)
 
 <template>
   <div
-    class="note-row"
+    class="note-row jnclub-longpress"
     role="link"
     tabindex="0"
-    draggable="true"
+    :draggable="!isCoarse"
     @click="onRootClick"
     @keydown.enter.prevent="onRootClick"
     @keydown.space.prevent="onRootClick"
     @dragstart="handleDragStart"
     @dragend="handleDragEnd"
     @contextmenu.prevent="openMenu($event, dropdownOptions, handleDropdown)"
+    v-on="longPress((ev) => openMenuAt(ev.clientX, ev.clientY, dropdownOptions, handleDropdown))"
   >
       <div v-if="props.batchMode" class="batch-check" @click.stop="emit('toggle-select')">
         <NCheckbox :checked="props.selected" @update:checked="emit('toggle-select')" size="small" />
