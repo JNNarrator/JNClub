@@ -203,19 +203,11 @@ CREATE TABLE IF NOT EXISTS sa_token_data (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Sa-Token 客户端会话持久化表';
 
 -- ==========================================
--- P4 迁移：WebDAV 站点管理（2026-09）
--- ⚠️ 一般无需手工执行：后端 WebDavTableInit 启动时幂等自建本表。
--- 生产库手工执行示例：
--- CREATE TABLE IF NOT EXISTS t_webdav_server (
---   id BIGINT PRIMARY KEY AUTO_INCREMENT,
---   user_id VARCHAR(64) NOT NULL COMMENT 'SSO用户标识',
---   name VARCHAR(200) DEFAULT '' COMMENT '站点名称',
---   url VARCHAR(1024) NOT NULL COMMENT 'WebDAV 服务地址',
---   username VARCHAR(300) DEFAULT '' COMMENT '登录账号，可为空(匿名)',
---   password VARCHAR(1024) DEFAULT NULL COMMENT '密码(AES密文)',
---   notes VARCHAR(1000) DEFAULT '' COMMENT '备注',
---   create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
---   update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
---   INDEX idx_user (user_id)
--- ) ENGINE=InnoDB DEFAULT
- CHARSET=utf8mb4 COMMENT='WebDAV 站点管理表';
+-- P5 迁移：移除待办 / 日历 / WebDAV 模块（2026-10）
+-- 三个模块的前后端代码已删除，相关表不再使用。
+-- ⚠️ 以下 DROP 会永久删除数据，请确认无需保留后再执行。
+-- 说明：t_notification（站内提醒）与 t_search_history（搜索历史）
+--       仍在使用，由 NotificationTableInit / SearchHistoryTableInit 自建，请勿删除。
+-- DROP TABLE IF EXISTS t_todo_item;
+-- DROP TABLE IF EXISTS t_todo;
+-- DROP TABLE IF EXISTS t_webdav_server;

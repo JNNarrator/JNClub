@@ -6,19 +6,16 @@ import com.jnclub.bookmark.entity.Bookmark;
 import com.jnclub.bookmark.entity.Directory;
 import com.jnclub.bookmark.entity.FileRecord;
 import com.jnclub.bookmark.entity.Note;
-import com.jnclub.bookmark.entity.Todo;
 import com.jnclub.bookmark.entity.Vault;
 import com.jnclub.bookmark.mapper.BookmarkMapper;
 import com.jnclub.bookmark.mapper.DirectoryMapper;
 import com.jnclub.bookmark.mapper.FileMapper;
 import com.jnclub.bookmark.mapper.NoteMapper;
 import com.jnclub.bookmark.mapper.TagMapper;
-import com.jnclub.bookmark.mapper.TodoMapper;
 import com.jnclub.bookmark.mapper.VaultMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
@@ -43,43 +40,26 @@ public class StatsService {
     private final VaultMapper vaultMapper;
     private final TagMapper tagMapper;
     private final DirectoryMapper directoryMapper;
-    private final TodoMapper todoMapper;
 
-    /** 概览摘要：数量 / 磁盘 / 最近动态 / 密码库指纹健康 / 待办概览 / 今日行动提醒 */
+    /** 概览摘要：数量 / 磁盘 / 最近动态 / 密码库指纹健康 / 今日行动提醒 */
     public Map<String, Object> summary() {
         String userId = StpUtil.getLoginIdAsString();
         Map<String, Object> result = new LinkedHashMap<>();
         Map<String, Object> counts = counts(userId);
         Map<String, Object> vault = vaultHealth(userId);
-        Map<String, Object> todos = todoCounts(userId);
         result.put("counts", counts);
         result.put("disk", disk(userId));
         result.put("recent", recent(userId));
         result.put("vault", vault);
-        result.put("todos", todos);
-        result.put("alerts", buildAlerts(counts, vault, todos));
+        result.put("alerts", buildAlerts(counts, vault));
         return result;
     }
 
-    /** 今日必办提醒：按优先级聚合待办/回收站/密码库，空列表表示无需处理 */
+    /** 今日必办提醒：按优先级聚合回收站/密码库，空列表表示无需处理 */
     private List<Map<String, Object>> buildAlerts(
             Map<String, Object> counts,
-            Map<String, Object> vault,
-            Map<String, Object> todos) {
+            Map<String, Object> vault) {
         List<Map<String, Object>> alerts = new ArrayList<>();
-
-        int dueToday = ((Number) todos.getOrDefault("dueToday", 0)).intValue();
-        int overdue = ((Number) todos.getOrDefault("overdue", 0)).intValue();
-        if (dueToday > 0 || overdue > 0) {
-            Map<String, Object> alert = new LinkedHashMap<>();
-            alert.put("type", "todo");
-            alert.put("level", overdue > 0 ? "danger" : "warning");
-            alert.put("title", "今日待办");
-            alert.put("desc", buildDesc(dueToday, "件今天到期", overdue, "件已逾期"));
-            alert.put("count", dueToday + overdue);
-            alert.put("action", "/todos");
-            alerts.add(alert);
-        }
 
         int recycleTotal = 0;
         Object recycle = counts.get("recycle");
@@ -112,30 +92,6 @@ public class StatsService {
         }
 
         return alerts;
-    }
-
-    /** 拼接描述：如 “2 件今天到期，1 件已逾期”；没有前半时省略顿号 */
-    private String buildDesc(int a, String aText, int b, String bText) {
-        StringBuilder sb = new StringBuilder();
-        if (a > 0) sb.append(a).append(aText);
-        if (a > 0 && b > 0) sb.append("，");
-        if (b > 0) sb.append(b).append(bText);
-        return sb.toString();
-    }
-
-    /** 待办概览：进行中 / 今日到期 / 已逾期 */
-    private Map<String, Object> todoCounts(String userId) {
-        LocalDate today = LocalDate.now();
-        Map<String, Object> m = new LinkedHashMap<>();
-        m.put("active", todoMapper.selectCount(new LambdaQueryWrapper<Todo>()
-                .eq(Todo::getUserId, userId).eq(Todo::getDeleted, 0).eq(Todo::getCompleted, 0)));
-        m.put("dueToday", todoMapper.selectCount(new LambdaQueryWrapper<Todo>()
-                .eq(Todo::getUserId, userId).eq(Todo::getDeleted, 0).eq(Todo::getCompleted, 0)
-                .eq(Todo::getDueDate, today)));
-        m.put("overdue", todoMapper.selectCount(new LambdaQueryWrapper<Todo>()
-                .eq(Todo::getUserId, userId).eq(Todo::getDeleted, 0).eq(Todo::getCompleted, 0)
-                .lt(Todo::getDueDate, today)));
-        return m;
     }
 
     /** 各模块数量 + 回收站待清理数 */

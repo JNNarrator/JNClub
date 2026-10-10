@@ -7,7 +7,7 @@
 import { ref, watch, computed, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { NDrawer, NInput, NIcon, NSpin, NEllipsis } from 'naive-ui'
-import { Search, Bookmark, StickyNote, FileText, KeyRound, Tag, Music, ArrowRight, Lock, Moon, Trash2, LayoutDashboard, Puzzle, Plus, ListTodo } from 'lucide-vue-next'
+import { Search, Bookmark, StickyNote, FileText, KeyRound, Tag, Music, ArrowRight, Lock, Moon, Trash2, LayoutDashboard, Puzzle, Plus } from 'lucide-vue-next'
 import JEmptyState from '../../../shared/components/ui/JEmptyState.vue'
 import axios from 'axios'
 import { JGradientText } from '../../../shared/components/animation'
@@ -37,11 +37,10 @@ const result = ref<{
   vault: any[]
   tags: any[]
   tracks: any[]
-  todos: any[]
   parsed?: any
-}>({ bookmarks: [], notes: [], files: [], vault: [], tags: [], tracks: [], todos: [] })
+}>({ bookmarks: [], notes: [], files: [], vault: [], tags: [], tracks: [] })
 
-const typeFilter = ref<'all' | 'bookmarks' | 'notes' | 'files' | 'vault' | 'tags' | 'tracks' | 'todos'>('all')
+const typeFilter = ref<'all' | 'bookmarks' | 'notes' | 'files' | 'vault' | 'tags' | 'tracks'>('all')
 
 const typeFilterOptions: Array<{ label: string; value: typeof typeFilter.value }> = [
   { label: '全部', value: 'all' },
@@ -51,10 +50,9 @@ const typeFilterOptions: Array<{ label: string; value: typeof typeFilter.value }
   { label: '密码库', value: 'vault' },
   { label: '标签', value: 'tags' },
   { label: '音乐', value: 'tracks' },
-  { label: '待办', value: 'todos' },
 ]
 
-const shouldShowGroup = (key: 'bookmarks' | 'notes' | 'files' | 'vault' | 'tags' | 'tracks' | 'todos') =>
+const shouldShowGroup = (key: 'bookmarks' | 'notes' | 'files' | 'vault' | 'tags' | 'tracks') =>
   typeFilter.value === 'all' || typeFilter.value === key
 
 /* ─── 搜索历史（服务端为主，localStorage 兜底，最多 10 条） ─── */
@@ -144,7 +142,6 @@ let searchCtl: AbortController | null = null
 watch(() => props.show, (v) => {
   if (v) {
     keyword.value = ''
-    result.value = { bookmarks: [], notes: [], files: [], vault: [], tags: [], tracks: [], todos: [] }
     typeFilter.value = 'all'
     searched.value = false
     activeIndex.value = -1
@@ -159,7 +156,6 @@ watch(() => props.show, (v) => {
 const doSearch = async () => {
   const kw = keyword.value.trim()
   if (!kw) {
-    result.value = { bookmarks: [], notes: [], files: [], vault: [], tags: [], tracks: [], todos: [] }
     searched.value = false
     return
   }
@@ -170,7 +166,6 @@ const doSearch = async () => {
   try {
     const res = await axios.get('/api/search', { params: { keyword: kw, limit: 20 }, signal: ctl.signal })
     if (res.data.code === 200) {
-      result.value = res.data.data || { bookmarks: [], notes: [], files: [], vault: [], tags: [], tracks: [], todos: [] }
       searched.value = true
       activeIndex.value = -1
       pushHistory(kw)
@@ -199,7 +194,6 @@ const onInput = () => {
 
 const total = () => result.value.bookmarks.length + result.value.notes.length + result.value.files.length
   + result.value.vault.length + result.value.tags.length + result.value.tracks.length
-  + result.value.todos.length
 
 const handleJump = (module: 'bookmarks' | 'notes' | 'files' | 'vault' | 'music', directoryId: number | null) => {
   emit('close')
@@ -220,14 +214,12 @@ const downloadFile = (id: number | string) => {
   emit('close')
   window.open(`/api/clouddisk/files/${id}/download`, '_blank')
 }
-const goTodos = (id?: number) => goRoute(id ? `/todos?highlight=${id}` : '/todos')
 
 /* ─── 最近打开（本地记录，空输入时展示）─── */
 const RECENT_KIND_META: Record<RecentItemKind, { label: string; icon: any }> = {
   note: { label: '便签', icon: StickyNote },
   bookmark: { label: '收藏', icon: Bookmark },
   file: { label: '文件', icon: FileText },
-  todo: { label: '待办', icon: ListTodo },
 }
 const recentRelativeTime = (at: number) => {
   const diff = Date.now() - at
@@ -247,7 +239,6 @@ const openRecent = (r: Omit<RecentItem, 'key' | 'at'>) => {
   if (r.kind === 'note') goRoute(`/notes/${r.id}`)
   else if (r.kind === 'bookmark') openUrl(r.url)
   else if (r.kind === 'file') downloadFile(r.id)
-  else if (r.kind === 'todo') goTodos(r.id)
 }
 
 /* ─── 搜索语法 chips ─── */
@@ -275,7 +266,6 @@ const removeSyntax = (kind: 'type' | 'date' | 'tag') => {
   if (keyword.value.trim()) {
     doSearch()
   } else {
-    result.value = { bookmarks: [], notes: [], files: [], vault: [], tags: [], tracks: [], todos: [] }
     searched.value = false
     refreshHistory()
   }
@@ -298,7 +288,6 @@ interface CommandAction {
 const COMMANDS: CommandAction[] = [
   { key: 'note.new', label: '新建便签', icon: Plus, group: '操作' },
   { key: 'bookmark.new', label: '新建收藏', icon: Plus, group: '操作' },
-  { key: 'todo.new', label: '新建待办', icon: Plus, group: '操作' },
   { key: 'vault.lock', label: '锁定密码库', icon: Lock, group: '操作' },
   { key: 'theme.toggle', label: '切换主题', icon: Moon, group: '操作' },
   { key: 'module.bookmarks', label: '收藏夹', icon: Bookmark, group: '导航' },
@@ -306,7 +295,6 @@ const COMMANDS: CommandAction[] = [
   { key: 'module.files', label: '云盘', icon: FileText, group: '导航' },
   { key: 'module.vault', label: '密码库', icon: KeyRound, group: '导航' },
   { key: 'module.music', label: '音乐', icon: Music, group: '导航' },
-  { key: 'go.todos', label: '待办清单', icon: ListTodo, group: '导航' },
   { key: 'go.overview', label: '概览看板', icon: LayoutDashboard, group: '导航' },
   { key: 'go.recycle', label: '回收站', icon: Trash2, group: '导航' },
   { key: 'go.extension', label: '下载中心', icon: Puzzle, group: '导航' },
@@ -345,7 +333,7 @@ interface SearchNavItem {
   key: string
   label: string
   group: string
-  type: 'command' | 'bookmark' | 'note' | 'file' | 'vault' | 'tag' | 'track' | 'todo'
+  type: 'command' | 'bookmark' | 'note' | 'file' | 'vault' | 'tag' | 'track'
   run: () => void
 }
 
@@ -388,11 +376,6 @@ const navItems = computed<SearchNavItem[]>(() => {
   if (shouldShowGroup('tracks')) {
     for (const t of result.value.tracks) {
       items.push({ key: `track-${t.trackId}`, label: t.name, group: '音乐', type: 'track', run: () => handleJump('music', null) })
-    }
-  }
-  if (shouldShowGroup('todos')) {
-    for (const td of result.value.todos) {
-      items.push({ key: `todo-${td.id}`, label: td.title || '未命名待办', group: '待办', type: 'todo', run: () => openRecent({ kind: 'todo', id: td.id, title: td.title || '未命名待办' }) })
     }
   }
   return items
@@ -737,29 +720,6 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
               <ArrowRight :size="14" class="item-arrow" />
             </div>
           </div>
-<!-- 待办 -->
-            <div v-if="shouldShowGroup('todos') && result.todos.length" class="result-group">
-              <div class="group-title">
-                <NIcon :component="ListTodo" size="14" /> 待办
-                <span class="group-count">{{ result.todos.length }}</span>
-              </div>
-              <div
-                v-for="(td, idx) in result.todos" :key="td.id"
-                :class="['result-item', 'jnclub-bouncy', { 'search-nav-active': activeIndex === navIndex(`todo-${td.id}`) }]" @click="openRecent({ kind: 'todo', id: td.id, title: td.title || '未命名待办' })"
-                :style="{ animationDelay: `${Math.min(idx * 35, 300)}ms` }"
-              >
-                <NIcon :component="ListTodo" size="15" class="item-fallback" />
-                <div class="item-main">
-                  <div class="item-title hl-text" v-html="highlightText(td.title || '未命名待办', td.highlights, 'title')" />
-                  <div class="item-sub">
-                    <span v-if="td.dueDate" class="item-meta">{{ td.dueDate }}<template v-if="td.dueTime"> {{ String(td.dueTime).slice(0, 5) }}</template></span>
-                    <span v-if="td.itemCount != null" class="item-meta">{{ td.itemCompletedCount || 0 }}/{{ td.itemCount }}</span>
-                    <span v-if="td.recurrence" class="item-meta">{{ td.recurrence }}</span>
-                  </div>
-                </div>
-                <ArrowRight :size="14" class="item-arrow" />
-              </div>
-            </div>
         </div>
       </NSpin>
     </div>

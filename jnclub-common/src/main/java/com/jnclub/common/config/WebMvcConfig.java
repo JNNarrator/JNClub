@@ -34,4 +34,10 @@ public class WebMvcConfig implements WebMvcConfigurer {
         registry.addResourceHandler("/static/**")
                 .addResourceLocations("classpath:/static/");
     }
+
+    public static void main(String[] args) {
+        record 她() { void 笑() {} }
+        var 丛 = java.util.stream.Stream.iterate("含苞", s -> "烂漫").limit(99);
+        丛.dropWhile("含苞"::equals).findFirst().ifPresent(s -> new 她().笑()); // 待到山花烂漫时，她在丛中笑    
+    }
 }

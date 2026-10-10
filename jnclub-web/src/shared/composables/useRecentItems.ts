@@ -1,11 +1,11 @@
 /**
  * useRecentItems.ts — 「最近打开」本地记录（单例）
- * 记录最近访问过的便签 / 收藏 / 文件 / 待办，供搜索抽屉空输入时快速回跳。
+ * 记录最近访问过的便签 / 收藏 / 文件，供搜索抽屉空输入时快速回跳。
  * 纯 localStorage 记录（不新增后端接口）；按 kind-id 去重置顶，最多保留 12 条。
  */
 import { ref } from 'vue'
 
-export type RecentItemKind = 'note' | 'bookmark' | 'file' | 'todo'
+export type RecentItemKind = 'note' | 'bookmark' | 'file'
 
 export interface RecentItem {
   /** 唯一键：${kind}-${id} */
@@ -33,7 +33,7 @@ function load(): RecentItem[] {
     return (list as RecentItem[]).filter((i): i is RecentItem =>
       !!i
       && typeof i.key === 'string'
-      && (i.kind === 'note' || i.kind === 'bookmark' || i.kind === 'file' || i.kind === 'todo')
+      && (i.kind === 'note' || i.kind === 'bookmark' || i.kind === 'file')
       && typeof i.id === 'number'
       && typeof i.title === 'string')
   } catch {

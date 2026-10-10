@@ -16,4 +16,6 @@ public class JnclubApplication {
     public static void main(String[] args) {
         SpringApplication.run(JnclubApplication.class, args);
     }
+    
+   
 }

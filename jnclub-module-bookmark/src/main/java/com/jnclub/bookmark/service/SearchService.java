@@ -8,14 +8,12 @@ import com.jnclub.bookmark.entity.FileRecord;
 import com.jnclub.bookmark.entity.Note;
 import com.jnclub.bookmark.entity.Tag;
 import com.jnclub.bookmark.entity.TagRelation;
-import com.jnclub.bookmark.entity.Todo;
 import com.jnclub.bookmark.entity.Vault;
 import com.jnclub.bookmark.mapper.BookmarkMapper;
 import com.jnclub.bookmark.mapper.FileMapper;
 import com.jnclub.bookmark.mapper.NoteMapper;
 import com.jnclub.bookmark.mapper.TagMapper;
 import com.jnclub.bookmark.mapper.TagRelationMapper;
-import com.jnclub.bookmark.mapper.TodoMapper;
 import com.jnclub.bookmark.mapper.VaultMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -29,7 +27,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 全局搜索服务 — 收藏 / 便签 / 云盘 / 密码库(仅标题) / 标签 / 音乐曲目 / 待办 跨模块聚合
+ * 全局搜索服务 — 收藏 / 便签 / 云盘 / 密码库(仅标题) / 标签 / 音乐曲目 跨模块聚合
  * 多关键词按空格拆分做 AND 匹配；返回匹配高亮区间 [{field, ranges:[[s,e]]}]，前端渲染高亮。
  */
 @Service
@@ -42,11 +40,10 @@ public class SearchService {
     private final VaultMapper vaultMapper;
     private final TagMapper tagMapper;
     private final TagRelationMapper tagRelationMapper;
-    private final TodoMapper todoMapper;
     private final JdbcTemplate jdbcTemplate;
 
     /**
-     * 跨模块搜索。返回 {bookmarks, notes, files, vault, tags, tracks, todos}；
+     * 跨模块搜索。返回 {bookmarks, notes, files, vault, tags, tracks}；
      * 每个结果含 score（越大越靠前）。
      */
     public Map<String, Object> search(String keyword, int limit) {
@@ -58,7 +55,6 @@ public class SearchService {
         result.put("vault", List.of());
         result.put("tags", List.of());
         result.put("tracks", List.of());
-        result.put("todos", List.of());
 
         Map<String, Object> parsed = parseSyntax(keyword);
         result.put("parsed", parsed);
@@ -201,39 +197,12 @@ public class SearchService {
         // 音乐曲目：music_track 表只读（同库，不依赖蓝奏云在线状态）
         List<Map<String, Object>> trackResults = searchTracks(terms, size);
 
-        // 待办：标题 + 备注
-        List<Todo> todos = todoMapper.selectPage(new Page<>(1, size),
-                        new LambdaQueryWrapper<Todo>()
-                                .eq(Todo::getUserId, userId)
-                                .eq(Todo::getDeleted, 0)
-                                .and(w -> {
-                                    for (String t : terms) w.and(x -> x.like(Todo::getTitle, t).or().like(Todo::getNote, t));
-                                })
-                                .orderByDesc(Todo::getCreateTime))
-                .getRecords();
-        List<Map<String, Object>> todoResults = new ArrayList<>();
-        for (Todo td : todos) {
-            Map<String, Object> m = new LinkedHashMap<>();
-            m.put("id", td.getId());
-            m.put("title", td.getTitle());
-            m.put("note", td.getNote());
-            m.put("priority", td.getPriority());
-            m.put("completed", td.getCompleted());
-            m.put("dueDate", td.getDueDate());
-            m.put("dueTime", td.getDueTime());
-            m.put("recurrence", td.getRecurrence());
-            m.put("highlights", buildHighlights(Map.of("title", td.getTitle(), "note", td.getNote()), terms));
-            m.put("score", score(Map.of("title", td.getTitle(), "note", td.getNote()), terms, td.getCreateTime()));
-            todoResults.add(m);
-        }
-
         if (dateFilter != null && !dateFilter.isBlank()) {
             filterByDate(bookmarkResults, dateFilter, "createTime");
             filterByDate(noteResults, dateFilter, "createTime");
             filterByDate(fileResults, dateFilter, "createTime");
             filterByDate(vaultResults, dateFilter, "createTime");
             filterByDate(tagResults, dateFilter, "createTime");
-            filterByDate(todoResults, dateFilter, "dueDate");
         }
 
         if (tagFilter != null) {
@@ -243,7 +212,6 @@ public class SearchService {
             fileResults.clear();
             vaultResults.clear();
             trackResults.clear();
-            todoResults.clear();
         }
 
         if (typeFilter != null && !typeFilter.isBlank()) {
@@ -253,7 +221,6 @@ public class SearchService {
             if (!"vault".equals(typeFilter)) vaultResults.clear();
             if (!"tags".equals(typeFilter)) tagResults.clear();
             if (!"tracks".equals(typeFilter)) trackResults.clear();
-            if (!"todos".equals(typeFilter)) todoResults.clear();
         }
 
         sortByScore(bookmarkResults);
@@ -262,7 +229,6 @@ public class SearchService {
         sortByScore(vaultResults);
         sortByScore(tagResults);
         sortByScore(trackResults);
-        sortByScore(todoResults);
 
         result.put("bookmarks", bookmarkResults);
         result.put("notes", noteResults);
@@ -270,7 +236,6 @@ public class SearchService {
         result.put("vault", vaultResults);
         result.put("tags", tagResults);
         result.put("tracks", trackResults);
-        result.put("todos", todoResults);
         result.put("parsed", parsed);
         return result;
     }

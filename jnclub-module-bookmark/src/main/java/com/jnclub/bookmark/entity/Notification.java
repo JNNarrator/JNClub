@@ -21,14 +21,14 @@ public class Notification {
 
     private String userId;
 
-    /** 类型：TODO_REMIND 等 */
+    /** 通知类型标识 */
     private String type;
 
     private String title;
 
     private String content;
 
-    /** 关联类型：todo */
+    /** 关联业务类型标识 */
     private String refType;
 
     private Long refId;

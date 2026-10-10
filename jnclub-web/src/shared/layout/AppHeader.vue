@@ -10,7 +10,6 @@ import {
 } from 'naive-ui'
 import { FolderOpen, Search, CheckSquare, RefreshCw, Sun, Moon, CircleUser, LogOut, Bell, CheckCheck } from 'lucide-vue-next'
 import axios from 'axios'
-import { useRouter } from 'vue-router'
 import { useUserStore } from '../stores/user'
 import { openMenu } from '../composables/useContextMenu'
 import ViewSwitcher, { type ViewMode } from '../../modules/bookmark/components/ViewSwitcher.vue'
@@ -36,7 +35,6 @@ const emit = defineEmits<{
 
 const userStore = useUserStore()
 const dialog = useDialog()
-const router = useRouter()
 
 interface NotificationItem {
   id: string | number
@@ -95,7 +93,6 @@ const markAllNotificationsRead = async () => {
 
 const notificationTypeLabel = (type?: string) => {
   const labels: Record<string, string> = {
-    TODO_REMIND: '待办提醒',
     SYSTEM: '系统通知',
   }
   return (type && labels[type]) || type || '通知'
@@ -114,9 +111,6 @@ const formatNotificationTime = (value?: string) => {
 
 const handleNotificationClick = async (n: NotificationItem) => {
   await markNotificationRead(n)
-  if (n.refType === 'todo' && n.refId) {
-    router.push('/todos')
-  }
 }
 
 const startNotificationPolling = () => {

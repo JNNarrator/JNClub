@@ -8,7 +8,7 @@ import { NIcon, NButton, NDrawer, NSwitch, NDropdown } from 'naive-ui'
 import {
   Bookmark, StickyNote, Cloud, KeyRound, Tag, Trash2, HardDrive,
   ShieldCheck, AlertTriangle, ArrowRight, LayoutDashboard, RefreshCw, TrendingUp,
-  ListTodo, Settings2, GripVertical, Sparkles, Share2, MoreHorizontal,
+  Settings2, GripVertical, Sparkles, Share2, MoreHorizontal,
 } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
@@ -42,15 +42,6 @@ interface StatsSummary {
     files: Array<{ id: number; originalName: string; size: number; createTime: string }>
   }
   vault: { entries: number; duplicateCount: number }
-  todos: { active: number; dueToday: number; overdue: number }
-  alerts: Array<{
-    type: string
-    level: 'danger' | 'warning' | 'info'
-    title: string
-    desc: string
-    count: number
-    action: string
-  }>
 }
 
 const router = useRouter()
@@ -89,11 +80,6 @@ const fetchSummary = async () => {
   finally { loading.value = false }
 }
 
-/* ─── 今日必办 ─── */
-const alerts = computed(() => data.value?.alerts ?? [])
-const goAlert = (a: { action: string }) => {
-  if (a.action) router.push(a.action)
-}
 
 /* ─── 数据趋势 ─── */
 interface TrendPoint {
@@ -215,11 +201,10 @@ import { useDraggableSort } from '../../modules/bookmark/composables/useDraggabl
 
 const prefs = useUserPreferences()
 
-type DashSection = 'greet' | 'today' | 'stat' | 'trend' | 'disk' | 'vault' | 'recent' | 'quick'
+type DashSection = 'greet' | 'stat' | 'trend' | 'disk' | 'vault' | 'recent' | 'quick'
 
 const DASH_SECTIONS: Array<{ key: DashSection; label: string; icon: any }> = [
   { key: 'greet', label: '问候与日期', icon: Sparkles },
-  { key: 'today', label: '今日必办', icon: ListTodo },
   { key: 'stat', label: '统计卡片', icon: LayoutDashboard },
   { key: 'trend', label: '数据趋势', icon: TrendingUp },
   { key: 'disk', label: '云盘占用', icon: HardDrive },
@@ -379,31 +364,6 @@ const openFile = (f: { id: number }) => {
               :label="c.label" :value="c.value" :icon="c.icon" :warn="c.warn"
               @click="router.push(c.to)"
             />
-          </div>
-        </div>
-
-        <!-- 今日必办 -->
-        <div v-if="visible('today')" class="dash-section" :style="{ order: orderOf('today') }">
-          <div class="dash-group-title">今日必办</div>
-          <div class="today-grid">
-            <div
-              v-for="a in alerts" :key="a.type"
-              class="today-card"
-              :class="[`today-${a.level}`]"
-              @click="goAlert(a)"
-            >
-              <div class="today-card-head">
-                <NIcon :component="a.level === 'info' ? Sparkles : AlertTriangle" size="16" class="today-icon" />
-                <span class="today-title">{{ a.title }}</span>
-                <span class="today-count">{{ a.count }}</span>
-              </div>
-              <p class="today-desc">{{ a.desc }}</p>
-              <div class="today-action">去处理 <NIcon :component="ArrowRight" size="12" /></div>
-            </div>
-            <div v-if="!alerts.length" class="today-empty">
-              <NIcon :component="Sparkles" size="20" />
-              <span>今天没有需要处理的事项，继续保持 ☀️</span>
-            </div>
           </div>
         </div>
 
@@ -656,102 +616,6 @@ const openFile = (f: { id: number }) => {
   color: var(--text-3);
   text-transform: uppercase;
   margin-bottom: 12px;
-}
-
-/* 今日必办：高优先级提醒卡片 */
-.today-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 16px;
-}
-.today-card {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 16px 18px;
-  background: var(--glass-bg-trans);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid var(--glass-chip-border);
-  border-left: 3px solid var(--info);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-1), var(--glass-shadow);
-  cursor: pointer;
-  transition: border-color var(--dur) var(--ease), transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
-}
-.today-card:hover {
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-2), var(--glass-shadow);
-}
-.today-card.today-danger { border-left-color: var(--danger); }
-.today-card.today-warning { border-left-color: var(--warning); }
-.today-card.today-info { border-left-color: var(--info); }
-.today-card-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.today-icon { color: var(--info); flex-shrink: 0; }
-.today-danger .today-icon { color: var(--danger); }
-.today-warning .today-icon { color: var(--warning); }
-.today-title {
-  font-size: var(--fs-md);
-  font-weight: 600;
-  color: var(--text-1);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.today-count {
-  margin-left: auto;
-  min-width: 26px;
-  height: 24px;
-  padding: 0 8px;
-  border-radius: var(--radius-pill);
-  background: var(--glass-chip-bg);
-  color: var(--text-2);
-  font-size: var(--fs-xs);
-  font-weight: 700;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-.today-desc {
-  margin: 0;
-  font-size: var(--fs-sm);
-  color: var(--text-3);
-  line-height: 1.5;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-.today-action {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  margin-top: auto;
-  font-size: var(--fs-xs);
-  font-weight: 600;
-  color: var(--brand);
-}
-.today-empty {
-  grid-column: 1 / -1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  padding: 32px 16px;
-  border: 1px dashed var(--glass-border);
-  border-radius: var(--radius-md);
-  color: var(--text-3);
-  font-size: var(--fs-sm);
-  text-align: center;
-}
-@media (max-width: 1199px) {
-  .today-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-@media (max-width: 699px) {
-  .today-grid { grid-template-columns: 1fr; }
 }
 
 /* 统计卡片：宽屏 6 列一排，常规 3 列，移动端 2 列，极窄 1 列 */
@@ -1196,7 +1060,6 @@ const openFile = (f: { id: number }) => {
 .dash-dense .stat-grid { column-gap: 10px; row-gap: 10px; }
 .dash-dense .mid-grid { column-gap: 12px; row-gap: 12px; }
 .dash-dense .panel { padding: 14px 16px; gap: 10px; }
-.dash-dense .today-grid { gap: 10px; }
 .dash-dense .recent-grid { column-gap: 12px; row-gap: 12px; }
 .dash-dense .recent-item { padding: 5px 8px; }
 .dash-dense .trend-chart { height: 150px; }

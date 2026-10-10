@@ -606,15 +606,12 @@ html.custom-cursor-active.dragging * {
   gap: 6px;
 }
 
-/* Feed / 条目 / 待办行：普通 40px，紧凑收紧 */
+/* Feed / 条目行：普通 40px，紧凑收紧 */
 .app-density-compact .feed-row {
   padding: 2px 10px;
 }
 .app-density-compact .item-row {
   padding: 6px 12px;
-}
-.app-density-compact .todo-item {
-  padding: 10px 12px;
 }
 
 /* 空态：紧凑模式尺寸克制、不喧宾夺主 */
