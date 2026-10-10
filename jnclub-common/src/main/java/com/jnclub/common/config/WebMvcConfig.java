@@ -23,7 +23,11 @@ public class WebMvcConfig implements WebMvcConfigurer {
                             // 音乐模块保持匿名：/music/** 被路径重写为 /api/v1/**，两个前缀均放行
                             "/music/**", "/api/v1/**",
                             // 公开分享：/api/share/** 放行，需登录的方法在控制器内手动 checkLogin
-                            "/api/share/**")
+                            "/api/share/**",
+                            // 容器错误页：404/500 等 ERROR dispatch 会转发到 /error。
+                            // 若 /error 也走登录校验，ERROR dispatch 中 SaTokenContext 尚未初始化会抛
+                            // SaTokenContextException，把原始错误状态（如 404）覆盖成 500。
+                            "/error")
                     .check(r -> StpUtil.checkLogin());
         })).addPathPatterns("/**");
     }
