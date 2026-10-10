@@ -23,13 +23,16 @@ public class WebMvcConfig implements WebMvcConfigurer {
                             // 音乐模块保持匿名：/music/** 被路径重写为 /api/v1/**，两个前缀均放行
                             "/music/**", "/api/v1/**",
                             // 公开分享：/api/share/** 放行，需登录的方法在控制器内手动 checkLogin
-                            "/api/share/**",
-                            // 容器错误页：404/500 等 ERROR dispatch 会转发到 /error。
-                            // 若 /error 也走登录校验，ERROR dispatch 中 SaTokenContext 尚未初始化会抛
-                            // SaTokenContextException，把原始错误状态（如 404）覆盖成 500。
-                            "/error")
+                            "/api/share/**")
                     .check(r -> StpUtil.checkLogin());
-        })).addPathPatterns("/**");
+        }))
+                .addPathPatterns("/**")
+                // 容器错误页必须排除：/error 会被容器以 ERROR dispatch 二次派发，
+                // 该次派发中 Sa-Token 上下文尚未初始化，而 SaRouter.match("/**") 求值本身
+                // 就需要上下文（SaHolder.getRequest），会抛 SaTokenContextException，
+                // 使原始错误状态（401/404 等）被覆盖成 500。
+                // 注意：必须在注册层排除，写在 notMatch 里无效——那时 match("/**") 已经抛异常了。
+                .excludePathPatterns("/error");
     }
 
     @Override

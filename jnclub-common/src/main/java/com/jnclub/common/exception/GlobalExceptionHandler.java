@@ -7,6 +7,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
  * 全局异常处理器
@@ -20,6 +21,17 @@ public class GlobalExceptionHandler {
     public R<Void> handleNotLoginException(NotLoginException e) {
         log.debug("未登录访问拦截: {}", e.getMessage());
         return R.fail(401, "未登录或会话已过期");
+    }
+
+    /**
+     * 未匹配到任何处理器/静态资源 → 404。
+     * 若不单独处理，会被下方 Exception 兜底捕获而错误地返回 500。
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public R<Void> handleNoResourceFound(NoResourceFoundException e) {
+        log.debug("资源不存在: {}", e.getMessage());
+        return R.fail(404, "请求的资源不存在");
     }
 
     @ExceptionHandler(BizException.class)
