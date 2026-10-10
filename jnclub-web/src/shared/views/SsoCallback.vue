@@ -68,8 +68,13 @@ const handleRetry = () => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 100vh;
+  /* min-height + dvh：避免移动端浏览器工具栏导致 100vh 溢出/偏心 */
+  min-height: 100vh;
+  min-height: 100dvh;
+  box-sizing: border-box;
+  padding: 24px 16px;
   gap: 16px;
+  text-align: center;
 }
 .loading-state {
   display: flex;

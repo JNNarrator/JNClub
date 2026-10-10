@@ -298,4 +298,14 @@ const jnxFeatures = [
 .foot { display: flex; align-items: center; justify-content: center; gap: 4px; padding-top: 8px; }
 .foot-link { font-size: 13px; color: var(--link); text-decoration: none; }
 .foot-link:hover { text-decoration: underline; }
+
+/* 窄屏：压缩边距、下载按钮撑满，避免小屏拥挤 */
+@media (max-width: 767px) {
+  .ext-page { padding: 24px 12px 40px; }
+  .ext-inner { gap: 20px; }
+  .dl-section { padding: 18px 14px; }
+  .download-box { padding: 16px 14px; }
+  .brand-name { font-size: 22px; }
+  .download-btn { min-width: 0; width: 100%; }
+}
 </style>

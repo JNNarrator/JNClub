@@ -7,7 +7,7 @@
 import { ref, computed, h } from 'vue'
 import { NTree, NButton, NIcon, NModal, NForm, NFormItem, NInput, NSpace, useMessage, useDialog } from 'naive-ui'
 import type { TreeOption, TreeDropInfo } from 'naive-ui'
-import { Plus, FolderOpen, Folder, Bookmark, Star, Heart, BookOpen, Tag, Archive, Pencil, Trash2, Ellipsis } from 'lucide-vue-next'
+import { Plus, FolderOpen, Folder, Bookmark, Star, Heart, BookOpen, Tag, Archive, Pencil, Trash2, Ellipsis, ArrowUp, ArrowDown } from 'lucide-vue-next'
 import { useDirectoryStore } from '../stores/directory'
 import { openMenu } from '../../../shared/composables/useContextMenu'
 import { useItemDragContext } from '../composables/useItemDragContext'
@@ -181,12 +181,26 @@ const handleSelect = (keys: Array<string | number>) => {
   if (keys.length > 0) emit('select', keys[0] as number)
 }
 
-const contextMenuOptions = [
-  { label: '重命名', key: 'rename', icon: () => h(NIcon, null, { default: () => h(Pencil) }) },
-  { label: '删除', key: 'delete', icon: () => h(NIcon, null, { default: () => h(Trash2) }) },
-]
+/** 节点菜单：含同级上移/下移（触屏下 HTML5 拖拽不可用时的排序入口，首/末项禁用） */
+const nodeMenuOptions = (dirId: number) => {
+  const siblings = findSiblingsOf(props.directories, dirId)
+  const idx = siblings ? siblings.findIndex(s => s.id === dirId) : -1
+  const isFirst = idx <= 0
+  const isLast = !siblings || idx === -1 || idx >= siblings.length - 1
+  return [
+    { label: '上移', key: 'moveUp', disabled: isFirst, icon: () => h(NIcon, null, { default: () => h(ArrowUp) }) },
+    { label: '下移', key: 'moveDown', disabled: isLast, icon: () => h(NIcon, null, { default: () => h(ArrowDown) }) },
+    { label: '重命名', key: 'rename', icon: () => h(NIcon, null, { default: () => h(Pencil) }) },
+    { label: '删除', key: 'delete', icon: () => h(NIcon, null, { default: () => h(Trash2) }) },
+  ]
+}
 
 const handleContextMenuAction = (dirId: number, key: string) => {
+  // 同级排序（触屏无拖拽时的替代入口）
+  if (key === 'moveUp' || key === 'moveDown') {
+    moveSibling(dirId, key === 'moveUp' ? -1 : 1)
+    return
+  }
   if (key === 'rename') {
     const dir = findDir(props.directories, dirId)
     if (dir) {
@@ -279,11 +293,43 @@ const findSiblings = (dirs: Directory[], a: number, b: number): Directory[] | nu
   return null
 }
 
+/** 查找包含指定目录的兄弟层级（含自身），用于同级上移/下移 */
+const findSiblingsOf = (dirs: Directory[], id: number): Directory[] | null => {
+  if (dirs.some(d => d.id === id)) return dirs
+  for (const d of dirs) {
+    if (d.children?.length) {
+      const found = findSiblingsOf(d.children, id)
+      if (found) return found
+    }
+  }
+  return null
+}
+
+/** 同级上移/下移：触屏无原生拖拽时的排序替代入口（delta：-1 上移 / 1 下移） */
+const moveSibling = async (dirId: number, delta: -1 | 1) => {
+  if (reordering.value) return
+  const siblings = findSiblingsOf(props.directories, dirId)
+  if (!siblings || siblings.length < 2) return
+  const keys = siblings.map(s => s.id)
+  const from = keys.indexOf(dirId)
+  const to = from + delta
+  if (from === -1 || to < 0 || to >= keys.length) return
+  keys.splice(from, 1)
+  keys.splice(to, 0, dirId)
+  reordering.value = true
+  try {
+    await directoryStore.updateSortOrder(keys.map((id, idx) => ({ id, sortOrder: idx })))
+    emit('refresh')
+  } catch (e: any) {
+    message.error(e.response?.data?.message || '排序失败')
+  } finally { reordering.value = false }
+}
+
 /* each row: hover shows ... menu + 右键打开同一菜单 */
 const renderLabel = ({ option }: { option: TreeOption }) => {
   const node = option as any
   const openNodeMenu = (e: MouseEvent) => {
-    openMenu(e, contextMenuOptions, (key: string) => handleContextMenuAction(node.id, key))
+    openMenu(e, nodeMenuOptions(node.id), (key: string) => handleContextMenuAction(node.id, key))
   }
   return h('span', {
     style: 'display: flex; align-items: center; justify-content: space-between; width: 100%;',
