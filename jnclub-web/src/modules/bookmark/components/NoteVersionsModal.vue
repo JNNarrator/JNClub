@@ -179,6 +179,7 @@ const diffStat = computed(() => {
     :show="props.show"
     @update:show="(v: boolean) => emit('update:show', v)"
     preset="card"
+    class="jn-sheet-modal"
     :style="{ width: '700px', maxWidth: '94vw' }"
     title="历史版本"
   >

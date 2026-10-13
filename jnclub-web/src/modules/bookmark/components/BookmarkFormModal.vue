@@ -136,6 +136,7 @@ const save = async () => {
   <NModal
     :show="show"
     preset="dialog"
+    class="jn-sheet-modal"
     :title="isEdit ? '编辑收藏' : '添加收藏'"
     @update:show="(v: boolean) => emit('update:show', v)"
   >

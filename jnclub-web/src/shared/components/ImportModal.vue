@@ -71,6 +71,7 @@ const sections: { key: ImportKind; label: string; desc: string; icon: any; accep
     :show="props.show"
     @update:show="(v: boolean) => emit('update:show', v)"
     preset="card"
+    class="jn-sheet-modal"
     :style="{ width: '560px', maxWidth: '92vw' }"
     title="数据导入"
   >

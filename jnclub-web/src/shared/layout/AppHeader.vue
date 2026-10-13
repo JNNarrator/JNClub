@@ -307,7 +307,13 @@ const handleBreadcrumbRoot = () => {
         <template #icon><NIcon :component="RefreshCw" size="16" /></template>
       </NButton>
 
-      <button type="button" class="theme-toggle-btn jnclub-bouncy" @click="emit('toggle-theme')" title="切换暗色模式">
+      <button
+        type="button"
+        class="theme-toggle-btn jnclub-bouncy"
+        :title="isDark ? '切换到白天模式' : '切换到暗黑模式'"
+        :aria-label="isDark ? '切换到白天模式' : '切换到暗黑模式'"
+        @click="emit('toggle-theme')"
+      >
         <NIcon :component="isDark ? Sun : Moon" size="16" />
       </button>
 

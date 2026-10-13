@@ -422,11 +422,12 @@ const handleRenameSubmit = async () => {
               type="button"
               :class="['icon-opt', { active: createIcon === opt.key }]"
               :title="opt.label"
+              :aria-label="opt.label"
               @click="createIcon = opt.key"
             >
               <NIcon :component="opt.icon" size="18" />
             </button>
-            <button type="button" :class="['icon-opt', { active: createIcon === '' }]" title="默认" @click="createIcon = ''">
+            <button type="button" :class="['icon-opt', { active: createIcon === '' }]" title="默认" aria-label="默认图标" @click="createIcon = ''">
               <NIcon :component="FolderOpen" size="18" />
             </button>
           </div>
@@ -451,11 +452,12 @@ const handleRenameSubmit = async () => {
               type="button"
               :class="['icon-opt', { active: renameIcon === opt.key }]"
               :title="opt.label"
+              :aria-label="opt.label"
               @click="renameIcon = opt.key"
             >
               <NIcon :component="opt.icon" size="18" />
             </button>
-            <button type="button" :class="['icon-opt', { active: renameIcon === '' }]" title="默认" @click="renameIcon = ''">
+            <button type="button" :class="['icon-opt', { active: renameIcon === '' }]" title="默认" aria-label="默认图标" @click="renameIcon = ''">
               <NIcon :component="FolderOpen" size="18" />
             </button>
           </div>

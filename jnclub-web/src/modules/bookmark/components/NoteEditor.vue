@@ -860,7 +860,7 @@ defineExpose({ hasUnsavedChanges })
     <div class="outline-float__head" @mousedown="onOutlineDragStart" title="拖动调整位置">
       <span class="outline-float__title">大纲</span>
       <div class="outline-float__actions">
-        <button class="outline-float__btn" title="收起" @click="outlineVisible = false">
+        <button class="outline-float__btn" title="收起" aria-label="收起大纲" @click="outlineVisible = false">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg>
         </button>
       </div>

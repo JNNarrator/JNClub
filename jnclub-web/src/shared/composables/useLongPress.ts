@@ -11,6 +11,8 @@
  *
  * 行为：
  * - 按住 duration（默认 500ms）且位移不超过 moveThreshold（默认 10px）→ 触发 handler；
+ * - 触发时对全局手势锁置位（gestureLock），让同一次按压下的拖拽排序让位，
+ *   避免菜单弹出后手指继续移动又进入排序态；
  * - 抬手（pointerup）时若长按已触发，才注册「吃掉紧随那次 click」的守卫——
  *   锚在抬手时刻而非触发时刻，因此按住多久都不会漏抑制；
  * - 守卫只在点击落在原长按元素内部时生效，不会误吞随后弹出的菜单项点击；
@@ -18,6 +20,7 @@
  * - 位移超阈值（判定为滚动/拖拽）或 pointerup / pointercancel → 取消。
  */
 import { onBeforeUnmount } from 'vue'
+import { lockGesture, unlockGesture } from './gestureLock'
 
 export interface LongPressOptions {
   /** 触发所需按住时长（毫秒），默认 500 */
@@ -91,6 +94,8 @@ export function useLongPress(options: LongPressOptions = {}) {
       pointerdown(e: PointerEvent) {
         // 鼠标不接管，交给原生右键菜单
         if (e.pointerType === 'mouse') return
+        // 新手势落下 = 上一次按压已结束，解除手势锁（含上一次长按未抬手的兜底）
+        unlockGesture()
         startX = e.clientX
         startY = e.clientY
         fired = false
@@ -100,6 +105,8 @@ export function useLongPress(options: LongPressOptions = {}) {
           // 已进入拖拽排序（SortableJS 在 documentElement 上加 .dragging）→ 让位给排序
           if (document.documentElement.classList.contains('dragging')) return
           fired = true
+          // 反向互斥：菜单先弹出，则通知拖拽容器销毁实例，本次按压不再进入排序
+          lockGesture()
           handler(e)
         }, duration)
       },
@@ -114,6 +121,8 @@ export function useLongPress(options: LongPressOptions = {}) {
       },
       pointerup(e: PointerEvent) {
         clearTimer()
+        // 手势结束即解锁：手指抬起后菜单仍在，但拖拽容器可以恢复监听
+        unlockGesture()
         if (!fired) return
         fired = false
         // click 在 pointerup 之后派发，此处注册守卫可精确覆盖它
@@ -121,9 +130,15 @@ export function useLongPress(options: LongPressOptions = {}) {
       },
       pointercancel() {
         clearTimer()
+        unlockGesture()
         fired = false
       },
-      pointerleave: clearTimer,
+      pointerleave() {
+        clearTimer()
+        // 长按已触发时手指移出元素：pointerup 可能落在别的元素上而不再回调到这里，
+        // 因此在此一并解锁，避免手势锁残留导致拖拽永久失效（unlock 幂等）
+        if (fired) unlockGesture()
+      },
     }
   }
 }

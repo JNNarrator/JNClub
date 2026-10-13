@@ -80,7 +80,13 @@ const goRegister = () => {
     <div class="welcome-texture"></div>
 
     <!-- 主题切换 -->
-    <button type="button" class="theme-toggle" :title="isDark ? '切换到白天模式' : '切换到暗黑模式'" @click="emit('toggle-theme')">
+    <button
+      type="button"
+      class="theme-toggle"
+      :title="isDark ? '切换到白天模式' : '切换到暗黑模式'"
+      :aria-label="isDark ? '切换到白天模式' : '切换到暗黑模式'"
+      @click="emit('toggle-theme')"
+    >
       <NIcon :component="isDark ? Sun : Moon" size="18" />
     </button>
 

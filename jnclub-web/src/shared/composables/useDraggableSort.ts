@@ -1,9 +1,14 @@
 /**
  * useDraggableSort — 基于 SortableJS 的可复用拖拽排序
  * 供收藏夹/便签/云盘的网格与列表，以及侧栏导航复用，统一拖拽交互与排序回调
+ *
+ * 与长按菜单互斥：触屏长按唤起上下文菜单后，手指继续移动不应再进入排序态。
+ * 长按与拖拽共用同一个 pointerdown，无法在起始时预判，因此订阅 gestureLock——
+ * 长按判定成功即销毁 Sortable 实例，手势结束后重建（M4-4）。
  */
 import { onBeforeUnmount, watch, type Ref } from 'vue'
 import Sortable from 'sortablejs'
+import { isGestureLocked, onGestureLockChange } from './gestureLock'
 
 /** data-id 支持数字 id 或字符串 key（如导航模块 key） */
 export type SortableId = number | string
@@ -22,7 +27,8 @@ export function useDraggableSort(
 ) {
   let sortable: Sortable | null = null
 
-  const init = () => {
+  /** 建立 Sortable 实例（首次 init 与手势解锁后的重建共用同一份配置） */
+  const create = () => {
     if (!containerRef.value || sortable) return
     sortable = Sortable.create(containerRef.value, {
       animation: 180,
@@ -66,6 +72,28 @@ export function useDraggableSort(
       },
       disabled: disabledRef?.value ?? false,
     })
+  }
+
+  /** 长按菜单占用中：销毁实例，本次按压不再可能进入排序 */
+  const suspend = () => {
+    if (!sortable) return
+    sortable.destroy()
+    sortable = null
+    document.documentElement.classList.remove('dragging')
+    containerRef.value?.classList.remove('sorting')
+  }
+
+  /** 手势结束：恢复拖拽能力（下次 pointerdown 重新走 Sortable 的起始判定） */
+  const resume = () => {
+    if (isGestureLocked()) return
+    create()
+  }
+
+  const init = () => {
+    if (!containerRef.value || sortable) return
+    create()
+    // 挂载瞬间若恰有长按菜单未释放，先让位
+    if (isGestureLocked()) suspend()
     if (disabledRef) {
       watch(disabledRef, (v) => {
         sortable?.option('disabled', v)
@@ -79,7 +107,16 @@ export function useDraggableSort(
     document.documentElement.classList.remove('dragging')
   }
 
-  onBeforeUnmount(destroy)
+  /** 订阅全局手势锁（模块级状态，与长按 composable 跨组件共享） */
+  const offGestureLock = onGestureLockChange((locked) => {
+    if (locked) suspend()
+    else resume()
+  })
+
+  onBeforeUnmount(() => {
+    offGestureLock()
+    destroy()
+  })
 
   return { init, destroy }
 }

@@ -423,6 +423,50 @@ html, body {
   color: var(--text-2) !important;
 }
 
+/* ================================================================
+   窄屏底部抽屉降级（M4-4）
+   三个大表单弹窗（收藏表单 / 数据导入 / 历史版本）在桌面是居中卡片，
+   在 <480px 视口下改为贴底 sheet：宽度撑满、只留顶部圆角、限高后可滚动。
+   仅对带 .jn-sheet-modal 类的弹窗生效，其余弹窗（确认框、重命名等）保持居中。
+   .n-modal 是 .n-modal-scroll-content（display:flex）的子项，用 align-self
+   即可贴底，无需改动父级（因而不依赖 :has()）。
+   ================================================================ */
+@media (max-width: 479px) {
+  .n-modal.jn-sheet-modal {
+    align-self: flex-end !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    max-height: 88vh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0 !important;
+    /* 底部为 home indicator 留出安全区（与 MobileTabBar 同一套写法） */
+    padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  /* 顶部抓手：底部抽屉的通用视觉语言，同时给标题让出呼吸空间 */
+  .n-modal.jn-sheet-modal::before {
+    content: '';
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 36px;
+    height: 4px;
+    border-radius: var(--radius-pill);
+    background: var(--split);
+    opacity: 0.6;
+  }
+
+  /* 入场/退场改为自底部滑入滑出，覆盖 naive 的 scale 缩放 */
+  .n-modal.jn-sheet-modal.fade-in-scale-up-transition-enter-from,
+  .n-modal.jn-sheet-modal.fade-in-scale-up-transition-leave-to {
+    transform: translateY(100%);
+    opacity: 1;
+  }
+}
+
 /* ---- 自定义光标（CursorHost 启用时隐藏系统光标） ---- */
 /* 隐藏全部系统光标，由 .cursor-dot/.cursor-halo/.cursor-emoji 替代 */
 html.custom-cursor-active,
