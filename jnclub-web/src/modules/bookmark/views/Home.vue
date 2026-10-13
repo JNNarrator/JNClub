@@ -33,7 +33,8 @@ import JFilterBar from '../../../shared/components/ui/JFilterBar.vue'
 import JBatchBar from '../../../shared/components/ui/JBatchBar.vue'
 import ContextMenuHost from '../../../shared/components/ContextMenuHost.vue'
 import AppHeader from '../../../shared/layout/AppHeader.vue'
-import type { ViewMode } from '../components/ViewSwitcher.vue'
+import type { ViewMode } from '../../../shared/components/ViewSwitcher.vue'
+import type { ModuleKey } from '../../../shared/types/nav'
 import { useUserPreferences } from '../../../shared/composables/useUserPreferences'
 import { fetchTags, type TagItem } from '../composables/tags'
 import { useBatchActions } from '../composables/useBatchActions'
@@ -51,12 +52,12 @@ const vaultStore = useVaultStore()
 const message = useMessage()
 
 const props = defineProps<{
-  activeModule: 'bookmarks' | 'notes' | 'files' | 'vault'
+  activeModule: ModuleKey
   isDark: boolean
 }>()
 
 const emit = defineEmits<{
-  'module-change': [module: 'bookmarks' | 'notes' | 'files' | 'vault']
+  'module-change': [module: ModuleKey]
   'toggle-theme': []
 }>()
 

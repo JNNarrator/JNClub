@@ -13,12 +13,13 @@ import axios from 'axios'
 import { useUserStore } from '../stores/user'
 import { openMenu, openMenuAt } from '../composables/useContextMenu'
 import { useLongPress } from '../composables/useLongPress'
-import ViewSwitcher, { type ViewMode } from '../../modules/bookmark/components/ViewSwitcher.vue'
+import ViewSwitcher, { type ViewMode } from '../components/ViewSwitcher.vue'
 import JInlineEmpty from '../components/ui/JInlineEmpty.vue'
+import type { ModuleKey } from '../types/nav'
 
 const props = defineProps<{
   isDark: boolean
-  activeModule: 'bookmarks' | 'notes' | 'files' | 'vault'
+  activeModule: ModuleKey
   isMobile: boolean
   batchMode: boolean
   viewMode: ViewMode

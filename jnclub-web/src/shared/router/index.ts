@@ -1,3 +1,10 @@
+/**
+ * router/index.ts — 应用路由表
+ *
+ * M4-1 豁免：本文件对 modules/* 的引用（AppWrapper / NoteEditorPage / RecycleLayout）
+ * 全部属于「路由聚合」——路由表本就位于应用装配层，按 URL 路径把各模块的入口视图
+ * 挂上树是它的职责，不存在可内聚的方向。其余 shared 层文件已不再依赖 modules/*。
+ */
 import { createRouter, createWebHistory } from 'vue-router'
 import { useUserStore } from '../stores/user'
 
@@ -7,7 +14,7 @@ const router = createRouter({
     {
       path: '/',
       name: 'app',
-      component: () => import('../views/AppWrapper.vue'),
+      component: () => import('../../modules/bookmark/views/AppWrapper.vue'),
     },
     {
       path: '/welcome',
@@ -50,7 +57,7 @@ const router = createRouter({
     {
       path: '/recycle',
       name: 'recycle',
-      component: () => import('../layout/RecycleLayout.vue'),
+      component: () => import('../../modules/bookmark/layout/RecycleLayout.vue'),
     },
     // 音乐播放器内嵌页（iframe /music/，登录后经侧边栏入口进入）
     {

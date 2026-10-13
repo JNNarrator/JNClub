@@ -7,16 +7,21 @@
 import { useRouter } from 'vue-router'
 import { useKeyboardShortcut, setShortcutPlatform } from './useKeyboardShortcut'
 import { usePlatform } from './usePlatform'
-import { useVaultStore } from '../../modules/bookmark/stores/vault'
 import { GLOBAL_SHORTCUTS } from '../shortcuts'
+import { MODULE_KEYS, type ModuleKey } from '../types/nav'
 
 export interface AppShortcutOptions {
   /** 切换主题（由壳层向上 emit） */
   onToggleTheme: () => void
   /** 切换模块（AppWrapper 内部实现 / RecycleLayout 跳回主页） */
-  onModuleChange: (module: 'bookmarks' | 'notes' | 'files' | 'vault') => void
+  onModuleChange: (module: ModuleKey) => void
   /** 打开快捷键帮助面板 */
   onOpenHelp: () => void
+  /**
+   * 锁定密码库（M4-1：由调用方注入，本 composable 不直接依赖 vault store）。
+   * 密码库是 bookmark 模块的能力，壳层知道它、通用 composable 不必知道。
+   */
+  onLockVault?: () => void
 }
 
 export function useAppShortcuts(opts: AppShortcutOptions) {
@@ -29,7 +34,7 @@ export function useAppShortcuts(opts: AppShortcutOptions) {
   const find = (action: string) => GLOBAL_SHORTCUTS.find((s) => s.action === action)
 
   // 模块切换：⌘1~⌘4
-  const modules: Array<'bookmarks' | 'notes' | 'files' | 'vault'> = ['bookmarks', 'notes', 'files', 'vault']
+  const modules = MODULE_KEYS
   modules.forEach((m) => {
     const def = find(`module.${m}`)
     if (!def) return
@@ -56,13 +61,12 @@ export function useAppShortcuts(opts: AppShortcutOptions) {
     })
   }
 
-  // 锁定密码库：⌘⇧L
+  // 锁定密码库：⌘⇧L（未注入回调时该项不注册）
   const lockDef = find('vault.lock')
-  if (lockDef) {
-    useKeyboardShortcut(lockDef.action, lockDef.chord, () => {
-      const vault = useVaultStore()
-      if (vault.masterStatus?.unlocked) vault.lock()
-    }, { skipWhenEditing: lockDef.skipWhenEditing })
+  if (lockDef && opts.onLockVault) {
+    useKeyboardShortcut(lockDef.action, lockDef.chord, () => opts.onLockVault?.(), {
+      skipWhenEditing: lockDef.skipWhenEditing,
+    })
   }
 
   // 帮助：⌘/

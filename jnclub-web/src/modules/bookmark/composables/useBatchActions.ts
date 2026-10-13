@@ -9,8 +9,10 @@
 import { ref, computed, watch } from 'vue'
 import { useMessage, useDialog } from 'naive-ui'
 import axios from 'axios'
+import type { ModuleKey } from '../../../shared/types/nav'
 
-export type BatchModule = 'bookmarks' | 'notes' | 'files' | 'vault'
+/** 批量操作作用的模块；类型定义见 shared/types/nav.ts */
+export type BatchModule = ModuleKey
 
 export function useBatchActions(opts: {
   activeModule: () => BatchModule

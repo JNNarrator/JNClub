@@ -12,13 +12,14 @@ import { useRouter, useRoute } from 'vue-router'
 import { useUserPreferences } from '../composables/useUserPreferences'
 import { NAV_META, MOBILE_KEYS, DEFAULT_ORDER, normalizeNavKeys, type NavDef } from './navConfig'
 import JInlineEmpty from '../components/ui/JInlineEmpty.vue'
+import type { ModuleKey } from '../types/nav'
 
 const props = defineProps<{
-  activeModule: 'bookmarks' | 'notes' | 'files' | 'vault'
+  activeModule: ModuleKey
 }>()
 
 const emit = defineEmits<{
-  'module-change': [module: 'bookmarks' | 'notes' | 'files' | 'vault']
+  'module-change': [module: ModuleKey]
 }>()
 
 const router = useRouter()
@@ -60,7 +61,7 @@ const handleTab = (tab: NavDef) => {
     router.push(tab.target)
     return
   }
-  emit('module-change', tab.key as 'bookmarks' | 'notes' | 'files' | 'vault')
+  emit('module-change', tab.key as ModuleKey)
 }
 
 const handleMore = (tab: NavDef) => {

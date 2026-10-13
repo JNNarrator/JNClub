@@ -1,18 +1,22 @@
 <script setup lang="ts">
 /**
- * AppWrapper.vue — 应用外壳
+ * AppWrapper.vue — 主界面壳（M4-1：由 shared/views/ 移入模块内）
  * 嵌入 MainLayout（含 SideNav），管理 activeModule（后端偏好记忆 + localStorage 首屏兜底）
- * 将 isDark 透传至 Home
+ * 将 isDark 透传至 Home。
+ * 它装配的 Home/RecycleView 与四个 activeModule 取值全部属于本模块，
+ * 属「模块自己的装配壳」而非跨模块复用的布局原语，故归入本模块。
  */
 import { ref, watch, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import MainLayout from '../layout/MainLayout.vue'
-import Home from '../../modules/bookmark/views/Home.vue'
-import RecycleView from '../../modules/bookmark/views/RecycleView.vue'
-import HelpDrawer from '../components/HelpDrawer.vue'
-import { useAppShortcuts } from '../composables/useAppShortcuts'
-import { useUserPreferences } from '../composables/useUserPreferences'
-import { useUiDensity } from '../composables/useUiDensity'
+import MainLayout from '../../../shared/layout/MainLayout.vue'
+import Home from './Home.vue'
+import RecycleView from './RecycleView.vue'
+import HelpDrawer from '../../../shared/components/HelpDrawer.vue'
+import { useAppShortcuts } from '../../../shared/composables/useAppShortcuts'
+import { useUserPreferences } from '../../../shared/composables/useUserPreferences'
+import { useUiDensity } from '../../../shared/composables/useUiDensity'
+import { useVaultStore } from '../stores/vault'
+import { MODULE_KEYS, type ModuleKey } from '../../../shared/types/nav'
 
 defineProps<{
   isDark: boolean
@@ -22,8 +26,7 @@ const emit = defineEmits<{
   'toggle-theme': []
 }>()
 
-type ModuleKey = 'bookmarks' | 'notes' | 'files' | 'vault'
-const MODULES: ModuleKey[] = ['bookmarks', 'notes', 'files', 'vault']
+const MODULES: ModuleKey[] = MODULE_KEYS
 
 const route = useRoute()
 const router = useRouter()
@@ -70,6 +73,10 @@ useAppShortcuts({
   onToggleTheme: () => emit('toggle-theme'),
   onModuleChange: handleModuleChange,
   onOpenHelp: () => { showHelp.value = true },
+  onLockVault: () => {
+    const vault = useVaultStore()
+    if (vault.masterStatus?.unlocked) vault.lock()
+  },
 })
 </script>
 

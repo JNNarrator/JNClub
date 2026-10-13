@@ -11,6 +11,7 @@ import DashboardView from '../views/DashboardView.vue'
 import HelpDrawer from '../components/HelpDrawer.vue'
 import JPageHeader from '../components/ui/JPageHeader.vue'
 import { useAppShortcuts } from '../composables/useAppShortcuts'
+import type { ModuleKey } from '../types/nav'
 
 const { isDark } = defineProps<{
   isDark: boolean
@@ -23,7 +24,7 @@ const emit = defineEmits<{
 const router = useRouter()
 
 /** 概览内点左侧模块：跳回主界面并切换到对应模块 */
-const handleModuleChange = (module: 'bookmarks' | 'notes' | 'files' | 'vault') => {
+const handleModuleChange = (module: ModuleKey) => {
   router.push({ path: '/', query: { module } })
 }
 

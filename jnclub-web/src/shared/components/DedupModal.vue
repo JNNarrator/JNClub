@@ -7,8 +7,8 @@
 import { ref, watch } from 'vue'
 import { NModal, NButton, NIcon, NSpin, NCheckbox, useMessage, NTag, NPopconfirm } from 'naive-ui'
 import { ScanSearch, Bookmark, Cloud, Trash2 } from 'lucide-vue-next'
-import JEmptyState from '../../../shared/components/ui/JEmptyState.vue'
-import JErrorState from '../../../shared/components/ui/JErrorState.vue'
+import JEmptyState from './ui/JEmptyState.vue'
+import JErrorState from './ui/JErrorState.vue'
 import axios from 'axios'
 
 const props = defineProps<{ show: boolean; initialTab?: 'bookmarks' | 'files' }>()

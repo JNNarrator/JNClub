@@ -9,19 +9,20 @@ import { NLayout, NLayoutContent } from 'naive-ui'
 import SideNav from './SideNav.vue'
 import MobileTabBar from './MobileTabBar.vue'
 import { useBreakpoint } from '../composables/useBreakpoint'
+import type { ModuleKey } from '../types/nav'
 
 const props = defineProps<{
   isDark: boolean
   /** 当前模块（由 AppWrapper 从 URL/偏好同步，用于侧边栏高亮） */
-  activeModule: 'bookmarks' | 'notes' | 'files' | 'vault'
+  activeModule: ModuleKey
 }>()
 
 const emit = defineEmits<{
   'toggle-theme': []
-  'module-change': [module: 'bookmarks' | 'notes' | 'files' | 'vault']
+  'module-change': [module: ModuleKey]
 }>()
 
-const handleModuleChange = (module: 'bookmarks' | 'notes' | 'files' | 'vault') => {
+const handleModuleChange = (module: ModuleKey) => {
   emit('module-change', module)
 }
 

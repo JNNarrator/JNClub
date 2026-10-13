@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * ViewSwitcher.vue — 多视图分段控件（氛围升级版）
- * 激活态：渐变品牌底 + 白字 + bouncy 过渡
+ * 激活态：品牌浅底 + 品牌文字色 + bouncy 过渡
  */
 export type ViewMode = 'grid' | 'list'
 

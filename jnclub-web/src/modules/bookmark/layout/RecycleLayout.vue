@@ -1,16 +1,20 @@
 <script setup lang="ts">
 /**
- * RecycleLayout.vue — 回收站主壳
+ * RecycleLayout.vue — 回收站主壳（M4-1：由 shared/layout/ 移入模块内）
+ * 只有 /recycle 一个消费点，且与 RecycleView 的 props/emit 深度绑定，
+ * 属回收站功能自身的壳而非跨模块复用的布局原语，故归入本模块。
  * 套用与主界面一致的壳（MainLayout 左侧导航/移动端 TabBar）+ 统一 JPageShell 页面壳。
  */
 import { useRouter } from 'vue-router'
 import { ref } from 'vue'
-import MainLayout from './MainLayout.vue'
-import JPageShell from './JPageShell.vue'
-import RecycleView from '../../modules/bookmark/views/RecycleView.vue'
-import HelpDrawer from '../components/HelpDrawer.vue'
-import JPageHeader from '../components/ui/JPageHeader.vue'
-import { useAppShortcuts } from '../composables/useAppShortcuts'
+import MainLayout from '../../../shared/layout/MainLayout.vue'
+import JPageShell from '../../../shared/layout/JPageShell.vue'
+import RecycleView from '../views/RecycleView.vue'
+import HelpDrawer from '../../../shared/components/HelpDrawer.vue'
+import JPageHeader from '../../../shared/components/ui/JPageHeader.vue'
+import { useAppShortcuts } from '../../../shared/composables/useAppShortcuts'
+import { useVaultStore } from '../stores/vault'
+import type { ModuleKey } from '../../../shared/types/nav'
 
 const { isDark } = defineProps<{
   isDark: boolean
@@ -27,7 +31,7 @@ const refreshTick = ref(0)
 const handleRefresh = () => { refreshTick.value++ }
 
 /** 回收站内点左侧模块：跳回主界面并切换到对应模块（AppWrapper 从 URL query.module 定位） */
-const handleModuleChange = (module: 'bookmarks' | 'notes' | 'files' | 'vault') => {
+const handleModuleChange = (module: ModuleKey) => {
   router.push({ path: '/', query: { module } })
 }
 
@@ -39,6 +43,10 @@ useAppShortcuts({
   onToggleTheme: () => emit('toggle-theme'),
   onModuleChange: handleModuleChange,
   onOpenHelp: () => { showHelp.value = true },
+  onLockVault: () => {
+    const vault = useVaultStore()
+    if (vault.masterStatus?.unlocked) vault.lock()
+  },
 })
 </script>
 

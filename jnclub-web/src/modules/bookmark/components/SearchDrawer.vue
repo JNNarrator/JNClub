@@ -12,6 +12,7 @@ import JEmptyState from '../../../shared/components/ui/JEmptyState.vue'
 import axios from 'axios'
 import { JGradientText } from '../../../shared/components/animation'
 import { useRecentItems, type RecentItem, type RecentItemKind } from '../../../shared/composables/useRecentItems'
+import type { NavJumpKey } from '../../../shared/types/nav'
 
 const props = defineProps<{
   show: boolean
@@ -20,7 +21,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   close: []
   /** 跳转：切模块 + 选目录（music 直接开播放器，无目录） */
-  'jump': [module: 'bookmarks' | 'notes' | 'files' | 'vault' | 'music', directoryId: number | null]
+  'jump': [module: NavJumpKey, directoryId: number | null]
   'action': [key: string]
 }>()
 
@@ -195,7 +196,7 @@ const onInput = () => {
 const total = () => result.value.bookmarks.length + result.value.notes.length + result.value.files.length
   + result.value.vault.length + result.value.tags.length + result.value.tracks.length
 
-const handleJump = (module: 'bookmarks' | 'notes' | 'files' | 'vault' | 'music', directoryId: number | null) => {
+const handleJump = (module: NavJumpKey, directoryId: number | null) => {
   emit('close')
   emit('jump', module, directoryId)
 }

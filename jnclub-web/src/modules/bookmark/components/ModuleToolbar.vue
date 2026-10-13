@@ -5,9 +5,10 @@
  */
 import { NButton, NIcon } from 'naive-ui'
 import { Plus, ShieldAlert, Download, Archive, UploadCloud } from 'lucide-vue-next'
+import type { ModuleKey } from '../../../shared/types/nav'
 
 defineProps<{
-  activeModule: 'bookmarks' | 'notes' | 'files' | 'vault'
+  activeModule: ModuleKey
   bookmarkCount: number
   noteCount: number
   notesArchived: boolean

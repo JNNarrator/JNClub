@@ -4,23 +4,24 @@ import { NLayoutSider, NIcon, NDropdown } from 'naive-ui'
 import { Settings2 } from 'lucide-vue-next'
 import { useUserPreferences } from '../composables/useUserPreferences'
 import BrandLogo from '../components/BrandLogo.vue'
-import NavItem from '../../modules/bookmark/components/NavItem.vue'
+import NavItem from './NavItem.vue'
 import NavEditorDrawer from './NavEditorDrawer.vue'
 import CursorSettingsDrawer from './CursorSettingsDrawer.vue'
 import ParticlesSettingsDrawer from './ParticlesSettingsDrawer.vue'
 import { useUiDensity } from '../composables/useUiDensity'
 import { useDraggableSort } from '../composables/useDraggableSort'
 import { useRouter, useRoute } from 'vue-router'
+import type { ModuleKey } from '../types/nav'
 import { NAV_META, DEFAULT_ORDER, normalizeNavKeys, completeOrder, type NavDef, type NavKey } from './navConfig'
 
 const props = defineProps<{
-  activeModule: 'bookmarks' | 'notes' | 'files' | 'vault'
+  activeModule: ModuleKey
   /** 折叠状态（可外部控制，用于移动端自动折叠） */
   collapsed?: boolean
 }>()
 
 const emit = defineEmits<{
-  'module-change': [module: 'bookmarks' | 'notes' | 'files' | 'vault']
+  'module-change': [module: ModuleKey]
   'update:collapsed': [value: boolean]
 }>()
 
@@ -90,7 +91,7 @@ onMounted(() => { initNavSort() })
 /** 点击导航项：模块走 module-change，路由走 router.push */
 const handleNavClick = (item: NavDef) => {
   if (item.kind === 'module') {
-    emit('module-change', item.key as 'bookmarks' | 'notes' | 'files' | 'vault')
+    emit('module-change', item.key as ModuleKey)
     return
   }
   router.push(item.target)

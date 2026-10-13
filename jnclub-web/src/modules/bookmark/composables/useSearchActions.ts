@@ -6,11 +6,13 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useKeyboardShortcut } from '../../../shared/composables/useKeyboardShortcut'
 import { useVaultStore } from '../stores/vault'
+import type { ModuleKey, NavJumpKey } from '../../../shared/types/nav'
 
-export type SearchJumpModule = 'bookmarks' | 'notes' | 'files' | 'vault' | 'music'
+/** 搜索结果可跳转目标（4 模块 + 音乐）；类型定义见 shared/types/nav.ts */
+export type SearchJumpModule = NavJumpKey
 
 export function useSearchActions(opts: {
-  onModuleChange: (module: 'bookmarks' | 'notes' | 'files' | 'vault') => void
+  onModuleChange: (module: ModuleKey) => void
   onToggleTheme: () => void
 }) {
   const router = useRouter()
@@ -34,7 +36,7 @@ export function useSearchActions(opts: {
 
   /** 命令面板快捷动作 */
   const handleCommand = (key: string) => {
-    const nav: Record<string, 'bookmarks' | 'notes' | 'files' | 'vault'> = {
+    const nav: Record<string, ModuleKey> = {
       'module.bookmarks': 'bookmarks',
       'module.notes': 'notes',
       'module.files': 'files',
