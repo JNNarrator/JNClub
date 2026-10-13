@@ -8,6 +8,7 @@ import { ref, watch, computed } from 'vue'
 import { NModal, NButton, NIcon, NSpin, NSwitch } from 'naive-ui'
 import { ExternalLink, X, BookOpen, Settings2 } from 'lucide-vue-next'
 import JErrorState from '../../../shared/components/ui/JErrorState.vue'
+import JInlineEmpty from '../../../shared/components/ui/JInlineEmpty.vue'
 import { useUserPreferences } from '../../../shared/composables/useUserPreferences'
 import axios from 'axios'
 
@@ -169,7 +170,7 @@ const close = () => {
 
       <div class="reading-body">
         <NSpin :show="loading">
-          <div v-if="loading" class="reading-hint">正在抓取正文…</div>
+          <JInlineEmpty v-if="loading" pad="none" message="正在抓取正文…" />
           <div v-else-if="error" class="reading-error">
             <JErrorState message="正文提取失败" :hint="error" @retry="load" />
             <a :href="props.url" target="_blank" rel="noopener" class="reading-fallback">
@@ -317,12 +318,6 @@ const close = () => {
 
 /* 专注纸背景：由 shellStyle 内联暖纸渐变实现，此处仅兜底 */
 .reading-shell--paper { border-radius: var(--radius-lg); }
-.reading-hint {
-  padding: 60px 0;
-  text-align: center;
-  font-size: var(--fs-sm);
-  color: var(--text-3);
-}
 .reading-error {
   padding: 40px 0;
   display: flex;

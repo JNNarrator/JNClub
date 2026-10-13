@@ -11,6 +11,7 @@ import { MoreHorizontal, Eye } from 'lucide-vue-next'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserPreferences } from '../composables/useUserPreferences'
 import { NAV_META, MOBILE_KEYS, DEFAULT_ORDER, normalizeNavKeys, type NavDef } from './navConfig'
+import JInlineEmpty from '../components/ui/JInlineEmpty.vue'
 
 const props = defineProps<{
   activeModule: 'bookmarks' | 'notes' | 'files' | 'vault'
@@ -135,7 +136,7 @@ const isActive = (tab: NavDef) => {
           </NButton>
         </div>
       </div>
-      <p v-if="!MORE_ITEMS.length" class="more-empty">当前没有更多功能</p>
+      <JInlineEmpty v-if="!MORE_ITEMS.length" message="当前没有更多功能" />
     </NDrawerContent>
   </NDrawer>
 </template>
@@ -262,11 +263,5 @@ const isActive = (tab: NavDef) => {
 }
 .more-unhide {
   flex-shrink: 0;
-}
-.more-empty {
-  padding: var(--empty-pad-sm) 0;
-  text-align: center;
-  color: var(--text-3);
-  font-size: var(--fs-sm);
 }
 </style>

@@ -8,6 +8,7 @@ import { useRoute } from 'vue-router'
 import { NButton, NIcon, NInput, NSpin, NTag, useMessage } from 'naive-ui'
 import { Download, Lock, StickyNote, Bookmark, FileText, ExternalLink, FileDown, Printer } from 'lucide-vue-next'
 import { formatDate } from '../utils/formatDate'
+import JInlineEmpty from '../components/ui/JInlineEmpty.vue'
 import axios from 'axios'
 
 const route = useRoute()
@@ -85,11 +86,11 @@ const bookmarkDomain = computed(() => {
   <div class="share-page">
     <div class="share-card">
       <template v-if="loading">
-        <div class="share-state"><NSpin /> <span>加载中…</span></div>
+        <JInlineEmpty inline pad="md" message="加载中…"><template #icon><NSpin size="small" /></template></JInlineEmpty>
       </template>
 
       <template v-else-if="error">
-        <div class="share-state share-error">{{ error }}</div>
+        <JInlineEmpty tone="error" pad="md" :message="error" />
       </template>
 
       <template v-else-if="locked">
@@ -176,8 +177,6 @@ const bookmarkDomain = computed(() => {
   border-radius: var(--radius-lg);
   box-shadow: var(--glass-shadow);
 }
-.share-state { display: flex; align-items: center; gap: 10px; justify-content: center; color: var(--text-2); padding: 30px 0; }
-.share-error { color: var(--danger); }
 .share-lock { display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; }
 .lock-ic { color: var(--brand-text); }
 .share-head { margin-bottom: 18px; }

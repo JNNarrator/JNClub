@@ -247,6 +247,25 @@ watch(viewMode, (mode) => {
   if (mode) prefs.set(`view.${props.activeModule}`, mode)
 })
 
+/**
+ * 是否处于「首屏加载」：当前模块还没有任何数据。
+ *
+ * 这个区分是 M2-4 的核心 —— 之前只要 loading 为真就整块换成骨架屏，
+ * 于是点「刷新」、排序、增删后的重新拉取都会把已有内容闪成骨架，
+ * 视觉上像数据丢了。现在：首屏（无数据）用骨架，增量刷新（有数据）
+ * 交给列表组件自己的 NSpin 遮罩，内容始终在。
+ *
+ * files / vault 的数据在各自组件内部，Home 的 loading 对它们本就是
+ * 「首次进入该模块」语义，无需再分。
+ */
+const isFirstScreenLoad = computed(() => {
+  const m = props.activeModule
+  if (m === 'bookmarks') return loading.value && bookmarkStore.bookmarks.length === 0
+  if (m === 'notes') return loading.value && noteStore.notes.length === 0
+  if (m === 'files' || m === 'vault') return loading.value
+  return false
+})
+
 /** 内容切换动画 key：模块 + 视图 + 空态 任一变化触发 out-in 过渡 */
 const contentKey = computed(() => {
   const m = props.activeModule
@@ -471,10 +490,10 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
 
         <div class="spin-area">
           <JSkeletonGrid
-            v-if="loading && (props.activeModule === 'bookmarks' || props.activeModule === 'notes') && viewMode === 'grid'"
+            v-if="isFirstScreenLoad && (props.activeModule === 'bookmarks' || props.activeModule === 'notes') && viewMode === 'grid'"
           />
           <JSkeletonList
-            v-else-if="loading && ((props.activeModule === 'bookmarks' || props.activeModule === 'notes') && viewMode === 'list' || props.activeModule === 'files' || props.activeModule === 'vault')"
+            v-else-if="isFirstScreenLoad && ((props.activeModule === 'bookmarks' || props.activeModule === 'notes') && viewMode === 'list' || props.activeModule === 'files' || props.activeModule === 'vault')"
           />
           <JEmptyState
             v-else-if="loadError"
@@ -488,14 +507,14 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
           <!-- 收藏卡片网格 -->
           <CollectionGrid
             v-if="props.activeModule === 'bookmarks' && viewMode === 'grid' && bookmarkStore.bookmarks.length > 0"
-            :bookmarks="bookmarkStore.bookmarks"
+            :bookmarks="bookmarkStore.bookmarks" :loading="loading"
             :batch-mode="batchMode" :selected-ids="selectedIds" @toggle-select="toggleSelect"
             @refresh="loadData" @edit="handleEditBookmark" @read="handleReadBookmark" @sort="handleSort"
           />
           <!-- 收藏列表 -->
           <CollectionList
             v-else-if="props.activeModule === 'bookmarks' && viewMode === 'list' && bookmarkStore.bookmarks.length > 0"
-            :bookmarks="bookmarkStore.bookmarks"
+            :bookmarks="bookmarkStore.bookmarks" :loading="loading"
             :batch-mode="batchMode" :selected-ids="selectedIds" @toggle-select="toggleSelect"
             @refresh="loadData" @edit="handleEditBookmark" @read="handleReadBookmark" @sort="handleSort"
           />
@@ -512,7 +531,7 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
           <!-- 便签卡片网格 -->
           <NoteGrid
             v-else-if="props.activeModule === 'notes' && viewMode === 'grid' && noteStore.notes.length > 0"
-            :notes="noteStore.notes" :loading="false"
+            :notes="noteStore.notes" :loading="loading"
             :batch-mode="batchMode" :selected-ids="selectedIds" @toggle-select="toggleSelect"
             @preview="handlePreviewNote" @edit="handleEditNote" @delete="handleDeleteNote"
             @refresh="loadData" @sort="handleSort"
@@ -520,7 +539,7 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
           <!-- 便签列表 -->
           <NoteList
             v-else-if="props.activeModule === 'notes' && viewMode === 'list' && noteStore.notes.length > 0"
-            :notes="noteStore.notes" :loading="false"
+            :notes="noteStore.notes" :loading="loading"
             :batch-mode="batchMode" :selected-ids="selectedIds" @toggle-select="toggleSelect"
             @preview="handlePreviewNote" @edit="handleEditNote" @delete="handleDeleteNote"
             @refresh="loadData" @sort="handleSort"

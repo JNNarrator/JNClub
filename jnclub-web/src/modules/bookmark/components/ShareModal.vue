@@ -8,6 +8,7 @@ import { NModal, NButton, NIcon, NInput, NSelect, useMessage } from 'naive-ui'
 import { Link2, Copy, Trash2, Plus, Settings2, Check } from 'lucide-vue-next'
 import { copyText } from '../../../shared/utils/clipboard'
 import { formatDate } from '../../../shared/utils/formatDate'
+import JInlineEmpty from '../../../shared/components/ui/JInlineEmpty.vue'
 import axios from 'axios'
 
 const props = defineProps<{
@@ -103,7 +104,7 @@ const copyLink = async () => {
     :bordered="false"
     @update:show="(v: boolean) => emit('update:show', v)"
   >
-    <div v-if="loading" class="share-loading">加载中…</div>
+    <JInlineEmpty v-if="loading" pad="none" message="加载中…" />
 
     <template v-else-if="share">
       <div class="share-url">
@@ -167,7 +168,6 @@ const copyLink = async () => {
 </template>
 
 <style scoped>
-.share-loading { color: var(--text-3); font-size: var(--fs-sm); }
 .share-url {
   display: flex;
   align-items: center;

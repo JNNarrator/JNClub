@@ -21,6 +21,7 @@ import ShareManagerDrawer from '../components/ShareManagerDrawer.vue'
 import JStatCard from '../components/ui/JStatCard.vue'
 import JSkeletonGrid from '../components/ui/JSkeletonGrid.vue'
 import JErrorState from '../components/ui/JErrorState.vue'
+import JInlineEmpty from '../components/ui/JInlineEmpty.vue'
 
 interface StatsSummary {
   counts: {
@@ -392,8 +393,8 @@ const openFile = (f: { id: number }) => {
                 </span>
               </span>
             </div>
-            <div v-if="!trendData.length" class="panel-empty">暂无数据</div>
-            <div v-else-if="!visibleTrendSeries.length" class="panel-empty">已隐藏全部系列，点击图例恢复</div>
+            <JInlineEmpty v-if="!trendData.length" bordered message="暂无数据" />
+            <JInlineEmpty v-else-if="!visibleTrendSeries.length" bordered message="已隐藏全部系列，点击图例恢复" />
             <div v-else class="trend-chart">
               <!-- 网格线（5 档） -->
               <div class="trend-grid-lines">
@@ -443,7 +444,7 @@ const openFile = (f: { id: number }) => {
               <NIcon :component="HardDrive" size="15" class="panel-title-icon" /> 云盘占用
               <span class="panel-sub">{{ data.disk.fileCount }} 个文件 · {{ fmtSize(diskTotal) }}</span>
             </div>
-            <div v-if="!data.disk.byDirectory.length" class="panel-empty">云盘还没有文件</div>
+            <JInlineEmpty v-if="!data.disk.byDirectory.length" bordered message="云盘还没有文件" />
             <div v-else class="disk-list">
               <div v-for="d in data.disk.byDirectory" :key="d.directoryId" class="disk-row">
                 <div class="disk-info">
@@ -487,7 +488,7 @@ const openFile = (f: { id: number }) => {
           <div class="recent-grid">
             <div class="panel">
               <div class="panel-title"><NIcon :component="Bookmark" size="15" class="panel-title-icon" /> 最近收藏</div>
-              <div v-if="!data.recent.bookmarks.length" class="panel-empty">暂无收藏</div>
+              <JInlineEmpty v-if="!data.recent.bookmarks.length" bordered message="暂无收藏" />
               <div v-else class="recent-list">
                 <div v-for="b in data.recent.bookmarks" :key="b.id" class="recent-item recent-link" @click="openBookmark(b)">
                   <span class="recent-title">{{ b.title || b.url }}</span>
@@ -500,7 +501,7 @@ const openFile = (f: { id: number }) => {
             </div>
             <div class="panel">
               <div class="panel-title"><NIcon :component="StickyNote" size="15" class="panel-title-icon" /> 最近便签</div>
-              <div v-if="!data.recent.notes.length" class="panel-empty">暂无便签</div>
+              <JInlineEmpty v-if="!data.recent.notes.length" bordered message="暂无便签" />
               <div v-else class="recent-list">
                 <div v-for="n in data.recent.notes" :key="n.id" class="recent-item recent-link" @click="openNote(n)">
                   <span class="recent-title">{{ n.title || '无标题' }}</span>
@@ -513,7 +514,7 @@ const openFile = (f: { id: number }) => {
             </div>
             <div class="panel">
               <div class="panel-title"><NIcon :component="Cloud" size="15" class="panel-title-icon" /> 最近文件</div>
-              <div v-if="!data.recent.files.length" class="panel-empty">暂无文件</div>
+              <JInlineEmpty v-if="!data.recent.files.length" bordered message="暂无文件" />
               <div v-else class="recent-list">
                 <div v-for="f in data.recent.files" :key="f.id" class="recent-item recent-link" @click="openFile(f)">
                   <span class="recent-title">{{ f.originalName }}</span>
@@ -736,15 +737,6 @@ const openFile = (f: { id: number }) => {
   font-size: var(--fs-sm);
   font-weight: 400;
   color: var(--text-3);
-}
-.panel-empty {
-  padding: var(--empty-pad-sm) 16px;
-  text-align: center;
-  font-size: var(--fs-sm);
-  color: var(--text-3);
-  border: 1px dashed var(--glass-border);
-  border-radius: var(--radius-sm);
-  background: var(--glass-chip-bg);
 }
 
 /* 磁盘条 */

@@ -14,6 +14,7 @@ import { useUserStore } from '../stores/user'
 import { openMenu, openMenuAt } from '../composables/useContextMenu'
 import { useLongPress } from '../composables/useLongPress'
 import ViewSwitcher, { type ViewMode } from '../../modules/bookmark/components/ViewSwitcher.vue'
+import JInlineEmpty from '../components/ui/JInlineEmpty.vue'
 
 const props = defineProps<{
   isDark: boolean
@@ -264,8 +265,8 @@ const handleBreadcrumbRoot = () => {
               全部已读
             </NButton>
           </div>
-          <div v-if="notificationLoading" class="notification-status">加载中…</div>
-          <div v-else-if="notificationList.length === 0" class="notification-status">暂无通知</div>
+          <JInlineEmpty v-if="notificationLoading" message="加载中…" />
+          <JInlineEmpty v-else-if="notificationList.length === 0" message="暂无通知" />
           <div v-else class="notification-list">
             <button
               v-for="n in notificationList" :key="n.id"
@@ -473,12 +474,6 @@ const handleBreadcrumbRoot = () => {
 }
 .notification-mark-all {
   flex-shrink: 0;
-}
-.notification-status {
-  padding: var(--empty-pad-sm) 0;
-  text-align: center;
-  font-size: var(--fs-sm);
-  color: var(--text-3);
 }
 .notification-list {
   display: flex;

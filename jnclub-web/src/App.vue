@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted, watch, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
-import { NConfigProvider, darkTheme, NMessageProvider, NDialogProvider } from 'naive-ui'
+import { NConfigProvider, darkTheme, NMessageProvider, NDialogProvider, NLoadingBarProvider } from 'naive-ui'
 import lightThemeOverrides from './themes/light'
 import darkThemeOverrides from './themes/dark'
 import { lightTokens, darkTokens } from './themes/tokens'
 import { useOnlineStatus } from './shared/composables/useOnlineStatus'
+import RouteLoadingBar from './shared/components/RouteLoadingBar.vue'
 import CursorHost from './shared/components/CursorHost.vue'
 import CursorClickParticles from './shared/components/CursorClickParticles.vue'
 import CursorTrail from './shared/components/CursorTrail.vue'
@@ -149,33 +150,37 @@ const toggleTheme = async () => {
     :theme="isDark ? darkTheme : null"
     :theme-overrides="isDark ? darkThemeOverrides : lightThemeOverrides"
   >
-    <NMessageProvider>
-      <NDialogProvider>
-        <Transition name="offline-fade">
-          <div v-if="!isOnline" class="offline-banner" role="status">
-            <span class="offline-dot" />当前离线 — 应用已离线打开，数据可能需要联网后加载
-          </div>
-        </Transition>
-        <router-view v-slot="{ Component }">
-          <Transition name="page-fade" mode="out-in">
-            <component
-              :is="Component"
-              :key="route.path"
-              :is-dark="isDark"
-              @toggle-theme="toggleTheme"
-            />
+    <NLoadingBarProvider>
+      <NMessageProvider>
+        <NDialogProvider>
+          <!-- 路由进度条驱动（须在 NLoadingBarProvider 子树内） -->
+          <RouteLoadingBar />
+          <Transition name="offline-fade">
+            <div v-if="!isOnline" class="offline-banner" role="status">
+              <span class="offline-dot" />当前离线 — 应用已离线打开，数据可能需要联网后加载
+            </div>
           </Transition>
-        </router-view>
-        <!-- 全局粒子背景（tsParticles，偏好 particles.style 驱动，路由内排除音乐/便签） -->
-        <ParticlesBackground :is-dark="isDark" />
-        <!-- 全局自定义光标（可爱光标：5 种风格，偏好 cursor.style 驱动） -->
-        <CursorHost />
-        <!-- 点击粒子特效（星星/爱心/花朵散开） -->
-        <CursorClickParticles />
-        <!-- 鼠标轨迹特效（彩虹/品牌粉/粉彩拖尾） -->
-        <CursorTrail />
-      </NDialogProvider>
-    </NMessageProvider>
+          <router-view v-slot="{ Component }">
+            <Transition name="page-fade" mode="out-in">
+              <component
+                :is="Component"
+                :key="route.path"
+                :is-dark="isDark"
+                @toggle-theme="toggleTheme"
+              />
+            </Transition>
+          </router-view>
+          <!-- 全局粒子背景（tsParticles，偏好 particles.style 驱动，路由内排除音乐/便签） -->
+          <ParticlesBackground :is-dark="isDark" />
+          <!-- 全局自定义光标（可爱光标：5 种风格，偏好 cursor.style 驱动） -->
+          <CursorHost />
+          <!-- 点击粒子特效（星星/爱心/花朵散开） -->
+          <CursorClickParticles />
+          <!-- 鼠标轨迹特效（彩虹/品牌粉/粉彩拖尾） -->
+          <CursorTrail />
+        </NDialogProvider>
+      </NMessageProvider>
+    </NLoadingBarProvider>
   </NConfigProvider>
 </template>
 

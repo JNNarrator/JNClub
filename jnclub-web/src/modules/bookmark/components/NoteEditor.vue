@@ -20,6 +20,7 @@ import { extractDataUris, dataUriToFile, uploadImage, downloadFile, exportMarkdo
 import { useUserPreferences } from '../../../shared/composables/useUserPreferences'
 import { useRecentItems } from '../../../shared/composables/useRecentItems'
 import { useReducedMotion } from '../../../shared/composables/useReducedMotion'
+import JInlineEmpty from '../../../shared/components/ui/JInlineEmpty.vue'
 
 /** md-editor-v3 实例 id（MdEditor 与 MdCatalog 通过它联动） */
 const EDITOR_ID = 'jnclub-note-editor'
@@ -801,10 +802,10 @@ defineExpose({ hasUnsavedChanges })
       </button>
       <div v-if="backlinksOpen" class="backlinks-body">
         <NSpin :show="backlinksLoading" size="small">
-          <div v-if="!backlinks.length && !backlinksLoading" class="backlinks-empty">
+          <JInlineEmpty v-if="!backlinks.length && !backlinksLoading" pad="none" class="backlinks-empty">
             还没有便签引用「{{ props.note?.title }}」。在任意便签中输入
             <code>[[{{ props.note?.title }}]]</code> 即可建立双链。
-          </div>
+          </JInlineEmpty>
           <button
             v-for="b in backlinks" :key="b.id"
             type="button" class="backlink-item jnclub-bouncy" @click="emit('jump-note', b.id)"
@@ -1107,12 +1108,6 @@ defineExpose({ hasUnsavedChanges })
 /* 只读态底部保留提示栏，悬浮面板上移一点避免遮挡 */
 .readonly-mode .backlinks-panel {
   bottom: 38px;
-}
-.backlinks-empty {
-  font-size: var(--fs-sm);
-  color: var(--text-3);
-  padding: 8px 4px;
-  line-height: 1.6;
 }
 .backlinks-empty code {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
