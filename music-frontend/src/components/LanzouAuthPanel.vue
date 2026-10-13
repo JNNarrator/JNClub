@@ -243,7 +243,7 @@ fetchStatus()
   gap: 8px;
   height: 36px;
   padding: 0 14px 0 12px;
-  border-radius: 999px;
+  border-radius: var(--jn-radius-pill);
   border: 1px solid var(--jn-hair);
   background: transparent;
   color: var(--jn-ink-dim);
@@ -251,7 +251,7 @@ fetchStatus()
   font-size: 11.5px;
   letter-spacing: 0.02em;
   cursor: pointer;
-  transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+  transition: border-color var(--jn-dur) var(--jn-ease), color var(--jn-dur) var(--jn-ease), background var(--jn-dur) var(--jn-ease), transform var(--jn-dur) var(--jn-ease);
   max-width: 200px;
   overflow: hidden;
 }
@@ -278,11 +278,11 @@ fetchStatus()
   background: var(--jn-tooltip-bg);
   color: var(--jn-ink);
   padding: 4px 8px;
-  border-radius: 6px;
+  border-radius: var(--jn-radius-xs);
   font-size: 12px;
   white-space: nowrap;
   z-index: 100;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  box-shadow: var(--jn-shadow-sm);
   pointer-events: none;
 }
 
@@ -293,13 +293,13 @@ fetchStatus()
   border-radius: 50%;
   background: var(--jn-ink-muted);
   box-shadow: 0 0 0 3px transparent;
-  transition: background 0.25s ease, box-shadow 0.25s ease;
+  transition: background var(--jn-dur) var(--jn-ease), box-shadow var(--jn-dur) var(--jn-ease);
   flex-shrink: 0;
 }
 .state-ok .dot {
   background: var(--jn-accent);
   box-shadow: 0 0 0 3px var(--jn-accent-soft);
-  animation: pulse-ok 2.4s ease-in-out infinite;
+  animation: pulse-ok var(--jn-dur-breathe) var(--jn-ease-smooth) infinite;
 }
 .state-off .dot {
   background: var(--jn-danger);
@@ -313,11 +313,11 @@ fetchStatus()
 /* Drawer */
 .drawer-slide-enter-active,
 .drawer-slide-leave-active {
-  transition: opacity 0.3s ease;
+  transition: opacity var(--jn-dur-slow) var(--jn-ease);
 }
 .drawer-slide-enter-active .drawer-panel,
 .drawer-slide-leave-active .drawer-panel {
-  transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+  transition: transform var(--jn-dur-slow) var(--jn-ease);
 }
 .drawer-slide-enter-from,
 .drawer-slide-leave-to { opacity: 0; }
@@ -327,7 +327,7 @@ fetchStatus()
 .drawer-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.4);
+  background: var(--jn-scrim);
   z-index: 200;
   display: flex;
   justify-content: flex-end;
@@ -338,7 +338,7 @@ fetchStatus()
   max-width: 90vw;
   height: 100%;
   background: var(--jn-bg-elev);
-  box-shadow: -8px 0 32px rgba(0,0,0,0.3);
+  box-shadow: var(--jn-shadow-side);
   overflow-y: auto;
   scrollbar-width: none;
 }
@@ -367,7 +367,7 @@ fetchStatus()
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: color 0.2s, background 0.2s;
+  transition: color var(--jn-dur), background var(--jn-dur);
   z-index: 10;
 }
 .drawer-close:hover {
@@ -402,7 +402,7 @@ fetchStatus()
 .status-card {
   padding: 14px 16px;
   border: 1px solid var(--jn-hair);
-  border-radius: 12px;
+  border-radius: var(--jn-radius-sm);
   background: var(--jn-row-hover);
 }
 .status-line { display: flex; align-items: center; gap: 10px; }
@@ -417,11 +417,11 @@ fetchStatus()
   background: var(--jn-tooltip-bg);
   color: var(--jn-ink);
   padding: 4px 8px;
-  border-radius: 6px;
+  border-radius: var(--jn-radius-xs);
   font-size: 12px;
   white-space: nowrap;
   z-index: 100;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  box-shadow: var(--jn-shadow-sm);
   pointer-events: none;
 }
 
@@ -436,20 +436,20 @@ fetchStatus()
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: color 0.15s;
+  transition: color var(--jn-dur-fast);
 }
 .cache-refresh-btn {
   display: inline-flex; align-items: center; gap: 3px;
   padding: 4px 8px; border: 1px solid var(--jn-hair);
-  border-radius: 6px; background: transparent;
+  border-radius: var(--jn-radius-xs); background: transparent;
   color: var(--jn-ink-dim); font-size: 10.5px;
   font-family: 'IBM Plex Mono', monospace; cursor: pointer;
-  transition: color 0.15s, border-color 0.15s; white-space: nowrap;
+  transition: color var(--jn-dur-fast), border-color var(--jn-dur-fast); white-space: nowrap;
 }
 .cache-refresh-btn:hover { color: var(--jn-accent); border-color: var(--jn-accent); }
 .cache-refresh-btn:disabled { opacity: 0.5; cursor: wait; }
 .refresh:hover { color: var(--jn-ink-strong); }
-.spinning { animation: spin 0.8s linear infinite; }
+.spinning { animation: spin var(--jn-dur-spin) var(--jn-ease-linear) infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 .beacon {
@@ -470,7 +470,7 @@ fetchStatus()
 .mode-switch {
   display: inline-flex;
   border: 1px solid var(--jn-hair);
-  border-radius: 8px;
+  border-radius: var(--jn-radius-sm);
   overflow: hidden;
   align-self: flex-start;
 }
@@ -484,7 +484,7 @@ fetchStatus()
   color: var(--jn-ink-dim);
   cursor: pointer;
   font-size: 13px;
-  transition: background 0.15s, color 0.15s;
+  transition: background var(--jn-dur-fast), color var(--jn-dur-fast);
 }
 .mode-btn:hover { background: var(--jn-row-hover); }
 .mode-btn.active {
@@ -511,9 +511,9 @@ fetchStatus()
   height: 40px;
   padding: 0 12px;
   border: 1px solid var(--jn-hair);
-  border-radius: 999px;
+  border-radius: var(--jn-radius-pill);
   background: var(--jn-input-bg);
-  transition: border-color 0.15s;
+  transition: border-color var(--jn-dur-fast);
 }
 .input-wrapper:focus-within { border-color: var(--jn-accent); }
 .input-wrapper .el-icon { color: var(--jn-ink-dim); flex-shrink: 0; }
@@ -531,13 +531,13 @@ fetchStatus()
 .textarea {
   padding: 10px 12px;
   border: 1px solid var(--jn-hair);
-  border-radius: 8px;
+  border-radius: var(--jn-radius-sm);
   background: var(--jn-input-bg);
   color: var(--jn-ink);
   font-size: 13px;
   outline: none;
   resize: vertical;
-  transition: border-color 0.15s;
+  transition: border-color var(--jn-dur-fast);
 }
 .textarea:focus { border-color: var(--jn-accent); }
 .textarea::placeholder { color: var(--jn-ink-muted); }
@@ -546,14 +546,14 @@ fetchStatus()
   align-self: flex-start;
   padding: 10px 22px;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--jn-radius-pill);
   background: var(--jn-accent);
   color: var(--jn-accent-ink);
   font-weight: 600;
   font-size: 13px;
   cursor: pointer;
   box-shadow: 0 10px 24px var(--jn-glow);
-  transition: transform 0.15s, box-shadow 0.15s;
+  transition: transform var(--jn-dur-fast), box-shadow var(--jn-dur-fast);
 }
 .submit:hover:not(:disabled) {
   transform: scale(1.04);

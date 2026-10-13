@@ -184,8 +184,8 @@ onMounted(() => {
               <span class="pl-subtitle ellipsis">{{ playlists.detail?.name || '歌单' }}</span>
             </div>
             <div class="pl-body">
-              <div v-if="playlists.detailLoading" class="pl-loading">加载中…</div>
-              <div v-else-if="!playlists.detail?.tracks?.length" class="pl-empty">歌单还是空的</div>
+              <div v-if="playlists.detailLoading" class="jn-state pl-loading"><p class="jn-state-text">加载中…</p></div>
+              <div v-else-if="!playlists.detail?.tracks?.length" class="jn-state pl-empty"><p class="jn-state-text">歌单还是空的</p></div>
               <div v-else class="pl-tracks">
                 <div
                   v-for="(track, idx) in playlists.detail.tracks"
@@ -231,9 +231,9 @@ onMounted(() => {
             </div>
 
             <div class="pl-body">
-              <div v-if="playlists.loading" class="pl-loading">加载中…</div>
-              <div v-else-if="!playlists.playlists.length" class="pl-empty">
-                {{ mode === 'pick' ? '还没有歌单，点击上方新建一个' : '还没有歌单，先创建一个吧' }}
+              <div v-if="playlists.loading" class="jn-state pl-loading"><p class="jn-state-text">加载中…</p></div>
+              <div v-else-if="!playlists.playlists.length" class="jn-state pl-empty">
+                <p class="jn-state-text">{{ mode === 'pick' ? '还没有歌单，点击上方新建一个' : '还没有歌单，先创建一个吧' }}</p>
               </div>
               <div v-else class="pl-list">
                 <template v-for="item in playlists.playlists" :key="item.id">
@@ -294,7 +294,7 @@ onMounted(() => {
   position: fixed;
   inset: 0;
   z-index: 200;
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--jn-scrim);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -309,9 +309,9 @@ onMounted(() => {
   flex-direction: column;
   background: var(--jn-bg-elev);
   border: 1px solid var(--jn-hair);
-  border-radius: 16px;
+  border-radius: var(--jn-radius-md);
   overflow: hidden;
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--jn-shadow-lg);
 }
 
 .pl-head {
@@ -360,7 +360,7 @@ onMounted(() => {
   border: 1px solid var(--jn-hair);
   background: transparent;
   color: var(--jn-ink-dim);
-  border-radius: 999px;
+  border-radius: var(--jn-radius-pill);
   padding: 4px 10px;
   font-size: 12px;
   cursor: pointer;
@@ -384,12 +384,12 @@ onMounted(() => {
   height: 34px;
   padding: 0 12px;
   border: 1px solid var(--jn-hair-strong);
-  border-radius: 999px;
+  border-radius: var(--jn-radius-pill);
   background: var(--jn-input-bg);
   color: var(--jn-ink);
   font-size: 13px;
   outline: none;
-  transition: border-color 0.15s;
+  transition: border-color var(--jn-dur-fast);
 }
 .pl-input:focus { border-color: var(--jn-accent); }
 .pl-create-btn {
@@ -398,7 +398,7 @@ onMounted(() => {
   gap: 4px;
   padding: 0 14px;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--jn-radius-pill);
   background: var(--jn-accent);
   color: var(--jn-accent-ink);
   font-size: 12.5px;
@@ -417,13 +417,9 @@ onMounted(() => {
 }
 .pl-body::-webkit-scrollbar { display: none; }
 
+/* 加载 / 空态走 styles.css 的 .jn-state* 工具类，只声明本面板的局部差异 */
 .pl-loading,
-.pl-empty {
-  padding: 40px 0;
-  text-align: center;
-  color: var(--jn-ink-muted);
-  font-size: 13px;
-}
+.pl-empty { --jn-state-pad: 40px 0; --jn-state-fs: 13px; }
 
 .pl-list {
   display: flex;
@@ -436,9 +432,9 @@ onMounted(() => {
   align-items: center;
   gap: 10px;
   padding: 10px 10px;
-  border-radius: 10px;
+  border-radius: var(--jn-radius-sm);
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background var(--jn-dur-fast);
 }
 .pl-item:hover { background: var(--jn-row-hover); }
 .pl-item.manage { cursor: default; }
@@ -448,7 +444,7 @@ onMounted(() => {
   justify-content: center;
   width: 30px;
   height: 30px;
-  border-radius: 8px;
+  border-radius: var(--jn-radius-sm);
   color: var(--jn-accent);
   background: var(--jn-accent-soft);
   flex-shrink: 0;
@@ -485,7 +481,7 @@ onMounted(() => {
 .pl-item-op.primary {
   width: auto;
   padding: 0 12px;
-  border-radius: 999px;
+  border-radius: var(--jn-radius-pill);
   background: var(--jn-accent);
   color: var(--jn-accent-ink);
   font-size: 12px;
@@ -502,9 +498,9 @@ onMounted(() => {
   align-items: center;
   gap: 10px;
   padding: 8px 10px;
-  border-radius: 10px;
+  border-radius: var(--jn-radius-sm);
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background var(--jn-dur-fast);
 }
 .pl-track:hover { background: var(--jn-row-hover); }
 .pl-track.active { background: var(--jn-row-active); }
@@ -547,9 +543,9 @@ onMounted(() => {
 .ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .pl-overlay-enter-active,
-.pl-overlay-leave-active { transition: opacity 0.2s ease; }
+.pl-overlay-leave-active { transition: opacity var(--jn-dur) var(--jn-ease); }
 .pl-overlay-enter-active .pl-panel,
-.pl-overlay-leave-active .pl-panel { transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.2s ease; }
+.pl-overlay-leave-active .pl-panel { transition: transform var(--jn-dur) var(--jn-ease), opacity var(--jn-dur) var(--jn-ease); }
 .pl-overlay-enter-from,
 .pl-overlay-leave-to { opacity: 0; }
 .pl-overlay-enter-from .pl-panel,
@@ -560,7 +556,7 @@ onMounted(() => {
   .pl-panel {
     max-width: none;
     max-height: 78vh;
-    border-radius: 16px 16px 0 0;
+    border-radius: var(--jn-radius-md) var(--jn-radius-md) 0 0;
   }
 }
 </style>

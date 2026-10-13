@@ -14,8 +14,8 @@ defineProps<{ size?: number }>()
   >
     <defs>
       <radialGradient :id="`jn-disc-${(size || 34)}`" cx="50%" cy="50%" r="50%">
-        <stop offset="0%" stop-color="#2a1e1a" />
-        <stop offset="100%" stop-color="#0f0a10" />
+        <stop offset="0%" stop-color="var(--jn-disc-1)" />
+        <stop offset="100%" stop-color="var(--jn-disc-2)" />
       </radialGradient>
       <linearGradient :id="`jn-label-${(size || 34)}`" x1="0" y1="0" x2="1" y2="1">
         <stop offset="0%" stop-color="var(--jn-accent)" />
@@ -23,7 +23,7 @@ defineProps<{ size?: number }>()
       </linearGradient>
     </defs>
     <circle cx="32" cy="32" r="30" :fill="`url(#jn-disc-${(size || 34)})`" />
-    <g fill="none" stroke="rgba(246,236,220,0.16)" stroke-width="0.8">
+    <g fill="none" stroke="var(--jn-hair-strong)" stroke-width="0.8">
       <circle cx="32" cy="32" r="26" />
       <circle cx="32" cy="32" r="23" />
       <circle cx="32" cy="32" r="20" />
@@ -41,7 +41,7 @@ defineProps<{ size?: number }>()
       stroke-width="1.5"
       stroke-linecap="round"
     />
-    <circle cx="32" cy="32" r="1.6" fill="#100c11" />
+    <circle cx="32" cy="32" r="1.6" fill="var(--jn-cover-hole)" />
     <g class="sparkle">
       <circle cx="49" cy="17" r="2.2" fill="var(--jn-accent)" />
       <circle cx="53.5" cy="12.5" r="1.2" fill="var(--jn-accent-strong)" />
@@ -53,10 +53,10 @@ defineProps<{ size?: number }>()
 .brand-logo {
   display: block;
   filter: drop-shadow(0 6px 14px var(--jn-glow));
-  transition: transform 0.6s ease;
+  transition: transform var(--jn-dur-slower) var(--jn-ease);
 }
 .brand-logo:hover { transform: rotate(20deg); }
-.sparkle { animation: twinkle 2.2s ease-in-out infinite; transform-origin: 50px 15px; }
+.sparkle { animation: twinkle var(--jn-dur-breathe) var(--jn-ease-smooth) infinite; transform-origin: 50px 15px; }
 @keyframes twinkle {
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.55; transform: scale(0.85); }

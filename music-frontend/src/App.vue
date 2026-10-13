@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, onMounted, defineAsyncComponent } from 'vue'
+import { computed, ref, onMounted, onBeforeUnmount, defineAsyncComponent } from 'vue'
 import { ElIcon } from 'element-plus'
 import { showDialog } from 'vant'
 import { Sunny, Moon, Download, Back } from '@element-plus/icons-vue'
@@ -51,13 +51,32 @@ const themeLabel = computed(() => (theme.mode === 'dark' ? '切到白天模式' 
 const showThemeTooltip = ref(false)
 const pwaInstallable = ref(false)
 
+/**
+ * 内嵌时跟随 JNClub 主站主题（PLAN-2026-19 M3-1）。
+ * 只接受主站 origin 发来的 `jn:theme`，独立直开时不会有任何消息，行为不变。
+ * 用户在音乐页内手动切换后，主站再切主题仍会覆盖 —— 内嵌场景下以主站为准。
+ */
+function onHostMessage(e: MessageEvent) {
+  if (e.origin !== window.location.origin) return
+  const data = e.data
+  if (!data || data.type !== 'jn:theme') return
+  if (data.theme === 'light' || data.theme === 'dark') {
+    theme.set(data.theme)
+  }
+}
+
 onMounted(() => {
   if (document.documentElement.classList.contains('pwa-installable')) {
     pwaInstallable.value = true
   }
   window.addEventListener('beforeinstallprompt', () => { pwaInstallable.value = true })
   window.addEventListener('appinstalled', () => { pwaInstallable.value = false })
+  window.addEventListener('message', onHostMessage)
   maybeResume()
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('message', onHostMessage)
 })
 
 /** 格式化秒数为 mm:ss */
@@ -195,7 +214,7 @@ if (typeof window !== 'undefined') {
   color: var(--jn-ink);
   overflow: hidden;
   isolation: isolate;
-  transition: color 0.35s ease;
+  transition: color var(--jn-dur-slow) var(--jn-ease);
 }
 
 .stage {
@@ -221,7 +240,7 @@ if (typeof window !== 'undefined') {
   z-index: -1;
   pointer-events: none;
   filter: blur(20px);
-  transition: background 0.35s ease;
+  transition: background var(--jn-dur-slow) var(--jn-ease);
 }
 
 .grain {
@@ -261,14 +280,14 @@ if (typeof window !== 'undefined') {
   gap: 6px;
   height: 34px;
   padding: 0 12px 0 10px;
-  border-radius: 999px;
+  border-radius: var(--jn-radius-pill);
   border: 1px solid var(--jn-hair-strong);
   background: transparent;
   color: var(--jn-ink-dim);
   font-family: 'IBM Plex Mono', monospace;
   font-size: 12px;
   cursor: pointer;
-  transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease, transform 0.15s;
+  transition: color var(--jn-dur) var(--jn-ease), border-color var(--jn-dur) var(--jn-ease), background var(--jn-dur) var(--jn-ease), transform var(--jn-dur-fast);
   white-space: nowrap;
 }
 .back-btn:hover {
@@ -308,7 +327,7 @@ if (typeof window !== 'undefined') {
 
 .marquee span {
   display: inline-block;
-  animation: scroll 40s linear infinite;
+  animation: scroll var(--jn-dur-aurora) var(--jn-ease-linear) infinite;
 }
 
 @keyframes scroll {
@@ -329,14 +348,14 @@ if (typeof window !== 'undefined') {
   gap: 5px;
   height: 36px;
   padding: 0 14px 0 12px;
-  border-radius: 999px;
+  border-radius: var(--jn-radius-pill);
   border: 1px solid var(--jn-accent);
   background: var(--jn-accent-soft);
   color: var(--jn-accent);
   font-family: 'IBM Plex Mono', monospace;
   font-size: 11.5px;
   cursor: pointer;
-  transition: background 0.2s, transform 0.15s;
+  transition: background var(--jn-dur), transform var(--jn-dur-fast);
   white-space: nowrap;
 }
 .install-btn:hover {
@@ -365,7 +384,7 @@ if (typeof window !== 'undefined') {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+  transition: color var(--jn-dur) var(--jn-ease), border-color var(--jn-dur) var(--jn-ease), transform var(--jn-dur) var(--jn-ease);
 }
 .theme-toggle:hover {
   color: var(--jn-accent);
@@ -386,7 +405,7 @@ if (typeof window !== 'undefined') {
 }
 .fatal-error-body p { color: var(--jn-ink-dim); font-size: 14px; margin: 0 0 20px; }
 .fatal-retry {
-  padding: 10px 22px; border: none; border-radius: 999px;
+  padding: 10px 22px; border: none; border-radius: var(--jn-radius-pill);
   background: var(--jn-accent); color: var(--jn-accent-ink);
   font-size: 13px; font-weight: 600; cursor: pointer;
 }
@@ -399,10 +418,10 @@ if (typeof window !== 'undefined') {
   margin-bottom: 12px;
   background: var(--jn-accent-soft);
   border: 1px solid var(--jn-accent);
-  border-radius: 10px;
+  border-radius: var(--jn-radius-sm);
   font-size: 13px;
   color: var(--jn-accent);
-  animation: alert-slide-in 0.3s ease;
+  animation: alert-slide-in var(--jn-dur-slow) var(--jn-ease);
 }
 @keyframes alert-slide-in {
   from { opacity: 0; transform: translateY(-8px); }
@@ -412,14 +431,14 @@ if (typeof window !== 'undefined') {
 .alert-btn {
   padding: 5px 14px;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--jn-radius-pill);
   background: var(--jn-accent);
   color: var(--jn-accent-ink);
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
-  transition: transform 0.15s;
+  transition: transform var(--jn-dur-fast);
 }
 .alert-btn:hover { transform: scale(1.05); }
 .alert-close {
@@ -430,7 +449,7 @@ if (typeof window !== 'undefined') {
   cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   font-size: 16px;
-  transition: color 0.15s, background 0.15s;
+  transition: color var(--jn-dur-fast), background var(--jn-dur-fast);
 }
 .alert-close:hover { color: var(--jn-ink-strong); background: var(--jn-row-hover); }
 
@@ -442,11 +461,11 @@ if (typeof window !== 'undefined') {
   background: var(--jn-tooltip-bg);
   color: var(--jn-ink);
   padding: 4px 8px;
-  border-radius: 6px;
+  border-radius: var(--jn-radius-xs);
   font-size: 12px;
   white-space: nowrap;
   z-index: 100;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  box-shadow: var(--jn-shadow-sm);
 }
 
 .stage {

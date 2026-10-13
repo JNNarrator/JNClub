@@ -1,14 +1,14 @@
 <script setup lang="ts">
 /**
  * LyricsPanel.vue — 主页歌词面板（底部抽屉，跟随播放滚动）
- * - 当前行高亮 + 卡拉OK 渐变（复用 utils/lrc 的 findCurrentLine/getLineProgress）
- * - 当前行自动居中滚动（smooth）
+ * - 歌词加载/解析/当前行/滚动跟随全部来自 composables/useLyrics（与播放页共用一份内核）
+ * - 当前行高亮 + 卡拉OK 渐变
  * - 切歌自动重新加载并回到顶部；触摸下滑关闭
  */
-import { ref, watch, computed, onUnmounted, nextTick } from 'vue'
+import { ref, computed } from 'vue'
 import { ElIcon } from 'element-plus'
 import { Document } from '@element-plus/icons-vue'
-import { parseLrc, findCurrentLine, getLineProgress, fetchLyricsCached } from '../utils/lrc'
+import { useLyrics } from '../composables/useLyrics'
 import { usePlayerStore } from '../stores/player'
 import { useUiStore } from '../stores/ui'
 
@@ -17,85 +17,13 @@ const ui = useUiStore()
 
 const open = computed(() => ui.showLyricsPanel)
 
-const loading = ref(false)
-const rawLyrics = ref('')
-const error = ref('')
-
-const parsed = computed(() => parseLrc(rawLyrics.value))
-const hasTimedLyrics = computed(() => parsed.value.length > 0)
-
-const currentLineIdx = ref(-1)
-const lineProgress = ref(0)
-
-const lyricsContainer = ref<HTMLElement | null>(null)
-const lineRefs = ref<HTMLElement[]>([])
-function setLineRef(el: HTMLElement | null, idx: number) {
-  if (el) lineRefs.value[idx] = el
-}
-
-async function fetchLyrics(trackId: string) {
-  if (!trackId) return
-  loading.value = true
-  error.value = ''
-  rawLyrics.value = ''
-  currentLineIdx.value = -1
-  lineProgress.value = 0
-  const { raw, error: err } = await fetchLyricsCached(trackId)
-  rawLyrics.value = raw
-  error.value = err
-  loading.value = false
-}
-
-// 打开时加载当前曲目歌词
-watch(open, (v) => {
-  if (v) {
-    const id = player.currentTrack?.trackId
-    if (id) fetchLyrics(id)
-  }
-})
-
-// 面板开着时切歌 → 重新加载
-watch(() => player.currentTrack?.trackId, (id) => {
-  if (open.value && id) fetchLyrics(id)
-})
-
-// ─── 滚动跟随（rAF 循环） ───
-let rafId = 0
-let lastProgressUpdate = 0
-const PROGRESS_THROTTLE = 50
-
-function syncLyrics() {
-  const lines = parsed.value
-  if (lines.length && open.value) {
-    const now = performance.now()
-    const idx = findCurrentLine(lines, player.currentTime)
-    if (idx !== currentLineIdx.value) {
-      currentLineIdx.value = idx
-      lineProgress.value = getLineProgress(lines, idx, player.currentTime)
-      lastProgressUpdate = now
-      nextTick(() => {
-        const container = lyricsContainer.value
-        const el = lineRefs.value[idx]
-        if (container && el) {
-          const containerHeight = container.clientHeight
-          const scrollTo = el.offsetTop - containerHeight / 2 + el.offsetHeight / 2
-          container.scrollTo({ top: scrollTo, behavior: 'smooth' })
-        }
-      })
-    } else if (now - lastProgressUpdate > PROGRESS_THROTTLE) {
-      lineProgress.value = getLineProgress(lines, idx, player.currentTime)
-      lastProgressUpdate = now
-    }
-  }
-  rafId = requestAnimationFrame(syncLyrics)
-}
-
-watch(open, (v) => {
-  cancelAnimationFrame(rafId)
-  if (v) rafId = requestAnimationFrame(syncLyrics)
-}, { immediate: true })
-
-onUnmounted(() => cancelAnimationFrame(rafId))
+// 面板打开时才有必要跑 rAF；抽屉里的歌词总是跟随滚动。
+// autoLoad: false —— 抽屉没打开就不发歌词请求（保持原有的懒加载行为）。
+const {
+  lines: parsed, loading, error, rawLyrics, hasTimedLyrics,
+  currentLineIdx, lineProgress,
+  containerRef: lyricsContainer, setLineRef,
+} = useLyrics({ active: () => ui.showLyricsPanel, scroll: () => true, autoLoad: false })
 
 // Touch drag to close
 const dragOffset = ref(0)
@@ -140,12 +68,12 @@ function onTouchEnd() {
             <span v-if="player.currentTrack" class="lyrics-artist">{{ player.currentTrack.artist }}</span>
           </header>
 
-          <div v-if="loading" class="lyrics-loading">
-            <div v-for="n in 5" :key="n" class="lyric-skel" />
+          <div v-if="loading" class="jn-skel-stack lyrics-loading">
+            <div v-for="n in 5" :key="n" class="jn-skel" />
           </div>
 
-          <div v-else-if="error && !rawLyrics" class="lyrics-error">
-            <p>{{ error }}</p>
+          <div v-else-if="error && !rawLyrics" class="jn-state jn-state--error lyrics-error">
+            <p class="jn-state-text">{{ error }}</p>
           </div>
 
           <template v-else-if="hasTimedLyrics">
@@ -166,8 +94,8 @@ function onTouchEnd() {
 
           <pre v-else-if="rawLyrics" class="lyrics-raw">{{ rawLyrics }}</pre>
 
-          <div v-else class="lyrics-empty">
-            <p>暂无歌词</p>
+          <div v-else class="jn-state lyrics-empty">
+            <p class="jn-state-text">暂无歌词</p>
           </div>
         </div>
       </div>
@@ -179,7 +107,7 @@ function onTouchEnd() {
 .lyrics-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--jn-scrim);
   z-index: 100;
   display: flex;
   align-items: flex-end;
@@ -192,18 +120,18 @@ function onTouchEnd() {
   max-height: 60vh;
   background: var(--jn-bg-elev);
   border-top: 1px solid var(--jn-hair);
-  border-radius: 16px 16px 0 0;
+  border-radius: var(--jn-radius-md) var(--jn-radius-md) 0 0;
   overflow: hidden;
-  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform var(--jn-dur-slow) var(--jn-ease);
 }
 
 .lyrics-slide-enter-active,
 .lyrics-slide-leave-active {
-  transition: opacity 0.3s ease;
+  transition: opacity var(--jn-dur-slow) var(--jn-ease);
 }
 .lyrics-slide-enter-active .lyrics-panel,
 .lyrics-slide-leave-active .lyrics-panel {
-  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform var(--jn-dur-slow) var(--jn-ease);
 }
 .lyrics-slide-enter-from,
 .lyrics-slide-leave-to {
@@ -266,7 +194,7 @@ function onTouchEnd() {
   text-align: center;
   max-width: 100%;
   word-break: break-word;
-  transition: opacity 0.4s ease, transform 0.4s ease, font-size 0.4s ease;
+  transition: opacity var(--jn-dur-slow) var(--jn-ease), transform var(--jn-dur-slow) var(--jn-ease), font-size var(--jn-dur-slow) var(--jn-ease);
   color: var(--jn-ink-muted);
   opacity: 0.5;
   transform: scale(0.95);
@@ -290,21 +218,11 @@ function onTouchEnd() {
   color: transparent;
 }
 
-.lyrics-loading { display: flex; flex-direction: column; gap: 12px; padding-top: 40px; }
-.lyric-skel {
-  height: 16px;
-  border-radius: 4px;
-  background: linear-gradient(90deg, var(--jn-row-hover), var(--jn-hair), var(--jn-row-hover));
-  background-size: 200% 100%;
-  animation: skel 1.4s linear infinite;
-}
-@keyframes skel { 0% { background-position: 200% 0 } 100% { background-position: -200% 0 } }
-
-.lyrics-error {
-  padding: 40px 0;
-  text-align: center;
-  color: var(--jn-danger);
-}
+/* 加载 / 错误 / 空三态走 styles.css 的 .jn-skel* / .jn-state* 工具类，
+   这里只保留本面板的局部差异。 */
+.lyrics-loading { --jn-state-pad: 40px 0 0; }
+.lyrics-error { --jn-state-pad: 40px 0; }
+.lyrics-empty { --jn-state-pad: 40px 0; }
 
 .lyrics-raw {
   margin: 0;
@@ -318,12 +236,6 @@ function onTouchEnd() {
   scrollbar-width: none;
 }
 .lyrics-raw::-webkit-scrollbar { display: none; }
-
-.lyrics-empty {
-  padding: 40px 0;
-  text-align: center;
-  color: var(--jn-ink-muted);
-}
 
 @media (max-width: 720px) {
   .lyrics-panel {

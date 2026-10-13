@@ -281,8 +281,8 @@ function onCapsuleClick() {
   border-radius: 50%;
   cursor: pointer;
   z-index: 41;
-  filter: drop-shadow(0 8px 24px rgba(0,0,0,0.4));
-  transition: transform 0.2s ease;
+  filter: drop-shadow(var(--jn-shadow-md));
+  transition: transform var(--jn-dur) var(--jn-ease);
 }
 .capsule:hover { transform: scale(1.08); }
 .capsule:active { transform: scale(0.95); }
@@ -310,7 +310,7 @@ function onCapsuleClick() {
   border-radius: 50%;
   background: var(--jn-cover-hole);
 }
-.capsule.spinning .capsule-disc { animation: spin 8s linear infinite; }
+.capsule.spinning .capsule-disc { animation: spin var(--jn-dur-drift) var(--jn-ease-linear) infinite; }
 
 /* PlayerBar */
 .player-bar {
@@ -327,9 +327,9 @@ function onCapsuleClick() {
   padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
   background: var(--jn-bar-bg);
   border-top: 1px solid var(--jn-hair);
-  backdrop-filter: blur(18px) saturate(120%);
-  -webkit-backdrop-filter: blur(18px) saturate(120%);
-  transition: background 0.35s ease, border-color 0.35s ease;
+  backdrop-filter: blur(var(--jn-blur)) saturate(120%);
+  -webkit-backdrop-filter: blur(var(--jn-blur)) saturate(120%);
+  transition: background var(--jn-dur-slow) var(--jn-ease), border-color var(--jn-dur-slow) var(--jn-ease);
   cursor: pointer;
 }
 
@@ -346,7 +346,7 @@ function onCapsuleClick() {
     repeating-radial-gradient(circle at 50% 50%, var(--jn-cover-groove) 0 2px, transparent 2px 4px),
     var(--jn-cover-outer);
   flex-shrink: 0;
-  transition: background 0.35s ease;
+  transition: background var(--jn-dur-slow) var(--jn-ease);
 }
 
 .cover .disc,
@@ -363,7 +363,7 @@ function onCapsuleClick() {
   background: var(--jn-cover-hole);
 }
 
-.cover.spinning { animation: spin 8s linear infinite; }
+.cover.spinning { animation: spin var(--jn-dur-drift) var(--jn-ease-linear) infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 .info { min-width: 0; }
@@ -387,8 +387,8 @@ function onCapsuleClick() {
   font-size: 11px;
   white-space: nowrap;
 }
-.status-line.loading-text { color: var(--jn-accent, #f2b134); }
-.status-line.error-text { color: var(--jn-danger, #f5485c); }
+.status-line.loading-text { color: var(--jn-accent); }
+.status-line.error-text { color: var(--jn-danger); }
 
 .controls {
   display: flex;
@@ -415,11 +415,11 @@ function onCapsuleClick() {
   background: var(--jn-tooltip-bg);
   color: var(--jn-ink);
   padding: 4px 8px;
-  border-radius: 6px;
+  border-radius: var(--jn-radius-xs);
   font-size: 12px;
   white-space: nowrap;
   z-index: 100;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  box-shadow: var(--jn-shadow-sm);
   pointer-events: none;
 }
 
@@ -434,7 +434,7 @@ function onCapsuleClick() {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: color 0.15s ease, transform 0.15s ease;
+  transition: color var(--jn-dur-fast) var(--jn-ease), transform var(--jn-dur-fast) var(--jn-ease);
 }
 .ctl-btn:hover:not(:disabled) { color: var(--jn-ink-strong); }
 .ctl-btn:active:not(:disabled) { transform: scale(0.92); }
@@ -449,7 +449,7 @@ function onCapsuleClick() {
   font-family: 'IBM Plex Mono', monospace;
   color: var(--jn-accent-ink);
   background: var(--jn-accent);
-  border-radius: 4px;
+  border-radius: var(--jn-radius-2xs);
   padding: 0 3px;
   line-height: 1.4;
 }
@@ -460,7 +460,7 @@ function onCapsuleClick() {
   width: 44px;
   height: 44px;
   box-shadow: 0 10px 24px var(--jn-glow);
-  transition: transform 0.15s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.15s ease;
+  transition: transform var(--jn-dur-fast) var(--jn-ease), box-shadow var(--jn-dur-fast) var(--jn-ease);
 }
 .ctl-btn.primary:hover:not(:disabled) {
   transform: scale(1.08);
@@ -474,7 +474,7 @@ function onCapsuleClick() {
   animation: none;
   cursor: wait;
 }
-.spin { animation: spin 0.8s linear infinite; }
+.spin { animation: spin var(--jn-dur-spin) var(--jn-ease-linear) infinite; }
 
 .progress {
   display: grid;
@@ -496,7 +496,7 @@ function onCapsuleClick() {
   position: relative;
   height: 4px;
   background: var(--jn-slider-track);
-  border-radius: 2px;
+  border-radius: var(--jn-radius-pill);
   cursor: pointer;
 }
 .progress-fill {
@@ -505,8 +505,8 @@ function onCapsuleClick() {
   left: 0;
   height: 100%;
   background: linear-gradient(90deg, var(--jn-accent), var(--jn-accent-strong));
-  border-radius: 2px;
-  transition: width 0.1s linear;
+  border-radius: var(--jn-radius-pill);
+  transition: width var(--jn-dur-fast) var(--jn-ease-linear);
 }
 .progress-thumb {
   position: absolute;
@@ -519,7 +519,7 @@ function onCapsuleClick() {
   border-radius: 50%;
   cursor: pointer;
   opacity: 0;
-  transition: opacity 0.15s;
+  transition: opacity var(--jn-dur-fast);
 }
 .progress:hover .progress-thumb { opacity: 1; }
 
@@ -530,12 +530,12 @@ function onCapsuleClick() {
   background: var(--jn-bg-elev);
   color: var(--jn-ink-strong);
   padding: 4px 8px;
-  border-radius: 6px;
+  border-radius: var(--jn-radius-xs);
   font-family: 'IBM Plex Mono', monospace;
   font-size: 11px;
   white-space: nowrap;
   pointer-events: none;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  box-shadow: var(--jn-shadow-sm);
   z-index: 10;
 }
 
@@ -552,7 +552,7 @@ function onCapsuleClick() {
   width: 120px;
   height: 4px;
   background: var(--jn-slider-track);
-  border-radius: 2px;
+  border-radius: var(--jn-radius-pill);
   cursor: pointer;
 }
 .volume-fill {
@@ -561,7 +561,7 @@ function onCapsuleClick() {
   left: 0;
   height: 100%;
   background: var(--jn-accent);
-  border-radius: 2px;
+  border-radius: var(--jn-radius-pill);
 }
 
 /* 移动端 */

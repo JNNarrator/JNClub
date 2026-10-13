@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, onUnmounted, nextTick } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { ElIcon } from 'element-plus'
 import {
   VideoPlay, VideoPause, DArrowLeft, DArrowRight,
@@ -7,42 +7,23 @@ import {
 } from '@element-plus/icons-vue'
 import { usePlayerStore, type PlayMode } from '../stores/player'
 import { useUiStore } from '../stores/ui'
-import { parseLrc, findCurrentLine, getLineProgress, fetchLyricsCached } from '../utils/lrc'
+import { useLyrics } from '../composables/useLyrics'
 
 const player = usePlayerStore()
 const ui = useUiStore()
 
-const rawLyrics = ref('')
-const lyricLines = computed(() => parseLrc(rawLyrics.value))
-const hasTimedLyrics = computed(() => lyricLines.value.length > 0)
-const currentLineIdx = ref(-1)
-const lineProgress = ref(0)
-const lyricsLoading = ref(false)
-const lyricsError = ref<string | null>(null)
-
-const lyricsContainer = ref<HTMLElement | null>(null)
-const lineRefs = ref<HTMLElement[]>([])
-function setLineRef(el: HTMLElement | null, idx: number) {
-  if (el) lineRefs.value[idx] = el
-}
-
-async function fetchLyrics(trackId: string) {
-  if (!trackId) return
-  lyricsLoading.value = true
-  lyricsError.value = null
-  try {
-    const { raw, error } = await fetchLyricsCached(trackId)
-    rawLyrics.value = raw
-    if (error) lyricsError.value = error
-  } catch { lyricsError.value = '歌词加载失败' }
-  finally { lyricsLoading.value = false }
-}
-
-function retryFetchLyrics() {
-  if (player.currentTrack?.trackId) fetchLyrics(player.currentTrack.trackId)
-}
-
-watch(() => player.currentTrack?.trackId, (id) => { if (id) fetchLyrics(id) }, { immediate: true })
+// 歌词内核与底部抽屉共用一份（composables/useLyrics）。
+// rAF 只在「播放中 且 播放页打开」时运行；播放页关闭后行内进度条不可见，
+// 只有 document.title 需要「当前行」，由 currentTime（audio timeupdate，约 4Hz）驱动即可，
+// 无需让 rAF 在后台以 60fps 空转 —— 这一段兜底逻辑已内聚在 composable 里。
+const {
+  lines: lyricLines, loading: lyricsLoading, error: lyricsError,
+  rawLyrics, hasTimedLyrics, currentLineIdx, lineProgress,
+  containerRef: lyricsContainer, setLineRef, retry: retryFetchLyrics,
+} = useLyrics({
+  active: () => player.isPlaying && ui.showPlayerPage,
+  scroll: () => ui.showPlayerPage,
+})
 
 function updateTitle() {
   const track = player.currentTrack
@@ -63,75 +44,6 @@ function updateTitle() {
 watch(currentLineIdx, updateTitle)
 watch(() => player.isPlaying, updateTitle)
 watch(() => player.currentTrack, updateTitle, { immediate: true })
-
-let rafId = 0
-let lastProgressUpdate = 0
-const PROGRESS_THROTTLE = 50
-
-/**
- * 计算当前歌词行与行内进度。
- * @param now 当前时间戳（performance.now()）
- * @param allowScroll 是否同步滚动歌词容器到当前行（仅播放页打开时需要）
- */
-function updateLineState(now: number, allowScroll: boolean) {
-  const lines = lyricLines.value
-  if (!lines.length) return
-  const idx = findCurrentLine(lines, player.currentTime)
-  if (idx !== currentLineIdx.value) {
-    currentLineIdx.value = idx
-    lineProgress.value = getLineProgress(lines, idx, player.currentTime)
-    lastProgressUpdate = now
-    if (allowScroll) {
-      nextTick(() => {
-        const container = lyricsContainer.value
-        const el = lineRefs.value[idx]
-        if (container && el) {
-          const containerHeight = container.clientHeight
-          const scrollTo = el.offsetTop - containerHeight / 2 + el.offsetHeight / 2
-          container.scrollTo({ top: scrollTo, behavior: 'smooth' })
-        }
-      })
-    }
-  } else if (now - lastProgressUpdate > PROGRESS_THROTTLE) {
-    lineProgress.value = getLineProgress(lines, idx, player.currentTime)
-    lastProgressUpdate = now
-  }
-}
-
-function rafLoop() {
-  updateLineState(performance.now(), true)
-  rafId = requestAnimationFrame(rafLoop)
-}
-
-function startRaf() {
-  // 幂等：避免重复启动导致多个 rAF 链并行
-  if (rafId) return
-  rafId = requestAnimationFrame(rafLoop)
-}
-
-function stopRaf() {
-  if (rafId) {
-    cancelAnimationFrame(rafId)
-    rafId = 0
-  }
-}
-
-// rAF 只在「播放中 且 播放页打开」时运行。
-// 播放页关闭后行内进度条不可见（整页模板在 v-if 内不渲染），只有 document.title 需要「当前行」，
-// 而 currentTime 由 audio 的 timeupdate 事件驱动（约 4Hz），足够驱动标题更新，
-// 无需让 rAF 在后台以 60fps 空转。
-watch([() => player.isPlaying, () => ui.showPlayerPage], ([playing, pageOpen]) => {
-  if (playing && pageOpen) startRaf()
-  else stopRaf()
-}, { immediate: true })
-
-// 播放页关闭期间的「当前行」更新：由 currentTime 变化驱动，不滚动。
-watch(() => player.currentTime, () => {
-  if (!player.isPlaying || ui.showPlayerPage) return
-  updateLineState(performance.now(), false)
-})
-
-onUnmounted(stopRaf)
 
 function fmt(seconds: number) {
   if (!Number.isFinite(seconds) || seconds < 0) return '0:00'
@@ -261,14 +173,14 @@ function handleClose() { ui.closePlayerPage() }
 
       <div ref="lyricsContainer" class="pp-lyrics">
         <template v-if="lyricsLoading">
-          <div class="pp-lyrics-status">
-            <div v-for="n in 5" :key="n" class="pp-skel" />
+          <div class="jn-skel-stack pp-lyrics-status">
+            <div v-for="n in 5" :key="n" class="jn-skel" />
           </div>
         </template>
         <template v-else-if="lyricsError">
-          <div class="pp-lyrics-error">
-            <p class="pp-error-text">{{ lyricsError }}</p>
-            <button class="pp-retry-btn" @click="retryFetchLyrics">
+          <div class="jn-state jn-state--error pp-lyrics-error">
+            <p class="jn-state-text">{{ lyricsError }}</p>
+            <button class="jn-state-retry" @click="retryFetchLyrics">
               <el-icon><Refresh /></el-icon>
               <span>重试</span>
             </button>
@@ -291,7 +203,9 @@ function handleClose() { ui.closePlayerPage() }
           <pre class="pp-lyrics-raw">{{ rawLyrics }}</pre>
         </template>
         <template v-else>
-          <div class="pp-lyrics-empty"><p class="pp-lyrics-empty-text">暂无歌词</p></div>
+          <div class="jn-state pp-lyrics-empty">
+            <p class="jn-state-text pp-lyrics-empty-text">暂无歌词</p>
+          </div>
         </template>
       </div>
 
@@ -354,7 +268,7 @@ function handleClose() { ui.closePlayerPage() }
 <style scoped>
 .player-page-enter-active,
 .player-page-leave-active {
-  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.35s ease;
+  transition: transform var(--jn-dur-slow) var(--jn-ease), opacity var(--jn-dur-slow) var(--jn-ease);
 }
 .player-page-enter-from,
 .player-page-leave-to { transform: translateY(100%); opacity: 0; }
@@ -371,10 +285,10 @@ function handleClose() { ui.closePlayerPage() }
 .pp-collapse-btn {
   position: fixed; top: calc(16px + env(safe-area-inset-top)); right: 24px; z-index: 51;
   width: 44px; height: 44px; border: 1.5px solid var(--jn-hair-strong); border-radius: 50%;
-  background: var(--jn-bar-bg); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  background: var(--jn-bar-bg); backdrop-filter: blur(var(--jn-blur)); -webkit-backdrop-filter: blur(var(--jn-blur));
   color: var(--jn-ink-dim); cursor: pointer;
   display: flex; align-items: center; justify-content: center;
-  transition: color 0.2s, border-color 0.2s, transform 0.15s, background 0.2s;
+  transition: color var(--jn-dur), border-color var(--jn-dur), transform var(--jn-dur-fast), background var(--jn-dur);
 }
 .pp-collapse-btn:hover { color: var(--jn-ink-strong); border-color: var(--jn-ink-dim); background: var(--jn-bg-elev); }
 .pp-collapse-btn:active { transform: scale(0.9); }
@@ -395,7 +309,7 @@ function handleClose() { ui.closePlayerPage() }
   margin: 0; padding: 8px 16px;
   font-size: 15px; line-height: 1.8;
   text-align: center; max-width: 100%; word-break: break-word;
-  transition: opacity 0.4s ease, transform 0.4s ease, font-size 0.4s ease;
+  transition: opacity var(--jn-dur-slow) var(--jn-ease), transform var(--jn-dur-slow) var(--jn-ease), font-size var(--jn-dur-slow) var(--jn-ease);
   color: var(--jn-ink-muted); opacity: 0.5; transform: scale(0.95);
 }
 .pp-line.past { opacity: 0.2; filter: blur(0.3px); transform: scale(0.92); }
@@ -412,59 +326,47 @@ function handleClose() { ui.closePlayerPage() }
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   color: transparent;
-  filter: drop-shadow(0 0 15px rgba(242, 177, 52, 0.25));
+  filter: drop-shadow(0 0 15px var(--jn-glow));
 }
 
-.pp-lyrics-status { display: flex; flex-direction: column; gap: 14px; padding: 40% 40px 0; width: 100%; }
-.pp-skel {
-  height: 16px; border-radius: 4px;
-  background: linear-gradient(90deg, var(--jn-row-hover), var(--jn-hair), var(--jn-row-hover));
-  background-size: 200% 100%; animation: skel 1.4s linear infinite;
-}
-@keyframes skel { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
-
-.pp-lyrics-error { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; }
-.pp-error-text { font-size: 15px; color: var(--jn-danger); font-family: 'IBM Plex Mono', monospace; }
-.pp-retry-btn {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 8px 16px; border: 1px solid var(--jn-hair); border-radius: 8px;
-  background: transparent; color: var(--jn-ink-dim); cursor: pointer;
-  transition: border-color 0.15s, color 0.15s;
-}
-.pp-retry-btn:hover { border-color: var(--jn-accent); color: var(--jn-accent); }
+/* 加载 / 错误 / 空三态走 styles.css 的 .jn-skel* / .jn-state* 工具类，
+   这里只保留本页的局部差异（歌词区要占满剩余高度、骨架从上方 40% 处开始）。 */
+.pp-lyrics-status { --jn-state-pad: 40% 40px 0; width: 100%; }
+.pp-lyrics-error { flex: 1; gap: 20px; }
+.pp-lyrics-error .jn-state-text { font-family: 'IBM Plex Mono', monospace; font-size: 15px; }
 
 .pp-lyrics-raw { margin: 20% 0 0; white-space: pre-wrap; word-break: break-all; font-family: 'IBM Plex Mono', monospace; font-size: 13px; line-height: 1.8; color: var(--jn-ink-dim); text-align: left; max-width: 500px; }
-.pp-lyrics-empty { flex: 1; display: flex; align-items: center; justify-content: center; }
-.pp-lyrics-empty-text { font-size: 15px; color: var(--jn-ink-muted); font-family: 'IBM Plex Mono', monospace; }
+.pp-lyrics-empty { flex: 1; }
+.pp-lyrics-empty-text { font-family: 'IBM Plex Mono', monospace; font-size: 15px; }
 
 /* 底部控制区 */
-.pp-controls { flex-shrink: 0; padding: 16px 28px calc(24px + env(safe-area-inset-bottom, 34px)); display: flex; flex-direction: column; gap: 14px; align-items: center; background: linear-gradient(to top, rgba(16, 12, 17, 0.6) 0%, transparent 100%); }
+.pp-controls { flex-shrink: 0; padding: 16px 28px calc(24px + env(safe-area-inset-bottom, 34px)); display: flex; flex-direction: column; gap: 14px; align-items: center; background: linear-gradient(to top, var(--jn-controls-fade) 0%, transparent 100%); }
 
 .pp-progress-tooltip {
   position: absolute; top: -32px; transform: translateX(-50%);
   background: var(--jn-bg-elev); color: var(--jn-ink-strong);
-  padding: 4px 8px; border-radius: 6px;
+  padding: 4px 8px; border-radius: var(--jn-radius-xs);
   font-family: 'IBM Plex Mono', monospace; font-size: 11px;
   white-space: nowrap; pointer-events: none;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 10;
+  box-shadow: var(--jn-shadow-sm); z-index: 10;
 }
 .pp-progress-row { display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; gap: 14px; width: 100%; max-width: 520px; position: relative; }
 .pp-time { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--jn-ink-dim); text-align: center; letter-spacing: 0.03em; }
 
 .pp-progress-bar {
   position: relative; height: 4px;
-  background: var(--jn-slider-track); border-radius: 2px; cursor: pointer;
+  background: var(--jn-slider-track); border-radius: var(--jn-radius-pill); cursor: pointer;
 }
 .pp-progress-fill {
   position: absolute; top: 0; left: 0; height: 100%;
   background: linear-gradient(90deg, var(--jn-accent), var(--jn-accent-strong));
-  border-radius: 2px; transition: width 0.1s linear;
+  border-radius: var(--jn-radius-pill); transition: width var(--jn-dur-fast) var(--jn-ease-linear);
 }
 .pp-progress-thumb {
   position: absolute; top: 50%; transform: translate(-50%, -50%);
   width: 14px; height: 14px; background: var(--jn-slider-thumb-fill);
   border: 2px solid var(--jn-accent); border-radius: 50%;
-  cursor: pointer; opacity: 0; transition: opacity 0.15s;
+  cursor: pointer; opacity: 0; transition: opacity var(--jn-dur-fast);
 }
 .pp-progress-row:hover .pp-progress-thumb { opacity: 1; }
 
@@ -473,13 +375,13 @@ function handleClose() { ui.closePlayerPage() }
 .pp-side-left { justify-content: flex-start; }
 .pp-side-right { justify-content: flex-end; }
 
-.pp-mode-btn { position: relative; width: 40px; height: 40px; border: none; border-radius: 50%; background: transparent; color: var(--jn-ink-dim); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: color 0.2s, background 0.2s; }
+.pp-mode-btn { position: relative; width: 40px; height: 40px; border: none; border-radius: 50%; background: transparent; color: var(--jn-ink-dim); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: color var(--jn-dur), background var(--jn-dur); }
 .pp-mode-btn:hover { color: var(--jn-ink-strong); background: var(--jn-row-hover); }
 .pp-mode-btn.active { color: var(--jn-accent); }
-.pp-mode-badge { position: absolute; top: 3px; right: 3px; font-size: 8px; font-family: 'IBM Plex Mono', monospace; color: var(--jn-accent-ink); background: var(--jn-accent); border-radius: 4px; padding: 0 3px; line-height: 1.4; }
+.pp-mode-badge { position: absolute; top: 3px; right: 3px; font-size: 8px; font-family: 'IBM Plex Mono', monospace; color: var(--jn-accent-ink); background: var(--jn-accent); border-radius: var(--jn-radius-2xs); padding: 0 3px; line-height: 1.4; }
 
 .pp-center-btns { display: flex; align-items: center; gap: 20px; flex-shrink: 0; }
-.pp-skip-btn { width: 44px; height: 44px; border: none; border-radius: 50%; background: transparent; color: var(--jn-ink-dim); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: color 0.2s, transform 0.15s, background 0.2s; }
+.pp-skip-btn { width: 44px; height: 44px; border: none; border-radius: 50%; background: transparent; color: var(--jn-ink-dim); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: color var(--jn-dur), transform var(--jn-dur-fast), background var(--jn-dur); }
 .pp-skip-btn:hover:not(:disabled) { color: var(--jn-ink-strong); background: var(--jn-row-hover); transform: scale(1.06); }
 .pp-skip-btn:active:not(:disabled) { transform: scale(0.95); }
 .pp-skip-btn:disabled { opacity: 0.3; cursor: default; }
@@ -488,16 +390,16 @@ function handleClose() { ui.closePlayerPage() }
   position: relative; width: 64px; height: 64px; border: none; border-radius: 50%; 
   background: var(--jn-accent); color: var(--jn-accent-ink); cursor: pointer; 
   display: flex; align-items: center; justify-content: center; 
-  transition: transform 0.15s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.15s ease; 
+  transition: transform var(--jn-dur-fast) var(--jn-ease), box-shadow var(--jn-dur-fast) var(--jn-ease); 
   box-shadow: 0 8px 32px var(--jn-glow); 
 }
 .pp-play-btn:hover:not(:disabled) { transform: scale(1.1); box-shadow: 0 14px 44px var(--jn-glow), 0 0 0 4px var(--jn-accent-soft); }
 .pp-play-btn:active:not(:disabled) { transform: scale(0.9); box-shadow: 0 4px 16px var(--jn-glow); }
 .pp-play-btn:disabled { opacity: 0.4; cursor: default; }
 .pp-play-btn.loading { cursor: wait; }
-.pp-play-ring { position: absolute; inset: -4px; border-radius: 50%; border: 1.5px solid var(--jn-accent); opacity: 0; pointer-events: none; transition: opacity 0.3s; }
-.pp-play-btn.loading .pp-play-ring { opacity: 0.35; animation: pp-ring-pulse 1.2s ease-in-out infinite; }
-.pp-play-btn.playing .pp-play-ring { opacity: 0.35; animation: pp-ring-pulse 2.4s ease-in-out infinite; }
+.pp-play-ring { position: absolute; inset: -4px; border-radius: 50%; border: 1.5px solid var(--jn-accent); opacity: 0; pointer-events: none; transition: opacity var(--jn-dur-slow); }
+.pp-play-btn.loading .pp-play-ring { opacity: 0.35; animation: pp-ring-pulse var(--jn-dur-loop) var(--jn-ease-smooth) infinite; }
+.pp-play-btn.playing .pp-play-ring { opacity: 0.35; animation: pp-ring-pulse var(--jn-dur-breathe) var(--jn-ease-smooth) infinite; }
 @keyframes pp-ring-pulse { 0%, 100% { transform: scale(1); opacity: 0.35; } 50% { transform: scale(1.12); opacity: 0.12; } }
 .pp-play-icon { position: relative; z-index: 1; }
 
@@ -505,11 +407,11 @@ function handleClose() { ui.closePlayerPage() }
 .pp-vol-icon { color: var(--jn-ink-dim); }
 .pp-volume-bar {
   position: relative; width: 90px; height: 4px;
-  background: var(--jn-slider-track); border-radius: 2px;
+  background: var(--jn-slider-track); border-radius: var(--jn-radius-pill);
 }
 .pp-volume-fill {
   position: absolute; top: 0; left: 0; height: 100%;
-  background: var(--jn-accent); border-radius: 2px;
+  background: var(--jn-accent); border-radius: var(--jn-radius-pill);
 }
 
 @media (max-width: 720px) {

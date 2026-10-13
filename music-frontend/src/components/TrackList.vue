@@ -385,23 +385,23 @@ onBeforeUnmount(() => {
       class="track-scroll"
       @scroll="onScroll"
     >
-      <!-- Loading skeleton -->
-      <div v-if="loading" class="skeleton">
-        <div v-for="n in 5" :key="n" class="skeleton-row" />
+      <!-- Loading skeleton（状态呈现统一走 styles.css 的 .jn-* 工具类） -->
+      <div v-if="loading" class="jn-skel-stack">
+        <div v-for="n in 5" :key="n" class="jn-skel jn-skel--row" />
       </div>
 
       <!-- Error state -->
-      <div v-else-if="error" class="error-state">
-        <p>{{ error }}</p>
-        <button class="retry-btn" @click="retryFetch">
+      <div v-else-if="error" class="jn-state jn-state--error">
+        <p class="jn-state-text">{{ error }}</p>
+        <button class="jn-state-retry" @click="retryFetch">
           <el-icon><Refresh /></el-icon>
           <span>重试</span>
         </button>
       </div>
 
       <!-- Empty state -->
-      <div v-else-if="!tracks.length" class="empty-state">
-        <p>暂无曲目</p>
+      <div v-else-if="!tracks.length" class="jn-state jn-state--empty">
+        <p class="jn-state-text">暂无曲目</p>
       </div>
 
       <!-- Track rows -->
@@ -518,9 +518,9 @@ onBeforeUnmount(() => {
   height: 40px;
   padding: 0 14px;
   border: 1px solid var(--jn-hair);
-  border-radius: 999px;
+  border-radius: var(--jn-radius-pill);
   background: var(--jn-input-bg);
-  transition: border-color 0.15s;
+  transition: border-color var(--jn-dur-fast);
 }
 .search-input:focus-within {
   border-color: var(--jn-accent);
@@ -548,14 +548,14 @@ onBeforeUnmount(() => {
   gap: 6px;
   padding: 8px 16px;
   border: 1px solid var(--jn-hair);
-  border-radius: 999px;
+  border-radius: var(--jn-radius-pill);
   background: transparent;
   color: var(--jn-ink-dim);
   font-size: 12.5px;
   font-family: 'IBM Plex Mono', monospace;
   cursor: pointer;
   white-space: nowrap;
-  transition: color 0.15s, border-color 0.15s, background 0.15s;
+  transition: color var(--jn-dur-fast), border-color var(--jn-dur-fast), background var(--jn-dur-fast);
   flex-shrink: 0;
 }
 .cache-btn:hover:not(:disabled) {
@@ -563,19 +563,19 @@ onBeforeUnmount(() => {
   border-color: var(--jn-accent);
 }
 .cache-btn:disabled { opacity: 0.5; cursor: wait; }
-.cache-btn .spinning { animation: spin 0.8s linear infinite; }
+.cache-btn .spinning { animation: spin var(--jn-dur-spin) var(--jn-ease-linear) infinite; }
 
 .cache-progress-bar {
   height: 2px;
   background: var(--jn-hair);
-  border-radius: 1px;
+  border-radius: var(--jn-radius-pill);
   overflow: hidden;
 }
 .cache-progress-inner {
   height: 100%;
   background: linear-gradient(90deg, var(--jn-accent), var(--jn-accent-strong));
-  border-radius: 1px;
-  transition: width 0.5s ease;
+  border-radius: var(--jn-radius-pill);
+  transition: width var(--jn-dur-slower) var(--jn-ease);
 }
 
 .play-all {
@@ -584,7 +584,7 @@ onBeforeUnmount(() => {
   gap: 6px;
   padding: 10px 20px;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--jn-radius-pill);
   background: var(--jn-accent);
   color: var(--jn-accent-ink);
   font-size: 13px;
@@ -592,7 +592,7 @@ onBeforeUnmount(() => {
   cursor: pointer;
   white-space: nowrap;
   flex-shrink: 0;
-  transition: transform 0.15s, box-shadow 0.15s;
+  transition: transform var(--jn-dur-fast), box-shadow var(--jn-dur-fast);
   box-shadow: 0 8px 24px var(--jn-glow);
 }
 .play-all:hover:not(:disabled) {
@@ -617,13 +617,13 @@ onBeforeUnmount(() => {
   overflow: hidden;
   color: var(--jn-ink-dim);
   font-size: 13px;
-  transition: height 0.25s ease;
+  transition: height var(--jn-dur) var(--jn-ease);
 }
 .pull-indicator.active {
   color: var(--jn-accent);
 }
 .pull-indicator.refreshing .pull-icon {
-  animation: spin 0.8s linear infinite;
+  animation: spin var(--jn-dur-spin) var(--jn-ease-linear) infinite;
 }
 
 @keyframes spin {
@@ -642,59 +642,10 @@ onBeforeUnmount(() => {
   display: none;
 }
 
-/* Skeleton */
-.skeleton {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 12px 0;
-}
-.skeleton-row {
-  height: 52px;
-  background: var(--jn-row-hover);
-  border-radius: 8px;
-  animation: pulse 1.5s ease-in-out infinite;
-}
-@keyframes pulse {
-  0%, 100% { opacity: 0.5; }
-  50% { opacity: 1; }
-}
-
-/* Error state */
-.error-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-  padding: 48px 0;
-  color: var(--jn-ink-dim);
-}
-.retry-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  border: 1px solid var(--jn-hair);
-  border-radius: 8px;
-  background: transparent;
-  color: var(--jn-ink);
-  cursor: pointer;
-  transition: background 0.15s;
-}
-.retry-btn:hover {
-  background: var(--jn-row-hover);
-}
-
-/* Empty state */
-.empty-state {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 48px 0;
-  color: var(--jn-ink-muted);
-  font-size: 14px;
-}
+/* 骨架 / 错误态 / 空态：改用 styles.css 的 .jn-skel* / .jn-state* 全局工具类，
+   此处只保留本组件的局部差异（错误态与空态在这块滚动区里要占满一点高度）。 */
+.track-scroll .jn-state { --jn-state-pad: 48px 0; }
+.track-scroll .jn-skel-stack { --jn-state-pad: 12px 0; }
 
 /* Track rows */
 .track-rows {
@@ -708,7 +659,7 @@ onBeforeUnmount(() => {
   gap: 16px;
   padding: 12px 6px;
   border-bottom: 1px solid var(--jn-hair);
-  transition: background 0.15s ease;
+  transition: background var(--jn-dur-fast) var(--jn-ease);
   cursor: default;
 }
 
@@ -729,7 +680,7 @@ onBeforeUnmount(() => {
 .row:hover { background: var(--jn-row-hover); }
 .row.active { 
   background: var(--jn-row-active); 
-  animation: row-glow 2s ease-in-out infinite;
+  animation: row-glow var(--jn-dur-breathe) var(--jn-ease-smooth) infinite;
 }
 .row.active .row-name { color: var(--jn-accent); }
 @keyframes row-glow {
@@ -764,8 +715,8 @@ onBeforeUnmount(() => {
 
 .wave { display: inline-flex; align-items: flex-end; gap: 2px; height: 18px; }
 .wave i {
-  width: 3px; border-radius: 2px;
-  animation: pulse 1.2s ease-in-out infinite;
+  width: 3px; border-radius: var(--jn-radius-pill);
+  animation: pulse var(--jn-dur-loop) var(--jn-ease-smooth) infinite;
   background: linear-gradient(to top, var(--jn-accent), var(--jn-accent-strong));
 }
 .wave i:nth-child(1) { height: 55%; animation-delay: -0.5s; }
@@ -800,7 +751,7 @@ onBeforeUnmount(() => {
 .tag {
   padding: 3px 7px;
   border: 1px solid var(--jn-hair-strong);
-  border-radius: 4px;
+  border-radius: var(--jn-radius-2xs);
 }
 
 .track-status {
@@ -811,7 +762,7 @@ onBeforeUnmount(() => {
 }
 .track-status .status-ready { color: var(--jn-accent); }
 .track-status .status-error { color: var(--jn-danger); }
-.track-status .spin { color: var(--jn-ink-dim); animation: spin 0.8s linear infinite; }
+.track-status .spin { color: var(--jn-ink-dim); animation: spin var(--jn-dur-spin) var(--jn-ease-linear) infinite; }
 
 .load-more {
   display: flex;
@@ -823,7 +774,7 @@ onBeforeUnmount(() => {
   font-family: 'IBM Plex Mono', monospace;
   font-size: 12px;
 }
-.spin { animation: spin 0.8s linear infinite; }
+.spin { animation: spin var(--jn-dur-spin) var(--jn-ease-linear) infinite; }
 .no-more { color: var(--jn-ink-muted); }
 
 /* 歌单 / 猜你喜欢入口 */
@@ -833,7 +784,7 @@ onBeforeUnmount(() => {
   gap: 6px;
   padding: 8px 16px;
   border: 1px solid var(--jn-hair);
-  border-radius: 999px;
+  border-radius: var(--jn-radius-pill);
   background: transparent;
   color: var(--jn-ink-dim);
   font-size: 12.5px;
@@ -841,7 +792,7 @@ onBeforeUnmount(() => {
   cursor: pointer;
   white-space: nowrap;
   flex-shrink: 0;
-  transition: color 0.15s, border-color 0.15s, background 0.15s;
+  transition: color var(--jn-dur-fast), border-color var(--jn-dur-fast), background var(--jn-dur-fast);
 }
 .btn-ghost:hover { color: var(--jn-accent); border-color: var(--jn-accent); background: var(--jn-accent-soft); }
 .btn-ghost.recommend { color: var(--jn-accent); border-color: var(--jn-accent); }
@@ -860,7 +811,7 @@ onBeforeUnmount(() => {
   color: var(--jn-ink-dim);
   cursor: pointer;
   opacity: 0;
-  transition: opacity 0.15s, color 0.15s, border-color 0.15s, transform 0.15s;
+  transition: opacity var(--jn-dur-fast), color var(--jn-dur-fast), border-color var(--jn-dur-fast), transform var(--jn-dur-fast);
 }
 .row:hover .row-add { opacity: 1; }
 .row-add:hover { color: var(--jn-accent); border-color: var(--jn-accent); transform: scale(1.08); }
@@ -909,8 +860,8 @@ onBeforeUnmount(() => {
   justify-content: center;
   min-width: 16px;
 }
-.row-state.loading { color: var(--jn-accent, #f2b134); }
-.row-state.ready { color: var(--jn-ok, #34c38f); }
-.row-state.error { color: var(--jn-danger, #f5485c); }
-.spin { animation: spin 0.9s linear infinite; }
+.row-state.loading { color: var(--jn-accent); }
+.row-state.ready { color: var(--jn-ok); }
+.row-state.error { color: var(--jn-danger); }
+.spin { animation: spin var(--jn-dur-spin) var(--jn-ease-linear) infinite; }
 </style>

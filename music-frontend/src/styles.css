@@ -4,7 +4,6 @@
   color-scheme: dark;
   --jn-bg: #100c11;
   --jn-bg-elev: #17131a;
-  --jn-bg-elev-2: #1d1820;
   --jn-ink: #f6ecdc;
   --jn-ink-strong: #f7ecd6;
   --jn-ink-dim: rgba(246, 236, 220, 0.6);
@@ -19,7 +18,6 @@
   --jn-row-hover: rgba(246, 236, 220, 0.04);
   --jn-row-active: rgba(242, 177, 52, 0.06);
   --jn-input-bg: rgba(20, 16, 20, 0.7);
-  --jn-input-ring: rgba(246, 236, 220, 0.22);
   --jn-slider-track: rgba(246, 236, 220, 0.12);
   --jn-slider-thumb-fill: #1a1218;
   --jn-scroll-thumb: rgba(246, 236, 220, 0.14);
@@ -33,6 +31,22 @@
   --jn-cover-center: #26202b;
   --jn-cover-groove: rgba(246, 236, 220, 0.05);
   --jn-cover-hole: #100c11;
+  /* 黑胶唱片基底（BrandLogo 径向渐变两端）：暗色下是深棕到近黑 */
+  --jn-disc-1: #2a1e1a;
+  --jn-disc-2: #0f0a10;
+  /* 弹层遮罩：亮色下用暖棕而非纯黑，避免米黄底上显脏 */
+  --jn-scrim: rgba(0, 0, 0, 0.5);
+  /* 播放页底部控件区的渐隐底 */
+  --jn-controls-fade: rgba(16, 12, 17, 0.6);
+  /* 就绪状态绿：此前只在 TrackList 以 var(--jn-ok, …) 的 fallback 形式出现，从未定义 */
+  --jn-ok: #34c38f;
+
+  /* 阴影层级（PLAN-2026-19 M3-2）：对齐主站的分层思路，但保留暖色阴影相，
+     不引入主站粉相；亮色档位见 :root[data-theme='light'] */
+  --jn-shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.2);
+  --jn-shadow-md: 0 8px 24px rgba(0, 0, 0, 0.3);
+  --jn-shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.35);
+  --jn-shadow-side: -8px 0 32px rgba(0, 0, 0, 0.3);
 
   /* Vant 主题覆盖 */
   --van-primary-color: var(--jn-accent);
@@ -58,7 +72,6 @@
   color-scheme: light;
   --jn-bg: #f4ecd8;
   --jn-bg-elev: #fbf4e2;
-  --jn-bg-elev-2: #ede2c4;
   --jn-ink: #241b16;
   --jn-ink-strong: #1a120c;
   --jn-ink-dim: rgba(36, 27, 22, 0.68);
@@ -73,7 +86,6 @@
   --jn-row-hover: rgba(36, 27, 22, 0.05);
   --jn-row-active: rgba(194, 106, 18, 0.1);
   --jn-input-bg: rgba(255, 250, 234, 0.9);
-  --jn-input-ring: rgba(36, 27, 22, 0.28);
   --jn-slider-track: rgba(36, 27, 22, 0.14);
   --jn-slider-thumb-fill: #fbf4e2;
   --jn-scroll-thumb: rgba(36, 27, 22, 0.18);
@@ -87,12 +99,63 @@
   --jn-cover-center: #f4ecd8;
   --jn-cover-groove: rgba(36, 27, 22, 0.08);
   --jn-cover-hole: #fbf4e2;
+  --jn-disc-1: #d8b579;
+  --jn-disc-2: #b58147;
+  --jn-scrim: rgba(36, 27, 22, 0.35);
+  --jn-controls-fade: rgba(244, 236, 216, 0.6);
+  --jn-ok: #1f8a5f;
+
+  /* 亮色下的投影改用暖棕而非纯黑：纯黑在米黄底上像脏污，暖棕才是「纸上的影子」 */
+  --jn-shadow-sm: 0 4px 12px rgba(122, 84, 24, 0.12);
+  --jn-shadow-md: 0 8px 24px rgba(122, 84, 24, 0.16);
+  --jn-shadow-lg: 0 24px 64px rgba(122, 84, 24, 0.2);
+  --jn-shadow-side: -8px 0 32px rgba(122, 84, 24, 0.16);
+}
+
+/* ====== 几何 / 动效：与明暗无关，两主题共用（PLAN-2026-19 M3-2 / M3-3） ====== */
+:root {
+  /* 圆角阶梯：档位与主站一致（4/6/10/16/20/999），值取自音乐前端原有硬编码的众数 */
+  --jn-radius-2xs: 4px;
+  --jn-radius-xs: 6px;
+  --jn-radius-sm: 10px;
+  --jn-radius-md: 16px;
+  --jn-radius-pill: 999px;
+
+  /* 动效（PLAN-2026-19 M3-3）：原先 20 种时长字面量，收敛为「交互三档 + 循环四档」。
+     曲线对齐主站 cubic-bezier(0.32, 0.72, 0, 1)（原为 0.22,1,0.36,1）。 */
+  --jn-dur-fast: 0.15s;
+  --jn-dur: 0.2s;
+  --jn-dur-slow: 0.3s;
+  --jn-dur-slower: 0.5s;
+  /* 旋转指示器（loading spin） */
+  --jn-dur-spin: 0.8s;
+  /* 快速脉冲：波形、圆环呼吸 */
+  --jn-dur-loop: 1.4s;
+  /* 缓慢呼吸：光晕、状态点 */
+  --jn-dur-breathe: 2.2s;
+  /* 唱片旋转 */
+  --jn-dur-drift: 8s;
+  /* 背景光带横移 */
+  --jn-dur-aurora: 40s;
+  --jn-ease: cubic-bezier(0.32, 0.72, 0, 1);
+  --jn-ease-linear: linear;
+  --jn-ease-smooth: ease-in-out;
+
+  /* 毛玻璃模糊半径：原先 18px / 16px 两处硬编码 */
+  --jn-blur: 16px;
 }
 
 html, body {
   background: var(--jn-bg);
   color: var(--jn-ink);
-  transition: background-color 0.35s ease, color 0.35s ease;
+}
+
+/* 主题切换的渐变只在「运行中切换」时启用：首屏若带 transition，
+   亮色用户冷启动会看到底色从暗到亮地爬 0.3s（原先正是这个现象）。
+   `theme-ready` 由 main.ts 在首帧绘制后加上。 */
+html.theme-ready,
+html.theme-ready body {
+  transition: background-color var(--jn-dur-slow) var(--jn-ease), color var(--jn-dur-slow) var(--jn-ease);
 }
 
 /* 移动端锁定视口滚动，仅让歌曲列表内部滚动。 */
@@ -138,16 +201,15 @@ html, body {
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-thumb {
   background: var(--jn-scroll-thumb);
-  border-radius: 999px;
+  border-radius: var(--jn-radius-pill);
 }
 ::-webkit-scrollbar-thumb:hover { background: var(--jn-scroll-thumb-hover); }
 ::-webkit-scrollbar-track { background: transparent; }
 
-/* ====== 车机模式: 2560x1600 物理分辨率, ~1280x800 CSS 视口 ====== */
-html.car-mode {
-  /* 基础字号缩放：从 16px 基准放大到车机可读的 20px */
-  font-size: 20px;
-}
+/* ====== 车机模式: 2560x1600 物理分辨率, ~1280x800 CSS 视口 ======
+   注意：这里**不能**靠 `html { font-size: 20px }` 放大 —— 全项目 rem 单位为 0 处，
+   字号一律硬编码 px，设根字号不产生任何效果（此前正是这条失效规则）。
+   放大一律走显式覆盖关键字号与点击区。 */
 html.car-mode body {
   /* 车机浏览器可能最小化页面但音频需继续 */
   -webkit-user-select: none;
@@ -162,7 +224,7 @@ html.car-mode :where(button, .ctl-btn, .pp-play-btn, .pp-skip-btn, .pp-mode-btn,
 html.car-mode :where(button, .ctl-btn, .pp-play-btn, .pp-skip-btn):active {
   opacity: 0.7;
   transform: scale(0.95);
-  transition: transform 0.1s ease;
+  transition: transform var(--jn-dur-fast) var(--jn-ease);
 }
 /* 车机横屏: 歌单区域更宽 */
 html.car-mode .stage {
@@ -212,6 +274,9 @@ html.car-mode .row-play {
 html.car-mode .row-play .num {
   font-size: 15px;
 }
+/* 曲库列表三态（骨架条本身不必放大，只放大文字） */
+html.car-mode .track-scroll .jn-state { --jn-state-fs: 17px; }
+html.car-mode .track-scroll .jn-state-retry { font-size: 16px; }
 /* 车机搜索框加大 */
 html.car-mode .search-input {
   height: 52px;
@@ -235,6 +300,11 @@ html.car-mode .pp-title {
 html.car-mode .pp-artist {
   font-size: 16px;
 }
+/* 播放页歌词区三态（走 .jn-state 工具类，字号经 --jn-state-fs 下传） */
+html.car-mode .pp-lyrics-status,
+html.car-mode .pp-lyrics-error,
+html.car-mode .pp-lyrics-empty { --jn-state-fs: 17px; }
+html.car-mode .pp-lyrics-raw { font-size: 17px; }
 html.car-mode .pp-lyrics {
   padding: 0 64px;
 }
@@ -275,4 +345,151 @@ html.car-mode .head-title h2 {
 }
 html.car-mode .lead {
   font-size: 16px;
+}
+
+/* ---- 车机：此前整组件未覆盖的三处（PLAN-2026-19 M3-4）----
+   类名一律带容器前缀：`.head` / `.input` / `.hint` 等在同一项目里有多个同名类，
+   裸写会误伤其它组件。 */
+
+/* 歌单面板 PlaylistPanel */
+html.car-mode .pl-panel .pl-title { font-size: 22px; }
+html.car-mode .pl-panel .pl-subtitle,
+html.car-mode .pl-panel .pl-subhead { font-size: 15px; }
+html.car-mode .pl-panel .pl-item { min-height: 56px; }
+html.car-mode .pl-panel .pl-item-name,
+html.car-mode .pl-panel .pl-track-name { font-size: 17px; }
+html.car-mode .pl-panel .pl-track-artist { font-size: 14px; }
+html.car-mode .pl-panel .pl-item-adding { font-size: 14px; }
+html.car-mode .pl-panel .pl-input,
+html.car-mode .pl-panel .pl-rename-input { height: 52px; font-size: 16px; }
+html.car-mode .pl-panel .pl-create-btn,
+html.car-mode .pl-panel .pl-close,
+html.car-mode .pl-panel .pl-item-op,
+html.car-mode .pl-panel .pl-track-play,
+html.car-mode .pl-panel .pl-track-remove {
+  min-width: 48px;
+  min-height: 48px;
+}
+html.car-mode .pl-panel .pl-loading,
+html.car-mode .pl-panel .pl-empty { --jn-state-fs: 17px; }
+
+/* 蓝奏云认证面板 LanzouAuthPanel（抽屉外的触发胶囊也要能点） */
+html.car-mode .lanzou-pill { min-height: 48px; font-size: 15px; }
+html.car-mode .drawer-panel .head h3 { font-size: 24px; }
+html.car-mode .drawer-panel .head .lead { font-size: 16px; }
+html.car-mode .drawer-panel .eyebrow { font-size: 14px; }
+html.car-mode .drawer-panel .status-line .label { font-size: 16px; }
+html.car-mode .drawer-panel .uid { font-size: 15px; }
+html.car-mode .drawer-panel .mode-btn { min-height: 48px; font-size: 16px; }
+html.car-mode .drawer-panel .field-label { font-size: 15px; }
+html.car-mode .drawer-panel .input,
+html.car-mode .drawer-panel .textarea { min-height: 52px; font-size: 16px; }
+html.car-mode .drawer-panel .submit { min-height: 52px; font-size: 17px; }
+html.car-mode .drawer-panel .hint,
+html.car-mode .drawer-panel .footnote { font-size: 14px; }
+html.car-mode .drawer-panel .drawer-close,
+html.car-mode .drawer-panel .refresh,
+html.car-mode .drawer-panel .cache-refresh-btn {
+  min-width: 48px;
+  min-height: 48px;
+}
+
+/* 歌词面板 LyricsPanel（播放页内的全屏歌词由 PlayerPage 的 .pp-line 负责，此处不重复） */
+html.car-mode .lyrics-panel .lyrics-head h3 { font-size: 24px; }
+html.car-mode .lyrics-panel .lyrics-artist { font-size: 15px; }
+html.car-mode .lyrics-panel .lyric-line { font-size: 19px; }
+html.car-mode .lyrics-panel .lyric-line.active { font-size: 24px; }
+html.car-mode .lyrics-panel .lyrics-empty,
+html.car-mode .lyrics-panel .lyrics-error,
+html.car-mode .lyrics-panel .lyrics-loading { --jn-state-fs: 17px; }
+html.car-mode .lyrics-panel .lyrics-raw { font-size: 17px; }
+
+/* ====== 统一状态呈现（PLAN-2026-19 M3-5）======
+   此前「加载 / 错误 / 空」三态在 TrackList、LyricsPanel、PlayerPage、PlaylistPanel
+   里各写了一套：padding 有 12/40/48px 三种、字号有 13/14/15px 三种、错误色与
+   重试按钮也各有一份，骨架条更是两份逐字相同的 shimmer 定义。
+   这里收敛为一份全局工具类，组件只声明自己的局部差异（如 --jn-state-pad）。
+   不跨项目引主站组件：音乐前端有独立的暖橙体系。 */
+
+.jn-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: var(--jn-state-pad, 40px 0);
+  text-align: center;
+}
+
+.jn-state-text {
+  font-size: var(--jn-state-fs, 14px);
+  line-height: 1.6;
+  color: var(--jn-ink-muted);
+}
+
+.jn-state--error .jn-state-text { color: var(--jn-danger); }
+
+/* 重试按钮：TrackList 与 PlayerPage 此前各写一份，差异只有 border 色 */
+.jn-state-retry {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: 1px solid var(--jn-hair);
+  border-radius: var(--jn-radius-sm);
+  background: transparent;
+  color: var(--jn-ink-dim);
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color var(--jn-dur-fast) var(--jn-ease),
+              color var(--jn-dur-fast) var(--jn-ease),
+              background var(--jn-dur-fast) var(--jn-ease);
+}
+.jn-state-retry:hover {
+  border-color: var(--jn-accent);
+  color: var(--jn-accent);
+  background: var(--jn-row-hover);
+}
+
+/* 骨架：文本条（默认）与列表行块（--row）共用同一段 shimmer */
+.jn-skel {
+  height: 16px;
+  border-radius: var(--jn-radius-2xs);
+  background: linear-gradient(90deg, var(--jn-row-hover), var(--jn-hair), var(--jn-row-hover));
+  background-size: 200% 100%;
+  animation: jn-skel var(--jn-dur-loop) var(--jn-ease-linear) infinite;
+}
+.jn-skel--row {
+  height: 52px;
+  border-radius: var(--jn-radius-sm);
+}
+@keyframes jn-skel {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* 骨架列表容器：纵向堆叠，宽度撑满（骨架不该居中收缩） */
+.jn-skel-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: var(--jn-state-pad, 12px 0);
+}
+
+/* ====== 减少动态效果（PLAN-2026-19 M3-3）======
+   音乐前端此前完全没有 reduced-motion 处理：唱片旋转、波形脉冲、光带横移
+   在系统开启「减弱动态效果」后依然全速播放。这里统一兜底。
+   注意 animation-delay / transition-delay 必须一并归零 —— 只压时长的话，
+   带延迟的入场元素会先以 opacity:0 滞留，再瞬间跳出。 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.001ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
 }

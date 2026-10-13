@@ -10,7 +10,10 @@ export default defineConfig({
     port: 5173,
     proxy: {
       // 音乐后端已并入 JNClub 单体（19005），对外路径仍是 /music/api/...
-      '/music': {
+      // 注意：这里只能代理 /music/api，不能写 /music ——
+      // 前端自身就部署在 /music/ 下，代理整个 /music 会把页面与静态资源
+      // 一并转发给后端（dev 下表现为访问 http://localhost:5174/music/ 返回 500）。
+      '/music/api': {
         target: 'http://127.0.0.1:19005',
         changeOrigin: true,
       }

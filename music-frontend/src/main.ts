@@ -4,14 +4,23 @@ import 'element-plus/dist/index.css'
 import App from './App.vue'
 import './styles.css'
 
-// === 车机模式：URL 参数 ?car=1 强制，或根据 UA/屏幕宽高比自动检测 ===
+// === 车机模式：URL 参数 ?car=1 强制，或按车机 UA 识别 ===
+// 此前正则含 `pad|tablet|android(?!.*mobile)`，导致 iPad 与部分平板被误判成车机；
+// 已收紧为「显式 ?car」+「明确的车机 UA」，宽高比猜测也一并去掉（横屏平板会中招）。
 const isCar = new URLSearchParams(location.search).has('car')
-  || /car|pad|tablet|flyme|android(?!.*mobile)/i.test(navigator.userAgent)
-  || (screen.width >= 1024 && screen.width / screen.height > 1.5)
+  || /carplay|android auto|\bcar\b|flyme auto/i.test(navigator.userAgent)
 
 if (isCar) {
   document.documentElement.classList.add('car-mode')
 }
+
+// 首帧绘制后再开启主题过渡，避免亮色冷启动时底色从暗到亮地爬 0.3s
+// （styles.css 里 `html.theme-ready` 才带 transition）
+requestAnimationFrame(() => {
+  requestAnimationFrame(() => {
+    document.documentElement.classList.add('theme-ready')
+  })
+})
 
 // === PWA 安装引导（Android Chrome beforeinstallprompt） ===
 let installPromptEvent: Event | null = null
