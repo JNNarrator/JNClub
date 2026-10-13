@@ -21,6 +21,10 @@ CLAUDE.md
 .codegraph/
 .scripts/
 scripts/
+# 例外：jnclub-web 的构建期脚本必须入库 —— 服务器部署会跑 prebuild，
+# 脚本缺失会让 `node scripts/gen-theme-css.mjs` 直接 MODULE_NOT_FOUND 中断构建。
+!jnclub-web/scripts/
+!jnclub-web/scripts/**
 *.local.json
 .dsh-vision-toolkit/
 
