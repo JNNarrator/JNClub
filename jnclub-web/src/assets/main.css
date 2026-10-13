@@ -441,6 +441,22 @@ html, body {
   box-shadow: var(--panel-shadow) !important;
 }
 
+/* Message / Notification → 与 Popover 同一档玻璃浮层
+   全站 205 处 message.* 调用，是最高频的反馈面；用实色白卡会和其余弹层割裂。
+   这里刻意用 --panel-bg（比 --glass-bg-trans 更实）而不是最透的那档：
+   轻提示浮在任意内容之上，底子太透会让文字可读性随背景波动。 */
+.n-message,
+.n-notification {
+  background: var(--panel-bg) !important;
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--panel-border);
+  box-shadow: var(--panel-shadow) !important;
+}
+
+/* Dropdown 无需单独处理：naive 的 NDropdown 内部就是 NPopover（Dropdown.mjs:370
+   `h(NPopover, …)`），弹层本体命中的仍是上面 .n-popover 那条规则。 */
+
 /* 弹框/抽屉/浮层内 输入框 → 玻璃输入框 + 聚焦辉光 */
 .n-modal .n-input,
 .n-dialog .n-input,
@@ -671,6 +687,66 @@ html.custom-cursor-active.dragging * {
     /* 保留滚动/缩放，仅去掉双击缩放延迟 */
     touch-action: manipulation;
   }
+}
+
+/* ---- 主题切换揭示（M2-2）：View Transition API ----
+   新主题以触发点为圆心做圆形扩散，取代原先的整页硬闪。
+   圆心由 App.vue 写入 --vt-x/--vt-y（取不到时回退到视口中心）。
+   circle 的百分比基准是 hypot(w,h)/√2，150% 足以盖住 1440×900 这类宽屏的最远角。 */
+@keyframes jnclub-theme-reveal {
+  from { clip-path: circle(0% at var(--vt-x, 50%) var(--vt-y, 50%)); }
+  to { clip-path: circle(150% at var(--vt-x, 50%) var(--vt-y, 50%)); }
+}
+
+/* 关掉浏览器默认的交叉淡入，改由新主题单方面揭示 */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+::view-transition-new(root) {
+  animation: jnclub-theme-reveal var(--dur-slower) var(--ease);
+}
+
+/* 伪元素不匹配上面的 `*` 兜底，需单独关掉（App.vue 已提前跳过，这里是双保险） */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none !important;
+  }
+}
+
+/* ---- naive-ui 弹层过渡收敛（M2-1）----
+   naive-ui 的过渡样式由 css-render 在运行时按需注入 <head>，注入时机晚于本文件，
+   且 fade-in 系列自带 !important；因此这里必须同时满足两点才能压过它：
+     1) 加 !important（对不带 !important 的 fade-in-scale-up / slide-in-* 也一并生效）
+     2) specificity 严格更高 —— 用 html:root 前缀把 (0,2,0) 抬到 (0,2,1)
+   覆盖的是「时长」与「缓动」两项，位移/缩放距离仍沿用 naive 自己的值。
+   进场用 --dur、退场用 --dur-fast：退场更快，视觉上更干脆。 */
+html:root .fade-in-transition-enter-active,
+html:root .fade-in-scale-up-transition-enter-active,
+html:root .slide-in-from-right-transition-enter-active,
+html:root .slide-in-from-left-transition-enter-active,
+html:root .slide-in-from-top-transition-enter-active,
+html:root .slide-in-from-bottom-transition-enter-active {
+  transition-duration: var(--dur) !important;
+  transition-timing-function: var(--ease) !important;
+}
+
+html:root .fade-in-transition-leave-active,
+html:root .fade-in-scale-up-transition-leave-active,
+html:root .slide-in-from-right-transition-leave-active,
+html:root .slide-in-from-left-transition-leave-active,
+html:root .slide-in-from-top-transition-leave-active,
+html:root .slide-in-from-bottom-transition-leave-active {
+  transition-duration: var(--dur-fast) !important;
+  transition-timing-function: var(--ease) !important;
+}
+
+/* 气泡/下拉类弹层加一点弹性，呼应卡片 hover 的 bouncy 手感 */
+html:root .fade-in-scale-up-transition-enter-active {
+  transition-timing-function: var(--ease-bouncy) !important;
 }
 
 /* ---- Reduced motion ---- */

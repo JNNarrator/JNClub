@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { NConfigProvider, darkTheme, NMessageProvider, NDialogProvider } from 'naive-ui'
 import lightThemeOverrides from './themes/light'
@@ -65,9 +65,80 @@ onMounted(() => {
 
 watch(isDark, (val) => applyTheme(val))
 
-const toggleTheme = () => {
-  isDark.value = !isDark.value
-  localStorage.setItem('theme', isDark.value ? 'dark' : 'light')
+/* ------------------------------------------------------------------ *
+ * 主题切换的圆形揭示（View Transition API）
+ *
+ * 整页硬闪是切换主题最刺眼的瞬间。这里用 startViewTransition 把「旧主题快照
+ * → 新主题」包起来，新主题以点击位置为圆心做 clip-path 圆形扩散。
+ *
+ * 揭示原点不通过 emit 层层透传，而是就地解析：
+ *  1) document.activeElement —— 按钮点击/键盘回车后都指向该按钮（Chrome/Firefox）
+ *  2) 最近一次 pointerdown 坐标 —— Safari 点击按钮不聚焦，activeElement 会停在 body
+ *  3) 视口中心 —— 纯键盘或程序化调用的兜底
+ * 这样 8 个 toggle-theme 透传层无需改动，也不引入跨层耦合。
+ * ------------------------------------------------------------------ */
+
+type ViewTransitionDocument = Document & {
+  startViewTransition?: (callback: () => void | Promise<void>) => { finished: Promise<void> }
+}
+
+const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
+
+let lastPointer: { x: number; y: number } | null = null
+// capture + passive：早于按钮自己的 click 处理器记录，且不干扰任何滚动/点击
+window.addEventListener(
+  'pointerdown',
+  (e) => {
+    lastPointer = { x: e.clientX, y: e.clientY }
+  },
+  { passive: true, capture: true },
+)
+
+function resolveRevealOrigin(): { x: number; y: number } {
+  const el = document.activeElement as HTMLElement | null
+  if (el && el !== document.body && typeof el.getBoundingClientRect === 'function') {
+    const rect = el.getBoundingClientRect()
+    if (rect.width || rect.height) {
+      return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
+    }
+  }
+  if (lastPointer) return lastPointer
+  return { x: window.innerWidth / 2, y: window.innerHeight / 2 }
+}
+
+const toggleTheme = async () => {
+  const next = !isDark.value
+  const commit = () => {
+    isDark.value = next
+    localStorage.setItem('theme', next ? 'dark' : 'light')
+  }
+
+  const startViewTransition = (document as ViewTransitionDocument).startViewTransition
+  // 不支持该 API 或用户要求减少动态效果时，直接切换（不做揭示动画）
+  if (typeof startViewTransition !== 'function' || reducedMotionQuery.matches) {
+    commit()
+    return
+  }
+
+  const { x, y } = resolveRevealOrigin()
+  const root = document.documentElement
+  root.style.setProperty('--vt-x', `${x}px`)
+  root.style.setProperty('--vt-y', `${y}px`)
+
+  const transition = startViewTransition.call(document, async () => {
+    commit()
+    // 等 data-theme 与 naive-ui 主题实际落到 DOM，View Transition 才会截到新主题
+    await nextTick()
+  })
+
+  try {
+    await transition.finished
+  } catch {
+    /* 快速连点会让上一段过渡被跳过并以 rejected promise 结束，属预期 */
+  } finally {
+    root.style.removeProperty('--vt-x')
+    root.style.removeProperty('--vt-y')
+  }
 }
 </script>
 
@@ -149,9 +220,13 @@ body {
   transform: translateY(-100%);
 }
 
-/* 全局路由过渡：淡入 + 轻微上移（vue-bits 适配层节奏，随主题 token 缓动） */
-.page-fade-enter-active,
+/* 全局路由过渡：淡入 + 轻微上移（随主题 token 缓动）
+   out-in 模式下总耗时 = 离场 + 入场，用 --dur-fast 把 400ms 压到 300ms，
+   翻页手感更跟手；进场比离场略慢，保证新页面「落定」的从容感。 */
 .page-fade-leave-active {
+  transition: opacity var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
+}
+.page-fade-enter-active {
   transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease);
 }
 .page-fade-enter-from {

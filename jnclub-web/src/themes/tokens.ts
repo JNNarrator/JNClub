@@ -33,6 +33,8 @@ export interface DesignTokens {
   // 阴影
   shadow1: string
   shadow2: string
+  /** 弹层阴影（气泡/下拉/Message/Notification）：比卡片重、比模态轻 */
+  shadowPopover: string
   shadowCardHover: string
   shadowFab: string
   shadowFabHover: string
@@ -183,6 +185,7 @@ export const lightTokens: DesignTokens = {
   // 阴影 — Apple 极轻
   shadow1: '0 1px 2px 0 rgba(0, 0, 0, 0.04)',
   shadow2: '0 2px 4px -1px rgba(0, 0, 0, 0.06), 0 1px 2px -1px rgba(0, 0, 0, 0.05)',
+  shadowPopover: '0 8px 24px -6px rgba(0, 0, 0, 0.12), 0 2px 6px -1px rgba(0, 0, 0, 0.06)',
   shadowCardHover: '0 4px 8px -2px rgba(0, 0, 0, 0.06), 0 2px 4px -2px rgba(0, 0, 0, 0.05)',
   shadowFab: '0 4px 12px -2px rgba(236, 91, 142, 0.15)',
   shadowFabHover: '0 8px 20px -4px rgba(236, 91, 142, 0.2)',
@@ -308,6 +311,7 @@ export const darkTokens: DesignTokens = {
   // 阴影（暗色）
   shadow1: '0 1px 2px 0 rgba(0, 0, 0, 0.30)',
   shadow2: '0 2px 4px -1px rgba(0, 0, 0, 0.40)',
+  shadowPopover: '0 8px 24px -6px rgba(0, 0, 0, 0.55), 0 2px 6px -1px rgba(0, 0, 0, 0.40)',
   shadowCardHover: '0 4px 8px -2px rgba(0, 0, 0, 0.44)',
   shadowFab: '0 4px 12px -2px rgba(255, 143, 171, 0.20)',
   shadowFabHover: '0 8px 20px -4px rgba(255, 143, 171, 0.25)',
@@ -430,6 +434,7 @@ export function tokensToCSSVars(tokens: DesignTokens): Record<string, string> {
     '--gradient-nav-active': tokens.gradientNavActive,
     '--shadow-1': tokens.shadow1,
     '--shadow-2': tokens.shadow2,
+    '--shadow-popover': tokens.shadowPopover,
     '--shadow-card-hover': tokens.shadowCardHover,
     '--shadow-fab': tokens.shadowFab,
     '--shadow-fab-hover': tokens.shadowFabHover,
