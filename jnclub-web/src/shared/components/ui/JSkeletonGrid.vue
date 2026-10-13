@@ -38,9 +38,16 @@ withDefaults(defineProps<{
 }
 .j-skeleton-line {
   height: 12px;
-  border-radius: 6px;
-  background: var(--hover-bg);
-  animation: j-skeleton-pulse 1.4s ease-in-out infinite;
+  border-radius: var(--radius-xs);
+  /* M2-4：接入 --skeleton-base / --skeleton-highlight 做扫光，替代原先的整块 opacity 脉冲 */
+  background: linear-gradient(
+    90deg,
+    var(--skeleton-base) 0%,
+    var(--skeleton-highlight) 50%,
+    var(--skeleton-base) 100%
+  );
+  background-size: 200% 100%;
+  animation: j-skeleton-shimmer var(--dur-loop) var(--ease-linear) infinite;
 }
 .j-skeleton-head {
   width: 40px;
@@ -57,8 +64,17 @@ withDefaults(defineProps<{
 .j-skeleton-text.short {
   width: 55%;
 }
-@keyframes j-skeleton-pulse {
-  0%, 100% { opacity: 0.55; }
-  50% { opacity: 1; }
+@keyframes j-skeleton-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+/* 减少动态效果：停在静态底色，不扫光 */
+@media (prefers-reduced-motion: reduce) {
+  .j-skeleton-line,
+  .j-skeleton-head {
+    background: var(--skeleton-base);
+    animation: none;
+  }
 }
 </style>

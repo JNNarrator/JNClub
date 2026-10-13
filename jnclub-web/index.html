@@ -2,6 +2,26 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
+    <!--
+      首帧主题预判：必须同步执行且早于任何样式表，否则 :root[data-theme] 尚未写入，
+      暗色用户会先看到亮色一帧。CSS 侧另有 prefers-color-scheme 兜底（JS 被禁用时）。
+    -->
+    <script>
+      (function () {
+        try {
+          var saved = localStorage.getItem('theme')
+          var dark = saved
+            ? saved === 'dark'
+            : window.matchMedia('(prefers-color-scheme: dark)').matches
+          document.documentElement.dataset.theme = dark ? 'dark' : 'light'
+          // PWA 状态栏颜色同步（meta 的 media 分支只认系统偏好，认不了用户显式选择）
+          var meta = document.querySelector('meta[name="theme-color"]')
+          if (meta) meta.setAttribute('content', dark ? '#000000' : '#EC5B8E')
+        } catch (e) {
+          /* localStorage 不可用：交给 tokens.generated.css 的 prefers-color-scheme 兜底 */
+        }
+      })()
+    </script>
     <!-- 相对路径：Vite 自动加 base 前缀（dev/build 一致） -->
     <link rel="icon" type="image/svg+xml" href="favicon.svg" />
     <!-- PWA：可安装 + 离线应用壳（manifest 由 vite-plugin-pwa 生成，此处为显式声明） -->

@@ -475,7 +475,7 @@ const handleBreadcrumbRoot = () => {
   flex-shrink: 0;
 }
 .notification-status {
-  padding: 28px 0;
+  padding: var(--empty-pad-sm) 0;
   text-align: center;
   font-size: var(--fs-sm);
   color: var(--text-3);
@@ -499,19 +499,19 @@ const handleBreadcrumbRoot = () => {
   text-align: left;
   cursor: pointer;
   width: 100%;
-  transition: background-color 0.2s;
+  transition: background-color var(--dur) var(--ease);
 }
 .notification-item:hover {
   background: var(--hover-bg);
 }
 .notification-item.unread {
-  background: var(--primary-bg, rgba(24, 160, 88, 0.06));
+  background: var(--brand-soft);
 }
 .notification-dot {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: var(--primary-color, #18a058);
+  background: var(--brand);
   margin-top: 6px;
   flex-shrink: 0;
 }

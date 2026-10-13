@@ -153,7 +153,7 @@ const sections: { key: ImportKind; label: string; desc: string; icon: any; accep
   width: 32px; height: 32px;
   border-radius: 9px;
   background: var(--brand-soft);
-  color: var(--brand);
+  color: var(--brand-text);
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
 }

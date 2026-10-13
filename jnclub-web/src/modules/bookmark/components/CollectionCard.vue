@@ -99,7 +99,7 @@ const handleDropdown = (key: string) => {
 
 <template>
   <div
-    class="bookmark-card jnclub-bouncy jnclub-longpress"
+    :class="['bookmark-card jnclub-bouncy jnclub-longpress', { 'is-selected': props.selected }]"
     role="link"
     tabindex="0"
     @click="onRootClick"
@@ -128,7 +128,7 @@ const handleDropdown = (key: string) => {
             @error="imgError = true"
           />
           <div v-else class="favicon-fallback">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="1.5">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--brand-text)" stroke-width="1.5">
               <path d="M12 2L2 7l10 5 10-5-10-5z" />
               <path d="M2 17l10 5 10-5" />
               <path d="M2 12l10 5 10-5" />
@@ -209,7 +209,7 @@ const handleDropdown = (key: string) => {
 
 .bookmark-card:hover {
   transform: translateY(-2px);
-  border-color: var(--brand);
+  border-color: var(--brand-text);
   box-shadow: var(--shadow-card-hover);
 }
 
@@ -286,7 +286,7 @@ const handleDropdown = (key: string) => {
 }
 .card-tag {
   background: var(--brand-soft) !important;
-  color: var(--brand) !important;
+  color: var(--brand-text) !important;
 }
 
 /* === 链接（底部唯一域名展示，去冗余） === */
@@ -295,14 +295,14 @@ const handleDropdown = (key: string) => {
   align-items: center;
   gap: 5px;
   font-size: var(--fs-sm);
-  color: var(--brand);
+  color: var(--brand-text);
   text-decoration: none;
   margin-top: auto;
   width: fit-content;
 }
 
 .card-link:hover {
-  color: var(--brand-hover);
+  color: var(--brand-text);
   text-decoration: underline;
 }
 
@@ -330,13 +330,4 @@ const handleDropdown = (key: string) => {
   background: var(--hover-bg);
 }
 </style>
-<style scoped>
-.batch-check {
-  position: absolute;
-  top: 10px; left: 10px;
-  z-index: 5;
-  background: rgba(0,0,0,0.35);
-  border-radius: 6px;
-  padding: 2px;
-}
-</style>
+<style scoped></style>

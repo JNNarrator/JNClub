@@ -187,7 +187,7 @@ const isActive = (tab: NavDef) => {
 }
 
 .tab-active {
-  color: var(--brand);
+  color: var(--brand-text);
   font-weight: 600;
 }
 .tab-active :deep(.n-icon) {
@@ -242,7 +242,7 @@ const isActive = (tab: NavDef) => {
 }
 .more-item.more-active {
   background: var(--brand-soft);
-  color: var(--brand);
+  color: var(--brand-text);
   font-weight: 600;
 }
 .more-label {
@@ -264,7 +264,7 @@ const isActive = (tab: NavDef) => {
   flex-shrink: 0;
 }
 .more-empty {
-  padding: 20px 0;
+  padding: var(--empty-pad-sm) 0;
   text-align: center;
   color: var(--text-3);
   font-size: var(--fs-sm);

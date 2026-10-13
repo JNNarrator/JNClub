@@ -27,17 +27,12 @@ export interface DesignTokens {
   pinkAdzuki: string
   pinkWhite: string
   // 渐变
-  gradientCherry: string
-  gradientCard: string
   gradientTopBar: string
   gradientBtn: string
   gradientNavActive: string
-  gradientDivider: string
-  gradientFabGlow: string
   // 阴影
   shadow1: string
   shadow2: string
-  shadow3: string
   shadowCardHover: string
   shadowFab: string
   shadowFabHover: string
@@ -46,7 +41,6 @@ export interface DesignTokens {
   stateSuccess: string
   stateWarning: string
   stateError: string
-  stateInfo: string
   stateWarningSoft: string
   stateErrorSoft: string
   gradientSuccess: string
@@ -71,14 +65,12 @@ export interface DesignTokens {
   glassBgSolid: string
   glassBgTrans: string
   glassBorder: string
-  glassHighlight: string
   glassGlowTop: string
   glassGlowBottom: string
   glassShadow: string
   glassBlur: string
   glassInputBg: string
   glassInputBorder: string
-  glassInputFocus: string
   glassBtnPrimary: string
   glassBtnGhost: string
   glassBtnGhostHover: string
@@ -88,6 +80,12 @@ export interface DesignTokens {
   glassTextSecondary: string
   glassTextPlaceholder: string
   focusRing: string
+  /** 焦点环外晕（半透明，与实色 focusRing 叠成双层环） */
+  focusRingSoft: string
+  /** 品牌色作为正文文字时使用（亮色需压深到 4.5:1，故与 brand 分离） */
+  brandText: string
+  /** 品牌渐变/实色底上的文字色（亮粉底配深字，两端对比度均 ≥5:1） */
+  textOnBrand: string
   // 主题级交互/反馈色（M1：滚动条、选区、遮罩、骨架、卡片态、面板）
   scrollbarThumb: string
   scrollbarThumbHover: string
@@ -95,10 +93,9 @@ export interface DesignTokens {
   selectionText: string
   overlayBg: string
   overlayBlur: string
-  skeletonBase: string
-  skeletonHighlight: string
-  cardHoverBg: string
   selectedBg: string
+  /** 批量勾选框浮层的深色垫底：两主题同值，保证白勾选框在浅色卡片上仍可见 */
+  checkScrim: string
   panelBg: string
   panelBorder: string
   panelShadow: string
@@ -113,11 +110,6 @@ export interface DesignTokens {
   radiusMd: string
   radiusLg: string
   radiusPill: string
-  spaceXs: string
-  spaceSm: string
-  spaceMd: string
-  spaceLg: string
-  spaceXl: string
   // 布局体系
   layoutContentMax: string
   layoutPageGutter: string
@@ -125,9 +117,40 @@ export interface DesignTokens {
   layoutPanelPadding: string
   headerHeight: string
   tabbarHeight: string
+  /** 移动端最小点击区（PLAN-2026-16 规范：最小 32px） */
+  tapMin: string
+  /** 空态占位纵向内边距（弹窗/抽屉内的大空态） */
+  emptyPad: string
+  /** 空态占位纵向内边距（下拉/菜单等紧凑容器） */
+  emptyPadSm: string
+  // 骨架屏（M2-4）
+  /** 骨架底色 */
+  skeletonBase: string
+  /** 骨架扫光高光色 */
+  skeletonHighlight: string
+  // 动效时长（M2-3）：快 / 标准 / 慢 / 更慢
+  durFast: string
   dur: string
+  durSlow: string
+  durSlower: string
+  /** 循环类动画（骨架脉冲、警告点闪烁） */
+  durLoop: string
+  /** 图标环呼吸（刻意放慢） */
+  durBreathe: string
+  /** 加载旋转（sync-spin / dead-spin） */
+  durSpin: string
+  /** 列表逐项入场间隔 */
+  durStagger: string
+  /** 一次性倒计时环（语义时长，对应业务等待） */
+  durCountdown: string
+  /** 背景装饰性飘浮循环（花瓣等） */
+  durFloat: string
   ease: string
   easeBouncy: string
+  /** 匀速（旋转、扫光等机械运动） */
+  easeLinear: string
+  /** 往返循环（呼吸、飘浮等有机运动） */
+  easeSmooth: string
 }
 
 export const lightTokens: DesignTokens = {
@@ -136,10 +159,11 @@ export const lightTokens: DesignTokens = {
   brandHover: '#E84D7A',
   brandPress: '#D43F6A',
   brandSuppl: 'rgba(236, 91, 142, 0.12)',
-  link: '#EC5B8E',
+  // 链接文字需 ≥4.5:1，品牌粉 #EC5B8E 在浅底上仅 2.99:1，故压深
+  link: '#C9256A',
   text1: '#1D1D1F',
-  text2: '#6B6B6F',
-  text3: '#8E8E93',
+  text2: '#515154',
+  text3: '#6E6E73',
   text4: '#C7C7CC',
   bgPage: '#F5F5F7',
   bgCard: '#FFFFFF',
@@ -153,17 +177,12 @@ export const lightTokens: DesignTokens = {
   pinkAdzuki: '#F472B6',
   pinkWhite: '#FFF5F8',
   // 渐变
-  gradientCherry: 'linear-gradient(135deg, #FFFFFF 0%, #FFF5F8 100%)',
-  gradientCard: 'linear-gradient(165deg, #FFFFFF 0%, #F9F9FB 100%)',
   gradientTopBar: 'linear-gradient(90deg, #EC5B8E, #FFB3C6)',
   gradientBtn: 'linear-gradient(135deg, #EC5B8E, #FF8FAB)',
   gradientNavActive: 'linear-gradient(90deg, #FFE4EF 0%, transparent 100%)',
-  gradientDivider: 'linear-gradient(90deg, transparent, rgba(236,91,142,0.25), transparent)',
-  gradientFabGlow: 'linear-gradient(to top, rgba(236,91,142,0.12), transparent)',
   // 阴影 — Apple 极轻
   shadow1: '0 1px 2px 0 rgba(0, 0, 0, 0.04)',
   shadow2: '0 2px 4px -1px rgba(0, 0, 0, 0.06), 0 1px 2px -1px rgba(0, 0, 0, 0.05)',
-  shadow3: '0 8px 24px -8px rgba(0, 0, 0, 0.08), 0 4px 8px -4px rgba(0, 0, 0, 0.05)',
   shadowCardHover: '0 4px 8px -2px rgba(0, 0, 0, 0.06), 0 2px 4px -2px rgba(0, 0, 0, 0.05)',
   shadowFab: '0 4px 12px -2px rgba(236, 91, 142, 0.15)',
   shadowFabHover: '0 8px 20px -4px rgba(236, 91, 142, 0.2)',
@@ -172,7 +191,6 @@ export const lightTokens: DesignTokens = {
   stateSuccess: '#7AC686',
   stateWarning: '#F3C470',
   stateError: '#E87878',
-  stateInfo: '#7EB8E8',
   stateWarningSoft: 'rgba(243, 196, 112, 0.14)',
   stateErrorSoft: 'rgba(232, 120, 120, 0.12)',
   gradientSuccess: 'linear-gradient(135deg, #7AC686, #059669)',
@@ -194,33 +212,32 @@ export const lightTokens: DesignTokens = {
   glassBgSolid: '#FFFFFF',
   glassBgTrans: 'rgba(255, 255, 255, 0.72)',
   glassBorder: 'rgba(255, 255, 255, 0.6)',
-  glassHighlight: 'rgba(255, 255, 255, 0.9)',
   glassGlowTop: 'rgba(236, 91, 142, 0.16)',
   glassGlowBottom: 'rgba(255, 143, 171, 0.14)',
   glassShadow: '0 24px 64px -12px rgba(236, 91, 142, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
   glassBlur: '12px',
   glassInputBg: 'rgba(255, 255, 255, 0.6)',
   glassInputBorder: 'rgba(236, 91, 142, 0.22)',
-  glassInputFocus: 'rgba(236, 91, 142, 0.28)',
   glassBtnPrimary: 'linear-gradient(135deg, #EC5B8E, #FF8FAB)',
   glassBtnGhost: 'rgba(255, 255, 255, 0.5)',
   glassBtnGhostHover: 'rgba(255, 255, 255, 0.72)',
   glassChipBg: 'rgba(236, 91, 142, 0.12)',
   glassChipBorder: 'rgba(236, 91, 142, 0.28)',
-  glassChipText: '#E84D7A',
-  glassTextSecondary: 'rgba(29, 29, 31, 0.6)',
-  glassTextPlaceholder: 'rgba(29, 29, 31, 0.35)',
-  focusRing: 'rgba(236, 91, 142, 0.2)',
+  glassChipText: '#B82A63',
+  glassTextSecondary: 'rgba(29, 29, 31, 0.65)',
+  glassTextPlaceholder: 'rgba(29, 29, 31, 0.62)',
+  focusRing: '#C9256A',
+  focusRingSoft: 'rgba(201, 37, 106, 0.22)',
+  brandText: '#C9256A',
+  textOnBrand: '#1D1D1F',
   scrollbarThumb: 'rgba(0, 0, 0, 0.14)',
   scrollbarThumbHover: 'rgba(0, 0, 0, 0.24)',
   selectionBg: 'rgba(236, 91, 142, 0.18)',
   selectionText: '#1D1D1F',
   overlayBg: 'rgba(245, 245, 247, 0.55)',
   overlayBlur: '6px',
-  skeletonBase: 'rgba(0, 0, 0, 0.06)',
-  skeletonHighlight: 'rgba(0, 0, 0, 0.03)',
-  cardHoverBg: '#F2F2F7',
   selectedBg: 'rgba(236, 91, 142, 0.10)',
+  checkScrim: 'rgba(0, 0, 0, 0.35)',
   panelBg: 'rgba(255, 255, 255, 0.72)',
   panelBorder: 'rgba(255, 255, 255, 0.6)',
   panelShadow: '0 24px 64px -12px rgba(236, 91, 142, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
@@ -235,20 +252,31 @@ export const lightTokens: DesignTokens = {
   radiusMd: '16px',
   radiusLg: '20px',
   radiusPill: '999px',
-  spaceXs: '4px',
-  spaceSm: '8px',
-  spaceMd: '16px',
-  spaceLg: '24px',
-  spaceXl: '32px',
   layoutContentMax: '1560px',
   layoutPageGutter: '24px',
   layoutPagePadding: '12px 24px 0',
   layoutPanelPadding: '20px 24px',
   headerHeight: '60px',
   tabbarHeight: '56px',
+  tapMin: '32px',
+  emptyPad: '40px',
+  emptyPadSm: '24px',
+  skeletonBase: 'rgba(0, 0, 0, 0.06)',
+  skeletonHighlight: 'rgba(255, 255, 255, 0.72)',
+  durFast: '0.15s',
   dur: '0.2s',
+  durSlow: '0.3s',
+  durSlower: '0.5s',
+  durLoop: '1.4s',
+  durBreathe: '2.8s',
+  durSpin: '0.9s',
+  durStagger: '0.045s',
+  durCountdown: '3s',
+  durFloat: '6s',
   ease: 'cubic-bezier(0.32, 0.72, 0, 1)',
   easeBouncy: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+  easeLinear: 'linear',
+  easeSmooth: 'ease-in-out',
 }
 
 export const darkTokens: DesignTokens = {
@@ -274,17 +302,12 @@ export const darkTokens: DesignTokens = {
   pinkAdzuki: '#F472B6',
   pinkWhite: '#2D1F26',
   // 渐变（暗色）
-  gradientCherry: 'linear-gradient(135deg, #1C1C1E 0%, #000000 100%)',
-  gradientCard: 'linear-gradient(165deg, #1C1C1E 0%, #2C2C2E 100%)',
   gradientTopBar: 'linear-gradient(90deg, #FF8FAB, #F472B6)',
   gradientBtn: 'linear-gradient(135deg, #FF8FAB, #F472B6)',
   gradientNavActive: 'linear-gradient(90deg, rgba(255,143,171,0.12) 0%, transparent 100%)',
-  gradientDivider: 'linear-gradient(90deg, transparent, rgba(255,143,171,0.25), transparent)',
-  gradientFabGlow: 'linear-gradient(to top, rgba(255,143,171,0.12), transparent)',
   // 阴影（暗色）
   shadow1: '0 1px 2px 0 rgba(0, 0, 0, 0.30)',
   shadow2: '0 2px 4px -1px rgba(0, 0, 0, 0.40)',
-  shadow3: '0 8px 24px -8px rgba(0, 0, 0, 0.50)',
   shadowCardHover: '0 4px 8px -2px rgba(0, 0, 0, 0.44)',
   shadowFab: '0 4px 12px -2px rgba(255, 143, 171, 0.20)',
   shadowFabHover: '0 8px 20px -4px rgba(255, 143, 171, 0.25)',
@@ -293,7 +316,6 @@ export const darkTokens: DesignTokens = {
   stateSuccess: '#7AC686',
   stateWarning: '#F3C470',
   stateError: '#E87878',
-  stateInfo: '#7EB8E8',
   stateWarningSoft: 'rgba(243, 196, 112, 0.16)',
   stateErrorSoft: 'rgba(232, 120, 120, 0.14)',
   gradientSuccess: 'linear-gradient(135deg, #7AC686, #059669)',
@@ -315,14 +337,12 @@ export const darkTokens: DesignTokens = {
   glassBgSolid: '#1C1C1E',
   glassBgTrans: 'rgba(28, 28, 30, 0.72)',
   glassBorder: 'rgba(255, 255, 255, 0.12)',
-  glassHighlight: 'rgba(255, 255, 255, 0.08)',
   glassGlowTop: 'rgba(255, 143, 171, 0.16)',
   glassGlowBottom: 'rgba(244, 114, 182, 0.12)',
   glassShadow: '0 24px 64px -12px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.08)',
   glassBlur: '12px',
   glassInputBg: 'rgba(255, 255, 255, 0.06)',
   glassInputBorder: 'rgba(255, 255, 255, 0.14)',
-  glassInputFocus: 'rgba(255, 143, 171, 0.28)',
   glassBtnPrimary: 'linear-gradient(135deg, #FF8FAB, #F472B6)',
   glassBtnGhost: 'rgba(255, 255, 255, 0.08)',
   glassBtnGhostHover: 'rgba(255, 255, 255, 0.14)',
@@ -330,18 +350,19 @@ export const darkTokens: DesignTokens = {
   glassChipBorder: 'rgba(255, 143, 171, 0.32)',
   glassChipText: '#FFB3C6',
   glassTextSecondary: 'rgba(245, 245, 247, 0.6)',
-  glassTextPlaceholder: 'rgba(245, 245, 247, 0.35)',
-  focusRing: 'rgba(255, 143, 171, 0.28)',
+  glassTextPlaceholder: 'rgba(245, 245, 247, 0.5)',
+  focusRing: '#FF8FAB',
+  focusRingSoft: 'rgba(255, 143, 171, 0.32)',
+  brandText: '#FF8FAB',
+  textOnBrand: '#1D1D1F',
   scrollbarThumb: 'rgba(255, 255, 255, 0.14)',
   scrollbarThumbHover: 'rgba(255, 255, 255, 0.24)',
   selectionBg: 'rgba(255, 143, 171, 0.26)',
   selectionText: '#F5F5F7',
   overlayBg: 'rgba(0, 0, 0, 0.55)',
   overlayBlur: '6px',
-  skeletonBase: 'rgba(255, 255, 255, 0.08)',
-  skeletonHighlight: 'rgba(255, 255, 255, 0.04)',
-  cardHoverBg: '#2C2C2E',
   selectedBg: 'rgba(255, 143, 171, 0.16)',
+  checkScrim: 'rgba(0, 0, 0, 0.35)',
   panelBg: 'rgba(28, 28, 30, 0.72)',
   panelBorder: 'rgba(255, 255, 255, 0.12)',
   panelShadow: '0 24px 64px -12px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.08)',
@@ -356,20 +377,31 @@ export const darkTokens: DesignTokens = {
   radiusMd: '16px',
   radiusLg: '20px',
   radiusPill: '999px',
-  spaceXs: '4px',
-  spaceSm: '8px',
-  spaceMd: '16px',
-  spaceLg: '24px',
-  spaceXl: '32px',
   layoutContentMax: '1560px',
   layoutPageGutter: '24px',
   layoutPagePadding: '12px 24px 0',
   layoutPanelPadding: '20px 24px',
   headerHeight: '60px',
   tabbarHeight: '56px',
+  tapMin: '32px',
+  emptyPad: '40px',
+  emptyPadSm: '24px',
+  skeletonBase: 'rgba(255, 255, 255, 0.08)',
+  skeletonHighlight: 'rgba(255, 255, 255, 0.20)',
+  durFast: '0.15s',
   dur: '0.2s',
+  durSlow: '0.3s',
+  durSlower: '0.5s',
+  durLoop: '1.4s',
+  durBreathe: '2.8s',
+  durSpin: '0.9s',
+  durStagger: '0.045s',
+  durCountdown: '3s',
+  durFloat: '6s',
   ease: 'cubic-bezier(0.32, 0.72, 0, 1)',
   easeBouncy: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+  easeLinear: 'linear',
+  easeSmooth: 'ease-in-out',
 }
 
 export function tokensToCSSVars(tokens: DesignTokens): Record<string, string> {
@@ -377,7 +409,6 @@ export function tokensToCSSVars(tokens: DesignTokens): Record<string, string> {
     '--brand': tokens.brand,
     '--brand-soft': tokens.brandSoft,
     '--brand-hover': tokens.brandHover,
-    '--brand-press': tokens.brandPress,
     '--brand-suppl': tokens.brandSuppl,
     '--link': tokens.link,
     '--text-1': tokens.text1,
@@ -394,16 +425,11 @@ export function tokensToCSSVars(tokens: DesignTokens): Record<string, string> {
     '--pink-rose': tokens.pinkRose,
     '--pink-adzuki': tokens.pinkAdzuki,
     '--pink-white': tokens.pinkWhite,
-    '--gradient-cherry': tokens.gradientCherry,
-    '--gradient-card': tokens.gradientCard,
     '--gradient-top-bar': tokens.gradientTopBar,
     '--gradient-btn': tokens.gradientBtn,
     '--gradient-nav-active': tokens.gradientNavActive,
-    '--gradient-divider': tokens.gradientDivider,
-    '--gradient-fab-glow': tokens.gradientFabGlow,
     '--shadow-1': tokens.shadow1,
     '--shadow-2': tokens.shadow2,
-    '--shadow-3': tokens.shadow3,
     '--shadow-card-hover': tokens.shadowCardHover,
     '--shadow-fab': tokens.shadowFab,
     '--shadow-fab-hover': tokens.shadowFabHover,
@@ -411,11 +437,6 @@ export function tokensToCSSVars(tokens: DesignTokens): Record<string, string> {
     '--state-success': tokens.stateSuccess,
     '--state-warning': tokens.stateWarning,
     '--state-error': tokens.stateError,
-    '--state-info': tokens.stateInfo,
-    '--success': tokens.stateSuccess,
-    '--warning': tokens.stateWarning,
-    '--info': tokens.stateInfo,
-    '--error': tokens.stateError,
     '--state-warning-soft': tokens.stateWarningSoft,
     '--state-error-soft': tokens.stateErrorSoft,
     '--gradient-success': tokens.gradientSuccess,
@@ -436,14 +457,12 @@ export function tokensToCSSVars(tokens: DesignTokens): Record<string, string> {
     '--glass-bg-solid': tokens.glassBgSolid,
     '--glass-bg-trans': tokens.glassBgTrans,
     '--glass-border': tokens.glassBorder,
-    '--glass-highlight': tokens.glassHighlight,
     '--glass-glow-top': tokens.glassGlowTop,
     '--glass-glow-bottom': tokens.glassGlowBottom,
     '--glass-shadow': tokens.glassShadow,
     '--glass-blur': tokens.glassBlur,
     '--glass-input-bg': tokens.glassInputBg,
     '--glass-input-border': tokens.glassInputBorder,
-    '--glass-input-focus': tokens.glassInputFocus,
     '--glass-btn-primary': tokens.glassBtnPrimary,
     '--glass-btn-ghost': tokens.glassBtnGhost,
     '--glass-btn-ghost-hover': tokens.glassBtnGhostHover,
@@ -453,16 +472,17 @@ export function tokensToCSSVars(tokens: DesignTokens): Record<string, string> {
     '--glass-text-secondary': tokens.glassTextSecondary,
     '--glass-text-placeholder': tokens.glassTextPlaceholder,
     '--focus-ring': tokens.focusRing,
+    '--focus-ring-soft': tokens.focusRingSoft,
+    '--brand-text': tokens.brandText,
+    '--text-on-brand': tokens.textOnBrand,
     '--scrollbar-thumb': tokens.scrollbarThumb,
     '--scrollbar-thumb-hover': tokens.scrollbarThumbHover,
     '--selection-bg': tokens.selectionBg,
     '--selection-text': tokens.selectionText,
     '--overlay-bg': tokens.overlayBg,
     '--overlay-blur': tokens.overlayBlur,
-    '--skeleton-base': tokens.skeletonBase,
-    '--skeleton-highlight': tokens.skeletonHighlight,
-    '--card-hover-bg': tokens.cardHoverBg,
     '--selected-bg': tokens.selectedBg,
+    '--check-scrim': tokens.checkScrim,
     '--panel-bg': tokens.panelBg,
     '--panel-border': tokens.panelBorder,
     '--panel-shadow': tokens.panelShadow,
@@ -477,20 +497,31 @@ export function tokensToCSSVars(tokens: DesignTokens): Record<string, string> {
     '--radius-md': tokens.radiusMd,
     '--radius-lg': tokens.radiusLg,
     '--radius-pill': tokens.radiusPill,
-    '--space-xs': tokens.spaceXs,
-    '--space-sm': tokens.spaceSm,
-    '--space-md': tokens.spaceMd,
-    '--space-lg': tokens.spaceLg,
-    '--space-xl': tokens.spaceXl,
     '--layout-content-max': tokens.layoutContentMax,
     '--layout-page-gutter': tokens.layoutPageGutter,
     '--layout-page-padding': tokens.layoutPagePadding,
     '--layout-panel-padding': tokens.layoutPanelPadding,
     '--header-height': tokens.headerHeight,
     '--tabbar-height': tokens.tabbarHeight,
+    '--tap-min': tokens.tapMin,
+    '--skeleton-base': tokens.skeletonBase,
+    '--skeleton-highlight': tokens.skeletonHighlight,
+    '--empty-pad': tokens.emptyPad,
+    '--empty-pad-sm': tokens.emptyPadSm,
+    '--dur-fast': tokens.durFast,
     '--dur': tokens.dur,
+    '--dur-slow': tokens.durSlow,
+    '--dur-slower': tokens.durSlower,
+    '--dur-loop': tokens.durLoop,
+    '--dur-breathe': tokens.durBreathe,
+    '--dur-spin': tokens.durSpin,
+    '--dur-stagger': tokens.durStagger,
+    '--dur-countdown': tokens.durCountdown,
+    '--dur-float': tokens.durFloat,
     '--ease': tokens.ease,
     '--ease-bouncy': tokens.easeBouncy,
+    '--ease-linear': tokens.easeLinear,
+    '--ease-smooth': tokens.easeSmooth,
   }
 }
 

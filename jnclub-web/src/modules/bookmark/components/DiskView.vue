@@ -9,13 +9,13 @@ import {
   NButton, NIcon, NSpin, NProgress, NTag, useMessage, useDialog,
   NDropdown, NCheckbox, NModal, NInput, NSelect, NForm, NFormItem,
 } from 'naive-ui'
-import EmptyState from './EmptyState.vue'
+import EmptyState from '../../../shared/components/ui/JEmptyState.vue'
 import JBatchBar from '../../../shared/components/ui/JBatchBar.vue'
 import ShareModal from './ShareModal.vue'
 import { Pause, Play, Download, Trash2, FileText, Pencil, FolderInput, Ellipsis, X, Eye, Archive, Link2 } from 'lucide-vue-next'
 import { useCloudDiskStore, type DiskFile } from '../stores/clouddisk'
 import { useChunkedUpload } from '../composables/useChunkedUpload'
-import { useDraggableSort } from '../composables/useDraggableSort'
+import { useDraggableSort } from '../../../shared/composables/useDraggableSort'
 import { useItemDragContext } from '../composables/useItemDragContext'
 import { openMenu, openMenuAt } from '../../../shared/composables/useContextMenu'
 import { useLongPress } from '../../../shared/composables/useLongPress'
@@ -658,7 +658,7 @@ const fileKindColor = (name: string) => FILE_KINDS.find(k => k.re.test(name))?.c
 }
 
 .file-area { min-height: 200px; }
-.disk-empty { padding: 40px 0; }
+.disk-empty { padding: var(--empty-pad) 0; }
 
 /* 工具栏 */
 .disk-toolbar {
@@ -692,9 +692,9 @@ const fileKindColor = (name: string) => FILE_KINDS.find(k => k.re.test(name))?.c
   border-radius: var(--radius-sm);
   transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease), background var(--dur) var(--ease);
 }
-.file-item:hover { border-color: var(--brand); box-shadow: var(--shadow-card-hover); }
+.file-item:hover { border-color: var(--brand-text); box-shadow: var(--shadow-card-hover); }
 .file-item-selected {
-  border-color: var(--brand);
+  border-color: var(--brand-text);
   background: var(--brand-soft);
 }
 .file-check { flex-shrink: 0; }
@@ -734,7 +734,7 @@ const fileKindColor = (name: string) => FILE_KINDS.find(k => k.re.test(name))?.c
 
 /* 文件名可预览 */
 .file-name.previewable { cursor: pointer; }
-.file-name.previewable:hover { color: var(--brand); }
+.file-name.previewable:hover { color: var(--brand-text); }
 
 /* 预览弹窗 */
 .preview-card {
@@ -823,14 +823,14 @@ const fileKindColor = (name: string) => FILE_KINDS.find(k => k.re.test(name))?.c
 
 /* 批量条入场过渡 */
 .batch-up-enter-active {
-  transition: opacity 0.22s var(--ease), transform 0.22s var(--ease-bouncy);
+  transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease-bouncy);
 }
 .batch-up-enter-from {
   opacity: 0;
   transform: translateY(14px);
 }
 .batch-up-leave-active {
-  transition: opacity 0.15s var(--ease);
+  transition: opacity var(--dur-fast) var(--ease);
 }
 .batch-up-leave-to {
   opacity: 0;

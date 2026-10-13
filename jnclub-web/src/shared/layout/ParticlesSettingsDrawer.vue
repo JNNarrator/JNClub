@@ -162,7 +162,7 @@ const options: { key: ParticlesStyle; label: string; desc: string; preview: 'off
   border-color: color-mix(in srgb, var(--brand) 50%, var(--glass-border));
 }
 .style-option.active {
-  border-color: var(--brand);
+  border-color: var(--brand-text);
   background: var(--brand-soft);
 }
 
@@ -221,7 +221,7 @@ const options: { key: ParticlesStyle; label: string; desc: string; preview: 'off
   color: var(--text-4);
 }
 .style-option.active .style-check {
-  color: var(--brand);
+  color: var(--brand-text);
 }
 
 .settings-foot {

@@ -306,7 +306,7 @@ const onShowChange = (v: boolean) => emit('update:show', v)
 .strength-fill {
   height: 100%;
   border-radius: 3px;
-  transition: width 240ms var(--ease-bouncy);
+  transition: width var(--dur) var(--ease-bouncy);
 }
 .strength-fill.strength-weak { background: var(--danger); }
 .strength-fill.strength-medium { background: var(--warning-text); }

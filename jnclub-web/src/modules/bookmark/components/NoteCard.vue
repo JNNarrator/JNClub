@@ -7,7 +7,7 @@
 import { computed, h, ref } from 'vue'
 import { NButton, NIcon, NDropdown, NEllipsis, NTag, NCheckbox, useMessage } from 'naive-ui'
 import { Pencil, Trash2, Eye, EllipsisVertical, StickyNote, Clock, FolderInput, Link2, Share2, Pin, PinOff, Archive } from 'lucide-vue-next'
-import { formatDate } from '../composables/formatDate'
+import { formatDate } from '../../../shared/utils/formatDate'
 import { stripMarkdown } from '../composables/stripMarkdown'
 import { openMenu, openMenuAt } from '../../../shared/composables/useContextMenu'
 import { useLongPress } from '../../../shared/composables/useLongPress'
@@ -92,7 +92,7 @@ const onRootClick = () => {
 
 <template>
   <div
-    class="note-card jnclub-bouncy jnclub-longpress"
+    :class="['note-card jnclub-bouncy jnclub-longpress', { 'is-selected': props.selected }]"
     role="link"
     tabindex="0"
     @click="onRootClick"
@@ -182,17 +182,20 @@ const onRootClick = () => {
   position: relative;
   display: flex;
   flex-direction: column;
+  /* 便签用暖粉底 + 粉边框与书签卡区分（有意保留的语义差异）；
+     但结构属性须与 .bookmark-card 一致 —— 原先缺 transition，hover 是硬切 */
   background: var(--pink-white);
   border: 1px solid color-mix(in srgb, var(--pink-peach) 40%, transparent);
   border-radius: var(--radius-md);
   cursor: pointer;
   overflow: hidden;
   box-shadow: var(--shadow-1);
+  transition: transform var(--dur) var(--ease-bouncy), border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
 }
 
 .note-card:hover {
   transform: translateY(-2px);
-  border-color: var(--brand);
+  border-color: var(--brand-text);
   box-shadow: var(--shadow-card-hover);
 }
 
@@ -246,7 +249,7 @@ const onRootClick = () => {
   height: 18px;
   border-radius: 6px;
   background: var(--brand-soft);
-  color: var(--brand);
+  color: var(--brand-text);
   flex-shrink: 0;
 }
 
@@ -276,7 +279,7 @@ const onRootClick = () => {
 }
 .card-tag {
   background: var(--brand-soft) !important;
-  color: var(--brand) !important;
+  color: var(--brand-text) !important;
 }
 
 /* === 底部 === */
@@ -320,13 +323,4 @@ const onRootClick = () => {
   background: var(--hover-bg);
 }
 </style>
-<style scoped>
-.batch-check {
-  position: absolute;
-  top: 10px; left: 10px;
-  z-index: 5;
-  background: rgba(0,0,0,0.35);
-  border-radius: 6px;
-  padding: 2px;
-}
-</style>
+<style scoped></style>

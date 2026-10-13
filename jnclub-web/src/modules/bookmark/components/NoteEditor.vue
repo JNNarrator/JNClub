@@ -19,6 +19,7 @@ import NoteVersionsModal from './NoteVersionsModal.vue'
 import { extractDataUris, dataUriToFile, uploadImage, downloadFile, exportMarkdown } from '../composables/markdownIO'
 import { useUserPreferences } from '../../../shared/composables/useUserPreferences'
 import { useRecentItems } from '../../../shared/composables/useRecentItems'
+import { useReducedMotion } from '../../../shared/composables/useReducedMotion'
 
 /** md-editor-v3 实例 id（MdEditor 与 MdCatalog 通过它联动） */
 const EDITOR_ID = 'jnclub-note-editor'
@@ -211,12 +212,15 @@ const onOutlineToggleClick = () => {
   outlineVisible.value = true
 }
 
+const reducedMotion = useReducedMotion()
+
 /** 点击目录项 → 滚动到对应标题 */
 const scrollToHeading = (h: HeadList) => {
   const id = mdHeadingId(h)
   const target = document.getElementById(id)
   if (target) {
-    target.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    // 减少动态效果时不平滑滚动（CSS 的 scroll-behavior: auto 管不到 scrollIntoView 的显式 behavior）
+    target.scrollIntoView({ behavior: reducedMotion.value ? 'auto' : 'smooth', block: 'start' })
     // 高亮当前项
     catalogList.value.forEach(i => { i.active = (i.text === h.text && i.level === h.level) })
   }
@@ -901,7 +905,7 @@ defineExpose({ hasUnsavedChanges })
   height: 100%;
   max-width: 100vw; /* 编辑态全屏 */
   margin: 0;
-  transition: max-width 0.3s var(--ease), padding 0.3s var(--ease);
+  transition: max-width var(--dur-slow) var(--ease), padding var(--dur-slow) var(--ease);
 }
 /* 只读预览态：居中窄栏，适度放宽到 1040px */
 .note-editor-shell.readonly-mode {
@@ -940,19 +944,19 @@ defineExpose({ hasUnsavedChanges })
   padding: 5px 8px;
   border-radius: calc(var(--radius-sm) - 2px);
   cursor: pointer;
-  transition: color 0.2s var(--ease), background 0.2s var(--ease);
+  transition: color var(--dur) var(--ease), background var(--dur) var(--ease);
 }
 .pv-seg-btn:hover {
   color: var(--text-1);
 }
 .pv-seg-btn.active {
   background: var(--brand);
-  color: #fff;
+  color: var(--text-on-brand);
   font-weight: 600;
 }
 /* 专注模式开关激活态 */
 .editor-topbar .focus-btn.is-active {
-  color: var(--brand);
+  color: var(--brand-text);
   background: var(--brand-soft);
 }
 .note-editor {
@@ -1113,7 +1117,7 @@ defineExpose({ hasUnsavedChanges })
 .backlinks-empty code {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.9em;
-  color: var(--brand);
+  color: var(--brand-text);
   background: var(--brand-soft);
   border-radius: 4px;
   padding: 1px 4px;
@@ -1131,7 +1135,7 @@ defineExpose({ hasUnsavedChanges })
   text-align: left;
   transition: border-color var(--dur) var(--ease);
 }
-.backlink-item:hover { border-color: var(--brand); }
+.backlink-item:hover { border-color: var(--brand-text); }
 .backlink-title {
   font-size: var(--fs-md);
   font-weight: 600;
@@ -1147,7 +1151,7 @@ defineExpose({ hasUnsavedChanges })
 
 /* 双链链接样式（md 预览内 a.note-link） */
 :deep(.note-link) {
-  color: var(--brand);
+  color: var(--brand-text);
   text-decoration: none;
   border-bottom: 1px dashed var(--brand);
   cursor: pointer;
@@ -1186,10 +1190,10 @@ defineExpose({ hasUnsavedChanges })
 .mode-toggle-label {
   font-size: 12px;
   color: var(--text-3);
-  transition: color .18s ease;
+  transition: color var(--dur-fast) var(--ease);
 }
 .mode-toggle-label.active {
-  color: var(--brand);
+  color: var(--brand-text);
   font-weight: 600;
 }
 
@@ -1202,8 +1206,8 @@ defineExpose({ hasUnsavedChanges })
   color: var(--text-2) !important;
 }
 .io-btn:hover {
-  color: var(--brand) !important;
-  border-color: var(--brand) !important;
+  color: var(--brand-text) !important;
+  border-color: var(--brand-text) !important;
 }
 
 /* 保存同步状态图标 */
@@ -1211,8 +1215,8 @@ defineExpose({ hasUnsavedChanges })
 .sync-dirty :deep(.n-icon) { color: var(--state-warning); }
 .sync-saved :deep(.n-icon) { color: var(--state-success); }
 .sync-saving :deep(.n-icon) {
-  color: var(--brand);
-  animation: sync-spin .9s linear infinite;
+  color: var(--brand-text);
+  animation: sync-spin var(--dur-spin) var(--ease-linear) infinite;
 }
 @keyframes sync-spin {
   from { transform: rotate(0deg); }
@@ -1229,7 +1233,7 @@ defineExpose({ hasUnsavedChanges })
 /* 编辑态 ↔ 预览态切换过渡：淡入 + 轻微位移 */
 .editor-mode-enter-active,
 .editor-mode-leave-active {
-  transition: opacity 0.22s var(--ease), transform 0.22s var(--ease);
+  transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease);
 }
 .editor-mode-enter-from {
   opacity: 0;
@@ -1241,7 +1245,7 @@ defineExpose({ hasUnsavedChanges })
 }
 /* 只读→编辑切换：编辑框高亮动画（inset 描边，不影响布局） */
 .editor-body.flash {
-  animation: editor-enter .6s ease;
+  animation: editor-enter var(--dur-slower) var(--ease);
 }
 @keyframes editor-enter {
   0% { box-shadow: inset 0 0 0 2px var(--brand), 0 0 0 1px var(--brand-soft); }
@@ -1295,7 +1299,7 @@ defineExpose({ hasUnsavedChanges })
   border-radius: 4px;
   cursor: pointer;
 }
-.outline-float__btn:hover { background: var(--brand-soft); color: var(--brand); }
+.outline-float__btn:hover { background: var(--brand-soft); color: var(--brand-text); }
 .outline-float__body {
   overflow-y: auto;
   padding: 6px 8px;
@@ -1316,11 +1320,11 @@ defineExpose({ hasUnsavedChanges })
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  transition: all .15s ease;
+  transition: all var(--dur-fast) var(--ease);
 }
-.outline-float__item:hover { color: var(--brand); background: var(--hover-bg); }
+.outline-float__item:hover { color: var(--brand-text); background: var(--hover-bg); }
 .outline-float__item--active {
-  color: var(--brand) !important;
+  color: var(--brand-text) !important;
   background: var(--brand-soft) !important;
   font-weight: 600;
 }
@@ -1334,7 +1338,7 @@ defineExpose({ hasUnsavedChanges })
   padding: 7px 14px;
   font-size: 13px;
   font-weight: 600;
-  color: var(--brand);
+  color: var(--brand-text);
   background: var(--glass-bg-trans);
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
@@ -1342,10 +1346,10 @@ defineExpose({ hasUnsavedChanges })
   border-radius: 999px;
   cursor: grab;
   box-shadow: var(--glass-shadow);
-  transition: all .18s ease;
+  transition: all var(--dur-fast) var(--ease);
   user-select: none;
 }
-.outline-float__reopen:hover { background: var(--brand-soft); border-color: var(--brand); }
+.outline-float__reopen:hover { background: var(--brand-soft); border-color: var(--brand-text); }
 .outline-float__reopen:active { cursor: grabbing; }
 
 /* md-editor 主体 */
@@ -1366,8 +1370,8 @@ defineExpose({ hasUnsavedChanges })
   height: 26px !important;
   min-width: 26px !important;
 }
-:deep(.md-editor-toolbar-item:hover) { color: var(--brand) !important; background: var(--glass-chip-bg) !important; }
-:deep(.md-editor-toolbar-item.active) { color: var(--brand) !important; }
+:deep(.md-editor-toolbar-item:hover) { color: var(--brand-text) !important; background: var(--glass-chip-bg) !important; }
+:deep(.md-editor-toolbar-item.active) { color: var(--brand-text) !important; }
 :deep(.md-editor-content) { background: transparent !important; }
 :deep(.md-editor-input) { background: transparent !important; }
 /* 预览区与编辑区同色，用一条更明显的分割线（有道云风格，全屏下也清晰） */
@@ -1420,7 +1424,7 @@ defineExpose({ hasUnsavedChanges })
   white-space: nowrap;
 }
 .statusbar-keys {
-  color: var(--brand);
+  color: var(--brand-text);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 11px;
   white-space: nowrap;
@@ -1445,17 +1449,17 @@ defineExpose({ hasUnsavedChanges })
   stroke-dashoffset: 50.27;
   transform: rotate(-90deg);
   transform-origin: center;
-  transition: stroke .2s ease;
+  transition: stroke var(--dur) var(--ease);
 }
 .ring-dirty .ring-bar {
-  animation: ring-countdown 3s linear forwards;
+  animation: ring-countdown var(--dur-countdown) var(--ease-linear) forwards;
 }
 @keyframes ring-countdown {
   to { stroke-dashoffset: 0; }
 }
 .ring-saving .ring-bar {
   stroke-dashoffset: 0;
-  animation: sync-spin .9s linear infinite;
+  animation: sync-spin var(--dur-spin) var(--ease-linear) infinite;
 }
 .ring-saved .ring-bar {
   stroke: var(--state-success);
@@ -1485,7 +1489,7 @@ defineExpose({ hasUnsavedChanges })
   border: 1px dashed var(--glass-chip-border);
   border-radius: 10px;
   box-shadow: var(--glass-shadow);
-  animation: fade-in-up .3s ease;
+  animation: fade-in-up var(--dur-slow) var(--ease);
 }
 .guide-title {
   font-size: 15px;
@@ -1500,7 +1504,7 @@ defineExpose({ hasUnsavedChanges })
 }
 .guide-tip code {
   background: var(--hover-bg);
-  color: var(--brand);
+  color: var(--brand-text);
   padding: 1px 5px;
   border-radius: 4px;
   font-size: 11px;
@@ -1509,17 +1513,17 @@ defineExpose({ hasUnsavedChanges })
   pointer-events: auto;
   border: none;
   background: var(--brand-soft);
-  color: var(--brand);
+  color: var(--brand-text);
   font-size: 12px;
   font-weight: 600;
   padding: 5px 12px;
   border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: all .18s ease;
+  transition: all var(--dur-fast) var(--ease);
 }
 .guide-help:hover {
   background: var(--brand);
-  color: #fff;
+  color: var(--text-on-brand);
 }
 @keyframes fade-in-up {
   from { opacity: 0; transform: translateY(8px); }
@@ -1545,7 +1549,7 @@ defineExpose({ hasUnsavedChanges })
 .help-keys {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 12px;
-  color: var(--brand);
+  color: var(--brand-text);
 }
 .help-desc {
   color: var(--text-2);
@@ -1558,7 +1562,7 @@ defineExpose({ hasUnsavedChanges })
 }
 .help-foot code {
   background: var(--hover-bg);
-  color: var(--brand);
+  color: var(--brand-text);
   padding: 1px 5px;
   border-radius: 4px;
   font-size: 11px;
@@ -1607,7 +1611,7 @@ defineExpose({ hasUnsavedChanges })
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Courier New', monospace;
   font-size: .88em;
   background: var(--hover-bg) !important;
-  color: var(--brand) !important;
+  color: var(--brand-text) !important;
   padding: .15em .4em;
   border-radius: 6px;
 }

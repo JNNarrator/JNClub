@@ -72,7 +72,7 @@ const modes: { key: ViewMode; label: string }[] = [
 
 .switcher-btn.active {
   background: var(--brand-soft);
-  color: var(--brand);
+  color: var(--brand-text);
   font-weight: 600;
   box-shadow: none;
   transform: translateY(-1px);

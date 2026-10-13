@@ -53,7 +53,7 @@ const emit = defineEmits<{ close: [] }>()
   color: var(--text-2);
 }
 .help-icon {
-  color: var(--brand);
+  color: var(--brand-text);
 }
 .help-kbd {
   font-family: var(--font-mono);

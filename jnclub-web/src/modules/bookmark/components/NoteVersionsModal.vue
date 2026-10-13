@@ -11,7 +11,7 @@ import { History, RotateCcw, Eye, Clock, GitCompare } from 'lucide-vue-next'
 import JEmptyState from '../../../shared/components/ui/JEmptyState.vue'
 import JErrorState from '../../../shared/components/ui/JErrorState.vue'
 import { useNoteStore } from '../stores/note'
-import { formatDate } from '../composables/formatDate'
+import { formatDate } from '../../../shared/utils/formatDate'
 
 const props = defineProps<{
   show: boolean
@@ -325,17 +325,17 @@ const diffStat = computed(() => {
 }
 .ver-count {
   background: var(--brand-soft) !important;
-  color: var(--brand) !important;
+  color: var(--brand-text) !important;
 }
 .compare-btn {
   margin-left: auto;
-  color: var(--brand);
+  color: var(--brand-text);
 }
 .ver-spin {
   min-height: 160px;
 }
 .ver-empty {
-  padding: 40px 0;
+  padding: var(--empty-pad) 0;
 }
 .ver-list {
   display: flex;
@@ -355,14 +355,14 @@ const diffStat = computed(() => {
   transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease);
 }
 .ver-item:hover {
-  border-color: var(--brand);
+  border-color: var(--brand-text);
   background: var(--hover-bg);
 }
 .ver-item-icon {
   width: 32px; height: 32px;
   border-radius: 8px;
   background: var(--brand-soft);
-  color: var(--brand);
+  color: var(--brand-text);
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
 }
@@ -447,7 +447,7 @@ const diffStat = computed(() => {
   flex-shrink: 0;
 }
 .compare-arrow {
-  color: var(--brand);
+  color: var(--brand-text);
   font-size: var(--fs-sm);
   flex-shrink: 0;
 }
@@ -460,7 +460,7 @@ const diffStat = computed(() => {
   gap: 6px;
   background: var(--bg-page) !important;
 }
-.diff-add { color: var(--success); font-weight: 700; }
+.diff-add { color: var(--state-success); font-weight: 700; }
 .diff-del { color: var(--danger-text); font-weight: 700; }
 .diff-body {
   max-height: 46vh;
@@ -492,10 +492,10 @@ const diffStat = computed(() => {
   min-width: 0;
 }
 .diff-add {
-  background: color-mix(in srgb, var(--success) 16%, transparent);
+  background: color-mix(in srgb, var(--state-success) 16%, transparent);
   color: var(--text-1);
 }
-.diff-add .diff-marker { color: var(--success); }
+.diff-add .diff-marker { color: var(--state-success); }
 .diff-del {
   background: color-mix(in srgb, var(--state-error) 16%, transparent);
   color: var(--text-1);

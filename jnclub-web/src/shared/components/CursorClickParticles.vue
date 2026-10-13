@@ -31,6 +31,8 @@ const { particles } = useCursorClickEffect()
         marginTop: -(p.size / 2) + 'px',
         marginLeft: -(p.size / 2) + 'px',
         '--particle-color': p.color,
+        // 花瓣 box-shadow 偏移需要它；此前从未注入，恒为 fallback 14px，与实际尺寸脱节
+        '--particle-size': p.size + 'px',
       }"
     />
   </div>
@@ -59,7 +61,7 @@ const { particles } = useCursorClickEffect()
     79% 91%, 50% 70%, 21% 91%, 32% 57%,
     2% 35%, 39% 35%
   );
-  filter: drop-shadow(0 0 4px var(--particle-color));
+  filter: drop-shadow(0 0 4px var(--particle-color, var(--brand)));
 }
 
 /* 爱心：用伪元素模拟 */

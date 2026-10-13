@@ -7,7 +7,7 @@
 import { computed, h, ref } from 'vue'
 import { NButton, NIcon, NDropdown, NEllipsis, NTag, NCheckbox, useMessage } from 'naive-ui'
 import { Pencil, Trash2, Eye, Ellipsis, StickyNote, Clock, FolderInput, Link2, Share2, Pin, PinOff, Archive } from 'lucide-vue-next'
-import { formatRelativeTime } from '../composables/formatDate'
+import { formatRelativeTime } from '../../../shared/utils/formatDate'
 import { stripMarkdown } from '../composables/stripMarkdown'
 import { openMenu, openMenuAt } from '../../../shared/composables/useContextMenu'
 import { useLongPress } from '../../../shared/composables/useLongPress'
@@ -111,7 +111,7 @@ const handleDragEnd = () => setDragging(null)
 
 <template>
   <div
-    class="note-row jnclub-longpress"
+    :class="['note-row jnclub-longpress', { 'is-selected': props.selected }]"
     role="link"
     tabindex="0"
     :draggable="!isCoarse"
@@ -204,6 +204,10 @@ const handleDragEnd = () => setDragging(null)
   background: var(--glass-chip-bg);
   box-shadow: inset 3px 0 0 var(--brand);
 }
+.note-row:active {
+  background: var(--brand-soft);
+  box-shadow: inset 3px 0 0 var(--brand);
+}
 
 /* 图标 */
 .row-icon {
@@ -240,7 +244,7 @@ const handleDragEnd = () => setDragging(null)
   height: 16px;
   border-radius: 5px;
   background: var(--brand-soft);
-  color: var(--brand);
+  color: var(--brand-text);
   flex-shrink: 0;
 }
 .row-summary {
@@ -259,7 +263,7 @@ const handleDragEnd = () => setDragging(null)
 }
 .row-tag {
   background: var(--brand-soft) !important;
-  color: var(--brand) !important;
+  color: var(--brand-text) !important;
 }
 
 /* 元信息 */
@@ -295,13 +299,4 @@ const handleDragEnd = () => setDragging(null)
 }
 .more-btn:hover { color: var(--text-1); background: var(--hover-bg); }
 </style>
-<style scoped>
-.batch-check {
-  position: absolute;
-  top: 10px; left: 10px;
-  z-index: 5;
-  background: rgba(0,0,0,0.35);
-  border-radius: 6px;
-  padding: 2px;
-}
-</style>
+<style scoped></style>

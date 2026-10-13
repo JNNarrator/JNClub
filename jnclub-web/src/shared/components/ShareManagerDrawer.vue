@@ -9,7 +9,7 @@ import { Copy, Trash2, StickyNote, Bookmark, FileText, RefreshCw } from 'lucide-
 import JEmptyState from '../components/ui/JEmptyState.vue'
 import JErrorState from '../components/ui/JErrorState.vue'
 import { copyText } from '../utils/clipboard'
-import { formatDate, formatRelativeTime } from '../../modules/bookmark/composables/formatDate'
+import { formatDate, formatRelativeTime } from '../utils/formatDate'
 import axios from 'axios'
 
 defineProps<{ show: boolean }>()
@@ -139,7 +139,7 @@ const isExpired = (row: ShareRow) => row.expiresAt && new Date(row.expiresAt).ge
 }
 .smd-title { margin: 0; font-size: 17px; font-weight: 700; color: var(--text-1); }
 .smd-state { display: flex; align-items: center; gap: 8px; color: var(--text-3); font-size: var(--fs-sm); padding: 30px 0; justify-content: center; }
-.smd-empty { padding: 40px 0; }
+.smd-empty { padding: var(--empty-pad) 0; }
 .smd-list { display: flex; flex-direction: column; gap: 10px; }
 .smd-row {
   display: flex;
@@ -154,7 +154,7 @@ const isExpired = (row: ShareRow) => row.expiresAt && new Date(row.expiresAt).ge
 .smd-row.expired { opacity: .55; }
 .smd-row-main { min-width: 0; flex: 1; }
 .smd-row-title { display: flex; align-items: center; gap: 6px; min-width: 0; }
-.smd-type-ic { color: var(--brand); flex-shrink: 0; }
+.smd-type-ic { color: var(--brand-text); flex-shrink: 0; }
 .smd-name {
   font-size: var(--fs-sm);
   font-weight: 600;

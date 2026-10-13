@@ -8,7 +8,7 @@ import { useVirtualList } from '@vueuse/core'
 import { NSpin } from 'naive-ui'
 import NoteRow from './NoteRow.vue'
 import type { Note } from '../stores/note'
-import { useDraggableSort } from '../composables/useDraggableSort'
+import { useDraggableSort } from '../../../shared/composables/useDraggableSort'
 
 const props = defineProps<{
   notes: Note[]

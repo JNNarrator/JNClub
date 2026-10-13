@@ -74,13 +74,13 @@ const handleSelect = (value: string | number | null) => {
   -webkit-tap-highlight-color: transparent;
 }
 .j-filter-chip:hover {
-  border-color: var(--brand);
-  color: var(--brand);
+  border-color: var(--brand-text);
+  color: var(--brand-text);
 }
 .j-filter-chip-active {
   background: var(--brand-soft);
-  border-color: var(--brand);
-  color: var(--brand);
+  border-color: var(--brand-text);
+  color: var(--brand-text);
   font-weight: 600;
 }
 .j-filter-count {
@@ -89,6 +89,17 @@ const handleSelect = (value: string | number | null) => {
   padding: 2px 5px;
   border-radius: var(--radius-pill);
   background: var(--brand-soft);
-  color: var(--brand);
+  color: var(--brand-text);
+}
+
+/* 三态：j-filter-chip-active 是「选中」态，与 CSS :active（按下）不同，此前缺失 */
+.j-filter-chip:active {
+  transform: scale(0.96);
+}
+.j-filter-chip:disabled,
+.j-filter-chip[aria-disabled='true'] {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 </style>

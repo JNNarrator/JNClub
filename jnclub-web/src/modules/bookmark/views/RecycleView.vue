@@ -13,7 +13,7 @@ import { Trash2, RotateCcw, Eraser, Clock, Settings2, Zap } from 'lucide-vue-nex
 import axios from 'axios'
 import JSkeletonList from '../../../shared/components/ui/JSkeletonList.vue'
 import JEmptyState from '../../../shared/components/ui/JEmptyState.vue'
-import { formatRelativeTime, formatDate } from '../composables/formatDate'
+import { formatRelativeTime, formatDate } from '../../../shared/utils/formatDate'
 
 const props = defineProps<{ refresh?: number }>()
 
@@ -335,7 +335,7 @@ onMounted(() => { fetchItems(); fetchConfig() })
   font-size: var(--fs-sm);
   color: var(--glass-text-secondary);
 }
-.config-days { color: var(--brand); font-weight: 600; }
+.config-days { color: var(--brand-text); font-weight: 600; }
 .config-actions { display: flex; gap: 6px; flex-shrink: 0; }
 .config-btn {
   border-radius: var(--radius-pill) !important;
@@ -367,7 +367,8 @@ onMounted(() => { fetchItems(); fetchConfig() })
   align-items: center;
   flex-shrink: 0;
   font-size: var(--fs-sm);
-  color: var(--glass-text-tertiary);
+  /* 原为 var(--glass-text-tertiary) —— 该变量全仓不存在，颜色静默回退为继承值 */
+  color: var(--text-3);
 }
 .item-expire.expired {
   color: var(--danger-text);
@@ -390,7 +391,7 @@ onMounted(() => { fetchItems(); fetchConfig() })
   --n-tab-text-color-hover: var(--brand);
   --n-tab-text-color-active: var(--brand);
   --n-tab-text-color-disabled: var(--glass-text-placeholder);
-  --n-bar-color: var(--brand);
+  --n-bar-color: var(--brand-text);
 }
 .recycle-clear-btn {
   border-radius: var(--radius-pill) !important;
@@ -436,7 +437,7 @@ onMounted(() => { fetchItems(); fetchConfig() })
   border-radius: var(--radius-sm);
   transition: border-color var(--dur) var(--ease);
 }
-.recycle-item:hover { border-color: var(--brand); }
+.recycle-item:hover { border-color: var(--brand-text); }
 .item-main {
   flex: 1;
   min-width: 0;

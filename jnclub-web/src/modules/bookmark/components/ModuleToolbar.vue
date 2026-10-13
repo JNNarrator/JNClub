@@ -104,8 +104,8 @@ const emit = defineEmits<{
   color: var(--text-2) !important;
 }
 .io-export-btn:hover {
-  color: var(--brand) !important;
-  border-color: var(--brand) !important;
+  color: var(--brand-text) !important;
+  border-color: var(--brand-text) !important;
 }
 .io-export-btn[disabled] {
   opacity: 0.45;
@@ -118,12 +118,12 @@ const emit = defineEmits<{
   color: var(--text-2) !important;
 }
 .archived-toggle:hover {
-  color: var(--brand) !important;
-  border-color: var(--brand) !important;
+  color: var(--brand-text) !important;
+  border-color: var(--brand-text) !important;
 }
 .archived-toggle.archived-active {
-  color: var(--brand) !important;
-  border-color: var(--brand) !important;
+  color: var(--brand-text) !important;
+  border-color: var(--brand-text) !important;
   background: var(--brand-soft) !important;
 }
 </style>

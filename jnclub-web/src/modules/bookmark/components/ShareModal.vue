@@ -7,7 +7,7 @@ import { ref, watch } from 'vue'
 import { NModal, NButton, NIcon, NInput, NSelect, useMessage } from 'naive-ui'
 import { Link2, Copy, Trash2, Plus, Settings2, Check } from 'lucide-vue-next'
 import { copyText } from '../../../shared/utils/clipboard'
-import { formatDate } from '../composables/formatDate'
+import { formatDate } from '../../../shared/utils/formatDate'
 import axios from 'axios'
 
 const props = defineProps<{

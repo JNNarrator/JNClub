@@ -6,12 +6,6 @@
   padding: 0;
 }
 
-/* ---- 触控目标最小尺寸（M2-3）---- */
-:root {
-  /* 移动端最小点击区（PLAN-2026-16 规范：最小 32px） */
-  --tap-min: 32px;
-}
-
 html, body {
   height: 100%;
   -webkit-font-smoothing: antialiased;
@@ -37,27 +31,14 @@ html, body {
 /* ---- Apple 弹性缓动 ---- */
 .jnclub-bouncy {
   transition-property: background-color, color, border-color, box-shadow, transform, opacity;
-  transition-duration: 250ms;
+  transition-duration: var(--dur);
   transition-timing-function: var(--ease-bouncy);
 }
 
 .jnclub-bouncy-slow {
   transition-property: background-color, color, border-color, box-shadow, transform;
-  transition-duration: 320ms;
+  transition-duration: var(--dur-slow);
   transition-timing-function: var(--ease-bouncy);
-}
-
-/* ---- Apple 标准缓动 ---- */
-.jnclub-ease {
-  transition-property: background-color, color, border-color, box-shadow, opacity;
-  transition-duration: 200ms;
-  transition-timing-function: var(--ease);
-}
-
-.jnclub-ease-fast {
-  transition-property: background-color, color, border-color, box-shadow, opacity;
-  transition-duration: 120ms;
-  transition-timing-function: var(--ease);
 }
 
 /* ---- 动画 ---- */
@@ -88,22 +69,12 @@ html, body {
   100% { transform: scale(1); }
 }
 .drop-settle {
-  animation: jnclub-dropSettle 0.28s var(--ease-bouncy) !important;
+  animation: jnclub-dropSettle var(--dur-slow) var(--ease-bouncy) !important;
 }
 
 .fade-in-up {
-  animation: jnclub-fadeInUp 520ms var(--ease-bouncy) both;
+  animation: jnclub-fadeInUp var(--dur-slower) var(--ease-bouncy) both;
 }
-
-.fade-in-up-stagger > * {
-  animation: jnclub-fadeInUp 480ms var(--ease-bouncy) both;
-}
-.fade-in-up-stagger > *:nth-child(1) { animation-delay: 40ms; }
-.fade-in-up-stagger > *:nth-child(2) { animation-delay: 90ms; }
-.fade-in-up-stagger > *:nth-child(3) { animation-delay: 140ms; }
-.fade-in-up-stagger > *:nth-child(4) { animation-delay: 190ms; }
-.fade-in-up-stagger > *:nth-child(5) { animation-delay: 240ms; }
-.fade-in-up-stagger > *:nth-child(6) { animation-delay: 290ms; }
 
 /* ---- 自定义滚动条 ---- */
 ::-webkit-scrollbar {
@@ -127,10 +98,34 @@ html, body {
   color: var(--selection-text);
 }
 
-/* 聚焦 outline：跟随主题 token，键盘导航清晰可见 */
+/* 聚焦 outline：跟随主题 token，键盘导航清晰可见
+ * --focus-ring 已改为实色（亮 #C9256A 4.87:1 / 暗 #FF8FAB 9.77:1），
+ * 远超 WCAG 2.2 SC 1.4.11 的 3:1 要求，故不再叠加 box-shadow 外晕
+ * ——那会覆盖按钮/卡片自身的阴影。需要柔光聚焦的场景（输入框）单独用 --focus-ring-soft。 */
 :focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
+}
+
+/* ---- 批量选择态（CollectionCard / NoteCard / CollectionRow / NoteRow 共用一份）----
+ * 此前这四个组件各自重复一遍完全相同的勾选框浮层样式，且 selected prop 只传给了
+ * NCheckbox（勾选框还仅在 batchMode 下渲染），根元素没有任何选中视觉反馈。 */
+.batch-check {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 5;
+  background: var(--check-scrim);
+  border-radius: var(--radius-xs);
+  padding: 2px;
+}
+
+/* 选中态：品牌色内描边 + 淡粉底，四个组件视觉统一。
+ * 用 !important 是因为 main.css 先于组件 scoped 样式加载，同 specificity 时后者会赢。 */
+.is-selected {
+  background: var(--selected-bg) !important;
+  border-color: var(--brand) !important;
+  box-shadow: inset 0 0 0 1px var(--brand) !important;
 }
 
 /* ---- 拖拽排序视觉（全局一份） ---- */
@@ -138,7 +133,7 @@ html, body {
   opacity: 0.4;
   background: var(--brand-soft) !important;
   border-radius: var(--radius-sm);
-  outline: 2px dashed var(--brand);
+  outline: 2px dashed var(--brand-text);
   outline-offset: -2px;
 }
 .sortable-chosen { cursor: grabbing; }
@@ -180,7 +175,7 @@ html, body {
 }
 .chip-active {
   background: var(--brand-soft) !important;
-  color: var(--brand) !important;
+  color: var(--brand-text) !important;
   border-color: var(--glass-chip-border) !important;
   font-weight: 600;
   box-shadow: none;
@@ -191,14 +186,14 @@ html, body {
 }
 .chip-dashed:hover {
   border-color: var(--pink-peach) !important;
-  color: var(--brand) !important;
+  color: var(--brand-text) !important;
   background: var(--pink-cherry) !important;
 }
 
 /* ---- 新建按钮渐变 ---- */
 .btn-new {
   background: var(--gradient-btn);
-  color: #fff;
+  color: var(--text-on-brand);
   border: none;
   border-radius: var(--radius-pill);
   box-shadow: var(--shadow-1);
@@ -220,7 +215,7 @@ html, body {
   background: var(--pink-peach);
   border-radius: 50% 0 50% 0;
   opacity: 0.55;
-  animation: jnclub-float 6s ease-in-out infinite;
+  animation: jnclub-float var(--dur-float) var(--ease-smooth) infinite;
   pointer-events: none;
 }
 .petal-1 { top: 18%; left: 16%; animation-delay: 0s; }
@@ -289,10 +284,10 @@ html, body {
 .glass-pill-btn {
   border-radius: var(--radius-pill) !important;
   background: var(--glass-btn-primary) !important;
-  color: #fff !important;
+  color: var(--text-on-brand) !important;
   border: none !important;
   font-weight: 600;
-  box-shadow: 0 4px 14px -4px var(--focus-ring);
+  box-shadow: 0 4px 14px -4px var(--focus-ring-soft);
   transition: filter var(--dur) var(--ease), transform var(--dur) var(--ease-bouncy);
 }
 .glass-pill-btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
@@ -312,10 +307,10 @@ html, body {
 .glass-primary-btn {
   border-radius: var(--radius-sm);
   background: var(--glass-btn-primary) !important;
-  color: #fff !important;
+  color: var(--text-on-brand) !important;
   border: none !important;
   font-weight: 600;
-  box-shadow: 0 4px 14px -4px var(--focus-ring);
+  box-shadow: 0 4px 14px -4px var(--focus-ring-soft);
   transition: filter var(--dur) var(--ease), transform var(--dur) var(--ease-bouncy);
 }
 .glass-primary-btn:hover { filter: brightness(1.12); transform: translateY(-1px); }
@@ -331,7 +326,7 @@ html, body {
   --n-border-hover: var(--glass-chip-border) !important;
   --n-border-focus: var(--brand) !important;
   --n-box-shadow-focus: 0 0 0 3px var(--focus-ring) !important;
-  --n-caret-color: var(--brand) !important;
+  --n-caret-color: var(--brand-text) !important;
 }
 
 /* 玻璃 FAB 悬浮 */
@@ -460,7 +455,7 @@ html, body {
   --n-border-hover: var(--glass-chip-border) !important;
   --n-border-focus: var(--brand) !important;
   --n-box-shadow-focus: 0 0 0 3px var(--focus-ring) !important;
-  --n-caret-color: var(--brand) !important;
+  --n-caret-color: var(--brand-text) !important;
 }
 
 /* 弹框 header / footer 分隔线用玻璃描边 */
@@ -544,11 +539,8 @@ html.custom-cursor-active.dragging * {
   --layout-panel-padding: 14px 16px;
   --header-height: 52px;
   --tabbar-height: 50px;
-  --space-xs: 3px;
-  --space-sm: 6px;
-  --space-md: 12px;
-  --space-lg: 18px;
-  --space-xl: 24px;
+  /* 注：原先此处还覆盖了 --space-xs~xl 五档间距，但全项目没有任何 var(--space-*) 消费，
+     属无效覆盖（密度压缩实际由下方 .content-area / .j-page-header 等具体规则实现）。 */
 }
 
 /* 主内容区 / 面板 */
@@ -685,8 +677,11 @@ html.custom-cursor-active.dragging * {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.001ms !important;
+    /* 延迟一并归零：否则入场动画会先以 opacity:0 滞留再瞬现（比直接出现更糟） */
+    animation-delay: 0ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
+    transition-delay: 0ms !important;
     scroll-behavior: auto !important;
   }
 }

@@ -3,7 +3,7 @@
  *
  * 设计原则：
  * - 颜色不在此重复定义，直接引用全局 CSS 变量（--text-1/--text-2/--brand-* 等），
- *   由 App.vue 按亮/暗主题注入 :root，两项目通用。
+ *   由 themes/tokens.ts 生成到 tokens.generated.css，并按 html[data-theme] 切换，两项目通用。
  *   ⚠️ 勿用 --glass-text-*（那是 SSO 认证页专属 token，JNClub 未定义，会致渐变失效）。
  * - 节奏（easing / 时长 / 错峰）在此统一，业务侧只 import J* 组件，不直接碰 vue-bits。
  */

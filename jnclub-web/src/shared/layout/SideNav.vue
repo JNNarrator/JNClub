@@ -9,7 +9,7 @@ import NavEditorDrawer from './NavEditorDrawer.vue'
 import CursorSettingsDrawer from './CursorSettingsDrawer.vue'
 import ParticlesSettingsDrawer from './ParticlesSettingsDrawer.vue'
 import { useUiDensity } from '../composables/useUiDensity'
-import { useDraggableSort } from '../../modules/bookmark/composables/useDraggableSort'
+import { useDraggableSort } from '../composables/useDraggableSort'
 import { useRouter, useRoute } from 'vue-router'
 import { NAV_META, DEFAULT_ORDER, normalizeNavKeys, completeOrder, type NavDef, type NavKey } from './navConfig'
 
@@ -259,7 +259,7 @@ const handleSettingsSelect = async (key: string) => {
   background: transparent;
   color: var(--text-3);
   cursor: pointer;
-  transition: all .18s ease;
+  transition: all var(--dur-fast) var(--ease);
 }
 .nav-editor-bar.collapsed .nav-editor-btn {
   width: 36px;
@@ -271,7 +271,7 @@ const handleSettingsSelect = async (key: string) => {
   white-space: nowrap;
 }
 .nav-editor-btn:hover {
-  color: var(--brand);
+  color: var(--brand-text);
   background: var(--brand-soft);
 }
 

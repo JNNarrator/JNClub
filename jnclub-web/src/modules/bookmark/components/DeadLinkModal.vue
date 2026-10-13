@@ -155,7 +155,8 @@ const cleanAll = () => {
 
 <style scoped>
 .dead-empty {
-  padding: 32px 0;
+  /* M1-4：原 32px，与其他空态统一 */
+  padding: var(--empty-pad) 0;
 }
 .dead-checking {
   display: flex;
@@ -167,8 +168,8 @@ const cleanAll = () => {
   font-size: var(--fs-sm);
 }
 .spin-icon {
-  animation: dead-spin 1s linear infinite;
-  color: var(--brand);
+  animation: dead-spin var(--dur-spin) var(--ease-linear) infinite;
+  color: var(--brand-text);
 }
 @keyframes dead-spin {
   to { transform: rotate(360deg); }
@@ -192,7 +193,7 @@ const cleanAll = () => {
   font-weight: 800;
   color: var(--text-1);
 }
-.stat-item.ok .stat-num { color: var(--success); }
+.stat-item.ok .stat-num { color: var(--state-success); }
 .stat-item.bad .stat-num { color: var(--danger-text); }
 .stat-item.err .stat-num { color: var(--text-3); }
 .stat-label {
@@ -263,6 +264,6 @@ const cleanAll = () => {
   display: flex;
 }
 .dead-item-open:hover {
-  color: var(--brand);
+  color: var(--brand-text);
 }
 </style>

@@ -84,7 +84,7 @@ const emit = defineEmits<{
 
 .batch-up-enter-active,
 .batch-up-leave-active {
-  transition: opacity 180ms var(--ease), transform 180ms var(--ease);
+  transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease);
 }
 .batch-up-enter-from,
 .batch-up-leave-to {

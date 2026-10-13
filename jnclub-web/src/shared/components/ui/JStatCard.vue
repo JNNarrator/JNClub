@@ -54,7 +54,7 @@ const emit = defineEmits<{
   font-family: inherit;
 }
 .j-stat-card:hover {
-  border-color: var(--brand);
+  border-color: var(--brand-text);
   box-shadow: var(--shadow-2), var(--glass-shadow);
   transform: translateY(-1px);
 }
@@ -70,7 +70,7 @@ const emit = defineEmits<{
 .j-stat-icon {
   width: 38px; height: 38px; border-radius: 12px;
   flex-shrink: 0;
-  background: var(--brand-soft); color: var(--brand);
+  background: var(--brand-soft); color: var(--brand-text);
   display: flex; align-items: center; justify-content: center;
 }
 .j-stat-warn .j-stat-icon {
@@ -88,7 +88,7 @@ const emit = defineEmits<{
 .j-stat-warn-dot {
   width: 7px; height: 7px; border-radius: 50%;
   background: var(--danger);
-  animation: j-stat-blink 1.2s infinite;
+  animation: j-stat-blink var(--dur-loop) infinite;
 }
 @keyframes j-stat-blink {
   50% { opacity: 0.3; }
@@ -104,5 +104,14 @@ const emit = defineEmits<{
   }
   .j-stat-icon { width: 32px; height: 32px; border-radius: 10px; }
   .j-stat-value { font-size: 22px; }
+}
+
+.j-stat-card:active {
+  transform: scale(0.985);
+}
+.j-stat-card:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 </style>

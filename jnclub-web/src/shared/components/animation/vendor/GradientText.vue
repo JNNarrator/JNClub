@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, useSlots } from 'vue';
+import { useReducedMotion } from '../../../composables/useReducedMotion';
 
 interface GradientTextProps {
   className?: string;
@@ -35,18 +36,27 @@ const gradientColors = computed(() => [...props.colors, props.colors[0]].join(',
 /**
  * CSS 化实现（替代原 motion-v useAnimationFrame）：
  * 文字层/边框层共用一种 layerStyle，原生 @keyframes 驱动 background-position。
+ * 减少动态效果时只保留静态渐变，不跑流光。
  */
-const layerStyle = computed(() => ({
-  backgroundImage: `linear-gradient(${gradientAngle.value}, ${gradientColors.value})`,
-  backgroundSize: isHorizontal.value ? '300% 100%' : '100% 300%',
-  backgroundRepeat: 'repeat',
-  backgroundPosition: isHorizontal.value ? '0% 50%' : '50% 0%',
-  animationName: isHorizontal.value ? 'j-grad-h' : 'j-grad-v',
-  animationDuration: `${props.animationSpeed}s`,
-  animationTimingFunction: 'linear',
-  animationIterationCount: 'infinite',
-  animationDirection: props.yoyo ? 'alternate' : 'normal',
-}));
+const reduced = useReducedMotion();
+
+const layerStyle = computed(() => {
+  const base = {
+    backgroundImage: `linear-gradient(${gradientAngle.value}, ${gradientColors.value})`,
+    backgroundSize: isHorizontal.value ? '300% 100%' : '100% 300%',
+    backgroundRepeat: 'repeat',
+    backgroundPosition: isHorizontal.value ? '0% 50%' : '50% 0%',
+  };
+  if (reduced.value) return base;
+  return {
+    ...base,
+    animationName: isHorizontal.value ? 'j-grad-h' : 'j-grad-v',
+    animationDuration: `${props.animationSpeed}s`,
+    animationTimingFunction: 'linear',
+    animationIterationCount: 'infinite',
+    animationDirection: props.yoyo ? 'alternate' : 'normal',
+  };
+});
 
 const pauseClass = computed(() => (props.pauseOnHover ? 'j-grad-pause' : ''));
 </script>

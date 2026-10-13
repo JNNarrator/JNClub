@@ -214,7 +214,7 @@ const close = () => {
   gap: 8px;
   min-width: 0;
 }
-.reading-title-icon { color: var(--brand); flex-shrink: 0; }
+.reading-title-icon { color: var(--brand-text); flex-shrink: 0; }
 .reading-title {
   font-size: 16px;
   font-weight: 700;
@@ -234,7 +234,7 @@ const close = () => {
   align-items: center;
   gap: 4px;
   font-size: var(--fs-sm);
-  color: var(--brand);
+  color: var(--brand-text);
   text-decoration: none;
   padding: 4px 10px;
   border-radius: var(--radius-pill);
@@ -252,7 +252,7 @@ const close = () => {
 /* ─── 阅读器设置 ─── */
 .reader-settings { position: relative; }
 .reader-settings .n-button.is-active {
-  color: var(--brand);
+  color: var(--brand-text);
   background: var(--brand-soft);
 }
 .reader-settings-panel {
@@ -300,7 +300,7 @@ const close = () => {
 .reader-seg-btn:hover { color: var(--text-1); }
 .reader-seg-btn.active {
   background: var(--brand);
-  color: #fff;
+  color: var(--text-on-brand);
   font-weight: 600;
 }
 .reader-settings-mask {
@@ -340,7 +340,7 @@ const close = () => {
 .reading-empty :deep(.n-empty__description) { max-width: 360px; }
 .reading-fallback {
   font-size: var(--fs-sm);
-  color: var(--brand);
+  color: var(--brand-text);
   text-decoration: none;
 }
 .reading-fallback:hover { text-decoration: underline; }
@@ -374,7 +374,7 @@ const close = () => {
   border-radius: 8px;
   margin: 12px 0;
 }
-.reading-article :deep(a) { color: var(--brand); text-decoration: none; }
+.reading-article :deep(a) { color: var(--brand-text); text-decoration: none; }
 .reading-article :deep(a):hover { text-decoration: underline; }
 .reading-article :deep(blockquote) {
   margin: 12px 0;

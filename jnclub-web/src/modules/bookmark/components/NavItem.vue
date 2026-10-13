@@ -64,7 +64,7 @@ defineEmits<{
   box-shadow: inset 3px 0 0 var(--brand);
 }
 .nav-item.active:not(.collapsed) .nav-icon {
-  color: var(--brand);
+  color: var(--brand-text);
 }
 
 /* 折叠激活态：品牌浅底圆角块 + 更强边框 */
@@ -76,7 +76,7 @@ defineEmits<{
   box-shadow: inset 0 0 0 1.5px var(--brand);
 }
 .nav-item.active.collapsed .nav-icon {
-  color: var(--brand);
+  color: var(--brand-text);
 }
 
 .nav-icon {

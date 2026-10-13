@@ -486,11 +486,11 @@ const handleRenameSubmit = async () => {
   color: var(--text-2);
   font-size: var(--fs-md);
   cursor: pointer;
-  transition: all .18s ease;
+  transition: all var(--dur-fast) var(--ease);
 }
 .add-dir-btn:hover {
-  color: var(--brand);
-  border-color: var(--brand);
+  color: var(--brand-text);
+  border-color: var(--brand-text);
   background: var(--brand-soft);
 }
 
@@ -511,15 +511,15 @@ const handleRenameSubmit = async () => {
   background: transparent;
   color: var(--text-2);
   cursor: pointer;
-  transition: all .15s ease;
+  transition: all var(--dur-fast) var(--ease);
 }
 .icon-opt:hover {
-  color: var(--brand);
-  border-color: var(--brand);
+  color: var(--brand-text);
+  border-color: var(--brand-text);
 }
 .icon-opt.active {
-  color: var(--brand);
-  border-color: var(--brand);
+  color: var(--brand-text);
+  border-color: var(--brand-text);
   background: var(--brand-soft);
 }
 
@@ -558,7 +558,7 @@ const handleRenameSubmit = async () => {
 
 /* item 落定回弹（参照 jnclub-dropSettle 的 bouncy 节奏） */
 :deep(.n-tree-node.move-target-pulse) {
-  animation: move-target-pulse 0.32s var(--ease-bouncy);
+  animation: move-target-pulse var(--dur-slow) var(--ease-bouncy);
 }
 @keyframes move-target-pulse {
   0% { transform: scale(1); }

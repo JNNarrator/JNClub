@@ -261,7 +261,7 @@ const toggle = (id: number) => {
   font-weight: 700;
   color: var(--text-1);
 }
-.dedup-title-icon { color: var(--brand); }
+.dedup-title-icon { color: var(--brand-text); }
 .dedup-tabs { display: flex; gap: 6px; }
 .dedup-tab {
   display: inline-flex;
@@ -277,8 +277,8 @@ const toggle = (id: number) => {
 }
 .dedup-tab.active {
   background: var(--brand-soft);
-  border-color: var(--brand);
-  color: var(--brand);
+  border-color: var(--brand-text);
+  color: var(--brand-text);
   font-weight: 600;
 }
 .dedup-body {
@@ -287,7 +287,7 @@ const toggle = (id: number) => {
   overflow-y: auto;
   padding: 14px 18px;
 }
-.dedup-empty { padding: 50px 0; }
+.dedup-empty { padding: var(--empty-pad) 0; }
 .dedup-bulk {
   display: flex;
   align-items: center;
@@ -298,7 +298,7 @@ const toggle = (id: number) => {
   border: 1px solid var(--brand);
   border-radius: var(--radius-sm);
 }
-.dedup-bulk-count { font-size: var(--fs-sm); color: var(--brand); font-weight: 600; flex: 1; }
+.dedup-bulk-count { font-size: var(--fs-sm); color: var(--brand-text); font-weight: 600; flex: 1; }
 .dedup-groups { display: flex; flex-direction: column; gap: 14px; }
 .dedup-group {
   border: 1px solid var(--glass-chip-border);

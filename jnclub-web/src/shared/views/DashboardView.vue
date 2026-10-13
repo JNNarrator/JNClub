@@ -12,7 +12,7 @@ import {
 } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
-import { formatRelativeTime } from '../../modules/bookmark/composables/formatDate'
+import { formatRelativeTime } from '../utils/formatDate'
 import ExportModal from '../../modules/bookmark/components/ExportModal.vue'
 import ImportModal from '../../modules/bookmark/components/ImportModal.vue'
 import FullBackupModal from '../../modules/bookmark/components/FullBackupModal.vue'
@@ -197,7 +197,7 @@ const quickActions = [
 
 /* ─── 首页自定义布局 ─── */
 import { useUserPreferences } from '../composables/useUserPreferences'
-import { useDraggableSort } from '../../modules/bookmark/composables/useDraggableSort'
+import { useDraggableSort } from '../composables/useDraggableSort'
 
 const prefs = useUserPreferences()
 
@@ -651,7 +651,7 @@ const openFile = (f: { id: number }) => {
   text-align: left;
 }
 .stat-card:hover {
-  border-color: var(--brand);
+  border-color: var(--brand-text);
   box-shadow: var(--shadow-2), var(--glass-shadow);
   transform: translateY(-2px);
 }
@@ -665,7 +665,7 @@ const openFile = (f: { id: number }) => {
 .stat-icon {
   width: 44px; height: 44px; border-radius: 14px;
   flex-shrink: 0;
-  background: var(--brand-soft); color: var(--brand);
+  background: var(--brand-soft); color: var(--brand-text);
   display: flex; align-items: center; justify-content: center;
 }
 .stat-warn .stat-icon { background: var(--danger-soft); color: var(--danger-text); }
@@ -679,7 +679,7 @@ const openFile = (f: { id: number }) => {
 }
 .stat-warn-dot {
   width: 7px; height: 7px; border-radius: 50%;
-  background: var(--danger); animation: dash-blink 1.2s infinite;
+  background: var(--danger); animation: dash-blink var(--dur-loop) infinite;
 }
 @keyframes dash-blink {
   50% { opacity: 0.3; }
@@ -730,7 +730,7 @@ const openFile = (f: { id: number }) => {
   font-weight: 600;
   color: var(--text-1);
 }
-.panel-title-icon { color: var(--brand); }
+.panel-title-icon { color: var(--brand-text); }
 .panel-sub {
   margin-left: auto;
   font-size: var(--fs-sm);
@@ -738,7 +738,7 @@ const openFile = (f: { id: number }) => {
   color: var(--text-3);
 }
 .panel-empty {
-  padding: 26px 16px;
+  padding: var(--empty-pad-sm) 16px;
   text-align: center;
   font-size: var(--fs-sm);
   color: var(--text-3);
@@ -767,7 +767,7 @@ const openFile = (f: { id: number }) => {
 .disk-bar {
   height: 100%; border-radius: 3px;
   background: linear-gradient(90deg, var(--brand), var(--brand-suppl, var(--brand)));
-  transition: width .4s var(--ease);
+  transition: width var(--dur-slower) var(--ease);
 }
 
 /* 密码库健康 */
@@ -785,7 +785,7 @@ const openFile = (f: { id: number }) => {
   background: var(--danger-soft);
   padding: 8px 10px; border-radius: var(--radius-sm);
 }
-.health-ok { font-size: var(--fs-sm); color: var(--success); }
+.health-ok { font-size: var(--fs-sm); color: var(--state-success); }
 
 /* 最近动态：桌面 4 列一排，平板 2 列，手机 1 列 */
 .recent-grid {
@@ -821,7 +821,7 @@ const openFile = (f: { id: number }) => {
 .recent-time { font-size: var(--fs-xs); color: var(--text-3); flex-shrink: 0; }
 .recent-arrow {
   margin-left: 4px;
-  color: var(--brand);
+  color: var(--brand-text);
   opacity: 0;
   transform: translateX(-2px);
   transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease);
@@ -869,7 +869,7 @@ const openFile = (f: { id: number }) => {
 }
 .trend-switch-active {
   background: var(--brand-soft);
-  color: var(--brand);
+  color: var(--brand-text);
   font-weight: 600;
 }
 .trend-legend {
@@ -937,7 +937,7 @@ const openFile = (f: { id: number }) => {
   max-width: 14px;
   border-radius: 3px 3px 1px 1px;
   min-height: 2px;
-  transition: height 400ms var(--ease-bouncy);
+  transition: height var(--dur-slower) var(--ease-bouncy);
   opacity: 0.92;
 }
 .trend-bar:hover { opacity: 1; }
@@ -961,7 +961,7 @@ const openFile = (f: { id: number }) => {
 .trend-tip-month {
   font-size: var(--fs-xs);
   font-weight: 600;
-  color: var(--brand);
+  color: var(--brand-text);
   margin-bottom: 4px;
 }
 .trend-tip-row {
@@ -1081,7 +1081,7 @@ const openFile = (f: { id: number }) => {
 }
 .layout-item:active { cursor: grabbing; }
 .layout-grip { color: var(--text-3); }
-.layout-item-icon { color: var(--brand); }
+.layout-item-icon { color: var(--brand-text); }
 .layout-item-label { flex: 1; font-size: var(--fs-md); color: var(--text-1); }
 .layout-density {
   display: flex;
@@ -1114,9 +1114,9 @@ const openFile = (f: { id: number }) => {
   font-family: inherit;
   transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease);
 }
-.density-option:hover { border-color: var(--brand); }
+.density-option:hover { border-color: var(--brand-text); }
 .density-option.density-active {
-  border-color: var(--brand);
+  border-color: var(--brand-text);
   background: var(--brand-soft);
 }
 .density-name {

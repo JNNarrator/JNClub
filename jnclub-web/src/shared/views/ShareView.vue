@@ -7,7 +7,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { NButton, NIcon, NInput, NSpin, NTag, useMessage } from 'naive-ui'
 import { Download, Lock, StickyNote, Bookmark, FileText, ExternalLink, FileDown, Printer } from 'lucide-vue-next'
-import { formatDate } from '../../modules/bookmark/composables/formatDate'
+import { formatDate } from '../utils/formatDate'
 import axios from 'axios'
 
 const route = useRoute()
@@ -179,7 +179,7 @@ const bookmarkDomain = computed(() => {
 .share-state { display: flex; align-items: center; gap: 10px; justify-content: center; color: var(--text-2); padding: 30px 0; }
 .share-error { color: var(--danger); }
 .share-lock { display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; }
-.lock-ic { color: var(--brand); }
+.lock-ic { color: var(--brand-text); }
 .share-head { margin-bottom: 18px; }
 .type-tag { margin-bottom: 10px; }
 .share-title { font-size: 22px; font-weight: 800; color: var(--text-1); margin: 8px 0 4px; }
@@ -197,9 +197,9 @@ const bookmarkDomain = computed(() => {
   margin: 0;
 }
 .bookmark-box { width: 100%; padding: 16px; text-align: center; background: var(--glass-chip-bg); border-radius: var(--radius-md); }
-.bookmark-domain { font-family: var(--font-mono); color: var(--brand); }
+.bookmark-domain { font-family: var(--font-mono); color: var(--brand-text); }
 .file-box { display: flex; align-items: center; gap: 14px; width: 100%; padding: 16px; background: var(--glass-chip-bg); border-radius: var(--radius-md); }
-.file-ic { color: var(--brand); flex-shrink: 0; }
+.file-ic { color: var(--brand-text); flex-shrink: 0; }
 .file-info { min-width: 0; }
 .file-name { font-weight: 600; color: var(--text-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .file-meta { font-size: var(--fs-sm); color: var(--text-3); }

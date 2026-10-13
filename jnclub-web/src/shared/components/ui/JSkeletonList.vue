@@ -41,8 +41,14 @@ withDefaults(defineProps<{
   width: 36px;
   height: 36px;
   border-radius: var(--radius-sm);
-  background: var(--hover-bg);
-  animation: j-skeleton-pulse 1.4s ease-in-out infinite;
+  background: linear-gradient(
+    90deg,
+    var(--skeleton-base) 0%,
+    var(--skeleton-highlight) 50%,
+    var(--skeleton-base) 100%
+  );
+  background-size: 200% 100%;
+  animation: j-skeleton-shimmer var(--dur-loop) var(--ease-linear) infinite;
 }
 .j-skeleton-row-main {
   flex: 1;
@@ -52,9 +58,15 @@ withDefaults(defineProps<{
 }
 .j-skeleton-line {
   height: 12px;
-  border-radius: 6px;
-  background: var(--hover-bg);
-  animation: j-skeleton-pulse 1.4s ease-in-out infinite;
+  border-radius: var(--radius-xs);
+  background: linear-gradient(
+    90deg,
+    var(--skeleton-base) 0%,
+    var(--skeleton-highlight) 50%,
+    var(--skeleton-base) 100%
+  );
+  background-size: 200% 100%;
+  animation: j-skeleton-shimmer var(--dur-loop) var(--ease-linear) infinite;
 }
 .j-skeleton-title {
   width: 45%;
@@ -63,8 +75,17 @@ withDefaults(defineProps<{
 .j-skeleton-text {
   width: 80%;
 }
-@keyframes j-skeleton-pulse {
-  0%, 100% { opacity: 0.55; }
-  50% { opacity: 1; }
+@keyframes j-skeleton-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+/* 减少动态效果：停在静态底色，不扫光 */
+@media (prefers-reduced-motion: reduce) {
+  .j-skeleton-icon,
+  .j-skeleton-line {
+    background: var(--skeleton-base);
+    animation: none;
+  }
 }
 </style>

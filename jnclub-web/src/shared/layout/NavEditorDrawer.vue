@@ -8,7 +8,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { NDrawer, NButton, NIcon, useMessage } from 'naive-ui'
 import { Settings2, GripVertical, EyeOff, Plus } from 'lucide-vue-next'
 import { useUserPreferences } from '../composables/useUserPreferences'
-import { useDraggableSort } from '../../modules/bookmark/composables/useDraggableSort'
+import { useDraggableSort } from '../composables/useDraggableSort'
 import { NAV_META, DEFAULT_ORDER, normalizeNavKeys, completeOrder, type NavKey } from './navConfig'
 
 const props = defineProps<{
@@ -201,7 +201,7 @@ onMounted(() => { initVisibleSort() })
   cursor: default;
 }
 .editor-row:hover {
-  border-color: var(--brand);
+  border-color: var(--brand-text);
 }
 .drag-handle {
   display: inline-flex;
@@ -215,7 +215,7 @@ onMounted(() => { initVisibleSort() })
 }
 .row-icon {
   flex-shrink: 0;
-  color: var(--brand);
+  color: var(--brand-text);
 }
 .row-icon.muted {
   color: var(--text-3);
@@ -237,7 +237,7 @@ onMounted(() => { initVisibleSort() })
   color: var(--text-3);
 }
 .row-action:hover {
-  color: var(--brand);
+  color: var(--brand-text);
 }
 
 /* 拖拽视觉 */

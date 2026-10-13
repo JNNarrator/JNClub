@@ -13,14 +13,14 @@ import {
 } from 'lucide-vue-next'
 import { useVaultStore, type VaultItem } from '../stores/vault'
 import { useUserStore } from '../../../shared/stores/user'
-import { useDraggableSort } from '../composables/useDraggableSort'
+import { useDraggableSort } from '../../../shared/composables/useDraggableSort'
 import { useItemDragContext } from '../composables/useItemDragContext'
 import { openMenu, openMenuAt } from '../../../shared/composables/useContextMenu'
 import { useLongPress } from '../../../shared/composables/useLongPress'
 import { useBreakpoint } from '../../../shared/composables/useBreakpoint'
 import PasswordEditorModal from './PasswordEditorModal.vue'
 import PasswordRevealPopover from './PasswordRevealPopover.vue'
-import EmptyState from './EmptyState.vue'
+import EmptyState from '../../../shared/components/ui/JEmptyState.vue'
 import MoveItemModal from './MoveItemModal.vue'
 import VaultBackupModal from './VaultBackupModal.vue'
 import { copyText } from '../../../shared/utils/clipboard'
@@ -675,7 +675,7 @@ defineExpose({ openCreate })
   height: 44px;
   border-radius: 12px;
   background: var(--brand-soft);
-  color: var(--brand);
+  color: var(--brand-text);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -721,7 +721,7 @@ defineExpose({ openCreate })
 .strength-fill {
   height: 100%;
   border-radius: 3px;
-  transition: width 0.3s var(--ease), background 0.3s;
+  transition: width var(--dur-slow) var(--ease), background var(--dur-slow) var(--ease);
 }
 .strength-fill.lv-weak { background: var(--state-error); }
 .strength-fill.lv-medium { background: var(--state-warning); }
@@ -749,7 +749,7 @@ defineExpose({ openCreate })
   height: 64px;
   border-radius: 18px;
   background: var(--brand-soft);
-  color: var(--brand);
+  color: var(--brand-text);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -799,7 +799,7 @@ defineExpose({ openCreate })
   margin-left: auto;
   color: var(--text-3);
 }
-.vault-empty { padding: 40px 0; }
+.vault-empty { padding: var(--empty-pad) 0; }
 .vault-list {
   display: flex;
   flex-direction: column;
@@ -833,7 +833,7 @@ defineExpose({ openCreate })
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--brand);
+  color: var(--brand-text);
   flex-shrink: 0;
 }
 .item-main {
@@ -920,7 +920,7 @@ defineExpose({ openCreate })
 .reset-code code {
   font-family: var(--font-mono);
   background: var(--hover-bg);
-  color: var(--brand);
+  color: var(--brand-text);
   padding: 2px 8px;
   border-radius: 6px;
   letter-spacing: 1px;
@@ -932,9 +932,9 @@ defineExpose({ openCreate })
   font-size: 44px;
   font-weight: 700;
   letter-spacing: 8px;
-  color: var(--brand);
+  color: var(--brand-text);
   padding: 8px 0;
-  transition: color 0.2s;
+  transition: color var(--dur) var(--ease);
 }
 .totp-code-warn { color: var(--danger); }
 .totp-remaining {

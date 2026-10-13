@@ -283,7 +283,7 @@ const trailOptions: { key: TrailEffectType; label: string; desc: string; color: 
   border-color: color-mix(in srgb, var(--brand) 50%, var(--glass-border));
 }
 .style-option.active {
-  border-color: var(--brand);
+  border-color: var(--brand-text);
   background: var(--brand-soft);
 }
 
@@ -390,7 +390,7 @@ const trailOptions: { key: TrailEffectType; label: string; desc: string; color: 
   color: var(--text-4);
 }
 .style-option.active .style-check {
-  color: var(--brand);
+  color: var(--brand-text);
 }
 
 .settings-foot {

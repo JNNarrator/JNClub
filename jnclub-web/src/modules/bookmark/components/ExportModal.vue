@@ -137,7 +137,7 @@ const items = [
   width: 36px; height: 36px;
   border-radius: 10px;
   background: var(--brand-soft);
-  color: var(--brand);
+  color: var(--brand-text);
   display: flex; align-items: center; justify-content: center;
 }
 .export-item-head {

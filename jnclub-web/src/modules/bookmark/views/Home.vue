@@ -715,7 +715,7 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
 }
 .tag-chip-active {
   background: var(--brand-soft) !important;
-  color: var(--brand) !important;
+  color: var(--brand-text) !important;
   font-weight: 600;
 }
 .tag-count {
@@ -734,7 +734,7 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
 }
 .module-fade-enter-active,
 .module-fade-leave-active {
-  transition: opacity 0.18s var(--ease), transform 0.18s var(--ease);
+  transition: opacity var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
 }
 .module-fade-enter-from { opacity: 0; transform: translateY(8px); }
 .module-fade-leave-to { opacity: 0; transform: translateY(-6px); }

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import { useReducedMotion } from '../../../composables/useReducedMotion';
 
 interface ShinyTextProps {
   text: string;
@@ -33,7 +34,10 @@ const props = withDefaults(defineProps<ShinyTextProps>(), {
  * 用浏览器原生 @keyframes 驱动 background-position 扫光，不再每个实例跑 rAF，
  * 两平台渲染统一由浏览器调度，主线程零负载、行为一致。
  * props 透传保持不变（业务侧用 JShinyText 无感）。
+ * 减少动态效果时等同 disabled：保留渐变静态外观，不跑扫光。
  */
+const reduced = useReducedMotion();
+
 const wrapperStyle = computed(() => {
   const base = {
     backgroundImage: `linear-gradient(${props.spread}deg, ${props.color} 0%, ${props.color} 35%, ${props.shineColor} 50%, ${props.color} 65%, ${props.color} 100%)`,
@@ -42,7 +46,7 @@ const wrapperStyle = computed(() => {
     backgroundClip: 'text',
     WebkitTextFillColor: 'transparent',
   } as Record<string, string | number>;
-  if (props.disabled) return base;
+  if (props.disabled || reduced.value) return base;
   return {
     ...base,
     backgroundPosition: props.direction === 'right' ? '-50% center' : '150% center',

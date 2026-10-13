@@ -2,7 +2,6 @@
 import { ref, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { NConfigProvider, darkTheme, NMessageProvider, NDialogProvider } from 'naive-ui'
-import { tokensToCSSVars, lightTokens, darkTokens } from './themes/tokens'
 import lightThemeOverrides from './themes/light'
 import darkThemeOverrides from './themes/dark'
 import { useOnlineStatus } from './shared/composables/useOnlineStatus'
@@ -20,31 +19,43 @@ initPlatform()
 const { init: initPerfTier } = usePerfTier()
 initPerfTier()
 
-const isDark = ref(false)
+/**
+ * 首帧即取到正确主题：index.html 的内联脚本已用同一份判定写入 data-theme，
+ * 这里同步读取可保证 naive-ui 首帧就是对应主题（否则暗色用户会闪一帧亮色弹层）。
+ */
+function resolveInitialDark(): boolean {
+  try {
+    const saved = localStorage.getItem('theme')
+    if (saved) return saved === 'dark'
+  } catch {
+    /* localStorage 不可用：退回系统偏好 */
+  }
+  return window.matchMedia('(prefers-color-scheme: dark)').matches
+}
+
+const isDark = ref(resolveInitialDark())
 const route = useRoute()
 
 // 离线提示（PWA 应用壳离线可打开，业务数据仍需网络）
 const { isOnline } = useOnlineStatus()
 
-/** 将 token 注入为 CSS 变量到 :root */
-function applyTokens(isDark: boolean) {
-  const tokens = isDark ? darkTokens : lightTokens
-  const vars = tokensToCSSVars(tokens)
-  const root = document.documentElement
-  Object.entries(vars).forEach(([key, val]) => {
-    root.style.setProperty(key, val)
-  })
+/**
+ * 主题切换只写 <html data-theme>，具体变量由构建期生成的 tokens.generated.css 提供。
+ * 原先在此处循环 setProperty 注入 117 个变量，导致首帧 var() 全部无值回退（FOUC），
+ * 且硬编码颜色永远不随主题变化（缺少 CSS 侧主题钩子）。
+ */
+function applyTheme(dark: boolean) {
+  document.documentElement.dataset.theme = dark ? 'dark' : 'light'
+  // PWA 状态栏颜色：meta 的 media 分支只认系统偏好，认不了用户显式选择
+  const meta = document.querySelector('meta[name="theme-color"]')
+  if (meta) meta.setAttribute('content', dark ? '#000000' : '#EC5B8E')
 }
 
 onMounted(() => {
-  const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
-  isDark.value = mediaQuery.matches
-  const savedTheme = localStorage.getItem('theme')
-  if (savedTheme) {
-    isDark.value = savedTheme === 'dark'
-  }
-  applyTokens(isDark.value)
+  applyTheme(isDark.value)
 
+  // 仅在用户未显式选择过主题时跟随系统变化
+  const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
   mediaQuery.addEventListener('change', (e) => {
     if (!localStorage.getItem('theme')) {
       isDark.value = e.matches
@@ -52,9 +63,7 @@ onMounted(() => {
   })
 })
 
-watch(isDark, (val) => {
-  applyTokens(val)
-})
+watch(isDark, (val) => applyTheme(val))
 
 const toggleTheme = () => {
   isDark.value = !isDark.value
@@ -143,7 +152,7 @@ body {
 /* 全局路由过渡：淡入 + 轻微上移（vue-bits 适配层节奏，随主题 token 缓动） */
 .page-fade-enter-active,
 .page-fade-leave-active {
-  transition: opacity var(--dur, 0.2s) var(--ease, ease), transform var(--dur, 0.2s) var(--ease, ease);
+  transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease);
 }
 .page-fade-enter-from {
   opacity: 0;

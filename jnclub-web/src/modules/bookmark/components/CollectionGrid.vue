@@ -9,7 +9,7 @@ import { useVirtualList, useElementSize } from '@vueuse/core'
 import { NSpin } from 'naive-ui'
 import CollectionCard from './CollectionCard.vue'
 import type { BookmarkItem } from './CollectionRow.vue'
-import { useDraggableSort } from '../composables/useDraggableSort'
+import { useDraggableSort } from '../../../shared/composables/useDraggableSort'
 import { useItemDragContext } from '../composables/useItemDragContext'
 import { useBreakpoint } from '../../../shared/composables/useBreakpoint'
 
@@ -162,8 +162,8 @@ watch(isVirtual, async (v) => {
 .grid-item-wrap {
   opacity: 0;
   transform: translateY(10px);
-  animation: jnclub-cardIn 0.32s var(--ease) forwards;
-  animation-delay: calc(var(--i, 0) * 0.045s);
+  animation: jnclub-cardIn var(--dur-slow) var(--ease) forwards;
+  animation-delay: calc(var(--i, 0) * var(--dur-stagger));
 }
 
 .grid-cards.visible .grid-item-wrap {

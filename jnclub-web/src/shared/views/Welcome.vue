@@ -174,12 +174,12 @@ const goRegister = () => {
   -webkit-backdrop-filter: blur(var(--glass-blur));
   color: var(--text-2);
   cursor: pointer;
-  transition: all .2s ease;
+  transition: all var(--dur) var(--ease);
   z-index: 2;
 }
 .theme-toggle:hover {
-  color: var(--brand);
-  border-color: var(--brand);
+  color: var(--brand-text);
+  border-color: var(--brand-text);
   box-shadow: 0 4px 14px var(--brand-soft);
 }
 
@@ -217,7 +217,7 @@ const goRegister = () => {
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
-  color: var(--brand);
+  color: var(--brand-text);
 }
 .brand-slogan {
   margin: 0;
@@ -234,7 +234,7 @@ const goRegister = () => {
 }
 .feature-card-wrap {
   opacity: 0;
-  animation: welcome-fade-up .5s var(--ease) forwards;
+  animation: welcome-fade-up var(--dur-slower) var(--ease) forwards;
   /* 覆盖 vendor GlareHover 外层的 overflow-hidden：
      否则卡片 hover 上飘 translateY(-4px) 时，顶部 4px 被外层裁剪，上边框看起来被切掉/挡住 */
   overflow: visible;
@@ -248,12 +248,12 @@ const goRegister = () => {
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-lg);
   text-align: left;
-  transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
+  transition: transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease), border-color var(--dur) var(--ease);
 }
 .feature-card-wrap:hover .feature-card {
   transform: translateY(-4px);
   box-shadow: var(--glass-shadow);
-  border-color: var(--brand);
+  border-color: var(--brand-text);
 }
 .feature-icon {
   display: inline-flex;
@@ -264,7 +264,7 @@ const goRegister = () => {
   border-radius: 14px;
   background: var(--glass-chip-bg);
   border: 1px solid var(--glass-chip-border);
-  color: var(--brand);
+  color: var(--brand-text);
   margin-bottom: 14px;
 }
 .feature-title {

@@ -4,7 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "gen:theme": "node scripts/gen-theme-css.mjs",
+    "predev": "node scripts/gen-theme-css.mjs",
     "dev": "vite",
+    "prebuild": "node scripts/gen-theme-css.mjs",
     "build": "vue-tsc && vite build",
     "preview": "vite preview"
   },

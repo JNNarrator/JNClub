@@ -237,14 +237,14 @@ onBeforeUnmount(() => {
   width: 52px;
   height: 52px;
   margin: -26px 0 0 -26px;
-  border-color: var(--brand);
+  border-color: var(--brand-text);
   background: color-mix(in srgb, var(--brand) 14%, transparent);
 }
 .cursor-halo.pressed {
   width: 24px;
   height: 24px;
   margin: -12px 0 0 -12px;
-  border-color: var(--brand);
+  border-color: var(--brand-text);
   background: color-mix(in srgb, var(--brand) 20%, transparent);
 }
 
@@ -327,13 +327,13 @@ onBeforeUnmount(() => {
   width: 48px;
   height: 48px;
   margin: -24px 0 0 -24px;
-  border-color: var(--brand);
+  border-color: var(--brand-text);
 }
 .cursor-ring-outer.pressed {
   width: 28px;
   height: 28px;
   margin: -14px 0 0 -14px;
-  border-color: var(--brand);
+  border-color: var(--brand-text);
   border-width: 2px;
 }
 .cursor-ring-inner {

@@ -42,6 +42,7 @@ const emit = defineEmits<{
         type="button"
         class="j-page-header-btn jnclub-bouncy"
         title="刷新"
+        :aria-label="'刷新'"
         @click="emit('refresh')"
       >
         <NIcon :component="RefreshCw" size="16" />
@@ -51,6 +52,7 @@ const emit = defineEmits<{
         type="button"
         class="j-page-header-btn jnclub-bouncy"
         title="切换暗色模式"
+        :aria-label="'切换暗色模式'"
         @click="emit('toggle-theme')"
       >
         <NIcon :component="isDark ? Sun : Moon" size="16" />
@@ -60,6 +62,7 @@ const emit = defineEmits<{
         type="button"
         class="j-page-header-btn jnclub-bouncy"
         title="返回"
+        :aria-label="'返回'"
         @click="emit('back')"
       >
         <NIcon :component="ArrowLeft" size="16" />
@@ -127,5 +130,15 @@ const emit = defineEmits<{
     width: 100%;
     overflow-x: auto;
   }
+}
+
+/* 三态：原先只有 :hover（原生 button 在触屏上无 hover，需要 active 反馈） */
+.j-page-header-btn:active {
+  transform: scale(0.94);
+}
+.j-page-header-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 </style>

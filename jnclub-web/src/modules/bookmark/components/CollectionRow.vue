@@ -12,7 +12,7 @@ import { openMenu, openMenuAt } from '../../../shared/composables/useContextMenu
 import { useLongPress } from '../../../shared/composables/useLongPress'
 import MoveItemModal from './MoveItemModal.vue'
 import axios from 'axios'
-import { formatRelativeTime } from '../composables/formatDate'
+import { formatRelativeTime } from '../../../shared/utils/formatDate'
 import { useRecentItems } from '../../../shared/composables/useRecentItems'
 
 export interface BookmarkItem {
@@ -84,7 +84,7 @@ const handleDropdown = (key: string) => {
 
 <template>
   <div
-    class="collection-row jnclub-longpress"
+    :class="['collection-row jnclub-longpress', { 'is-selected': props.selected }]"
     role="link"
     tabindex="0"
     @click="onRootClick"
@@ -163,7 +163,8 @@ const handleDropdown = (key: string) => {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 16px;
+  /* 与 NoteRow 对齐（原为 10px 16px，两者不一致） */
+  padding: 12px 16px;
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: background var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
@@ -223,7 +224,7 @@ const handleDropdown = (key: string) => {
 }
 .row-tag {
   background: var(--brand-soft) !important;
-  color: var(--brand) !important;
+  color: var(--brand-text) !important;
 }
 
 /* 元信息 */
@@ -269,13 +270,4 @@ const handleDropdown = (key: string) => {
   background: var(--hover-bg);
 }
 </style>
-<style scoped>
-.batch-check {
-  position: absolute;
-  top: 10px; left: 10px;
-  z-index: 5;
-  background: rgba(0,0,0,0.35);
-  border-radius: 6px;
-  padding: 2px;
-}
-</style>
+<style scoped></style>

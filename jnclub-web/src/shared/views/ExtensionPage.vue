@@ -228,10 +228,10 @@ const jnxFeatures = [
 .section-head { display: flex; align-items: center; gap: 12px; }
 .section-icon {
   width: 40px; height: 40px; border-radius: 12px;
-  background: var(--brand-soft); color: var(--brand);
+  background: var(--brand-soft); color: var(--brand-text);
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
-.section-icon.jnx { background: var(--brand-soft); color: var(--brand); }
+.section-icon.jnx { background: var(--brand-soft); color: var(--brand-text); }
 .section-title { font-size: 18px; font-weight: 700; color: var(--text-1); }
 .section-sub { font-size: 13px; color: var(--text-2); }
 
@@ -247,10 +247,10 @@ const jnxFeatures = [
 }
 .feature-icon {
   width: 44px; height: 44px; border-radius: 12px;
-  background: var(--brand-soft); color: var(--brand);
+  background: var(--brand-soft); color: var(--brand-text);
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
-.feature-icon.jnx { background: var(--brand-soft); color: var(--brand); }
+.feature-icon.jnx { background: var(--brand-soft); color: var(--brand-text); }
 .feature-title { font-size: 15px; font-weight: 600; color: var(--text-1); margin-bottom: 3px; }
 .feature-desc { font-size: 13px; color: var(--text-2); }
 
@@ -281,14 +281,14 @@ const jnxFeatures = [
 .step-num {
   position: absolute; inset: 0;
   display: flex; align-items: center; justify-content: center;
-  border-radius: 50%; background: var(--brand-soft); color: var(--brand);
+  border-radius: 50%; background: var(--brand-soft); color: var(--brand-text);
   font-size: 12px; font-weight: 700; line-height: 1;
 }
 :deep(.n-step) {
   --n-title-text-color: var(--text-1) !important;
   --n-description-text-color: var(--text-2) !important;
   --n-indicator-color: var(--brand-soft) !important;
-  --n-indicator-text-color: var(--brand) !important;
+  --n-indicator-text-color: var(--brand-text) !important;
   --n-line-color: var(--glass-border) !important;
   --n-indicator-size: 28px !important;
   --n-indicator-icon-size: 28px !important;
