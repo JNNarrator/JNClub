@@ -1,6 +1,12 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
-import 'element-plus/dist/index.css'
+
+// Vant 按需样式：项目只用到 toast / dialog 两个函数式组件，
+// 原先 import 'vant/lib/index.css' 会打入全部组件样式（约 200KB）。
+// 这两个 style 入口各自带上真正的依赖（base/badge/icon/loading/overlay/popup 等）。
+import 'vant/es/toast/style/index'
+import 'vant/es/dialog/style/index'
+
 import App from './App.vue'
 import './styles.css'
 
@@ -53,8 +59,8 @@ window.addEventListener('resize', fixBottomBar)
 window.addEventListener('load', fixBottomBar)
 
 
-// Vant 样式
-import 'vant/lib/index.css'
+
+
 
 const app = createApp(App)
 app.use(createPinia())

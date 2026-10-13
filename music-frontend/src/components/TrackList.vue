@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import { showToast } from 'vant'
-import { ElIcon } from 'element-plus'
-import { Search, VideoPlay, Refresh, Loading, RefreshRight, WarningFilled, CircleCheckFilled, Plus, FolderOpened, Star } from '@element-plus/icons-vue'
 import { usePlayerStore, type Track } from '../stores/player'
 import { useThemeStore } from '../stores/theme'
 import { usePlaylistsStore } from '../stores/playlists'
 import { api } from '../utils/api'
+import JIcon from './JIcon.vue'
 import PlaylistPanel from './PlaylistPanel.vue'
 
 const player = usePlayerStore()
@@ -332,7 +331,7 @@ onBeforeUnmount(() => {
       </div>
       <div class="head-actions">
         <div class="search-input">
-          <el-icon :size="16"><Search /></el-icon>
+          <JIcon name="search" :size="16" />
           <input
             v-model="keyword"
             type="text"
@@ -341,23 +340,20 @@ onBeforeUnmount(() => {
           />
         </div>
         <button class="cache-btn" :disabled="cacheRefreshing" @click="refreshCache" title="刷新歌曲直链缓存">
-          <el-icon :size="14" :class="{ spinning: cacheRefreshing }">
-            <Loading v-if="cacheRefreshing" />
-            <RefreshRight v-else />
-          </el-icon>
+          <JIcon :name="cacheRefreshing ? 'loading' : 'refresh-right'" :size="14" :class="{ spinning: cacheRefreshing }" />
           <span v-if="!cacheRefreshing">刷新缓存</span>
           <span v-else>{{ cacheProgressLabel }}</span>
         </button>
         <button class="btn-ghost" @click="playlists.openPanel()">
-          <el-icon :size="14"><FolderOpened /></el-icon>
+          <JIcon name="folder-opened" :size="14" />
           <span>歌单</span>
         </button>
         <button class="btn-ghost recommend" @click="playRecommend">
-          <el-icon :size="14"><Star /></el-icon>
+          <JIcon name="star" :size="14" />
           <span>猜你喜欢</span>
         </button>
         <button class="play-all" @click="playAll(0)" :disabled="!tracks.length">
-          <el-icon :size="16"><VideoPlay /></el-icon>
+          <JIcon name="video-play" :size="16" />
           <span>播放全部</span>
         </button>
       </div>
@@ -369,7 +365,7 @@ onBeforeUnmount(() => {
       :class="{ active: pullDistance >= PULL_THRESHOLD, refreshing }"
       :style="{ height: `${pullDistance}px` }"
     >
-      <el-icon class="pull-icon"><Refresh /></el-icon>
+      <JIcon name="refresh" class="pull-icon" />
       <span v-if="refreshing">正在刷新…</span>
       <span v-else-if="pullDistance >= PULL_THRESHOLD">释放刷新</span>
       <span v-else>下拉刷新</span>
@@ -394,7 +390,7 @@ onBeforeUnmount(() => {
       <div v-else-if="error" class="jn-state jn-state--error">
         <p class="jn-state-text">{{ error }}</p>
         <button class="jn-state-retry" @click="retryFetch">
-          <el-icon><Refresh /></el-icon>
+          <JIcon name="refresh" />
           <span>重试</span>
         </button>
       </div>
@@ -418,17 +414,17 @@ onBeforeUnmount(() => {
               <i /><i /><i /><i /><i />
             </span>
             <span v-else-if="player.getTrackState(track.trackId) === 'loading'" class="row-state loading">
-              <el-icon class="spin" :size="16"><Loading /></el-icon>
+              <JIcon name="loading" class="spin" :size="16" />
             </span>
             <span v-else-if="player.getTrackState(track.trackId) === 'error'" class="row-state error" title="直链获取失败，点击重试">
-              <el-icon :size="14"><WarningFilled /></el-icon>
+              <JIcon name="warning-filled" :size="14" />
             </span>
             <span v-else-if="player.getTrackState(track.trackId) === 'ready'" class="row-state ready" title="可播放">
-              <el-icon :size="14"><CircleCheckFilled /></el-icon>
+              <JIcon name="circle-check-filled" :size="14" />
             </span>
             <span v-else class="num">{{ idx + 1 }}</span>
             <span class="hover-play">
-              <el-icon :size="16"><VideoPlay /></el-icon>
+              <JIcon name="video-play" :size="16" />
             </span>
           </div>
           <div class="row-main">
@@ -437,7 +433,7 @@ onBeforeUnmount(() => {
           </div>
           <div class="row-meta">
             <button class="row-add" title="加入歌单" aria-label="加入歌单" @click.stop="openPickPlaylist(track)">
-              <el-icon :size="15"><Plus /></el-icon>
+              <JIcon name="plus" :size="15" />
             </button>
           </div>
         </div>
@@ -445,7 +441,7 @@ onBeforeUnmount(() => {
 
       <!-- Load more -->
       <div v-if="loadingMore" class="load-more">
-        <el-icon class="spin"><Refresh /></el-icon>
+        <JIcon name="refresh" class="spin" />
         <span>加载中…</span>
       </div>
       <div v-else-if="!hasMore && tracks.length > 0" class="load-more no-more">
@@ -536,7 +532,7 @@ onBeforeUnmount(() => {
 .search-input input::placeholder {
   color: var(--jn-ink-muted);
 }
-.search-input .el-icon {
+.search-input .j-icon {
   color: var(--jn-ink-dim);
   flex-shrink: 0;
 }

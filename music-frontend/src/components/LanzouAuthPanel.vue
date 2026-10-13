@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import JIcon from './JIcon.vue'
 import { showToast } from 'vant'
-import { ElIcon } from 'element-plus'
-import { Cloudy, Key, Link, Refresh, Lock, Close } from '@element-plus/icons-vue'
 
 type Status = { authenticated: boolean; uid?: string; reason?: string }
 
@@ -110,7 +109,7 @@ fetchStatus()
       @click="toggleOpen"
     >
       <span class="dot" aria-hidden="true" />
-      <el-icon :size="15"><Cloudy /></el-icon>
+      <JIcon name="cloudy" :size="15" />
       <span class="txt">蓝奏云</span>
     </button>
     <div v-if="showPillTooltip" class="pill-tooltip">{{ lightLabel }}</div>
@@ -122,7 +121,7 @@ fetchStatus()
       <div class="drawer-panel">
         <div class="drawer-body">
           <button class="drawer-close" @click="open = false" aria-label="关闭">
-            <el-icon :size="20"><Close /></el-icon>
+            <JIcon name="close" :size="20" />
           </button>
           <header class="head">
             <p class="eyebrow">// Signal Check</p>
@@ -138,12 +137,12 @@ fetchStatus()
                    @mouseenter="showRefreshTooltip = true"
                    @mouseleave="showRefreshTooltip = false">
                 <button class="cache-refresh-btn" :disabled="cacheRefreshing" @click="refreshCache" title="刷新歌曲直链缓存">
-                  <el-icon :size="13" :class="{ spinning: cacheRefreshing }"><Refresh /></el-icon>
+                  <JIcon name="refresh" :size="13" :class="{ spinning: cacheRefreshing }" />
                   <span v-if="!cacheRefreshing">缓存</span>
                   <span v-else>刷新中</span>
                 </button>
                 <button class="refresh" :disabled="loading" @click="fetchStatus">
-                  <el-icon :size="15" :class="{ spinning: loading }"><Refresh /></el-icon>
+                  <JIcon name="refresh" :size="15" :class="{ spinning: loading }" />
                 </button>
                 <div v-if="showRefreshTooltip" class="tooltip-sm">重新校验</div>
               </div>
@@ -158,7 +157,7 @@ fetchStatus()
               :class="{ active: mode === 'cookie' }"
               @click="mode = 'cookie'"
             >
-              <el-icon :size="14"><Link /></el-icon>
+              <JIcon name="link" :size="14" />
               Cookie
             </button>
             <button
@@ -166,7 +165,7 @@ fetchStatus()
               :class="{ active: mode === 'password' }"
               @click="mode = 'password'"
             >
-              <el-icon :size="14"><Key /></el-icon>
+              <JIcon name="key" :size="14" />
               账号密码
             </button>
           </div>
@@ -193,7 +192,7 @@ fetchStatus()
             <div class="field">
               <label class="field-label">账号</label>
               <div class="input-wrapper">
-                <el-icon :size="14"><Link /></el-icon>
+                <JIcon name="link" :size="14" />
                 <input
                   v-model="username"
                   class="input"
@@ -206,7 +205,7 @@ fetchStatus()
             <div class="field">
               <label class="field-label">密码</label>
               <div class="input-wrapper">
-                <el-icon :size="14"><Lock /></el-icon>
+                <JIcon name="lock" :size="14" />
                 <input
                   v-model="password"
                   class="input"
@@ -516,7 +515,7 @@ fetchStatus()
   transition: border-color var(--jn-dur-fast);
 }
 .input-wrapper:focus-within { border-color: var(--jn-accent); }
-.input-wrapper .el-icon { color: var(--jn-ink-dim); flex-shrink: 0; }
+.input-wrapper .j-icon { color: var(--jn-ink-dim); flex-shrink: 0; }
 
 .input {
   flex: 1;

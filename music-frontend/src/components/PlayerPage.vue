@@ -1,10 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { ElIcon } from 'element-plus'
-import {
-  VideoPlay, VideoPause, DArrowLeft, DArrowRight,
-  Sort, Refresh, RefreshRight, Mute, Close, Loading,
-} from '@element-plus/icons-vue'
+import JIcon from './JIcon.vue'
 import { usePlayerStore, type PlayMode } from '../stores/player'
 import { useUiStore } from '../stores/ui'
 import { useLyrics } from '../composables/useLyrics'
@@ -57,10 +53,11 @@ const progressPercent = computed(() => {
 })
 const volumePercent = computed(() => player.volume * 100)
 
-const MODE_META: Record<PlayMode, { label: string; icon: any }> = {
-  list: { label: '列表循环', icon: RefreshRight },
-  one: { label: '单曲循环', icon: Refresh },
-  shuffle: { label: '随机播放', icon: Sort },
+// icon 存图标名（JIcon 的 name），不再是组件引用
+const MODE_META: Record<PlayMode, { label: string; icon: string }> = {
+  list: { label: '列表循环', icon: 'refresh-right' },
+  one: { label: '单曲循环', icon: 'refresh' },
+  shuffle: { label: '随机播放', icon: 'sort' },
 }
 const modeMeta = computed(() => MODE_META[player.mode])
 
@@ -181,7 +178,7 @@ function handleClose() { ui.closePlayerPage() }
           <div class="jn-state jn-state--error pp-lyrics-error">
             <p class="jn-state-text">{{ lyricsError }}</p>
             <button class="jn-state-retry" @click="retryFetchLyrics">
-              <el-icon><Refresh /></el-icon>
+              <JIcon name="refresh" />
               <span>重试</span>
             </button>
           </div>
@@ -228,28 +225,26 @@ function handleClose() { ui.closePlayerPage() }
         <div class="pp-main-ctl">
           <div class="pp-side pp-side-left">
             <button class="pp-mode-btn" :class="{ active: player.mode !== 'list' }" @click="player.cyclePlayMode()">
-              <el-icon :size="20"><component :is="modeMeta.icon" /></el-icon>
+              <JIcon :name="modeMeta.icon" :size="20" />
               <span v-if="player.mode === 'one'" class="pp-mode-badge">1</span>
             </button>
           </div>
           <div class="pp-center-btns">
             <button class="pp-skip-btn" :disabled="!player.queue.length" @click.stop="player.prev()">
-              <el-icon :size="24"><DArrowLeft /></el-icon>
+              <JIcon name="d-arrow-left" :size="24" />
             </button>
             <button class="pp-play-btn" :class="{ playing: player.isPlaying, loading: player.loading }" :disabled="!player.currentTrack || player.loading" @click.stop="player.toggle()">
               <span class="pp-play-ring" />
-              <el-icon v-if="player.loading" :size="28" class="pp-play-icon spin"><Loading /></el-icon>
-              <el-icon v-else :size="28" class="pp-play-icon">
-                <VideoPause v-if="player.isPlaying" /><VideoPlay v-else />
-              </el-icon>
+              <JIcon name="loading" v-if="player.loading" :size="28" class="pp-play-icon spin" />
+              <JIcon v-else :name="player.isPlaying ? 'video-pause' : 'video-play'" :size="28" class="pp-play-icon" />
             </button>
             <button class="pp-skip-btn" :disabled="!player.queue.length" @click.stop="player.next(true)">
-              <el-icon :size="24"><DArrowRight /></el-icon>
+              <JIcon name="d-arrow-right" :size="24" />
             </button>
           </div>
           <div class="pp-side pp-side-right">
             <div class="pp-volume" @click="onVolumeClick">
-              <el-icon :size="18" class="pp-vol-icon"><Mute /></el-icon>
+              <JIcon name="mute" :size="18" class="pp-vol-icon" />
               <div class="pp-volume-bar">
                 <div class="pp-volume-fill" :style="{ width: volumePercent + '%' }" />
               </div>
@@ -259,7 +254,7 @@ function handleClose() { ui.closePlayerPage() }
       </footer>
 
       <button class="pp-collapse-btn" aria-label="收起" @click="handleClose">
-        <el-icon :size="18"><Close /></el-icon>
+        <JIcon name="close" :size="18" />
       </button>
     </div>
   </Transition>

@@ -1,18 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { ElIcon } from 'element-plus'
-import {
-  VideoPlay,
-  VideoPause,
-  DArrowLeft,
-  DArrowRight,
-  Sort,
-  Refresh,
-  RefreshRight,
-  Mute,
-  Loading,
-  Document,
-} from '@element-plus/icons-vue'
+import JIcon from './JIcon.vue'
 import { usePlayerStore, type PlayMode } from '../stores/player'
 import { useUiStore } from '../stores/ui'
 
@@ -34,10 +22,11 @@ const progressPercent = computed(() => {
 
 const volumePercent = computed(() => player.volume * 100)
 
-const MODE_META: Record<PlayMode, { label: string; icon: any }> = {
-  list: { label: '列表循环', icon: RefreshRight },
-  one: { label: '单曲循环', icon: Refresh },
-  shuffle: { label: '随机播放', icon: Sort },
+// icon 存图标名（JIcon 的 name），不再是组件引用
+const MODE_META: Record<PlayMode, { label: string; icon: string }> = {
+  list: { label: '列表循环', icon: 'refresh-right' },
+  one: { label: '单曲循环', icon: 'refresh' },
+  shuffle: { label: '随机播放', icon: 'sort' },
 }
 
 const modeMeta = computed(() => MODE_META[player.mode])
@@ -174,7 +163,7 @@ function onCapsuleClick() {
             :disabled="!player.queue.length"
             @click.stop="player.prev"
           >
-            <el-icon :size="18"><DArrowLeft /></el-icon>
+            <JIcon name="d-arrow-left" :size="18" />
           </button>
           <div v-if="showPrevTooltip" class="tooltip">上一曲</div>
         </div>
@@ -186,11 +175,8 @@ function onCapsuleClick() {
           aria-label="播放或暂停"
           @click.stop="player.toggle"
         >
-          <el-icon v-if="player.loading" :size="20" class="spin"><Loading /></el-icon>
-          <el-icon v-else :size="20">
-            <VideoPause v-if="player.isPlaying" />
-            <VideoPlay v-else />
-          </el-icon>
+          <JIcon name="loading" v-if="player.loading" :size="20" class="spin" />
+          <JIcon v-else :name="player.isPlaying ? 'video-pause' : 'video-play'" :size="20" />
         </button>
 
         <div class="tooltip-wrapper"
@@ -202,7 +188,7 @@ function onCapsuleClick() {
             :disabled="!player.queue.length"
             @click.stop="player.next(true)"
           >
-            <el-icon :size="18"><DArrowRight /></el-icon>
+            <JIcon name="d-arrow-right" :size="18" />
           </button>
           <div v-if="showNextTooltip" class="tooltip">下一曲</div>
         </div>
@@ -216,7 +202,7 @@ function onCapsuleClick() {
             :aria-label="'播放模式：' + modeMeta.label"
             @click.stop="player.cyclePlayMode"
           >
-            <el-icon :size="16"><component :is="modeMeta.icon" /></el-icon>
+            <JIcon :name="modeMeta.icon" :size="16" />
             <span v-if="player.mode === 'one'" class="badge">1</span>
           </button>
           <div v-if="showModeTooltip" class="tooltip">{{ modeMeta.label }}</div>
@@ -232,7 +218,7 @@ function onCapsuleClick() {
             aria-label="歌词"
             @click.stop="ui.openLyricsPanel()"
           >
-            <el-icon :size="16"><Document /></el-icon>
+            <JIcon name="document" :size="16" />
           </button>
           <div v-if="showLyricsTooltip" class="tooltip">歌词</div>
         </div>
@@ -258,7 +244,7 @@ function onCapsuleClick() {
     </div>
 
     <div class="volume" @click.stop>
-      <el-icon :size="16" class="vol-icon"><Mute /></el-icon>
+      <JIcon name="mute" :size="16" class="vol-icon" />
       <div class="volume-bar"
            @mousedown="(e: MouseEvent) => {
              const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()

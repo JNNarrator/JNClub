@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, onMounted, onBeforeUnmount, defineAsyncComponent } from 'vue'
-import { ElIcon } from 'element-plus'
 import { showDialog } from 'vant'
-import { Sunny, Moon, Download, Back } from '@element-plus/icons-vue'
+import JIcon from './components/JIcon.vue'
 import TrackList from './components/TrackList.vue'
 import PlayerBar from './components/PlayerBar.vue'
 import LyricsPanel from './components/LyricsPanel.vue'
@@ -142,7 +141,7 @@ if (typeof window !== 'undefined') {
           aria-label="返回 JNClub 工作台"
           @click="goBack"
         >
-          <el-icon :size="16"><Back /></el-icon>
+          <JIcon name="back" :size="16" />
           <span>返回</span>
         </button>
         <div class="brand">
@@ -160,7 +159,7 @@ if (typeof window !== 'undefined') {
       <div class="header-actions">
         <LanzouAuthPanel />
         <button v-if="pwaInstallable" class="install-btn" @click="(window as any).__installPrompt?.()" title="安装到桌面">
-          <el-icon :size="15"><Download /></el-icon>
+          <JIcon name="download" :size="15" />
           <span>安装</span>
         </button>
         <div class="theme-tooltip-wrapper"
@@ -171,10 +170,7 @@ if (typeof window !== 'undefined') {
             :aria-label="themeLabel"
             @click="theme.toggle()"
           >
-            <el-icon :size="18">
-              <Moon v-if="theme.mode === 'dark'" />
-              <Sunny v-else />
-            </el-icon>
+            <JIcon :name="theme.mode === 'dark' ? 'moon' : 'sunny'" :size="18" />
           </button>
           <div v-if="showThemeTooltip" class="theme-tooltip">{{ themeLabel }}</div>
         </div>

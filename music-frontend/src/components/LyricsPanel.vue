@@ -6,8 +6,7 @@
  * - 切歌自动重新加载并回到顶部；触摸下滑关闭
  */
 import { ref, computed } from 'vue'
-import { ElIcon } from 'element-plus'
-import { Document } from '@element-plus/icons-vue'
+import JIcon from './JIcon.vue'
 import { useLyrics } from '../composables/useLyrics'
 import { usePlayerStore } from '../stores/player'
 import { useUiStore } from '../stores/ui'
@@ -63,7 +62,7 @@ function onTouchEnd() {
            @touchend.passive="onTouchEnd">
         <div class="lyrics-body">
           <header class="lyrics-head">
-            <el-icon :size="18"><Document /></el-icon>
+            <JIcon name="document" :size="18" />
             <h3>{{ player.currentTrack?.name || '歌词' }}</h3>
             <span v-if="player.currentTrack" class="lyrics-artist">{{ player.currentTrack.artist }}</span>
           </header>

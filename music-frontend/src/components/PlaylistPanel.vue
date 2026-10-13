@@ -5,10 +5,7 @@
  * - pick  ：选择目标歌单，把 targetTrack 加入（供曲目行「＋」使用）
  */
 import { ref, computed, onMounted } from 'vue'
-import { ElIcon } from 'element-plus'
-import {
-  Close, Plus, ArrowLeft, VideoPlay, EditPen, Delete, FolderOpened,
-} from '@element-plus/icons-vue'
+import JIcon from './JIcon.vue'
 import { showToast, showConfirmDialog } from 'vant'
 import { usePlaylistsStore, type PlaylistItem } from '../stores/playlists'
 import { usePlayerStore, type Track } from '../stores/player'
@@ -166,11 +163,11 @@ onMounted(() => {
         <div class="pl-panel">
           <header class="pl-head">
             <h3 class="pl-title">
-              <el-icon :size="16"><FolderOpened /></el-icon>
+              <JIcon name="folder-opened" :size="16" />
               {{ mode === 'pick' ? '加入歌单' : '我的歌单' }}
             </h3>
             <button class="pl-close" aria-label="关闭" @click="shown = false">
-              <el-icon :size="16"><Close /></el-icon>
+              <JIcon name="close" :size="16" />
             </button>
           </header>
 
@@ -178,7 +175,7 @@ onMounted(() => {
           <template v-if="mode === 'manage' && playlists.activeId != null">
             <div class="pl-subhead">
               <button class="pl-back" @click="backToList">
-                <el-icon :size="14"><ArrowLeft /></el-icon>
+                <JIcon name="arrow-left" :size="14" />
                 <span>返回</span>
               </button>
               <span class="pl-subtitle ellipsis">{{ playlists.detail?.name || '歌单' }}</span>
@@ -195,7 +192,7 @@ onMounted(() => {
                   @click="playDetail(idx)"
                 >
                   <span class="pl-track-play">
-                    <el-icon :size="14"><VideoPlay /></el-icon>
+                    <JIcon name="video-play" :size="14" />
                   </span>
                   <span class="pl-track-main ellipsis">
                     <span class="pl-track-name ellipsis">{{ track.name }}</span>
@@ -206,7 +203,7 @@ onMounted(() => {
                     aria-label="从歌单移除"
                     @click.stop="handleRemoveTrack(track.trackId)"
                   >
-                    <el-icon :size="14"><Delete /></el-icon>
+                    <JIcon name="delete" :size="14" />
                   </button>
                 </div>
               </div>
@@ -225,7 +222,7 @@ onMounted(() => {
                 @keyup.enter="handleCreate"
               />
               <button class="pl-create-btn" :disabled="creating" @click="handleCreate">
-                <el-icon :size="14"><Plus /></el-icon>
+                <JIcon name="plus" :size="14" />
                 <span>新建</span>
               </button>
             </div>
@@ -243,7 +240,7 @@ onMounted(() => {
                     class="pl-item"
                     @click="handlePickTarget(item.id)"
                   >
-                    <span class="pl-item-icon"><el-icon :size="15"><FolderOpened /></el-icon></span>
+                    <span class="pl-item-icon"><JIcon name="folder-opened" :size="15" /></span>
                     <span class="pl-item-name ellipsis">{{ item.name }}</span>
                     <span class="pl-item-count">{{ item.trackCount }} 首</span>
                     <span v-if="addingTrackId && addingTrackId === targetTrack?.trackId" class="pl-item-adding">加入中…</span>
@@ -252,7 +249,7 @@ onMounted(() => {
                   <!-- manage 模式：行 + 操作 -->
                   <div v-else class="pl-item manage">
                     <span class="pl-item-icon" @click="openDetail(item.id)">
-                      <el-icon :size="15"><FolderOpened /></el-icon>
+                      <JIcon name="folder-opened" :size="15" />
                     </span>
                     <template v-if="editingId === item.id">
                       <input
@@ -269,13 +266,13 @@ onMounted(() => {
                       <span class="pl-item-name ellipsis" @click="openDetail(item.id)">{{ item.name }}</span>
                       <span class="pl-item-count">{{ item.trackCount }} 首</span>
                       <button class="pl-item-op" title="播放歌单" @click="openDetail(item.id); playDetail(0)">
-                        <el-icon :size="14"><VideoPlay /></el-icon>
+                        <JIcon name="video-play" :size="14" />
                       </button>
                       <button class="pl-item-op" title="重命名" @click="startRename(item)">
-                        <el-icon :size="14"><EditPen /></el-icon>
+                        <JIcon name="edit-pen" :size="14" />
                       </button>
                       <button class="pl-item-op danger" title="删除歌单" @click="handleDelete(item)">
-                        <el-icon :size="14"><Delete /></el-icon>
+                        <JIcon name="delete" :size="14" />
                       </button>
                     </template>
                   </div>
