@@ -84,7 +84,7 @@ const handleSelect = (value: string | number | null) => {
   font-weight: 600;
 }
 .j-filter-count {
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   line-height: 1;
   padding: 2px 5px;
   border-radius: var(--radius-pill);

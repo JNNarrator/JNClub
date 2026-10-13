@@ -160,12 +160,12 @@ onMounted(() => { initVisibleSort() })
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-size: 16px;
+  font-size: var(--fs-xl);
   font-weight: 700;
   color: var(--text-1);
 }
 .editor-hint {
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--text-3);
 }
 
@@ -175,7 +175,7 @@ onMounted(() => { initVisibleSort() })
   gap: 8px;
 }
 .section-label {
-  font-size: 12px;
+  font-size: var(--fs-sm);
   font-weight: 600;
   color: var(--text-3);
   letter-spacing: 0.5px;
@@ -223,7 +223,7 @@ onMounted(() => { initVisibleSort() })
 .row-label {
   flex: 1;
   min-width: 0;
-  font-size: 14px;
+  font-size: var(--fs-base);
   color: var(--text-1);
   overflow: hidden;
   text-overflow: ellipsis;

@@ -242,7 +242,7 @@ const handleDragEnd = () => setDragging(null)
   justify-content: center;
   width: 16px;
   height: 16px;
-  border-radius: 5px;
+  border-radius: var(--radius-2xs);
   background: var(--brand-soft);
   color: var(--brand-text);
   flex-shrink: 0;

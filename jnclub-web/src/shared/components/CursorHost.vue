@@ -265,7 +265,7 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 22px;
+  font-size: var(--fs-4xl);
   line-height: 1;
   filter: drop-shadow(0 2px 6px color-mix(in srgb, var(--brand) 30%, transparent));
   transition: transform var(--dur) var(--ease-bouncy);
@@ -286,7 +286,7 @@ onBeforeUnmount(() => {
 .crosshair-line {
   position: absolute;
   background: var(--brand);
-  border-radius: 1px;
+  border-radius: var(--radius-2xs);
   opacity: 0.8;
   transition: opacity var(--dur) var(--ease);
 }
@@ -371,7 +371,7 @@ onBeforeUnmount(() => {
 }
 .cursor-star-icon {
   display: inline-flex;
-  font-size: 20px;
+  font-size: var(--fs-3xl);
   line-height: 1;
   filter: drop-shadow(0 1px 4px color-mix(in srgb, var(--brand) 30%, transparent));
   transition: transform var(--dur) var(--ease-bouncy);

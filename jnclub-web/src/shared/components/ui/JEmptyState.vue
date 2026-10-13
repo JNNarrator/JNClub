@@ -176,7 +176,7 @@ const resolvedIcon = computed(() => (
 }
 
 .empty-title {
-  font-size: 18px;
+  font-size: var(--fs-2xl);
   font-weight: 700;
   color: var(--brand-text);
   margin: 0 0 8px;

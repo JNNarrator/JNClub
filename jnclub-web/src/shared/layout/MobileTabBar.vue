@@ -182,7 +182,7 @@ const isActive = (tab: NavDef) => {
 }
 
 .tab-label {
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   line-height: 1.2;
 }
 
@@ -203,7 +203,7 @@ const isActive = (tab: NavDef) => {
   transform: translateX(-50%);
   width: 16px;
   height: 3px;
-  border-radius: 2px;
+  border-radius: var(--radius-2xs);
   background: var(--brand);
   transition: width var(--dur) var(--ease);
 }

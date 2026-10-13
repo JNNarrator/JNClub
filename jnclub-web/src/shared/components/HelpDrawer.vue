@@ -62,7 +62,7 @@ const emit = defineEmits<{ close: [] }>()
   background: var(--hover-bg);
   border: 1px solid var(--border);
   border-bottom-width: 2px;
-  border-radius: 5px;
+  border-radius: var(--radius-2xs);
   padding: 2px 8px;
   white-space: nowrap;
 }

@@ -673,7 +673,7 @@ defineExpose({ openCreate })
 .guide-icon {
   width: 44px;
   height: 44px;
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   background: var(--brand-soft);
   color: var(--brand-text);
   display: flex;
@@ -682,7 +682,7 @@ defineExpose({ openCreate })
   flex-shrink: 0;
 }
 .guide-title {
-  font-size: 16px;
+  font-size: var(--fs-xl);
   font-weight: 700;
   color: var(--text-1);
 }
@@ -714,13 +714,13 @@ defineExpose({ openCreate })
 .strength-track {
   flex: 1;
   height: 6px;
-  border-radius: 3px;
+  border-radius: var(--radius-2xs);
   background: var(--hover-bg);
   overflow: hidden;
 }
 .strength-fill {
   height: 100%;
-  border-radius: 3px;
+  border-radius: var(--radius-2xs);
   transition: width var(--dur-slow) var(--ease), background var(--dur-slow) var(--ease);
 }
 .strength-fill.lv-weak { background: var(--state-error); }
@@ -747,7 +747,7 @@ defineExpose({ openCreate })
 .lock-icon {
   width: 64px;
   height: 64px;
-  border-radius: 18px;
+  border-radius: var(--radius-md);
   background: var(--brand-soft);
   color: var(--brand-text);
   display: flex;
@@ -755,7 +755,7 @@ defineExpose({ openCreate })
   justify-content: center;
 }
 .lock-title {
-  font-size: 18px;
+  font-size: var(--fs-2xl);
   font-weight: 700;
   color: var(--text-1);
 }
@@ -827,7 +827,7 @@ defineExpose({ openCreate })
 .item-icon {
   width: 38px;
   height: 38px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: var(--glass-chip-bg);
   border: 1px solid var(--glass-chip-border);
   display: flex;
@@ -922,14 +922,14 @@ defineExpose({ openCreate })
   background: var(--hover-bg);
   color: var(--brand-text);
   padding: 2px 8px;
-  border-radius: 6px;
+  border-radius: var(--radius-xs);
   letter-spacing: 1px;
 }
 .totp-body { display: flex; flex-direction: column; gap: 14px; align-items: center; }
 .totp-loading { color: var(--text-3); font-size: var(--fs-sm); padding: 20px 0; }
 .totp-code {
   font-family: var(--font-mono);
-  font-size: 44px;
+  font-size: var(--fs-display);
   font-weight: 700;
   letter-spacing: 8px;
   color: var(--brand-text);

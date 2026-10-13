@@ -230,12 +230,12 @@ const trailOptions: { key: TrailEffectType; label: string; desc: string; color: 
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-size: 16px;
+  font-size: var(--fs-xl);
   font-weight: 700;
   color: var(--text-1);
 }
 .settings-hint {
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--text-3);
 }
 
@@ -251,11 +251,11 @@ const trailOptions: { key: TrailEffectType; label: string; desc: string; color: 
   gap: 12px;
 }
 .enable-hint {
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--text-3);
 }
 .section-label {
-  font-size: 12px;
+  font-size: var(--fs-sm);
   font-weight: 600;
   color: var(--text-3);
   letter-spacing: 0.5px;
@@ -316,7 +316,7 @@ const trailOptions: { key: TrailEffectType; label: string; desc: string; color: 
   background: color-mix(in srgb, var(--brand) 8%, transparent);
 }
 .preview-emoji {
-  font-size: 26px;
+  font-size: var(--fs-6xl);
   line-height: 1;
 }
 
@@ -353,7 +353,7 @@ const trailOptions: { key: TrailEffectType; label: string; desc: string; color: 
   background: var(--glass-chip-bg);
 }
 .preview-click-emoji {
-  font-size: 22px;
+  font-size: var(--fs-4xl);
   line-height: 1;
 }
 
@@ -364,7 +364,7 @@ const trailOptions: { key: TrailEffectType; label: string; desc: string; color: 
 .preview-trail-line {
   width: 100%;
   height: 3px;
-  border-radius: 2px;
+  border-radius: var(--radius-2xs);
   opacity: 0.8;
 }
 
@@ -376,12 +376,12 @@ const trailOptions: { key: TrailEffectType; label: string; desc: string; color: 
   gap: 2px;
 }
 .style-label {
-  font-size: 14px;
+  font-size: var(--fs-base);
   font-weight: 600;
   color: var(--text-1);
 }
 .style-desc {
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--text-3);
   line-height: 1.5;
 }
@@ -398,7 +398,7 @@ const trailOptions: { key: TrailEffectType; label: string; desc: string; color: 
   padding-top: 12px;
 }
 .foot-hint {
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--text-3);
 }
 </style>

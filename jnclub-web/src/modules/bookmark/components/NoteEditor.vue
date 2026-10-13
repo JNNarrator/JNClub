@@ -939,7 +939,7 @@ defineExpose({ hasUnsavedChanges })
   border: none;
   background: transparent;
   color: var(--text-2);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   line-height: 1;
   padding: 5px 8px;
   border-radius: calc(var(--radius-sm) - 2px);
@@ -983,7 +983,7 @@ defineExpose({ hasUnsavedChanges })
 .editor-topbar :deep(.n-button) {
   height: 26px;
   min-height: 26px;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   padding: 0 6px;
 }
 .editor-topbar :deep(.n-button.n-button--circle) {
@@ -993,11 +993,11 @@ defineExpose({ hasUnsavedChanges })
 .editor-title-wrap { flex: 1; min-width: 0; }
 .editor-title-input {
   width: 100%;
-  font-size: 16px;
+  font-size: var(--fs-xl);
   font-weight: 600;
 }
 :deep(.editor-title-input .n-input__input-el) {
-  font-size: 16px;
+  font-size: var(--fs-xl);
   font-weight: 600;
   color: var(--text-1);
 }
@@ -1042,7 +1042,7 @@ defineExpose({ hasUnsavedChanges })
   transition: background var(--dur) var(--ease);
 }
 .template-item:hover { background: var(--glass-chip-bg); }
-.template-icon { font-size: 16px; }
+.template-icon { font-size: var(--fs-xl); }
 .template-label { font-weight: 500; }
 
 /* 反向链接面板：悬浮在右下角，不再挤占编辑区 */
@@ -1119,7 +1119,7 @@ defineExpose({ hasUnsavedChanges })
   font-size: 0.9em;
   color: var(--brand-text);
   background: var(--brand-soft);
-  border-radius: 4px;
+  border-radius: var(--radius-2xs);
   padding: 1px 4px;
 }
 .backlink-item {
@@ -1171,7 +1171,7 @@ defineExpose({ hasUnsavedChanges })
   flex-shrink: 0;
 }
 .tags-label {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--text-3);
   flex-shrink: 0;
 }
@@ -1188,7 +1188,7 @@ defineExpose({ hasUnsavedChanges })
   flex-shrink: 0;
 }
 .mode-toggle-label {
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--text-3);
   transition: color var(--dur-fast) var(--ease);
 }
@@ -1267,7 +1267,7 @@ defineExpose({ hasUnsavedChanges })
   border-radius: var(--radius-md);
   box-shadow: var(--glass-shadow);
   overflow: hidden;
-  font-size: 13px;
+  font-size: var(--fs-md);
 }
 .outline-float__head {
   display: flex;
@@ -1281,7 +1281,7 @@ defineExpose({ hasUnsavedChanges })
 }
 .outline-float__head:active { cursor: grabbing; }
 .outline-float__title {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   letter-spacing: 1px;
   color: var(--text-3);
@@ -1296,7 +1296,7 @@ defineExpose({ hasUnsavedChanges })
   border: none;
   background: transparent;
   color: var(--text-3);
-  border-radius: 4px;
+  border-radius: var(--radius-2xs);
   cursor: pointer;
 }
 .outline-float__btn:hover { background: var(--brand-soft); color: var(--brand-text); }
@@ -1312,10 +1312,10 @@ defineExpose({ hasUnsavedChanges })
   background: transparent;
   text-align: left;
   color: var(--text-2);
-  font-size: 13px;
+  font-size: var(--fs-md);
   line-height: 1.6;
   padding: 3px 8px;
-  border-radius: 6px;
+  border-radius: var(--radius-xs);
   cursor: pointer;
   white-space: nowrap;
   overflow: hidden;
@@ -1336,14 +1336,14 @@ defineExpose({ hasUnsavedChanges })
   align-items: center;
   gap: 6px;
   padding: 7px 14px;
-  font-size: 13px;
+  font-size: var(--fs-md);
   font-weight: 600;
   color: var(--brand-text);
   background: var(--glass-bg-trans);
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
   border: 1.5px solid var(--glass-chip-border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   cursor: grab;
   box-shadow: var(--glass-shadow);
   transition: all var(--dur-fast) var(--ease);
@@ -1398,7 +1398,7 @@ defineExpose({ hasUnsavedChanges })
   justify-content: space-between;
   gap: 12px;
   padding: 6px 16px;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--text-3);
   border-top: 1px solid var(--glass-border);
   background: transparent;
@@ -1426,7 +1426,7 @@ defineExpose({ hasUnsavedChanges })
 .statusbar-keys {
   color: var(--brand-text);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   white-space: nowrap;
 }
 
@@ -1487,18 +1487,18 @@ defineExpose({ hasUnsavedChanges })
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
   border: 1px dashed var(--glass-chip-border);
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   box-shadow: var(--glass-shadow);
   animation: fade-in-up var(--dur-slow) var(--ease);
 }
 .guide-title {
-  font-size: 15px;
+  font-size: var(--fs-lg);
   font-weight: 700;
   color: var(--text-1);
   margin-bottom: 4px;
 }
 .guide-tip {
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--text-2);
   margin-bottom: 8px;
 }
@@ -1506,15 +1506,15 @@ defineExpose({ hasUnsavedChanges })
   background: var(--hover-bg);
   color: var(--brand-text);
   padding: 1px 5px;
-  border-radius: 4px;
-  font-size: 11px;
+  border-radius: var(--radius-2xs);
+  font-size: var(--fs-xs);
 }
 .guide-help {
   pointer-events: auto;
   border: none;
   background: var(--brand-soft);
   color: var(--brand-text);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   font-weight: 600;
   padding: 5px 12px;
   border-radius: var(--radius-sm);
@@ -1543,12 +1543,12 @@ defineExpose({ hasUnsavedChanges })
   padding: 8px 12px;
   background: var(--glass-chip-bg);
   border: 1px solid var(--glass-chip-border);
-  border-radius: 8px;
-  font-size: 13px;
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-md);
 }
 .help-keys {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--brand-text);
 }
 .help-desc {
@@ -1556,7 +1556,7 @@ defineExpose({ hasUnsavedChanges })
 }
 .help-foot {
   margin-top: 16px;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--text-3);
   line-height: 1.9;
 }
@@ -1564,13 +1564,13 @@ defineExpose({ hasUnsavedChanges })
   background: var(--hover-bg);
   color: var(--brand-text);
   padding: 1px 5px;
-  border-radius: 4px;
-  font-size: 11px;
+  border-radius: var(--radius-2xs);
+  font-size: var(--fs-xs);
 }
 
 /* ==== Markdown 排版覆盖（.md-editor-preview 容器内，编辑与预览共用）==== */
 :deep(.md-editor-preview) {
-  font-size: 15px;
+  font-size: var(--fs-lg);
   line-height: 1.85;
   word-break: break-word;
 }
@@ -1613,12 +1613,12 @@ defineExpose({ hasUnsavedChanges })
   background: var(--hover-bg) !important;
   color: var(--brand-text) !important;
   padding: .15em .4em;
-  border-radius: 6px;
+  border-radius: var(--radius-xs);
 }
 :deep(.md-editor-preview pre) {
   background: var(--hover-bg) !important;
   border: 1px solid var(--border) !important;
-  border-radius: 6px;
+  border-radius: var(--radius-xs);
   padding: 14px 16px !important;
   overflow-x: auto;
   line-height: 1.6;
@@ -1677,7 +1677,7 @@ defineExpose({ hasUnsavedChanges })
     gap: 4px;
   }
   .editor-title-input :deep(.n-input__input-el) {
-    font-size: 15px;
+    font-size: var(--fs-lg);
   }
   .mode-toggle-label {
     display: none;

@@ -210,7 +210,7 @@ const handleSettingsSelect = async (key: string) => {
   justify-content: center;
 }
 .logo-sub {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--text-3);
   margin-left: auto;
 }
@@ -255,7 +255,7 @@ const handleSettingsSelect = async (key: string) => {
   height: 36px;
   padding: 0 14px;
   border: none;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-3);
   cursor: pointer;

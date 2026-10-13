@@ -213,7 +213,7 @@ const onShowChange = (v: boolean) => emit('update:show', v)
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 16px;
+  font-size: var(--fs-xl);
   font-weight: 600;
   color: var(--text-1);
 }
@@ -298,14 +298,14 @@ const onShowChange = (v: boolean) => emit('update:show', v)
 .strength-track {
   flex: 1;
   height: 6px;
-  border-radius: 3px;
+  border-radius: var(--radius-2xs);
   background: var(--glass-input-bg);
   border: 1px solid var(--glass-input-border);
   overflow: hidden;
 }
 .strength-fill {
   height: 100%;
-  border-radius: 3px;
+  border-radius: var(--radius-2xs);
   transition: width var(--dur) var(--ease-bouncy);
 }
 .strength-fill.strength-weak { background: var(--danger); }

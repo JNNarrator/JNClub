@@ -209,9 +209,9 @@ const jnxFeatures = [
 .brand { text-align: center; }
 .brand-mark { margin: 0 auto 14px; filter: drop-shadow(0 8px 18px var(--brand-soft)); }
 .brand-name {
-  font-size: 26px; font-weight: 800; color: var(--text-1); letter-spacing: 0.5px; margin-bottom: 8px;
+  font-size: var(--fs-6xl); font-weight: 800; color: var(--text-1); letter-spacing: 0.5px; margin-bottom: 8px;
 }
-.brand-slogan { font-size: 14px; color: var(--text-2); }
+.brand-slogan { font-size: var(--fs-base); color: var(--text-2); }
 
 .dl-section {
   display: flex;
@@ -227,13 +227,13 @@ const jnxFeatures = [
 }
 .section-head { display: flex; align-items: center; gap: 12px; }
 .section-icon {
-  width: 40px; height: 40px; border-radius: 12px;
+  width: 40px; height: 40px; border-radius: var(--radius-sm);
   background: var(--brand-soft); color: var(--brand-text);
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
 .section-icon.jnx { background: var(--brand-soft); color: var(--brand-text); }
-.section-title { font-size: 18px; font-weight: 700; color: var(--text-1); }
-.section-sub { font-size: 13px; color: var(--text-2); }
+.section-title { font-size: var(--fs-2xl); font-weight: 700; color: var(--text-1); }
+.section-sub { font-size: var(--fs-md); color: var(--text-2); }
 
 .features { display: flex; flex-direction: column; gap: 10px; }
 .feature-card {
@@ -246,13 +246,13 @@ const jnxFeatures = [
   box-shadow: var(--glass-shadow);
 }
 .feature-icon {
-  width: 44px; height: 44px; border-radius: 12px;
+  width: 44px; height: 44px; border-radius: var(--radius-sm);
   background: var(--brand-soft); color: var(--brand-text);
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
 .feature-icon.jnx { background: var(--brand-soft); color: var(--brand-text); }
-.feature-title { font-size: 15px; font-weight: 600; color: var(--text-1); margin-bottom: 3px; }
-.feature-desc { font-size: 13px; color: var(--text-2); }
+.feature-title { font-size: var(--fs-lg); font-weight: 600; color: var(--text-1); margin-bottom: 3px; }
+.feature-desc { font-size: var(--fs-md); color: var(--text-2); }
 
 .download-box {
   padding: 20px;
@@ -267,7 +267,7 @@ const jnxFeatures = [
 }
 .jnx-btns { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
 .download-btn { min-width: 200px; border-radius: var(--radius-pill); background: var(--gradient-btn); border: none; }
-.jn-hint { font-size: 12px; color: var(--text-3); }
+.jn-hint { font-size: var(--fs-sm); color: var(--text-3); }
 .install-alert {
   width: 100%; text-align: left;
   --n-color: var(--brand-soft) !important;
@@ -277,12 +277,12 @@ const jnxFeatures = [
 .inline-link { color: var(--link); text-decoration: none; }
 .inline-link:hover { text-decoration: underline; }
 
-.steps-title { font-size: 15px; font-weight: 700; color: var(--text-1); margin-bottom: 14px; }
+.steps-title { font-size: var(--fs-lg); font-weight: 700; color: var(--text-1); margin-bottom: 14px; }
 .step-num {
   position: absolute; inset: 0;
   display: flex; align-items: center; justify-content: center;
   border-radius: 50%; background: var(--brand-soft); color: var(--brand-text);
-  font-size: 12px; font-weight: 700; line-height: 1;
+  font-size: var(--fs-sm); font-weight: 700; line-height: 1;
 }
 :deep(.n-step) {
   --n-title-text-color: var(--text-1) !important;
@@ -292,11 +292,11 @@ const jnxFeatures = [
   --n-line-color: var(--glass-border) !important;
   --n-indicator-size: 28px !important;
   --n-indicator-icon-size: 28px !important;
-  --n-indicator-index-font-size: 12px !important;
+  --n-indicator-index-font-size: var(--fs-sm) !important;
 }
 
 .foot { display: flex; align-items: center; justify-content: center; gap: 4px; padding-top: 8px; }
-.foot-link { font-size: 13px; color: var(--link); text-decoration: none; }
+.foot-link { font-size: var(--fs-md); color: var(--link); text-decoration: none; }
 .foot-link:hover { text-decoration: underline; }
 
 /* 窄屏：压缩边距、下载按钮撑满，避免小屏拥挤 */
@@ -305,7 +305,7 @@ const jnxFeatures = [
   .ext-inner { gap: 20px; }
   .dl-section { padding: 18px 14px; }
   .download-box { padding: 16px 14px; }
-  .brand-name { font-size: 22px; }
+  .brand-name { font-size: var(--fs-4xl); }
   .download-btn { min-width: 0; width: 100%; }
 }
 </style>

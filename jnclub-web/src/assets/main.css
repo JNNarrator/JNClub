@@ -86,7 +86,7 @@ html, body {
 }
 ::-webkit-scrollbar-thumb {
   background: var(--scrollbar-thumb);
-  border-radius: 3px;
+  border-radius: var(--radius-2xs);
 }
 ::-webkit-scrollbar-thumb:hover {
   background: var(--scrollbar-thumb-hover);
@@ -162,7 +162,7 @@ html, body {
   border: 1px solid var(--border);
   background: var(--bg-card);
   color: var(--text-2);
-  font-size: 13px;
+  font-size: var(--fs-md);
   font-weight: 500;
   cursor: pointer;
   transition: all var(--dur) var(--ease-bouncy);
@@ -375,7 +375,7 @@ html, body {
   top: 5px;
   bottom: 5px;
   width: 3px;
-  border-radius: 0 3px 3px 0;
+  border-radius: 0 var(--radius-2xs) var(--radius-2xs) 0;
   background: var(--brand);
 }
 
@@ -580,7 +580,7 @@ html.custom-cursor-active.dragging * {
   padding-bottom: 8px;
 }
 .app-density-compact .j-page-header-title {
-  font-size: 18px;
+  font-size: var(--fs-2xl);
 }
 .app-density-compact .module-toolbar {
   margin-bottom: 8px;
@@ -646,7 +646,7 @@ html.custom-cursor-active.dragging * {
   height: 34px;
 }
 .app-density-compact .empty-title {
-  font-size: 16px;
+  font-size: var(--fs-xl);
   margin-bottom: 6px;
 }
 .app-density-compact .empty-sub {

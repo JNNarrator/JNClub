@@ -743,7 +743,7 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 16px;
+  font-size: var(--fs-xl);
   font-weight: 700;
   color: var(--text-1);
 }
@@ -813,7 +813,7 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
 .item-icon {
   width: 18px;
   height: 18px;
-  border-radius: 3px;
+  border-radius: var(--radius-2xs);
   flex-shrink: 0;
 }
 .item-fallback {
@@ -840,7 +840,7 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
 .hl-mark {
   background: var(--brand-soft);
   color: var(--brand-text);
-  border-radius: 2px;
+  border-radius: var(--radius-2xs);
   padding: 0 1px;
 }
 .item-sub {
@@ -968,7 +968,7 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
   color: var(--text-on-brand);
 }
 .syntax-close {
-  font-size: 14px;
+  font-size: var(--fs-base);
   line-height: 1;
 }
 

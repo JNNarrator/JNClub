@@ -209,7 +209,7 @@ const close = () => {
 }
 .reading-title-icon { color: var(--brand-text); flex-shrink: 0; }
 .reading-title {
-  font-size: 16px;
+  font-size: var(--fs-xl);
   font-weight: 700;
   color: var(--text-1);
   overflow: hidden;
@@ -283,7 +283,7 @@ const close = () => {
   border: none;
   background: transparent;
   color: var(--text-2);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   line-height: 1;
   padding: 5px 8px;
   border-radius: calc(var(--radius-sm) - 2px);
@@ -343,7 +343,7 @@ const close = () => {
   max-width: 720px;
   margin: 0 auto;
   padding: 20px 28px 48px;
-  font-size: 16px;
+  font-size: var(--fs-xl);
   line-height: 1.85;
   color: var(--text-1);
   word-break: break-word;
@@ -364,7 +364,7 @@ const close = () => {
 .reading-article :deep(img) {
   max-width: 100%;
   height: auto;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   margin: 12px 0;
 }
 .reading-article :deep(a) { color: var(--brand-text); text-decoration: none; }
@@ -383,13 +383,13 @@ const close = () => {
   border-radius: var(--radius-sm);
   padding: 14px;
   overflow-x: auto;
-  font-size: 13px;
+  font-size: var(--fs-md);
   line-height: 1.6;
 }
 .reading-article :deep(code) {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   background: var(--glass-chip-bg);
-  border-radius: 4px;
+  border-radius: var(--radius-2xs);
   padding: 1px 5px;
   font-size: 0.92em;
 }
@@ -401,7 +401,7 @@ const close = () => {
   border-collapse: collapse;
   margin: 14px 0;
   width: 100%;
-  font-size: 14px;
+  font-size: var(--fs-base);
 }
 .reading-article :deep(th),
 .reading-article :deep(td) {

@@ -663,14 +663,14 @@ const openFile = (f: { id: number }) => {
   min-width: 0;
 }
 .stat-icon {
-  width: 44px; height: 44px; border-radius: 14px;
+  width: 44px; height: 44px; border-radius: var(--radius-md);
   flex-shrink: 0;
   background: var(--brand-soft); color: var(--brand-text);
   display: flex; align-items: center; justify-content: center;
 }
 .stat-warn .stat-icon { background: var(--danger-soft); color: var(--danger-text); }
 .stat-value {
-  font-size: 32px; font-weight: 800; color: var(--text-1); line-height: 1.1;
+  font-size: var(--fs-7xl); font-weight: 800; color: var(--text-1); line-height: 1.1;
   white-space: nowrap;
 }
 .stat-label {
@@ -692,8 +692,8 @@ const openFile = (f: { id: number }) => {
     gap: 10px;
     min-height: 124px;
   }
-  .stat-icon { width: 36px; height: 36px; border-radius: 10px; }
-  .stat-value { font-size: 26px; }
+  .stat-icon { width: 36px; height: 36px; border-radius: var(--radius-sm); }
+  .stat-value { font-size: var(--fs-6xl); }
 }
 
 /* 中排双栏 */
@@ -760,12 +760,12 @@ const openFile = (f: { id: number }) => {
 }
 .disk-meta { color: var(--text-3); flex-shrink: 0; margin-left: 8px; }
 .disk-bar-wrap {
-  height: 6px; border-radius: 3px;
+  height: 6px; border-radius: var(--radius-2xs);
   background: var(--glass-chip-bg);
   overflow: hidden;
 }
 .disk-bar {
-  height: 100%; border-radius: 3px;
+  height: 100%; border-radius: var(--radius-2xs);
   background: linear-gradient(90deg, var(--brand), var(--brand-suppl, var(--brand)));
   transition: width var(--dur-slower) var(--ease);
 }
@@ -863,7 +863,7 @@ const openFile = (f: { id: number }) => {
   font-size: var(--fs-xs);
   color: var(--text-3);
   padding: 4px 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   cursor: pointer;
   transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
 }
@@ -935,7 +935,7 @@ const openFile = (f: { id: number }) => {
 .trend-bar {
   width: 9px;
   max-width: 14px;
-  border-radius: 3px 3px 1px 1px;
+  border-radius: var(--radius-2xs) var(--radius-2xs) 1px 1px;
   min-height: 2px;
   transition: height var(--dur-slower) var(--ease-bouncy);
   opacity: 0.92;
@@ -1039,10 +1039,10 @@ const openFile = (f: { id: number }) => {
   align-items: center;
   gap: 14px;
 }
-.greet-emoji { font-size: 30px; }
+.greet-emoji { font-size: var(--fs-7xl); }
 .greet-text { display: flex; flex-direction: column; gap: 2px; }
 .greet-title {
-  font-size: 18px;
+  font-size: var(--fs-2xl);
   font-weight: 700;
   color: var(--text-1);
 }
@@ -1066,7 +1066,7 @@ const openFile = (f: { id: number }) => {
 
 /* 布局编辑器 */
 .layout-editor { display: flex; flex-direction: column; gap: 14px; padding: 16px; }
-.layout-title { font-size: 16px; font-weight: 700; color: var(--text-1); }
+.layout-title { font-size: var(--fs-xl); font-weight: 700; color: var(--text-1); }
 .layout-hint { font-size: var(--fs-sm); color: var(--text-3); line-height: 1.6; }
 .layout-list { display: flex; flex-direction: column; gap: 6px; }
 .layout-item {

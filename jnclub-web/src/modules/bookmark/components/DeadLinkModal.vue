@@ -189,7 +189,7 @@ const cleanAll = () => {
   gap: 5px;
 }
 .stat-num {
-  font-size: 20px;
+  font-size: var(--fs-3xl);
   font-weight: 800;
   color: var(--text-1);
 }
@@ -233,7 +233,7 @@ const cleanAll = () => {
 }
 .dead-item-icon {
   width: 28px; height: 28px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: color-mix(in srgb, var(--danger) 12%, transparent);
   color: var(--danger-text);
   display: flex; align-items: center; justify-content: center;

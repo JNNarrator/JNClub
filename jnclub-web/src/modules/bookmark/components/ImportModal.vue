@@ -151,7 +151,7 @@ const sections: { key: ImportKind; label: string; desc: string; icon: any; accep
 }
 .section-icon {
   width: 32px; height: 32px;
-  border-radius: 9px;
+  border-radius: var(--radius-sm);
   background: var(--brand-soft);
   color: var(--brand-text);
   display: flex; align-items: center; justify-content: center;

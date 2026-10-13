@@ -257,7 +257,7 @@ const toggle = (id: number) => {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 16px;
+  font-size: var(--fs-xl);
   font-weight: 700;
   color: var(--text-1);
 }
@@ -340,7 +340,7 @@ const toggle = (id: number) => {
   border-bottom: 1px solid var(--glass-border);
 }
 .dedup-item:last-child { border-bottom: none; }
-.dedup-favicon { width: 16px; height: 16px; border-radius: 4px; flex-shrink: 0; }
+.dedup-favicon { width: 16px; height: 16px; border-radius: var(--radius-2xs); flex-shrink: 0; }
 .dedup-item-main {
   flex: 1;
   min-width: 0;

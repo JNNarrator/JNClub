@@ -182,7 +182,7 @@ const bookmarkDomain = computed(() => {
 .lock-ic { color: var(--brand-text); }
 .share-head { margin-bottom: 18px; }
 .type-tag { margin-bottom: 10px; }
-.share-title { font-size: 22px; font-weight: 800; color: var(--text-1); margin: 8px 0 4px; }
+.share-title { font-size: var(--fs-4xl); font-weight: 800; color: var(--text-1); margin: 8px 0 4px; }
 .share-sub { font-size: var(--fs-sm); color: var(--text-3); margin: 0; }
 .share-content { display: flex; flex-direction: column; gap: 16px; align-items: center; }
 .share-export { display: flex; gap: 10px; margin-top: 4px; }
@@ -191,7 +191,7 @@ const bookmarkDomain = computed(() => {
   white-space: pre-wrap;
   word-break: break-word;
   font-family: var(--font-sans);
-  font-size: 14px;
+  font-size: var(--fs-base);
   line-height: 1.8;
   color: var(--text-1);
   margin: 0;
@@ -209,6 +209,6 @@ const bookmarkDomain = computed(() => {
 @media (max-width: 767px) {
   .share-page { padding: 12px; align-items: flex-start; }
   .share-card { padding: 20px 16px; border-radius: var(--radius-md); }
-  .share-title { font-size: 19px; }
+  .share-title { font-size: var(--fs-2xl); }
 }
 </style>

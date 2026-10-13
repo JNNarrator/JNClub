@@ -195,7 +195,7 @@ const goRegister = () => {
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
   border: 1px solid var(--glass-border);
-  border-radius: 28px;
+  border-radius: var(--radius-xl);
   box-shadow: var(--glass-shadow);
 }
 
@@ -209,7 +209,7 @@ const goRegister = () => {
 .brand-name {
   display: inline-block;
   margin: 0 0 10px;
-  font-size: 40px;
+  font-size: var(--fs-display);
   font-weight: 800;
   letter-spacing: 1px;
   background: linear-gradient(120deg, var(--brand), var(--brand-suppl, var(--brand)));
@@ -220,7 +220,7 @@ const goRegister = () => {
 }
 .brand-slogan {
   margin: 0;
-  font-size: 15px;
+  font-size: var(--fs-lg);
   color: var(--text-2);
 }
 
@@ -260,7 +260,7 @@ const goRegister = () => {
   justify-content: center;
   width: 46px;
   height: 46px;
-  border-radius: 14px;
+  border-radius: var(--radius-md);
   background: var(--glass-chip-bg);
   border: 1px solid var(--glass-chip-border);
   color: var(--brand-text);
@@ -268,13 +268,13 @@ const goRegister = () => {
 }
 .feature-title {
   margin: 0 0 8px;
-  font-size: 16px;
+  font-size: var(--fs-xl);
   font-weight: 700;
   color: var(--text-1);
 }
 .feature-desc {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--fs-md);
   line-height: 1.7;
   color: var(--text-2);
 }
@@ -312,7 +312,7 @@ const goRegister = () => {
 
 @media (max-width: 767px) {
   .features { grid-template-columns: 1fr 1fr; }
-  .brand-name { font-size: 32px; }
+  .brand-name { font-size: var(--fs-7xl); }
   .welcome-inner { padding: 32px 20px 32px; }
 }
 @media (max-width: 480px) {

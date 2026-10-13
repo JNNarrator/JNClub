@@ -247,7 +247,7 @@ const onRootClick = () => {
   justify-content: center;
   width: 18px;
   height: 18px;
-  border-radius: 6px;
+  border-radius: var(--radius-xs);
   background: var(--brand-soft);
   color: var(--brand-text);
   flex-shrink: 0;

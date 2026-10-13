@@ -24,7 +24,7 @@
 /* ── 尺寸/间距/圆角 ── */
 .py-1 { padding-block: 0.25rem; }
 .px-2 { padding-inline: 0.5rem; }
-.rounded-\[1\.25rem\] { border-radius: 1.25rem; }
+.rounded-\[1\.25rem\] { border-radius: var(--radius-lg); }
 
 /* ── 文字 ── */
 .font-medium { font-weight: 500; }

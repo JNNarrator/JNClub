@@ -201,7 +201,7 @@ body {
   background: var(--glass-bg-solid);
   border-bottom: 1px solid var(--glass-border);
   color: var(--text-2);
-  font-size: 13px;
+  font-size: var(--fs-md);
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
 }

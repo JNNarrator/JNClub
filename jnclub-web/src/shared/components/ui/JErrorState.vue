@@ -50,7 +50,7 @@ const emit = defineEmits<{
 .j-error-icon {
   width: 56px;
   height: 56px;
-  border-radius: 18px;
+  border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;

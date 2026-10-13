@@ -439,7 +439,7 @@ const handleBreadcrumbRoot = () => {
   white-space: nowrap;
 }
 .user-role {
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   color: var(--text-3);
   background: var(--glass-chip-bg);
   padding: 2px 6px;

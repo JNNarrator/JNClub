@@ -360,7 +360,7 @@ const diffStat = computed(() => {
 }
 .ver-item-icon {
   width: 32px; height: 32px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: var(--brand-soft);
   color: var(--brand-text);
   display: flex; align-items: center; justify-content: center;

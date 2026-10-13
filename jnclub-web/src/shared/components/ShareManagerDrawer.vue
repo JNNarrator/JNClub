@@ -137,7 +137,7 @@ const isExpired = (row: ShareRow) => row.expiresAt && new Date(row.expiresAt).ge
   justify-content: space-between;
   padding: 4px 0 14px;
 }
-.smd-title { margin: 0; font-size: 17px; font-weight: 700; color: var(--text-1); }
+.smd-title { margin: 0; font-size: var(--fs-xl); font-weight: 700; color: var(--text-1); }
 .smd-state { display: flex; align-items: center; gap: 8px; color: var(--text-3); font-size: var(--fs-sm); padding: 30px 0; justify-content: center; }
 .smd-empty { padding: var(--empty-pad) 0; }
 .smd-list { display: flex; flex-direction: column; gap: 10px; }

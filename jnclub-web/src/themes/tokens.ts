@@ -120,15 +120,27 @@ export interface DesignTokens {
   particle4: string
   fontSans: string
   fontMono: string
+  fs2xs: string
   fsXs: string
   fsSm: string
   fsMd: string
   fsBase: string
+  fsLg: string
+  fsXl: string
+  fs2xl: string
+  fs3xl: string
+  fs4xl: string
+  fs5xl: string
+  fs6xl: string
+  fs7xl: string
+  fsDisplay: string
+  radius2xs: string
   radiusXs: string
   radiusSm: string
   radiusMd: string
   radiusLg: string
   radiusPill: string
+  radiusXl: string
   // 布局体系
   layoutContentMax: string
   layoutPageGutter: string
@@ -277,15 +289,27 @@ export const lightTokens: DesignTokens = {
   particle4: '#A41F5D',
   fontSans: '"DM Sans", "Noto Sans SC", "PingFang SC", system-ui, -apple-system, sans-serif',
   fontMono: '"JetBrains Mono", "SF Mono", monospace',
+  fs2xs: '10px',
   fsXs: '11px',
   fsSm: '12px',
   fsMd: '13px',
   fsBase: '14px',
+  fsLg: '15px',
+  fsXl: '16px',
+  fs2xl: '18px',
+  fs3xl: '20px',
+  fs4xl: '22px',
+  fs5xl: '24px',
+  fs6xl: '26px',
+  fs7xl: '32px',
+  fsDisplay: '40px',
+  radius2xs: '4px',
   radiusXs: '6px',
   radiusSm: '10px',
   radiusMd: '16px',
   radiusLg: '20px',
   radiusPill: '999px',
+  radiusXl: '28px',
   layoutContentMax: '1560px',
   layoutPageGutter: '24px',
   layoutPagePadding: '12px 24px 0',
@@ -417,15 +441,27 @@ export const darkTokens: DesignTokens = {
   particle4: '#FFB3C6',
   fontSans: '"DM Sans", "Noto Sans SC", "PingFang SC", system-ui, -apple-system, sans-serif',
   fontMono: '"JetBrains Mono", "SF Mono", monospace',
+  fs2xs: '10px',
   fsXs: '11px',
   fsSm: '12px',
   fsMd: '13px',
   fsBase: '14px',
+  fsLg: '15px',
+  fsXl: '16px',
+  fs2xl: '18px',
+  fs3xl: '20px',
+  fs4xl: '22px',
+  fs5xl: '24px',
+  fs6xl: '26px',
+  fs7xl: '32px',
+  fsDisplay: '40px',
+  radius2xs: '4px',
   radiusXs: '6px',
   radiusSm: '10px',
   radiusMd: '16px',
   radiusLg: '20px',
   radiusPill: '999px',
+  radiusXl: '28px',
   layoutContentMax: '1560px',
   layoutPageGutter: '24px',
   layoutPagePadding: '12px 24px 0',
@@ -552,15 +588,27 @@ export function tokensToCSSVars(tokens: DesignTokens): Record<string, string> {
     '--particle-4': tokens.particle4,
     '--font-sans': tokens.fontSans,
     '--font-mono': tokens.fontMono,
+    '--fs-2xs': tokens.fs2xs,
     '--fs-xs': tokens.fsXs,
     '--fs-sm': tokens.fsSm,
     '--fs-md': tokens.fsMd,
     '--fs-base': tokens.fsBase,
+    '--fs-lg': tokens.fsLg,
+    '--fs-xl': tokens.fsXl,
+    '--fs-2xl': tokens.fs2xl,
+    '--fs-3xl': tokens.fs3xl,
+    '--fs-4xl': tokens.fs4xl,
+    '--fs-5xl': tokens.fs5xl,
+    '--fs-6xl': tokens.fs6xl,
+    '--fs-7xl': tokens.fs7xl,
+    '--fs-display': tokens.fsDisplay,
+    '--radius-2xs': tokens.radius2xs,
     '--radius-xs': tokens.radiusXs,
     '--radius-sm': tokens.radiusSm,
     '--radius-md': tokens.radiusMd,
     '--radius-lg': tokens.radiusLg,
     '--radius-pill': tokens.radiusPill,
+    '--radius-xl': tokens.radiusXl,
     '--layout-content-max': tokens.layoutContentMax,
     '--layout-page-gutter': tokens.layoutPageGutter,
     '--layout-page-padding': tokens.layoutPagePadding,

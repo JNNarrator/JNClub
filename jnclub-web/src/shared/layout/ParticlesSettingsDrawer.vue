@@ -119,12 +119,12 @@ const options: { key: ParticlesStyle; label: string; desc: string; preview: 'off
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-size: 16px;
+  font-size: var(--fs-xl);
   font-weight: 700;
   color: var(--text-1);
 }
 .settings-hint {
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--text-3);
 }
 
@@ -134,7 +134,7 @@ const options: { key: ParticlesStyle; label: string; desc: string; preview: 'off
   gap: 8px;
 }
 .section-label {
-  font-size: 12px;
+  font-size: var(--fs-sm);
   font-weight: 600;
   color: var(--text-3);
   letter-spacing: 0.5px;
@@ -207,12 +207,12 @@ const options: { key: ParticlesStyle; label: string; desc: string; preview: 'off
   gap: 2px;
 }
 .style-label {
-  font-size: 14px;
+  font-size: var(--fs-base);
   font-weight: 600;
   color: var(--text-1);
 }
 .style-desc {
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--text-3);
   line-height: 1.5;
 }
@@ -229,7 +229,7 @@ const options: { key: ParticlesStyle; label: string; desc: string; preview: 'off
   padding-top: 12px;
 }
 .foot-hint {
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--text-3);
 }
 </style>

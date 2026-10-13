@@ -68,7 +68,7 @@ const emit = defineEmits<{
   min-width: 0;
 }
 .j-stat-icon {
-  width: 38px; height: 38px; border-radius: 12px;
+  width: 38px; height: 38px; border-radius: var(--radius-sm);
   flex-shrink: 0;
   background: var(--brand-soft); color: var(--brand-text);
   display: flex; align-items: center; justify-content: center;
@@ -78,7 +78,7 @@ const emit = defineEmits<{
   color: var(--danger-text);
 }
 .j-stat-value {
-  font-size: 24px; font-weight: 800; color: var(--text-1); line-height: 1.1;
+  font-size: var(--fs-5xl); font-weight: 800; color: var(--text-1); line-height: 1.1;
   white-space: nowrap;
 }
 .j-stat-label {
@@ -102,8 +102,8 @@ const emit = defineEmits<{
     min-height: 104px;
     padding: 14px;
   }
-  .j-stat-icon { width: 32px; height: 32px; border-radius: 10px; }
-  .j-stat-value { font-size: 22px; }
+  .j-stat-icon { width: 32px; height: 32px; border-radius: var(--radius-sm); }
+  .j-stat-value { font-size: var(--fs-4xl); }
 }
 
 .j-stat-card:active {

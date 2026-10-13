@@ -135,7 +135,7 @@ const items = [
 }
 .export-item-icon {
   width: 36px; height: 36px;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   background: var(--brand-soft);
   color: var(--brand-text);
   display: flex; align-items: center; justify-content: center;

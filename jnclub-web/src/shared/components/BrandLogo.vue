@@ -60,7 +60,7 @@ const iconSize = Math.round(props.size * 0.5)
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 22%;
+  border-radius: 22%; /* 唱片内圈，比例值 */
   background: var(--gradient-btn);
   box-shadow:
     0 6px 16px -4px color-mix(in srgb, var(--brand) 40%, transparent),
@@ -68,7 +68,7 @@ const iconSize = Math.round(props.size * 0.5)
 }
 
 .brand-text {
-  font-size: 20px;
+  font-size: var(--fs-3xl);
   font-weight: 800;
   letter-spacing: 0.5px;
   color: var(--text-1);
@@ -76,7 +76,7 @@ const iconSize = Math.round(props.size * 0.5)
 }
 
 .brand-slogan {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--text-3);
   line-height: 1.2;
 }

@@ -87,7 +87,7 @@ const emit = defineEmits<{
 }
 .j-page-header-title {
   margin: 0;
-  font-size: 20px;
+  font-size: var(--fs-3xl);
   font-weight: 800;
   color: var(--text-1);
   line-height: 1.3;
