@@ -185,10 +185,12 @@ const toggleTheme = async () => {
 </template>
 
 <style>
+/* 注：这里曾声明一套硬编码系统字体栈，但 assets/main.css 在 App.vue 之后加载、
+   且同样作用于 body，实际生效的始终是 main.css 的 var(--font-sans)，
+   该声明属死代码，已删除。字体统一由 main.css 管理。 */
 body {
   margin: 0;
   padding: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', Arial, sans-serif;
 }
 
 /* 离线提示条：固定顶部，不遮挡内容 */

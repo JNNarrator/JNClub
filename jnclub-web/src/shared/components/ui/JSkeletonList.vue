@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * JSkeletonList.vue — 列表骨架屏
- * 用于收藏列表/便签列表/云盘/待办等行式页面的首次加载。
+ * 用于收藏列表/便签列表/云盘等行式页面的首次加载。
  */
 withDefaults(defineProps<{
   count?: number

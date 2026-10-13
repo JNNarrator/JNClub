@@ -180,16 +180,6 @@ html, body {
   font-weight: 600;
   box-shadow: none;
 }
-.chip-dashed {
-  border-style: dashed !important;
-  color: var(--text-3);
-}
-.chip-dashed:hover {
-  border-color: var(--pink-peach) !important;
-  color: var(--brand-text) !important;
-  background: var(--pink-cherry) !important;
-}
-
 /* ---- 新建按钮渐变 ---- */
 .btn-new {
   background: var(--gradient-btn);
@@ -316,30 +306,6 @@ html, body {
 .glass-primary-btn:hover { filter: brightness(1.12); transform: translateY(-1px); }
 .glass-primary-btn:active { transform: scale(0.97) translateY(0); }
 
-/* 玻璃输入框聚焦辉光（配合 Naive :deep 覆盖具体变量） */
-.glass-input {
-  border-radius: var(--radius-sm);
-  --n-color: var(--glass-input-bg) !important;
-  --n-color-focus: var(--glass-input-bg) !important;
-  --n-color-hover: var(--glass-input-bg) !important;
-  --n-border: var(--glass-input-border) !important;
-  --n-border-hover: var(--glass-chip-border) !important;
-  --n-border-focus: var(--brand) !important;
-  /* 内圈 1px 实色保证焦点可见（亮 4.87:1 / 暗 9.77:1，过 WCAG SC 1.4.11），
-     外圈 4px 柔光给出 Apple 式的呼吸感；原先 3px 纯实色环过于抢眼 */
-  --n-box-shadow-focus: 0 0 0 1px var(--focus-ring), 0 0 0 4px var(--focus-ring-soft) !important;
-  --n-caret-color: var(--brand-text) !important;
-}
-
-/* 玻璃 FAB 悬浮 */
-.glass-float {
-  background: var(--glass-bg-trans) !important;
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid var(--glass-border);
-  box-shadow: var(--glass-shadow);
-}
-
 /* 玻璃抽屉 / 面板 */
 .glass-panel {
   background: var(--panel-bg) !important;
@@ -349,48 +315,8 @@ html, body {
   box-shadow: var(--panel-shadow);
 }
 
-/* 玻璃滑块轨道（深/浅通用） */
-.glass-slider-rail {
-  background: var(--glass-input-border) !important;
-}
-
-/* 玻璃列表项 hover */
-.glass-row-hover {
-  transition: background var(--dur) var(--ease), transform var(--dur) var(--ease);
-}
-.glass-row-hover:hover {
-  background: var(--glass-chip-bg) !important;
-}
-
-/* ---- M1-2：统一列表/卡片交互 ----
-   选中项：品牌色左侧条 + 柔光背景（列表行/卡片通用） */
-.j-row-active {
-  position: relative;
-  background: var(--brand-soft) !important;
-}
-.j-row-active::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 5px;
-  bottom: 5px;
-  width: 3px;
-  border-radius: 0 var(--radius-2xs) var(--radius-2xs) 0;
-  background: var(--brand);
-}
-
-/* 卡片悬停浮起：轻量 lift + 投影（尊重 prefers-reduced-motion，动画被全局禁用） */
-.j-lift {
-  transition:
-    transform var(--dur) var(--ease),
-    box-shadow var(--dur) var(--ease),
-    border-color var(--dur) var(--ease),
-    background-color var(--dur) var(--ease);
-}
-.j-lift:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-2);
-}
+/* 玻璃滑块轨道已并入 token 层：滑轨直接用 --glass-input-border，
+   原 .glass-slider-rail 工具类全项目零引用，已删除。 */
 
 /* ================================================================
    Naive UI 弹框 / 抽屉 / 浮层 全局玻璃化覆盖
@@ -541,9 +467,7 @@ html.custom-cursor-active.dragging * {
 .list-item-wrap,
 .file-item,
 .vault-item,
-.recycle-item,
-.feed-row,
-.item-row {
+.recycle-item {
   content-visibility: auto;
   contain-intrinsic-size: auto 80px;
 }

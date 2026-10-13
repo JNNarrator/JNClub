@@ -426,7 +426,7 @@ defineExpose({ openCreate })
 <template>
   <div class="vault-view">
     <!-- 未设置主密钥：设置引导 -->
-    <div v-if="!configured && !skipped" class="master-guide glass-panel">
+    <div v-if="!configured && !skipped" class="master-guide glass-panel vault-panel">
       <div class="guide-head">
         <div class="guide-icon"><NIcon :component="ShieldAlert" size="22" /></div>
         <div>
@@ -467,7 +467,7 @@ defineExpose({ openCreate })
     </div>
 
     <!-- 已设置未解锁：锁定面板 -->
-    <div v-else-if="configured && !unlocked" class="master-lock glass-panel">
+    <div v-else-if="configured && !unlocked" class="master-lock glass-panel vault-panel">
       <div class="lock-icon"><NIcon :component="Lock" size="30" /></div>
       <div class="lock-title">密码库已锁定</div>
       <div class="lock-desc">输入主密钥解锁以查看密码条目</div>
@@ -658,7 +658,8 @@ defineExpose({ openCreate })
 </template>
 
 <style scoped>
-.glass-panel {
+/* 仅补充内边距与圆角，玻璃材质本身走全局 .glass-panel */
+.vault-panel {
   padding: 28px 24px;
   border-radius: var(--radius-md);
 }
@@ -893,7 +894,7 @@ defineExpose({ openCreate })
 
 /* 移动端 */
 @media (max-width: 767px) {
-  .glass-panel {
+  .vault-panel {
     padding: 20px 16px;
   }
   .master-lock {
