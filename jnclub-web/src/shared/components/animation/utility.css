@@ -38,7 +38,7 @@
 .z-0 { z-index: 0; }
 .z-2 { z-index: 2; }
 .z-\[-1\] { z-index: -1; }
-.bg-black { background: #000; }
+.bg-black { background: var(--bg-page); }
 .pointer-events-none { pointer-events: none; }
 
 /* ── 边框/光标/效果 ── */

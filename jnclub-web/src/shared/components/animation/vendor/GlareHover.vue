@@ -20,6 +20,9 @@ interface GlareHoverProps {
 const props = withDefaults(defineProps<GlareHoverProps>(), {
   width: '500px',
   height: '500px',
+  // background / borderColor 仅透传进 style，可写 var()；glareColor 例外 ——
+  // 下面 rgba computed 会解析它的 hex（props.glareColor.replace('#','')），
+  // 传 var() 会算出 NaN，故保持字面量。
   background: '#000',
   borderRadius: '10px',
   borderColor: '#333',

@@ -10,6 +10,7 @@ import { useRoute } from 'vue-router'
 import type { ISourceOptions } from '@tsparticles/engine'
 import { useParticlesSettings } from '../composables/useParticlesSettings'
 import { usePerfTier } from '../composables/usePerfTier'
+import { lightTokens, darkTokens } from '../../themes/tokens'
 
 const props = defineProps<{
   isDark: boolean
@@ -61,14 +62,17 @@ watch(shouldShow, (v) => {
   if (v) ensureParticles()
 })
 
-/** 亮暗主题配色：亮色用极深高对比色（确保在 #F5F5F7 浅底上清晰可见）；暗色用柔和亮色 */
-const lightColors = ['#7A1247', '#8C1750', '#9E1D5A', '#A41F5D']
-const darkColors = ['#FF8FAB', '#F472B6', '#5A3A45', '#FFB3C6']
+/**
+ * 亮暗主题配色：亮色用极深高对比色（确保在 #F5F5F7 浅底上清晰可见）；暗色用柔和亮色。
+ * 取自 tokens.ts 的 particle1~4 —— 侧栏「粒子风格」抽屉里的预览小圆点读同一组
+ * --particle-* 变量，避免预览与实际粒子各说各话。
+ */
+const paletteOf = (t: typeof lightTokens) => [t.particle1, t.particle2, t.particle3, t.particle4]
 
 /** 按风格 + 主题构建 options（slim：circle 形状，靠颜色/大小/速度/方向区分） */
 const options = computed<ISourceOptions>(() => {
   const style = settings.style.value
-  const palette = props.isDark ? darkColors : lightColors
+  const palette = paletteOf(props.isDark ? darkTokens : lightTokens)
   const base = {
     fullScreen: { enable: false },
     background: { color: { value: 'transparent' } },

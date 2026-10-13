@@ -248,7 +248,8 @@ const handleDropdown = (key: string) => {
   transition: box-shadow var(--dur) var(--ease), transform var(--dur) var(--ease-bouncy);
 }
 .bookmark-card:hover .favicon-box {
-  box-shadow: 0 0 0 6px var(--focus-ring), var(--glow-icon);
+  /* hover 抬升用柔光：实色 --focus-ring 的 6px 环会盖住 favicon 本身的色彩 */
+  box-shadow: 0 0 0 6px var(--focus-ring-soft), var(--glow-icon);
   transform: scale(1.06);
 }
 
@@ -257,7 +258,7 @@ const handleDropdown = (key: string) => {
   height: 22px;
   border-radius: var(--radius-xs);
   object-fit: cover;
-  background: #fff; /* 透明/异形 favicon 垫白底，避免透出粉色底盒 */
+  background: var(--favicon-scrim); /* 透明/异形 favicon 垫白底，避免透出粉色底盒 */
 }
 
 .favicon-fallback {

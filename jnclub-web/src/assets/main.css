@@ -325,7 +325,9 @@ html, body {
   --n-border: var(--glass-input-border) !important;
   --n-border-hover: var(--glass-chip-border) !important;
   --n-border-focus: var(--brand) !important;
-  --n-box-shadow-focus: 0 0 0 3px var(--focus-ring) !important;
+  /* 内圈 1px 实色保证焦点可见（亮 4.87:1 / 暗 9.77:1，过 WCAG SC 1.4.11），
+     外圈 4px 柔光给出 Apple 式的呼吸感；原先 3px 纯实色环过于抢眼 */
+  --n-box-shadow-focus: 0 0 0 1px var(--focus-ring), 0 0 0 4px var(--focus-ring-soft) !important;
   --n-caret-color: var(--brand-text) !important;
 }
 
@@ -470,7 +472,9 @@ html, body {
   --n-border: var(--glass-input-border) !important;
   --n-border-hover: var(--glass-chip-border) !important;
   --n-border-focus: var(--brand) !important;
-  --n-box-shadow-focus: 0 0 0 3px var(--focus-ring) !important;
+  /* 内圈 1px 实色保证焦点可见（亮 4.87:1 / 暗 9.77:1，过 WCAG SC 1.4.11），
+     外圈 4px 柔光给出 Apple 式的呼吸感；原先 3px 纯实色环过于抢眼 */
+  --n-box-shadow-focus: 0 0 0 1px var(--focus-ring), 0 0 0 4px var(--focus-ring-soft) !important;
   --n-caret-color: var(--brand-text) !important;
 }
 

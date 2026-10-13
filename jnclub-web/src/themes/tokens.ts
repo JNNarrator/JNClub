@@ -98,9 +98,26 @@ export interface DesignTokens {
   selectedBg: string
   /** 批量勾选框浮层的深色垫底：两主题同值，保证白勾选框在浅色卡片上仍可见 */
   checkScrim: string
+  faviconScrim: string
+  iconOnBrand: string
+  // 光标特效配色（预设内容本身，非主题语义色；亮暗同值）
+  cursorRainbow: string
+  cursorPastel: string
+  cursorStar1: string
+  cursorStar2: string
+  cursorStar3: string
+  previewStage: string
+  // 阅读模式「专注纸」——刻意脱离主色系，成对定义以便整体调暖
+  readerPaperText: string
+  readerPaperBg: string
   panelBg: string
   panelBorder: string
   panelShadow: string
+  // 粒子调色板（亮色需在浅底上清晰 → 深紫红；暗色 → 柔和亮粉）
+  particle1: string
+  particle2: string
+  particle3: string
+  particle4: string
   fontSans: string
   fontMono: string
   fsXs: string
@@ -241,9 +258,23 @@ export const lightTokens: DesignTokens = {
   overlayBlur: '6px',
   selectedBg: 'rgba(236, 91, 142, 0.10)',
   checkScrim: 'rgba(0, 0, 0, 0.35)',
+  faviconScrim: '#FFFFFF',
+  iconOnBrand: '#FFFFFF',
+  cursorRainbow: 'linear-gradient(90deg, #ff6b6b, #ffd93d, #6bcb77, #4d96ff, #9b59b6)',
+  cursorPastel: 'linear-gradient(90deg, #FFB7D5, #FFDAB9, #E8D5F5, #B5EAD7)',
+  cursorStar1: '#FFD700',
+  cursorStar2: '#FFA500',
+  cursorStar3: '#FF6347',
+  previewStage: '#111111',
+  readerPaperText: '#3A3229',
+  readerPaperBg: 'linear-gradient(180deg, #FBF5EA 0%, #F6EFDF 100%)',
   panelBg: 'rgba(255, 255, 255, 0.72)',
   panelBorder: 'rgba(255, 255, 255, 0.6)',
   panelShadow: '0 24px 64px -12px rgba(236, 91, 142, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
+  particle1: '#7A1247',
+  particle2: '#8C1750',
+  particle3: '#9E1D5A',
+  particle4: '#A41F5D',
   fontSans: '"DM Sans", "Noto Sans SC", "PingFang SC", system-ui, -apple-system, sans-serif',
   fontMono: '"JetBrains Mono", "SF Mono", monospace',
   fsXs: '11px',
@@ -294,10 +325,10 @@ export const darkTokens: DesignTokens = {
   text3: '#8E8E93',
   text4: '#636366',
   bgPage: '#000000',
-  bgCard: '#1C1C1E',
-  border: '#38383A',
-  split: '#4A4A4D',
-  hoverBg: '#2C2C2E',
+  bgCard: '#26262A',
+  border: '#45454A',
+  split: '#56565C',
+  hoverBg: '#323238',
   // 粉色阶（暗色）
   pinkCherry: '#3D2A30',
   pinkPeach: '#5A3A45',
@@ -338,9 +369,9 @@ export const darkTokens: DesignTokens = {
   fileTypeArchive: '#F3C470',
   fileTypeAudio: '#7AC686',
   // 玻璃拟态（暗色：深粉玻璃）
-  glassBgSolid: '#1C1C1E',
-  glassBgTrans: 'rgba(28, 28, 30, 0.72)',
-  glassBorder: 'rgba(255, 255, 255, 0.12)',
+  glassBgSolid: '#26262A',
+  glassBgTrans: 'rgba(38, 38, 42, 0.72)',
+  glassBorder: 'rgba(255, 255, 255, 0.14)',
   glassGlowTop: 'rgba(255, 143, 171, 0.16)',
   glassGlowBottom: 'rgba(244, 114, 182, 0.12)',
   glassShadow: '0 24px 64px -12px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.08)',
@@ -367,9 +398,23 @@ export const darkTokens: DesignTokens = {
   overlayBlur: '6px',
   selectedBg: 'rgba(255, 143, 171, 0.16)',
   checkScrim: 'rgba(0, 0, 0, 0.35)',
-  panelBg: 'rgba(28, 28, 30, 0.72)',
+  faviconScrim: '#FFFFFF',
+  iconOnBrand: '#FFFFFF',
+  cursorRainbow: 'linear-gradient(90deg, #ff6b6b, #ffd93d, #6bcb77, #4d96ff, #9b59b6)',
+  cursorPastel: 'linear-gradient(90deg, #FFB7D5, #FFDAB9, #E8D5F5, #B5EAD7)',
+  cursorStar1: '#FFD700',
+  cursorStar2: '#FFA500',
+  cursorStar3: '#FF6347',
+  previewStage: '#111111',
+  readerPaperText: '#EDE4D4',
+  readerPaperBg: 'linear-gradient(180deg, #2C271E 0%, #241F17 100%)',
+  panelBg: 'rgba(38, 38, 42, 0.72)',
   panelBorder: 'rgba(255, 255, 255, 0.12)',
   panelShadow: '0 24px 64px -12px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.08)',
+  particle1: '#FF8FAB',
+  particle2: '#F472B6',
+  particle3: '#5A3A45',
+  particle4: '#FFB3C6',
   fontSans: '"DM Sans", "Noto Sans SC", "PingFang SC", system-ui, -apple-system, sans-serif',
   fontMono: '"JetBrains Mono", "SF Mono", monospace',
   fsXs: '11px',
@@ -488,9 +533,23 @@ export function tokensToCSSVars(tokens: DesignTokens): Record<string, string> {
     '--overlay-blur': tokens.overlayBlur,
     '--selected-bg': tokens.selectedBg,
     '--check-scrim': tokens.checkScrim,
+    '--favicon-scrim': tokens.faviconScrim,
+    '--icon-on-brand': tokens.iconOnBrand,
+    '--cursor-rainbow': tokens.cursorRainbow,
+    '--cursor-pastel': tokens.cursorPastel,
+    '--cursor-star-1': tokens.cursorStar1,
+    '--cursor-star-2': tokens.cursorStar2,
+    '--cursor-star-3': tokens.cursorStar3,
+    '--preview-stage': tokens.previewStage,
+    '--reader-paper-text': tokens.readerPaperText,
+    '--reader-paper-bg': tokens.readerPaperBg,
     '--panel-bg': tokens.panelBg,
     '--panel-border': tokens.panelBorder,
     '--panel-shadow': tokens.panelShadow,
+    '--particle-1': tokens.particle1,
+    '--particle-2': tokens.particle2,
+    '--particle-3': tokens.particle3,
+    '--particle-4': tokens.particle4,
     '--font-sans': tokens.fontSans,
     '--font-mono': tokens.fontMono,
     '--fs-xs': tokens.fsXs,

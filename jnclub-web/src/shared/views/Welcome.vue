@@ -97,13 +97,12 @@ const goRegister = () => {
         <JGlareHover
           v-for="(f, i) in features"
           :key="f.title"
-          :glare-color="'#ffffff'"
           :glare-opacity="0.35"
           :glare-size="320"
           :border-radius="'var(--radius-lg)'"
           :border-color="'transparent'"
           class="feature-card-wrap"
-          :style="{ animationDelay: `${i * 60}ms` }"
+          :style="{ animationDelay: `calc(${i} * var(--dur-stagger))` }"
         >
           <div class="feature-card">
             <div class="feature-icon">

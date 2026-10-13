@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import { NConfigProvider, darkTheme, NMessageProvider, NDialogProvider } from 'naive-ui'
 import lightThemeOverrides from './themes/light'
 import darkThemeOverrides from './themes/dark'
+import { lightTokens, darkTokens } from './themes/tokens'
 import { useOnlineStatus } from './shared/composables/useOnlineStatus'
 import CursorHost from './shared/components/CursorHost.vue'
 import CursorClickParticles from './shared/components/CursorClickParticles.vue'
@@ -46,9 +47,10 @@ const { isOnline } = useOnlineStatus()
  */
 function applyTheme(dark: boolean) {
   document.documentElement.dataset.theme = dark ? 'dark' : 'light'
-  // PWA 状态栏颜色：meta 的 media 分支只认系统偏好，认不了用户显式选择
+  // PWA 状态栏颜色：meta 的 media 分支只认系统偏好，认不了用户显式选择。
+  // 取 token 而非再写一遍字面量 —— meta 认不了 var()，这里是唯一能复用单一来源的方式。
   const meta = document.querySelector('meta[name="theme-color"]')
-  if (meta) meta.setAttribute('content', dark ? '#000000' : '#EC5B8E')
+  if (meta) meta.setAttribute('content', dark ? darkTokens.bgPage : lightTokens.brand)
 }
 
 onMounted(() => {

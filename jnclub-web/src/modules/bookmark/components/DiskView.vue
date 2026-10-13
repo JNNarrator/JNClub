@@ -761,7 +761,7 @@ const fileKindColor = (name: string) => FILE_KINDS.find(k => k.re.test(name))?.c
 .preview-body {
   max-height: 70vh;
   overflow: auto;
-  background: #111;
+  background: var(--preview-stage); /* 暗房底：图片/PDF 在任意主题下都按暗背景校色 */
 }
 .preview-image {
   display: flex;
@@ -786,7 +786,7 @@ const fileKindColor = (name: string) => FILE_KINDS.find(k => k.re.test(name))?.c
   width: 100%;
   max-height: 68vh;
   border-radius: var(--radius-xs);
-  background: #000;
+  background: var(--preview-stage); /* 与 .preview-body 同一舞台底，避免加载期黑边与容器分层 */
 }
 .preview-text pre {
   margin: 0;

@@ -40,28 +40,22 @@ const setLineHeight = (v: number) => { lineHeight.value = v; prefs.set('reader.l
 const setColumnWidth = (v: number) => { columnWidth.value = v; prefs.set('reader.columnWidth', v) }
 const toggleFocusPaper = (v: boolean) => { focusPaper.value = v; prefs.set('reader.focusPaper', v) }
 
-/** 主题检测：token 内联在 <html>，用 --bg-page 区分亮/暗 */
-const isDarkMode = ref(false)
-const detectTheme = () => {
-  const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg-page').trim()
-  isDarkMode.value = bg === '#000000'
-}
-
-/** 正文排版样式：字号 / 行距 / 栏宽（专注纸模式下叠加暖色文字） */
+/**
+ * 正文排版样式：字号 / 行距 / 栏宽（专注纸模式下叠加暖色文字）
+ * 暖纸色走 --reader-paper-* 变量而非 JS 判主题：原先用 `bg === '#000000'` 字符串
+ * 比对，既脆弱（页面底色一改就失效），又只在弹窗打开那一刻判定一次 ——
+ * 阅读中途切主题颜色不会跟。交给 CSS 变量后两个问题一起消失。
+ */
 const articleStyle = computed(() => ({
   fontSize: `${fontSize.value}px`,
   lineHeight: lineHeight.value,
   maxWidth: `${columnWidth.value}px`,
-  ...(focusPaper.value
-    ? { color: isDarkMode.value ? '#EDE4D4' : '#3A3229' }
-    : {}),
+  ...(focusPaper.value ? { color: 'var(--reader-paper-text)' } : {}),
 }))
-/** 专注纸背景：暖纸色系（亮/暗主题分别适配），提升沉浸感 */
+/** 专注纸背景：暖纸色系（亮/暗主题各自成对定义在 tokens.ts） */
 const shellStyle = computed(() => {
   if (!focusPaper.value) return {}
-  return isDarkMode.value
-    ? { background: 'linear-gradient(180deg, #2C271E 0%, #241F17 100%)' }
-    : { background: 'linear-gradient(180deg, #FBF5EA 0%, #F6EFDF 100%)' }
+  return { background: 'var(--reader-paper-bg)' }
 })
 const shellClass = computed(() => ({ 'reading-shell--paper': focusPaper.value }))
 
@@ -71,7 +65,6 @@ const article = ref<{ title: string; content: string } | null>(null)
 
 watch(() => props.show, (v) => {
   if (v && props.url) {
-    detectTheme()
     load()
   }
 })

@@ -26,7 +26,7 @@ const MAX_POOL = 60
 
 /** 三种粒子的配色方案 */
 const PALETTE: Record<ParticleType, string[]> = {
-  star: ['#FFD700', '#FFA500', '#FF6347', 'var(--brand)'],
+  star: ['var(--cursor-star-1)', 'var(--cursor-star-2)', 'var(--cursor-star-3)', 'var(--brand)'],
   heart: ['var(--brand)', 'var(--brand-hover)', 'var(--pink-rose)', 'var(--pink-peach)'],
   flower: ['var(--pink-peach)', 'var(--pink-rose)', 'var(--brand)', 'var(--pink-adzuki)', 'var(--pink-cherry)'],
 }
@@ -37,7 +37,7 @@ function createParticle(): Particle {
     x: 0, y: 0, vx: 0, vy: 0,
     life: 0, decay: 0, size: 0,
     rotation: 0, rotationSpeed: 0,
-    type: 'star', color: '#fff',
+    type: 'star', color: 'var(--brand)', // 占位：resetParticle 会立刻按 PALETTE 覆盖
   }
 }
 

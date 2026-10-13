@@ -62,49 +62,49 @@ const resolvedIcon = computed(() => (
       <!-- 品牌色环形图标 -->
       <div class="empty-icon-ring">
         <svg v-if="resolvedIcon === 'bookmark'" width="44" height="44" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <rect x="8" y="6" width="32" height="36" rx="4" stroke="#fff" stroke-width="2" />
-          <line x1="14" y1="16" x2="34" y2="16" stroke="#fff" stroke-width="1.5" stroke-linecap="round" opacity=".8" />
-          <line x1="14" y1="23" x2="28" y2="23" stroke="#fff" stroke-width="1.5" stroke-linecap="round" opacity=".6" />
-          <line x1="14" y1="30" x2="22" y2="30" stroke="#fff" stroke-width="1.5" stroke-linecap="round" opacity=".4" />
-          <circle cx="38" cy="10" r="3" fill="#fff" opacity="0.7" />
+          <rect x="8" y="6" width="32" height="36" rx="4" stroke="currentColor" stroke-width="2" />
+          <line x1="14" y1="16" x2="34" y2="16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity=".8" />
+          <line x1="14" y1="23" x2="28" y2="23" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity=".6" />
+          <line x1="14" y1="30" x2="22" y2="30" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity=".4" />
+          <circle cx="38" cy="10" r="3" fill="currentColor" opacity="0.7" />
         </svg>
         <svg v-else-if="resolvedIcon === 'note'" width="44" height="44" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <rect x="10" y="6" width="28" height="36" rx="3" stroke="#fff" stroke-width="2" />
-          <line x1="16" y1="16" x2="32" y2="16" stroke="#fff" stroke-width="1.5" stroke-linecap="round" opacity=".8" />
-          <line x1="16" y1="22" x2="28" y2="22" stroke="#fff" stroke-width="1.5" stroke-linecap="round" opacity=".6" />
-          <line x1="16" y1="28" x2="24" y2="28" stroke="#fff" stroke-width="1.5" stroke-linecap="round" opacity=".4" />
-          <line x1="16" y1="34" x2="20" y2="34" stroke="#fff" stroke-width="1.5" stroke-linecap="round" opacity=".3" />
-          <circle cx="34" cy="12" r="2.5" fill="#fff" opacity="0.7" />
+          <rect x="10" y="6" width="28" height="36" rx="3" stroke="currentColor" stroke-width="2" />
+          <line x1="16" y1="16" x2="32" y2="16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity=".8" />
+          <line x1="16" y1="22" x2="28" y2="22" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity=".6" />
+          <line x1="16" y1="28" x2="24" y2="28" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity=".4" />
+          <line x1="16" y1="34" x2="20" y2="34" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity=".3" />
+          <circle cx="34" cy="12" r="2.5" fill="currentColor" opacity="0.7" />
         </svg>
         <svg v-else-if="resolvedIcon === 'file'" width="44" height="44" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M10 8h17l9 9v22a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2z" stroke="#fff" stroke-width="2" />
-          <path d="M26 8v10h10" stroke="#fff" stroke-width="2" stroke-linejoin="round" />
-          <rect x="18" y="23" width="12" height="8" rx="1.5" stroke="#fff" stroke-width="1.5" opacity=".7" />
-          <circle cx="38" cy="8" r="3" fill="#fff" opacity="0.7" />
+          <path d="M10 8h17l9 9v22a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2z" stroke="currentColor" stroke-width="2" />
+          <path d="M26 8v10h10" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
+          <rect x="18" y="23" width="12" height="8" rx="1.5" stroke="currentColor" stroke-width="1.5" opacity=".7" />
+          <circle cx="38" cy="8" r="3" fill="currentColor" opacity="0.7" />
         </svg>
         <svg v-else-if="resolvedIcon === 'vault'" width="44" height="44" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M24 6l14 6v10c0 8-5.5 14-14 17-8.5-3-14-9-14-17V12l14-6z" stroke="#fff" stroke-width="2" stroke-linejoin="round" />
-          <circle cx="24" cy="21" r="4.5" stroke="#fff" stroke-width="1.8" />
-          <path d="M24 25.5V31" stroke="#fff" stroke-width="1.8" stroke-linecap="round" />
-          <circle cx="39" cy="8" r="3" fill="#fff" opacity="0.7" />
+          <path d="M24 6l14 6v10c0 8-5.5 14-14 17-8.5-3-14-9-14-17V12l14-6z" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
+          <circle cx="24" cy="21" r="4.5" stroke="currentColor" stroke-width="1.8" />
+          <path d="M24 25.5V31" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+          <circle cx="39" cy="8" r="3" fill="currentColor" opacity="0.7" />
         </svg>
         <svg v-else-if="resolvedIcon === 'search'" width="44" height="44" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="21" cy="21" r="10" stroke="#fff" stroke-width="2.5" />
-          <line x1="28.5" y1="28.5" x2="38" y2="38" stroke="#fff" stroke-width="2.5" stroke-linecap="round" />
-          <circle cx="39" cy="9" r="3" fill="#fff" opacity="0.7" />
+          <circle cx="21" cy="21" r="10" stroke="currentColor" stroke-width="2.5" />
+          <line x1="28.5" y1="28.5" x2="38" y2="38" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" />
+          <circle cx="39" cy="9" r="3" fill="currentColor" opacity="0.7" />
         </svg>
         <svg v-else-if="resolvedIcon === 'error'" width="44" height="44" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="24" cy="24" r="17" stroke="#fff" stroke-width="2.5" />
-          <line x1="24" y1="16" x2="24" y2="27" stroke="#fff" stroke-width="2.5" stroke-linecap="round" />
-          <circle cx="24" cy="33.5" r="1.8" fill="#fff" />
-          <circle cx="39" cy="8" r="3" fill="#fff" opacity="0.7" />
+          <circle cx="24" cy="24" r="17" stroke="currentColor" stroke-width="2.5" />
+          <line x1="24" y1="16" x2="24" y2="27" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" />
+          <circle cx="24" cy="33.5" r="1.8" fill="currentColor" />
+          <circle cx="39" cy="8" r="3" fill="currentColor" opacity="0.7" />
         </svg>
         <svg v-else width="44" height="44" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <rect x="8" y="6" width="32" height="36" rx="4" stroke="#fff" stroke-width="2" />
-          <line x1="14" y1="16" x2="34" y2="16" stroke="#fff" stroke-width="1.5" stroke-linecap="round" opacity=".8" />
-          <line x1="14" y1="23" x2="28" y2="23" stroke="#fff" stroke-width="1.5" stroke-linecap="round" opacity=".6" />
-          <line x1="14" y1="30" x2="22" y2="30" stroke="#fff" stroke-width="1.5" stroke-linecap="round" opacity=".4" />
-          <circle cx="38" cy="10" r="3" fill="#fff" opacity="0.7" />
+          <rect x="8" y="6" width="32" height="36" rx="4" stroke="currentColor" stroke-width="2" />
+          <line x1="14" y1="16" x2="34" y2="16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity=".8" />
+          <line x1="14" y1="23" x2="28" y2="23" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity=".6" />
+          <line x1="14" y1="30" x2="22" y2="30" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity=".4" />
+          <circle cx="38" cy="10" r="3" fill="currentColor" opacity="0.7" />
         </svg>
       </div>
 
@@ -166,7 +166,11 @@ const resolvedIcon = computed(() => (
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 0 24px var(--focus-ring), var(--shadow-2);
+  /* 图标描边统一走 currentColor，颜色由此处给 —— SVG 的 presentation attribute
+     不认 var()，只能靠继承，所以不写成 stroke="var(--…)"。 */
+  color: var(--icon-on-brand);
+  /* 外发光用柔光档：--focus-ring 自 M1 起是实色，直接当 24px 光晕会糊成一圈实心粉 */
+  box-shadow: 0 0 24px var(--focus-ring-soft), var(--shadow-2);
   margin-bottom: 24px;
   animation: jnclub-breathe var(--dur-breathe) var(--ease-smooth) infinite;
 }

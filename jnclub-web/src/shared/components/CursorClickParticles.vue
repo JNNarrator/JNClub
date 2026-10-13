@@ -55,7 +55,7 @@ const { particles } = useCursorClickEffect()
 
 /* 五角星：clip-path 裁切 */
 .particle-star {
-  background: var(--particle-color, #FFD700);
+  background: var(--particle-color, var(--cursor-star-1));
   clip-path: polygon(
     50% 0%, 61% 35%, 98% 35%, 68% 57%,
     79% 91%, 50% 70%, 21% 91%, 32% 57%,

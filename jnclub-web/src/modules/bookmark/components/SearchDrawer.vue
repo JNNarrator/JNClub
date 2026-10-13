@@ -609,7 +609,7 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
             <div
               v-for="(b, idx) in result.bookmarks" :key="b.id"
               :class="['result-item', 'jnclub-bouncy', { 'search-nav-active': activeIndex === navIndex(`b-${b.id}`) }]" @click="openRecent({ kind: 'bookmark', id: b.id, title: b.title || b.url, url: b.url })"
-              :style="{ animationDelay: `${Math.min(idx * 35, 300)}ms` }"
+              :style="{ animationDelay: `calc(min(${idx} * var(--dur-stagger), var(--dur-slow)))` }"
             >
               <img v-if="b.icon" :src="b.icon" class="item-icon" loading="lazy" decoding="async" @error="(e: Event) => ((e.target as HTMLImageElement).style.display = 'none')" />
               <NIcon v-else :component="Bookmark" size="15" class="item-fallback" />
@@ -630,7 +630,7 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
             <div
               v-for="(n, idx) in result.notes" :key="n.id"
               :class="['result-item', 'jnclub-bouncy', { 'search-nav-active': activeIndex === navIndex(`n-${n.id}`) }]" @click="openRecent({ kind: 'note', id: n.id, title: n.title || '无标题' })"
-              :style="{ animationDelay: `${Math.min(idx * 35, 300)}ms` }"
+              :style="{ animationDelay: `calc(min(${idx} * var(--dur-stagger), var(--dur-slow)))` }"
             >
               <NIcon :component="StickyNote" size="15" class="item-fallback" />
               <div class="item-main">
@@ -650,7 +650,7 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
             <div
               v-for="(f, idx) in result.files" :key="f.id"
               :class="['result-item', 'jnclub-bouncy', { 'search-nav-active': activeIndex === navIndex(`f-${f.id}`) }]" @click="openRecent({ kind: 'file', id: f.id, title: f.originalName })"
-              :style="{ animationDelay: `${Math.min(idx * 35, 300)}ms` }"
+              :style="{ animationDelay: `calc(min(${idx} * var(--dur-stagger), var(--dur-slow)))` }"
             >
               <NIcon :component="FileText" size="15" class="item-fallback" />
               <div class="item-main">
@@ -670,7 +670,7 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
             <div
               v-for="(v, idx) in result.vault" :key="v.id"
               :class="['result-item', 'jnclub-bouncy', { 'search-nav-active': activeIndex === navIndex(`v-${v.id}`) }]" @click="handleJump('vault', v.directoryId)"
-              :style="{ animationDelay: `${Math.min(idx * 35, 300)}ms` }"
+              :style="{ animationDelay: `calc(min(${idx} * var(--dur-stagger), var(--dur-slow)))` }"
             >
               <NIcon :component="KeyRound" size="15" class="item-fallback" />
               <div class="item-main">
@@ -690,7 +690,7 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
             <div
               v-for="(t, idx) in result.tags" :key="t.id"
               :class="['result-item', 'jnclub-bouncy', { 'search-nav-active': activeIndex === navIndex(`t-${t.id}`) }]" @click="handleJump('bookmarks', null)"
-              :style="{ animationDelay: `${Math.min(idx * 35, 300)}ms` }"
+              :style="{ animationDelay: `calc(min(${idx} * var(--dur-stagger), var(--dur-slow)))` }"
             >
               <NIcon :component="Tag" size="15" class="item-fallback" />
               <div class="item-main">
@@ -710,7 +710,7 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
             <div
               v-for="(t, idx) in result.tracks" :key="t.trackId"
               :class="['result-item', 'jnclub-bouncy', { 'search-nav-active': activeIndex === navIndex(`track-${t.trackId}`) }]" @click="handleJump('music', null)"
-              :style="{ animationDelay: `${Math.min(idx * 35, 300)}ms` }"
+              :style="{ animationDelay: `calc(min(${idx} * var(--dur-stagger), var(--dur-slow)))` }"
             >
               <NIcon :component="Music" size="15" class="item-fallback" />
               <div class="item-main">

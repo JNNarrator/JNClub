@@ -14,7 +14,7 @@ interface GradientTextProps {
 
 const props = withDefaults(defineProps<GradientTextProps>(), {
   className: '',
-  colors: () => ['#27FF64', '#27FF64', '#A0FFBC'],
+  colors: () => ['var(--brand)', 'var(--brand)', 'var(--pink-rose)'],
   animationSpeed: 8,
   showBorder: false,
   direction: 'horizontal',

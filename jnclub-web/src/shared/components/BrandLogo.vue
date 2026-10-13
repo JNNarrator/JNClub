@@ -32,7 +32,8 @@ const iconSize = Math.round(props.size * 0.5)
 <template>
   <span :class="['brand-logo', { collapsed }]">
     <span class="brand-mark" :style="{ width: `${size}px`, height: `${size}px` }">
-      <NIcon :component="Heart" :size="iconSize" color="#fff" />
+      <!-- NIcon 的 color 会落成 CSS color，故可直接给变量（Heart 用 currentColor 描边） -->
+      <NIcon :component="Heart" :size="iconSize" color="var(--icon-on-brand)" />
     </span>
     <template v-if="showText && !collapsed">
       <span class="brand-text">{{ text }}</span>

@@ -84,9 +84,9 @@ const clickOptions: { key: ClickEffectType; label: string; desc: string; emoji: 
 
 const trailOptions: { key: TrailEffectType; label: string; desc: string; color: string }[] = [
   { key: 'none', label: '无', desc: '不显示鼠标轨迹', color: 'transparent' },
-  { key: 'rainbow', label: '彩虹', desc: '鼠标拖出彩色渐变轨迹', color: 'linear-gradient(90deg, #ff6b6b, #ffd93d, #6bcb77, #4d96ff, #9b59b6)' },
+  { key: 'rainbow', label: '彩虹', desc: '鼠标拖出彩色渐变轨迹', color: 'var(--cursor-rainbow)' },
   { key: 'brand', label: '品牌粉', desc: '品牌粉色柔和拖尾', color: 'var(--brand)' },
-  { key: 'pastel', label: '粉彩', desc: '柔和粉彩色系轮换', color: 'linear-gradient(90deg, #FFB7D5, #FFDAB9, #E8D5F5, #B5EAD7)' },
+  { key: 'pastel', label: '粉彩', desc: '柔和粉彩色系轮换', color: 'var(--cursor-pastel)' },
 ]
 </script>
 

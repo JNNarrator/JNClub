@@ -191,7 +191,7 @@ const isActive = (tab: NavDef) => {
   font-weight: 600;
 }
 .tab-active :deep(.n-icon) {
-  filter: drop-shadow(0 0 6px var(--focus-ring));
+  filter: drop-shadow(0 0 6px var(--focus-ring-soft));
 }
 
 /* 激活指示条 */

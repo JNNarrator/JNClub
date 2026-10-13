@@ -190,10 +190,10 @@ const options: { key: ParticlesStyle; label: string; desc: string; preview: 'off
 .preview-dots .pdot:nth-child(2) { width: 4px; height: 4px; top: 26px; left: 24px; }
 .preview-dots .pdot:nth-child(3) { width: 5px; height: 5px; top: 10px; left: 30px; }
 .preview-dots .pdot:nth-child(4) { width: 4px; height: 4px; top: 32px; left: 14px; }
-.preview-snow .pdot:nth-child(1) { width: 4px; height: 4px; top: 8px; left: 12px; background: #fff; }
-.preview-snow .pdot:nth-child(2) { width: 5px; height: 5px; top: 18px; left: 28px; background: var(--pink-peach); }
-.preview-snow .pdot:nth-child(3) { width: 4px; height: 4px; top: 30px; left: 16px; background: #fff; }
-.preview-snow .pdot:nth-child(4) { width: 5px; height: 5px; top: 34px; left: 32px; background: var(--pink-peach); }
+.preview-snow .pdot:nth-child(1) { width: 4px; height: 4px; top: 8px; left: 12px; background: var(--particle-1); }
+.preview-snow .pdot:nth-child(2) { width: 5px; height: 5px; top: 18px; left: 28px; background: var(--particle-2); }
+.preview-snow .pdot:nth-child(3) { width: 4px; height: 4px; top: 30px; left: 16px; background: var(--particle-3); }
+.preview-snow .pdot:nth-child(4) { width: 5px; height: 5px; top: 34px; left: 32px; background: var(--particle-4); }
 .preview-petals .pdot:nth-child(1) { width: 8px; height: 8px; top: 10px; left: 10px; }
 .preview-petals .pdot:nth-child(2) { width: 7px; height: 7px; top: 24px; left: 26px; opacity: 0.5; }
 .preview-petals .pdot:nth-child(3) { width: 6px; height: 6px; top: 30px; left: 8px; opacity: 0.6; }
