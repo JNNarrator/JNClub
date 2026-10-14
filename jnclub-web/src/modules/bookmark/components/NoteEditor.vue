@@ -151,6 +151,8 @@ let activePointerId: number | null = null
 let dragOffset = { x: 0, y: 0 }
 /** 拖拽元素实时尺寸，用于把位置 clamp 在视口内（移动端极易把浮层拖出屏幕外找不回来） */
 let dragElSize = { w: 200, h: 40 }
+/** 拖拽起始位置：手势被系统打断（pointercancel）时回滚到此处，避免浮层停在半路 */
+let dragOriginPos = { x: 0, y: 0 }
 
 const initOutlinePos = () => {
   // 默认位置：视口右侧、垂直居中（首屏尽早计算，避免 initial 0,0 挡编辑区）
@@ -192,6 +194,24 @@ const clampOutlinePos = (x: number, y: number) => {
   }
 }
 
+/**
+ * iOS Safari 加固：`touch-action: none` 在 Safari 上并不能可靠地阻止单指平移——
+ * 手指一滑动，WebKit 仍可能把手势判给页面滚动，随即派发 pointercancel，
+ * 拖拽刚起步就被取消（表现为「拖不动，页面却跟着滚/被放大」）。
+ * 唯一可靠的办法是在 touchstart 同步 preventDefault（监听器必须非 passive；Vue 模板事件默认即非 passive）。
+ * 代价：preventDefault 会吞掉随后合成的 click，因此
+ *   1) 宿主内的交互子元素（head 里的「收起」按钮）放行，保留原生点击；
+ *   2) 展开按钮的「轻点展开」改由 pointerup 兜底（见 onOutlineDragEnd）。
+ */
+const onOutlineTouchStart = (e: TouchEvent) => {
+  const target = e.target as HTMLElement | null
+  const host = e.currentTarget as HTMLElement | null
+  const interactive = target?.closest('button, a, input, textarea, select')
+  // 落在宿主内部的交互元素上（且不是宿主自身）→ 不拦截
+  if (interactive && interactive !== host) return
+  if (e.cancelable) e.preventDefault()
+}
+
 /** 开始拖拽（大纲框或展开按钮通用）。用 Pointer Events 统一鼠标/触摸/触控笔——
  *  原来只监听 mousedown+mousemove，触摸屏不派发 mousemove，导致移动端完全拖不动 */
 const onOutlineDragStart = (e: PointerEvent) => {
@@ -205,6 +225,7 @@ const onOutlineDragStart = (e: PointerEvent) => {
   activePointerId = e.pointerId
   dragElSize = { w: rect.width || 200, h: rect.height || 40 }
   dragOffset = { x: e.clientX - rect.left, y: e.clientY - rect.top }
+  dragOriginPos = { ...outlinePos.value }
   dragStart = { x: e.clientX, y: e.clientY }
   didDrag = false
   movingEl.style.transition = 'none'
@@ -247,16 +268,23 @@ const endOutlineDrag = () => {
 const onOutlineDragEnd = () => {
   if (!dragging) return
   const wasDrag = didDrag
+  // 触摸下 touchstart 已被 preventDefault，随后的 click 不再合成，
+  // 因此「轻点展开按钮」在此兜底（鼠标场景 click 照常派发，重复赋值幂等）
+  const tapToReopen = !wasDrag && !outlineVisible.value
   endOutlineDrag()
   if (wasDrag) {
     saveOutlinePos()
     armDidDragReset() // 拖拽后短暂守卫，抑制随后的 click
+  } else if (tapToReopen) {
+    outlineVisible.value = true
   }
 }
-/** 手势被系统打断（来电/滚动接管/多指）：不保存位置，直接复位，别残留守卫 */
+/** 手势被系统打断（来电/滚动接管/多指）：回滚到拖拽前的位置，不保存，别残留守卫 */
 const onOutlineDragCancel = () => {
   if (!dragging) return
+  const wasDrag = didDrag
   endOutlineDrag()
+  if (wasDrag) outlinePos.value = { ...dragOriginPos }
   didDrag = false
   if (didDragResetTimer) { clearTimeout(didDragResetTimer); didDragResetTimer = null }
 }
@@ -916,7 +944,7 @@ defineExpose({ hasUnsavedChanges })
     class="outline-float"
     :style="{ left: outlinePos.x + 'px', top: outlinePos.y + 'px' }"
   >
-    <div class="outline-float__head" @pointerdown="onOutlineDragStart" title="拖动调整位置">
+    <div class="outline-float__head" @pointerdown="onOutlineDragStart" @touchstart="onOutlineTouchStart" title="拖动调整位置">
       <span class="outline-float__title">大纲</span>
       <div class="outline-float__actions">
         <button class="outline-float__btn" title="收起" aria-label="收起大纲" @click="outlineVisible = false">
@@ -943,6 +971,7 @@ defineExpose({ hasUnsavedChanges })
     class="outline-float__reopen"
     title="点击展开大纲 · 拖动调整位置"
     @pointerdown="onOutlineDragStart"
+    @touchstart="onOutlineTouchStart"
     @click="onOutlineToggleClick"
     :style="{ left: outlinePos.x + 'px', top: outlinePos.y + 'px' }"
   >
