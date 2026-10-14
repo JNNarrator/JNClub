@@ -34,7 +34,13 @@
     "vite-plugin-pwa": "^1.3.0",
     "vue-tsc": "^2.2.0"
   },
+  "engines": {
+    "node": ">=18"
+  },
   "overrides": {
-    "serialize-javascript": "6.0.2"
+    "serialize-javascript": "6.0.2",
+    "path-scurry": {
+      "lru-cache": "^10.4.3"
+    }
   }
 }
