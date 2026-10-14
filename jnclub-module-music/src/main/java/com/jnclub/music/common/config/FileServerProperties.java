@@ -15,9 +15,10 @@ public class FileServerProperties {
 
     private String publicBaseUrl = "http://jn_file.88933.vip";
 
-    private String username = "admin";
+    /** 凭据一律由配置提供（application.properties / 外置配置 / 环境变量），不在代码里留默认值 */
+    private String username;
 
-    private String password = "jiangnan123";
+    private String password;
 
     public String getUsername() {
         return username;

@@ -3,10 +3,8 @@ package com.jnclub.music.common.config;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpMethod;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.ViewControllerRegistry;
-import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import com.jnclub.music.common.logging.RequestLoggingInterceptor;
 import com.jnclub.music.common.ratelimit.MusicRateLimitInterceptor;
@@ -19,13 +17,9 @@ public class WebMvcConfig implements WebMvcConfigurer {
     @Autowired
     private MusicRateLimitInterceptor musicRateLimitInterceptor;
 
-    @Override
-    public void addCorsMappings(CorsRegistry registry) {
-        registry.addMapping("/**")
-                .allowedOriginPatterns("*")
-                .allowedMethods(HttpMethod.GET.name(), HttpMethod.POST.name(), HttpMethod.PUT.name(), HttpMethod.DELETE.name())
-                .allowCredentials(true);
-    }
+    // CORS 统一由 com.jnclub.common.config.CorsConfig 的 CorsFilter 处理（白名单 + 不允许凭据）。
+    // 此处原先另有一份 allowedOriginPatterns("*") + allowCredentials(true) 的重复配置，
+    // 会让整个应用的跨域策略被通配来源覆盖，故移除，保持单一来源。
 
     @Override
     public void addViewControllers(ViewControllerRegistry registry) {

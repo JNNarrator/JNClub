@@ -146,6 +146,7 @@ JNClub 后端
 
 | 配置 | 默认 | 说明 |
 |---|---|---|
+| `jnclub.cors.allowed-origins` | `http://localhost:5173,http://127.0.0.1:5173` | 跨域白名单（逗号分隔）。同源部署无需配置；**禁止**改回 `*` |
 | `jnclub.dufs.base-url` | - | dufs 内网地址（本地/线上） |
 | `jnclub.dufs.disk-path` | `/jnclub/disk/` | 云盘存储前缀 |
 | `jnclub.disk.max-size-mb` | 500 | 云盘单文件上限 |

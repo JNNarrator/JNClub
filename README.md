@@ -99,8 +99,8 @@ VALUES ('JNClub', 'app-jnclub', 'http://localhost:19005/sso/login', 'http://loca
 
 ## 配置说明
 
-后端配置文件：`jnclub-gateway/src/main/resources/application.yml`（本地）
-线上参考：`application.example.yml`
+后端配置：本地 `jnclub-gateway/src/main/resources/application.yml`（**不入库**，见下方「凭据管理」）
+线上模板：`application.example.yml`（仅占位值，不含真实凭据）
 
 ```yaml
 server:
@@ -110,7 +110,7 @@ spring:
   datasource:
     url: jdbc:mysql://localhost:3306/jnclub?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
     username: root
-    password: jiangnan123
+    password: your_db_password
   # 分片上传：max-file-size 需大于单个分片（jnclub.disk.chunk-size-mb），预留余量
   servlet:
     multipart:
@@ -123,7 +123,7 @@ sa-token:
     server-url: http://localhost:8080/sso   # 本地联调；生产为 SSO 服务地址
     client-url: http://localhost:19005
     client-id: app-jnclub
-    secret-key: jn-sso-secret-key-2026
+    secret-key: your_sso_secret_key
   token-name: jn-token
 
 jnclub:
@@ -146,6 +146,18 @@ jnclub:
 - `dufs.base-url` 本地/线上差异通过本文件（本地）与 `application.example.yml`（线上）区分；`username/password` 线上必填。
 - 前端与浏览器**不直接接触 dufs 内网地址**：写入由后端 PUT、读取走 `/api/files/**` 反向代理，避免内网地址泄露。
 - `spring.servlet.multipart.max-file-size` 必须大于 `jnclub.disk.chunk-size-mb`，否则分片上传会被拒绝。
+- `jnclub.cors.allowed-origins` 为跨域白名单（逗号分隔）。同源部署（nginx 同时托管前端并反代 `/api`）无需配置；本地 dev 走 Vite 代理属同源；浏览器扩展由 `host_permissions` 覆盖。**不要**改回 `*`：通配来源与 `allowCredentials` 同时开启等于任何网站都能带凭据调用后端。
+
+### 凭据管理
+
+仓库内**不存放任何真实凭据**（数据库密码、SSO `secret-key`、dufs 与蓝奏云账号密码）：
+
+- `jnclub-gateway/src/main/resources/application.yml` 已加入 `.gitignore` 且**不再跟踪**。本地开发自备该文件；线上由服务器上的外置 `application.yml` 提供（自动部署不回填该文件）。
+- 敏感项可用环境变量覆盖，无需改文件：
+  - `JNCLUB_DAO_CRYPTO_KEY` —— Sa-Token 会话 DAO 加密密钥，**生产必须覆盖**（默认值仅供开发）。
+  - `SPRING_DATASOURCE_PASSWORD`、`SA_TOKEN_SSO_SECRET_KEY` —— 按 Spring Boot 宽松绑定规则映射。
+- 音乐模块的 `lanzou.client.*` / `jnmusic.file-server.*` 见 `jnclub-module-music/src/main/resources/application.properties`，同样应经环境变量或外置配置注入。
+- 若曾把凭据提交进仓库，**改文件不等于泄露已消除**：需轮换该凭据，并用 `git filter-repo`/BFG 清理历史。
 
 ## API 文档
 
