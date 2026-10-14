@@ -7,8 +7,9 @@
 import { ref, h, computed, onMounted, onUnmounted } from 'vue'
 import {
   NButton, NIcon, NBadge, NPopover, NBreadcrumb, NBreadcrumbItem, NAvatar, NDropdown, NModal, useDialog,
+  type DropdownOption,
 } from 'naive-ui'
-import { FolderOpen, Search, CheckSquare, RefreshCw, Sun, Moon, CircleUser, LogOut, Bell, CheckCheck } from 'lucide-vue-next'
+import { FolderOpen, Search, CheckSquare, RefreshCw, Sun, Moon, CircleUser, LogOut, Bell, CheckCheck, MoreVertical, LayoutGrid, Rows3 } from 'lucide-vue-next'
 import axios from 'axios'
 import { useUserStore } from '../stores/user'
 import { openMenu, openMenuAt } from '../composables/useContextMenu'
@@ -195,6 +196,37 @@ const goSsoProfile = () => {
   }
 }
 
+/**
+ * 移动端顶栏收纳菜单：窄屏单行放不下全部操作（402px 视口实测右侧需 332px，
+ * 会把面包屑压成 0 宽并从左侧溢出，文字被按钮盖住）。
+ * 低频操作（多选/刷新/主题）收进「更多」，高频操作（搜索/通知/视图切换/头像）常驻。
+ */
+const mobileMoreOptions = computed(() => {
+  const options: DropdownOption[] = []
+  if (props.activeModule === 'bookmarks' || props.activeModule === 'notes') {
+    options.push({
+      label: props.batchMode ? '退出多选' : '多选',
+      key: 'batch',
+      icon: () => h(NIcon, null, { default: () => h(CheckSquare) }),
+    })
+  }
+  options.push(
+    { label: '刷新', key: 'refresh', icon: () => h(NIcon, null, { default: () => h(RefreshCw) }) },
+    {
+      label: props.isDark ? '切换到白天模式' : '切换到暗黑模式',
+      key: 'theme',
+      icon: () => h(NIcon, null, { default: () => h(props.isDark ? Sun : Moon) }),
+    },
+  )
+  return options
+})
+
+const handleMobileMore = (key: string) => {
+  if (key === 'batch') emit('update:batchMode', !props.batchMode)
+  else if (key === 'refresh') emit('refresh')
+  else if (key === 'theme') emit('toggle-theme')
+}
+
 const moduleName = computed(() => {
   const m = props.activeModule
   return m === 'bookmarks' ? '收藏夹' : m === 'notes' ? '便签' : m === 'files' ? '云盘' : '密码库'
@@ -291,7 +323,7 @@ const handleBreadcrumbRoot = () => {
       <NButton
         v-if="activeModule === 'bookmarks' || activeModule === 'notes'"
         quaternary circle size="small"
-        class="refresh-btn"
+        class="refresh-btn header-secondary"
         :type="batchMode ? 'primary' : 'default'"
         :title="batchMode ? '退出多选' : '多选'"
         @click="emit('update:batchMode', !batchMode)"
@@ -299,23 +331,47 @@ const handleBreadcrumbRoot = () => {
         <template #icon><NIcon :component="CheckSquare" size="16" /></template>
       </NButton>
       <ViewSwitcher
-        v-if="activeModule === 'bookmarks' || activeModule === 'notes'"
+        v-if="!isMobile && (activeModule === 'bookmarks' || activeModule === 'notes')"
         :model-value="viewMode"
         @update:model-value="(v: ViewMode) => emit('update:viewMode', v)"
       />
-      <NButton quaternary circle size="small" @click="emit('refresh')" class="refresh-btn jnclub-bouncy" title="刷新">
+      <!-- 移动端：分段控件（98px）换成图标按钮，把宽度让给面包屑路径 -->
+      <NButton
+        v-else-if="isMobile && (activeModule === 'bookmarks' || activeModule === 'notes')"
+        quaternary circle size="small"
+        class="refresh-btn header-view-toggle"
+        :title="viewMode === 'grid' ? '切换到极简视图' : '切换到卡片视图'"
+        :aria-label="viewMode === 'grid' ? '切换到极简视图' : '切换到卡片视图'"
+        @click="emit('update:viewMode', viewMode === 'grid' ? 'list' : 'grid')"
+      >
+        <template #icon><NIcon :component="viewMode === 'grid' ? LayoutGrid : Rows3" size="16" /></template>
+      </NButton>
+      <NButton quaternary circle size="small" @click="emit('refresh')" class="refresh-btn jnclub-bouncy header-secondary" title="刷新">
         <template #icon><NIcon :component="RefreshCw" size="16" /></template>
       </NButton>
 
       <button
         type="button"
-        class="theme-toggle-btn jnclub-bouncy"
+        class="theme-toggle-btn jnclub-bouncy header-secondary"
         :title="isDark ? '切换到白天模式' : '切换到暗黑模式'"
         :aria-label="isDark ? '切换到白天模式' : '切换到暗黑模式'"
         @click="emit('toggle-theme')"
       >
         <NIcon :component="isDark ? Sun : Moon" size="16" />
       </button>
+
+      <!-- 移动端：低频操作收纳，避免顶栏在窄屏溢出压住面包屑 -->
+      <NDropdown
+        v-if="isMobile"
+        trigger="click"
+        placement="bottom-end"
+        :options="mobileMoreOptions"
+        @select="handleMobileMore"
+      >
+        <NButton quaternary circle size="small" class="refresh-btn header-more-btn" title="更多">
+          <template #icon><NIcon :component="MoreVertical" size="16" /></template>
+        </NButton>
+      </NDropdown>
 
       <NDropdown :options="userDropdownOptions" @select="handleUserDropdown" placement="bottom-end" trigger="click">
         <div class="user-row jnclub-bouncy jnclub-longpress" @contextmenu.prevent="openMenu($event, userDropdownOptions, handleUserDropdown)" v-on="longPress((ev) => openMenuAt(ev.clientX, ev.clientY, userDropdownOptions, handleUserDropdown))">
@@ -585,16 +641,59 @@ const handleBreadcrumbRoot = () => {
   word-break: break-all;
 }
 
+/* 面包屑末级不跟随分隔符，避免出现悬空 "/" */
+.jnclub-breadcrumb :deep(.n-breadcrumb-item:last-child .n-breadcrumb-item__separator) {
+  display: none;
+}
+
 @media (max-width: 767px) {
   .home-header {
     padding: 0 12px;
+    gap: 8px;
+  }
+  /*
+   * 窄屏遮挡根因：header-right 不收缩（内容约 244px），header-left 为 flex:1 + min-width:0
+   * 会被压到只剩目录按钮宽，面包屑从 0 宽容器里溢出绘制，被右侧按钮压住。
+   * 这里让左侧真正裁剪，并给末级面包屑省略号。
+   */
+  .header-left {
+    gap: 4px;
+    overflow: hidden;
+  }
+  .jnclub-breadcrumb {
+    min-width: 0;
+    overflow: hidden;
+  }
+  /* 移动端不需要品牌根链接：目录按钮已能唤起完整目录树，宽度让给当前路径 */
+  .jnclub-breadcrumb :deep(.n-breadcrumb-item:first-child) {
+    display: none;
+  }
+  .jnclub-breadcrumb :deep(ul) {
+    display: flex;
+    flex-wrap: nowrap;
+    min-width: 0;
+  }
+  .jnclub-breadcrumb :deep(.n-breadcrumb-item) {
+    flex: 0 0 auto;
+    min-width: 0;
+    white-space: nowrap;
+  }
+  .jnclub-breadcrumb :deep(.n-breadcrumb-item:last-child) {
+    flex: 0 1 auto;
+    overflow: hidden;
+  }
+  .jnclub-breadcrumb :deep(.n-breadcrumb-item:last-child .n-breadcrumb-item__link) {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .user-name,
   .user-role {
     display: none;
   }
   .header-right {
-    gap: 4px;
+    gap: 2px;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
@@ -604,6 +703,21 @@ const handleBreadcrumbRoot = () => {
   }
   .user-row {
     flex-shrink: 0;
+    padding: 4px;
+  }
+  /* 低频操作（多选/刷新/主题）收进「更多」，避免窄屏顶栏溢出 */
+  .header-secondary {
+    display: none;
+  }
+}
+
+/*
+ * 超窄屏（320–400px）：底部 TabBar 已标明当前模块，把宽度让给路径。
+ * 用 :has 限定「确实存在路径项」时才隐藏模块名，避免在根目录下把面包屑清空。
+ */
+@media (max-width: 400px) {
+  .jnclub-breadcrumb :deep(.n-breadcrumb-item:nth-child(2):has(~ .n-breadcrumb-item:nth-child(3))) {
+    display: none;
   }
 }
 </style>
