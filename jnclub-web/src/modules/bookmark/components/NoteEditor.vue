@@ -119,6 +119,9 @@ onMounted(() => {
 onBeforeUnmount(() => {
   window.removeEventListener('resize', checkMobile)
   document.removeEventListener('click', handleDocClick)
+  // 拖拽中途卸载：摘掉挂在 document 上的 pointer 监听，避免泄漏
+  if (dragging) endOutlineDrag()
+  if (didDragResetTimer) { clearTimeout(didDragResetTimer); didDragResetTimer = null }
 })
 
 const content = ref('')
@@ -143,12 +146,16 @@ const outlinePos = ref({ x: 0, y: 0 })
 const outlineBox = ref<HTMLDivElement | null>(null)
 const outlineToggle = ref<HTMLButtonElement | null>(null)
 let dragging = false
+/** 当前拖拽的 pointerId：只响应发起拖拽的那根手指/鼠标，忽略多指干扰 */
+let activePointerId: number | null = null
 let dragOffset = { x: 0, y: 0 }
+/** 拖拽元素实时尺寸，用于把位置 clamp 在视口内（移动端极易把浮层拖出屏幕外找不回来） */
+let dragElSize = { w: 200, h: 40 }
 
 const initOutlinePos = () => {
   // 默认位置：视口右侧、垂直居中（首屏尽早计算，避免 initial 0,0 挡编辑区）
   const vw = typeof window !== 'undefined' ? window.innerWidth : 1200
-  const outlineW = 200
+  const outlineW = vw < 768 ? 170 : 200 // 与 CSS 断点一致：移动端 .outline-float 收窄到 170px
   if (typeof window !== 'undefined') {
     outlinePos.value = { x: vw - outlineW - 24, y: 120 }
   }
@@ -173,43 +180,94 @@ const saveOutlinePos = () => {
   try { localStorage.setItem(OUTLINE_POS_KEY, JSON.stringify(outlinePos.value)) } catch { /* 忽略 */ }
 }
 
-/** 开始拖拽（大纲框或展开按钮通用） */
-const onOutlineDragStart = (e: MouseEvent) => {
+/** 把拖拽位置限制在视口内（留 8px 边距），防止浮层被拖出屏幕后找不回来 */
+const clampOutlinePos = (x: number, y: number) => {
+  const vw = window.innerWidth
+  const vh = window.innerHeight
+  const maxX = Math.max(8, vw - dragElSize.w - 8)
+  const maxY = Math.max(8, vh - dragElSize.h - 8)
+  return {
+    x: Math.min(Math.max(x, 8), maxX),
+    y: Math.min(Math.max(y, 8), maxY),
+  }
+}
+
+/** 开始拖拽（大纲框或展开按钮通用）。用 Pointer Events 统一鼠标/触摸/触控笔——
+ *  原来只监听 mousedown+mousemove，触摸屏不派发 mousemove，导致移动端完全拖不动 */
+const onOutlineDragStart = (e: PointerEvent) => {
   const movingEl = outlineVisible.value ? outlineBox.value : outlineToggle.value
   if (!movingEl) return
+  // 鼠标只响应左键；触摸/触控笔（button 为 0）正常放行
+  if (e.pointerType === 'mouse' && e.button !== 0) return
+  if (dragging) return
   const rect = movingEl.getBoundingClientRect()
   dragging = true
+  activePointerId = e.pointerId
+  dragElSize = { w: rect.width || 200, h: rect.height || 40 }
   dragOffset = { x: e.clientX - rect.left, y: e.clientY - rect.top }
   dragStart = { x: e.clientX, y: e.clientY }
   didDrag = false
   movingEl.style.transition = 'none'
-  document.addEventListener('mousemove', onOutlineDragMove)
-  document.addEventListener('mouseup', onOutlineDragEnd)
+  // passive:false —— 拖拽中要 preventDefault 阻止触摸滚动接管手势
+  document.addEventListener('pointermove', onOutlineDragMove, { passive: false })
+  document.addEventListener('pointerup', onOutlineDragEnd)
+  document.addEventListener('pointercancel', onOutlineDragCancel)
 }
 let dragStart = { x: 0, y: 0 }
 let didDrag = false
-const onOutlineDragMove = (e: MouseEvent) => {
-  if (!dragging) return
+/** didDrag 兜底复位定时器：触摸下浏览器可能不派发 click，避免守卫吞掉用户下一次点击 */
+let didDragResetTimer: ReturnType<typeof setTimeout> | null = null
+const armDidDragReset = () => {
+  if (didDragResetTimer) clearTimeout(didDragResetTimer)
+  didDragResetTimer = setTimeout(() => { didDrag = false; didDragResetTimer = null }, 350)
+}
+const onOutlineDragMove = (e: PointerEvent) => {
+  if (!dragging || e.pointerId !== activePointerId) return
   // 超过阈值才算真正拖拽（避免与 click 展开冲突）
   if (!didDrag && Math.abs(e.clientX - dragStart.x) + Math.abs(e.clientY - dragStart.y) > 4) {
     didDrag = true
-    e.preventDefault()
+    document.body.classList.add('outline-dragging')
   }
-  if (didDrag) outlinePos.value = { x: e.clientX - dragOffset.x, y: e.clientY - dragOffset.y }
+  if (didDrag) {
+    e.preventDefault()
+    outlinePos.value = clampOutlinePos(e.clientX - dragOffset.x, e.clientY - dragOffset.y)
+  }
+}
+/** 统一收尾：摘监听、恢复过渡、复位拖拽状态 */
+const endOutlineDrag = () => {
+  const movingEl = outlineVisible.value ? outlineBox.value : outlineToggle.value
+  if (movingEl) movingEl.style.transition = ''
+  document.body.classList.remove('outline-dragging')
+  dragging = false
+  activePointerId = null
+  document.removeEventListener('pointermove', onOutlineDragMove)
+  document.removeEventListener('pointerup', onOutlineDragEnd)
+  document.removeEventListener('pointercancel', onOutlineDragCancel)
 }
 const onOutlineDragEnd = () => {
   if (!dragging) return
-  dragging = false
-  if (didDrag) saveOutlinePos()
-  const movingEl = outlineVisible.value ? outlineBox.value : outlineToggle.value
-  if (movingEl) movingEl.style.transition = ''
-  document.removeEventListener('mousemove', onOutlineDragMove)
-  document.removeEventListener('mouseup', onOutlineDragEnd)
+  const wasDrag = didDrag
+  endOutlineDrag()
+  if (wasDrag) {
+    saveOutlinePos()
+    armDidDragReset() // 拖拽后短暂守卫，抑制随后的 click
+  }
+}
+/** 手势被系统打断（来电/滚动接管/多指）：不保存位置，直接复位，别残留守卫 */
+const onOutlineDragCancel = () => {
+  if (!dragging) return
+  endOutlineDrag()
+  didDrag = false
+  if (didDragResetTimer) { clearTimeout(didDragResetTimer); didDragResetTimer = null }
 }
 
 /** 展开按钮点击：若刚拖拽过则不触发展开 */
 const onOutlineToggleClick = () => {
-  if (didDrag) { didDrag = false; return }
+  if (didDrag) {
+    didDrag = false
+    if (didDragResetTimer) { clearTimeout(didDragResetTimer); didDragResetTimer = null }
+    return
+  }
   outlineVisible.value = true
 }
 
@@ -622,8 +680,9 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   if (autoSaveTimer.value) clearTimeout(autoSaveTimer.value)
-  document.removeEventListener('mousemove', onOutlineDragMove)
-  document.removeEventListener('mouseup', onOutlineDragEnd)
+  document.removeEventListener('pointermove', onOutlineDragMove)
+  document.removeEventListener('pointerup', onOutlineDragEnd)
+  document.removeEventListener('pointercancel', onOutlineDragCancel)
 })
 
 const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -857,7 +916,7 @@ defineExpose({ hasUnsavedChanges })
     class="outline-float"
     :style="{ left: outlinePos.x + 'px', top: outlinePos.y + 'px' }"
   >
-    <div class="outline-float__head" @mousedown="onOutlineDragStart" title="拖动调整位置">
+    <div class="outline-float__head" @pointerdown="onOutlineDragStart" title="拖动调整位置">
       <span class="outline-float__title">大纲</span>
       <div class="outline-float__actions">
         <button class="outline-float__btn" title="收起" aria-label="收起大纲" @click="outlineVisible = false">
@@ -883,7 +942,7 @@ defineExpose({ hasUnsavedChanges })
     ref="outlineToggle"
     class="outline-float__reopen"
     title="点击展开大纲 · 拖动调整位置"
-    @mousedown="onOutlineDragStart"
+    @pointerdown="onOutlineDragStart"
     @click="onOutlineToggleClick"
     :style="{ left: outlinePos.x + 'px', top: outlinePos.y + 'px' }"
   >
@@ -1272,6 +1331,11 @@ defineExpose({ hasUnsavedChanges })
   border-bottom: 1px solid var(--border);
   cursor: grab;
   user-select: none;
+  /* touch-action: none 是触摸能拖动的关键——否则手指滑动会被浏览器当作页面滚动，
+     直接派发 pointercancel，拖拽永远收不到 pointermove */
+  touch-action: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
   background: var(--hover-bg);
 }
 .outline-float__head:active { cursor: grabbing; }
@@ -1343,9 +1407,19 @@ defineExpose({ hasUnsavedChanges })
   box-shadow: var(--glass-shadow);
   transition: all var(--dur-fast) var(--ease);
   user-select: none;
+  /* 同 .outline-float__head：让触摸手势交给拖拽逻辑而不是页面滚动 */
+  touch-action: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 .outline-float__reopen:hover { background: var(--brand-soft); border-color: var(--brand-text); }
 .outline-float__reopen:active { cursor: grabbing; }
+
+/* 拖拽中：全局禁选，避免触摸长按触发文本选择/放大镜打断拖拽 */
+:global(body.outline-dragging) {
+  user-select: none;
+  -webkit-user-select: none;
+}
 
 /* md-editor 主体 */
 .md-editor-wrap { height: 100%; }
@@ -1685,6 +1759,18 @@ defineExpose({ hasUnsavedChanges })
   }
   .outline-float {
     width: 170px;
+  }
+  /* 触摸拖拽：手柄与展开按钮加大到 44px 触控目标，手指才够得着 */
+  .outline-float__head {
+    min-height: 44px;
+  }
+  .outline-float__btn {
+    width: 32px;
+    height: 32px;
+  }
+  .outline-float__reopen {
+    min-height: 44px;
+    padding: 10px 16px;
   }
   .editor-statusbar {
     padding: 6px 12px;
