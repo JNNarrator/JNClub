@@ -371,6 +371,7 @@
 > | 第九批 | P2-3、P2-4、P2-5、P2-6、P2-7、P2-8（P2-8 经复核无需改动） | ✅ 已实施（第十七章） |
 > | 第十批 | IA-1（维持现状）、IA-2、IA-4、IA-5；白屏回归修复（非计划内，IA 批实测时发现） | ✅ 已实施（第十八章） |
 > | 第十一批 | 遗留清理与部署前加固（非计划内）：音乐页/Manifest 假象判定、模板根层级自动化防护、紧凑模式修复、依赖声明加固 | ✅ 已完成（第十九章） |
+> | 部署 | 提交 `7bfeeef` 推送并自动部署上线 | ✅ 部署成功、上线验证通过（第二十章） |
 
 1. **第一批（1 次提交，纯数值收敛，风险低）**：P0-2（`.chip` 对齐 `--glass-chip-*`）、P1-6、P1-7、P2-1、P2-2。
 2. **第二批（结构对齐）**：P0-1（页头统一）、P1-11（滚动容器统一）、P2-4。
@@ -464,6 +465,8 @@ P0-2 的目标是消除 `.chip`（目录切换）与 `.j-filter-chip`（标签�
 > **六更新（2026-10-16）**：`7c7f4f9` 的字段级误删已做全仓复核（第十六章，结论为孤例）；**P2-3 ~ P2-8 已于第九批全部处理**（第十七章，其中 P2-8 经复核确认无需改动、P2-3 的真实缺陷比原报告描述的更严重）。至此**除 IA-1、IA-2、IA-4、IA-5 四项待产品决策外，本报告全部 P0/P1/P2 条目均已闭环**。跨批遗留技术债剩两项：网格模式 `itemHeight` 虚高、P1-8 数值层级待产品决策。
 >
 > **七更新（2026-10-16）**：**IA-1、IA-2、IA-4、IA-5 四项已于第十批全部落地**（第十八章，IA-1 经决策维持现状），并在实测中发现并修复一处会导致整页白屏的回归。**至此本报告全部条目（P0/P1/P2/IA）均已处理完毕**。第十一批（第十九章）完成遗留清理与部署前加固：音乐页空白与 PWA Manifest 报错经查均为 **dev 环境假象**（非缺陷），并新增模板根层级构建时防护、修复紧凑模式在概览/回收站失效、加固依赖声明。仍未决的仅剩两项产品决策级技术债：**网格模式 `itemHeight` 虚高**（缩小有重叠风险，需先给卡片加上界）与 **P1-8 统计数值层级**（提档会牺牲数字位数余量）。
+>
+> **八更新（2026-10-16）**：全部改动已提交为 `7bfeeef` 并**推送上线**，gm 服务器自动部署成功（17:17:00 触发 → 17:21:42 完成），上线验证全部通过（第二十章）。本报告自本日起转为**已交付并上线**状态。
 
 ---
 
@@ -1737,8 +1740,81 @@ return _openBlock(), _createElementBlock(
 
 ### 19.8 本批遗留
 
-1. **音乐页需在生产环境验证**：dev 下 iframe 必然 404，本地无法完整验证跨应用嵌入。上线后需复核 `/music/` 与 iframe 内主题联动。
+1. ~~**音乐页需在生产环境验证**~~：**已于第二十章 20.2 闭环** —— 上线后 `https://jiangnan.88933.vip/music/` 返回 `200`，`/music/api/v1/tracks` 返回真实曲目（含 `mediaUrl` 签名与 `urlExpiresAt`），dev 下 iframe 404 的问题不复现。
 2. **紧凑模式仍未给宽度令牌分档**（承 17.8-5）：`--layout-sider-width` / `--layout-folder-width` 已就位，紧凑模式下仍为 240/220。若产品要求紧凑时收窄侧栏，只需在 `main.css` 的 `.app-density-compact` 块覆盖这两个变量。
 3. **`check-template-root` 只覆盖 `.vue` 的 `<template>` 根层级**：不覆盖 JSX/render 函数手写的多根，也不覆盖「根元素内部」的注释（那不会造成 Fragment，无需覆盖）。
 4. **承前批未决**：网格模式 `itemHeight` 虚高（17.8-1）、P1-8 数值层级（17.8-2）、`.dash-group-title` 的 `uppercase`（17.8-3）、虚拟滚动仅 mock 验证（17.8-6）。
 
+
+---
+
+## 二十、部署与上线验证（2026-10-16 追加）
+
+### 20.1 部署链路
+
+`git push origin master` → gm 服务器 cron watcher 轮询 → 自动拉取、构建、替换产物、重启服务、健康检查。
+
+| 时刻 | 事件 |
+|---|---|
+| 17:14 | 本地 push：`d238ea9..7bfeeef  master -> master` |
+| 17:17:00 | watcher 日志：`jnclub: 检测到新提交 7bfeeef8（本地 d238ea98），触发自动部署` |
+| 17:17:04 | `✓ git 更新完成（第 1 次尝试成功）` |
+| 17:17:04 | 开始 Maven 构建 `jnclub-gateway (-pl jnclub-gateway -am)` |
+| — | 构建前端 `jnclub-web (npm ci + build)` → `✓ built in 9.80s` |
+| — | 构建音乐前端 `music-frontend (npm ci + build)` |
+| 17:20:09 | 前端产物 `dist/index.html` 落盘时间戳 |
+| 17:20:44 | 替换 jar、`重启服务`、进入健康检查 |
+| 17:21:35 | `Started JnclubApplication in 46.835 seconds` |
+| 17:21:42 | `✓ 部署成功` |
+
+全链路约 4 分 42 秒（17:17:00 → 17:21:42）。
+
+### 20.2 上线验证矩阵
+
+| 项 | 证据 | 结果 |
+|---|---|---|
+| 远端 HEAD 与本地一致 | `git log --oneline -1` → `7bfeeef`；本地 `origin/master` 亦为 `7bfeeef` | ✓ |
+| 前端产物为本次构建 | `dist/index.html` 时间戳 `2026-10-16 17:20:09` | ✓ |
+| PWA Service Worker 就位 | `dist/sw.js` 存在 | ✓ |
+| 本次改动确在产物中 | `grep "此类型下没有匹配内容"` → `assets/AppWrapper-BYSNFZri.js`；`grep -- "--layout-sider-width"` → `assets/index-faBsG1PU.css` | ✓ |
+| 公网 `/jnclub/` | `200`，t=0.485s | ✓ |
+| 公网 `/music/` | `200`，t=0.383s | ✓ |
+| 公网 `/music/api/v1/tracks` | `200`，返回真实曲目（庙前 / 双笙 / flac / 26.5MB；Thursdays / Lovestoned），`mediaUrl` 带 `urlExpiresAt` 签名 | ✓ |
+| 公网 `/music/api/v1/tracks/cache/status` | `200` | ✓ |
+| 公网 `/sso/isLogin` | `200` | ✓ |
+| 后端死锁 | `jstack 954909` → `Found one Java-level deadlock` 计数 **0**；`AnnotationTypeMappings\|ConcurrentReferenceHashMap` 线程计数 **0** | ✓ |
+| 新进程日志 | 自 17:20:40 起 `ERROR\|Exception` 计数 **0** | ✓ |
+| 线上页面运行时 | Playwright 打开 `https://jiangnan.88933.vip/jnclub/` → 落 `/jnclub/welcome`（未登录态，符合守卫预期），**0 errors** | ✓ |
+
+`/music/` 与曲目接口在**生产环境**的这次验证，正是 19.8-1 遗留项（「音乐页需在生产环境验证」）的闭环 —— dev 下 iframe 必然 404 的问题，上线后不复现。
+
+### 20.3 本地网络排查（重要教训）
+
+**症状**：push 成功后，本地 `curl https://jiangnan.88933.vip/...` 全部 `000`（`SSL_ERROR_SYSCALL`），`ssh gm` 报 `Connection closed by 198.18.0.5 port 21236`，一度误判为「部署把服务器搞挂了」。
+
+**根因**：本机 Clash Party（mihomo v1.19.31）以 TUN 模式接管流量，`utun1500` 持有 `198.18.0.1/30`，`198.18.0.0/15` 整段被 fake-ip 劫持。`rule` 模式下 `jiangnan.88933.vip` 与 `gm_ssh.88933.vip` 被分流到不通的代理节点 → 表现为「服务器不可达」。
+
+**判定与处置**：通过 mihomo 的 unix socket 控制接口临时切换模式验证。
+
+```bash
+SOCK=/tmp/mihomo-party-501-3081.sock
+curl -s --unix-socket $SOCK http://localhost/configs          # 读当前 mode
+curl -s --unix-socket $SOCK -X PATCH -d '{"mode":"direct"}' http://localhost/configs
+# … 完成部署检查 …
+curl -s --unix-socket $SOCK -X PATCH -d '{"mode":"rule"}' http://localhost/configs
+```
+
+切 `direct` 后 `/jnclub/` 立即返回 `200`，全部检查随之完成；随后已恢复 `rule`。
+
+**教训**：本机 `198.18.x.x` 网段的连接失败，应优先怀疑 Clash 分流规则而非对端服务；排查服务器状态前先确认代理模式，避免把网络问题误判为部署故障。
+
+### 20.4 交付状态
+
+- 提交 `7bfeeef`「fix(web): UI 评审全量落地 —— 11 批 30+ 项视觉/交互修复与 4 处静默缺陷」已上线，服务运行正常。
+- 工作区干净（仅 `.pi/` 未跟踪）。
+- 无回滚、无部署失败记录。
+
+### 20.5 遗留
+
+1. **紧凑模式宽度令牌未分档**（承 19.8-2）：`--layout-sider-width` / `--layout-folder-width` 已就位，紧凑模式下仍为 240/220。
+2. **承前批未决技术债**：网格模式 `itemHeight` 虚高 32%（17.8-1）、概览统计数值层级待产品决策（17.8-2）、`.dash-group-title` 的 `uppercase` 对中文无效果（17.8-3）、虚拟滚动仅经 mock 验证（17.8-6）。
