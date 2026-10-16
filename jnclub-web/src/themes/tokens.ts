@@ -146,6 +146,16 @@ export interface DesignTokens {
   layoutPageGutter: string
   layoutPagePadding: string
   layoutPanelPadding: string
+  /** 侧栏展开宽度（SideNav 的 NLayoutSider :width） */
+  layoutSiderWidth: string
+  /**
+   * 侧栏折叠宽度（NLayoutSider :collapsed-width）
+   * 仅作记录：naive-ui 的 collapsedWidth prop 类型限定为 Number、不接受 CSS 变量，
+   * 故此项无法被组件消费（见 SideNav.vue 的注释）。
+   */
+  layoutSiderCollapsedWidth: string
+  /** 主壳目录栏宽度（Home.vue 的 .folder-column） */
+  layoutFolderWidth: string
   headerHeight: string
   tabbarHeight: string
   /** 移动端最小点击区（PLAN-2026-16 规范：最小 32px） */
@@ -219,7 +229,7 @@ export const lightTokens: DesignTokens = {
   shadowFab: '0 4px 12px -2px rgba(236, 91, 142, 0.15)',
   shadowFabHover: '0 8px 20px -4px rgba(236, 91, 142, 0.2)',
   glowIcon: '0 0 0 4px rgba(236,91,142,0.06)',
-  // 状态色
+  // 状态色（填充/图形档：进度条、diff 底色、图标描边。不用于承载文字）
   stateSuccess: '#7AC686',
   stateWarning: '#F3C470',
   stateError: '#E87878',
@@ -229,9 +239,13 @@ export const lightTokens: DesignTokens = {
   shadowSuccess: '0 4px 14px -4px rgba(16, 185, 129, 0.5)',
   danger: '#EF5B6B',
   dangerSoft: 'rgba(245, 72, 92, 0.1)',
-  dangerText: '#FF8A97',
-  warningText: '#F0A13A',
-  successText: '#37C978',
+  // 文本档：亮色侧必须比填充档深一档，否则白底上不达 WCAG AA 4.5:1。
+  // 原先亮暗共用一组浅色值（白底实测 2.25/2.13/2.15:1），
+  // 而 --brand-text / --glass-chip-text 早已分档达标 —— 状态色只是漏做了。
+  // 暗色侧沿用原值（深底上 6.70/7.36/5.30:1，已达标），不要动。
+  dangerText: '#C0334A', // 白底 5.51:1
+  warningText: '#8A5A00', // 白底 5.93:1
+  successText: '#1E7A46', // 白底 5.35:1
   moduleBookmark: '#7C5CFF',
   moduleNote: '#2F9DF7',
   moduleFile: '#0FBF8C',
@@ -312,8 +326,13 @@ export const lightTokens: DesignTokens = {
   radiusXl: '28px',
   layoutContentMax: '1560px',
   layoutPageGutter: '24px',
-  layoutPagePadding: '12px 24px 0',
+  // 只留水平分量：垂直上边距改由 .j-page-body 的 margin-top 提供（见 JPageShell.vue），
+  // 使页头分隔线能通栏、且与主壳 AppHeader 的内容起始位置对齐
+  layoutPagePadding: '0 24px 0',
   layoutPanelPadding: '20px 24px',
+  layoutSiderWidth: '240px',
+  layoutSiderCollapsedWidth: '64px',
+  layoutFolderWidth: '220px',
   headerHeight: '60px',
   tabbarHeight: '56px',
   tapMin: '32px',
@@ -371,7 +390,8 @@ export const darkTokens: DesignTokens = {
   shadowFab: '0 4px 12px -2px rgba(255, 143, 171, 0.20)',
   shadowFabHover: '0 8px 20px -4px rgba(255, 143, 171, 0.25)',
   glowIcon: '0 0 0 4px rgba(255,143,171,0.06)',
-  // 状态色
+  // 状态色（暗色侧填充档与文本档合并：深底上这组浅色同时满足两者的对比度，
+  // 实测 --danger-text 6.70:1、--state-success 7.36:1、--state-error 5.30:1、--state-warning 9.29:1）
   stateSuccess: '#7AC686',
   stateWarning: '#F3C470',
   stateError: '#E87878',
@@ -464,8 +484,13 @@ export const darkTokens: DesignTokens = {
   radiusXl: '28px',
   layoutContentMax: '1560px',
   layoutPageGutter: '24px',
-  layoutPagePadding: '12px 24px 0',
+  // 只留水平分量：垂直上边距改由 .j-page-body 的 margin-top 提供（见 JPageShell.vue），
+  // 使页头分隔线能通栏、且与主壳 AppHeader 的内容起始位置对齐
+  layoutPagePadding: '0 24px 0',
   layoutPanelPadding: '20px 24px',
+  layoutSiderWidth: '240px',
+  layoutSiderCollapsedWidth: '64px',
+  layoutFolderWidth: '220px',
   headerHeight: '60px',
   tabbarHeight: '56px',
   tapMin: '32px',
@@ -613,6 +638,9 @@ export function tokensToCSSVars(tokens: DesignTokens): Record<string, string> {
     '--layout-page-gutter': tokens.layoutPageGutter,
     '--layout-page-padding': tokens.layoutPagePadding,
     '--layout-panel-padding': tokens.layoutPanelPadding,
+    '--layout-sider-width': tokens.layoutSiderWidth,
+    '--layout-sider-collapsed-width': tokens.layoutSiderCollapsedWidth,
+    '--layout-folder-width': tokens.layoutFolderWidth,
     '--header-height': tokens.headerHeight,
     '--tabbar-height': tokens.tabbarHeight,
     '--tap-min': tokens.tapMin,

@@ -429,15 +429,17 @@ onMounted(() => { fetchItems(); fetchConfig() })
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 14px;
+  /* 列表行统一规范：与 .collection-row / .note-row / .file-item / .vault-item 同档 */
+  padding: 12px 14px;
   background: var(--glass-bg-trans);
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-sm);
-  transition: border-color var(--dur) var(--ease);
+  transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
 }
-.recycle-item:hover { border-color: var(--brand-text); }
+/* 补上浮起阴影，与 .file-item / .vault-item 的 hover 反馈对齐（原仅变边框色） */
+.recycle-item:hover { border-color: var(--brand-text); box-shadow: var(--shadow-card-hover); }
 .item-main {
   flex: 1;
   min-width: 0;
@@ -447,7 +449,8 @@ onMounted(() => { fetchItems(); fetchConfig() })
 }
 .item-title {
   font-size: var(--fs-base);
-  font-weight: 500;
+  /* 行标题字重统一 600：与 .title-link(收藏) / .row-title(便签) / .item-title(密码库) 一致 */
+  font-weight: 600;
   color: var(--text-1);
   overflow: hidden;
   text-overflow: ellipsis;

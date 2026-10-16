@@ -193,7 +193,7 @@ const cleanAll = () => {
   font-weight: 800;
   color: var(--text-1);
 }
-.stat-item.ok .stat-num { color: var(--state-success); }
+.stat-item.ok .stat-num { color: var(--success-text); }
 .stat-item.bad .stat-num { color: var(--danger-text); }
 .stat-item.err .stat-num { color: var(--text-3); }
 .stat-label {

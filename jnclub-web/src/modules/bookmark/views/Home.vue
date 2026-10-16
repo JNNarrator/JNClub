@@ -496,12 +496,16 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
           <JSkeletonList
             v-else-if="isFirstScreenLoad && ((props.activeModule === 'bookmarks' || props.activeModule === 'notes') && viewMode === 'list' || props.activeModule === 'files' || props.activeModule === 'vault')"
           />
+          <!-- 错误态走 JEmptyState 的 variant="error"：它自带 error 图标与 ghost 重试按钮。
+               此前这里用默认 empty 变体凑了个「重试」，结果是错误态显示书签图标 +
+               带「+」号的品牌主按钮，语义与视觉都对不上（P2-3）。 -->
           <JEmptyState
             v-else-if="loadError"
+            variant="error"
             message="加载失败"
             hint="请检查网络后重试"
-            cta-label="重试"
-            @create="handleRefresh"
+            retry-label="重试"
+            @retry="handleRefresh"
           />
           <Transition v-else name="module-fade" mode="out-in">
             <div :key="contentKey" class="module-content">
@@ -670,7 +674,8 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
 .folder-column {
   display: flex;
   flex-direction: column;
-  flex: 0 0 220px;
+  /* 目录栏宽度走令牌（P2-6），与侧栏 --layout-sider-width 同属「布局宽度」体系 */
+  flex: 0 0 var(--layout-folder-width, 220px);
   min-height: 0;
   overflow: hidden;
   background: var(--glass-bg-trans);
@@ -682,21 +687,39 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
   contain: paint layout style;
 }
 
+/* 面板固定于视口、列表在面板内部滚动。滚动条留在面板边框内侧，
+   与概览/回收站的 .j-page-body（JPageShell）一致 —— 故这里保留 overflow-y: auto。 */
 .collection-column {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
   overflow-y: auto;
   background: var(--glass-bg-trans);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-md);
-  padding: var(--layout-panel-padding, 18px 20px);
+  padding: var(--layout-panel-padding);
   box-shadow: var(--shadow-1);
   contain: paint layout style;
 }
 
+/* 面板内的固定 chrome 不参与 flex 压缩。
+   .collection-column 改为 flex 列后，子项默认 flex-shrink:1，窄屏高度不足时
+   工具栏/目录条/标签条会被压扁（实测 390px 下 .chip-bar 被压到 1.6px，目录名不可见），
+   故显式钉住；只有 .spin-area 允许让出空间（它是 flex:1 的滚动区）。 */
+.collection-column > .module-toolbar,
+.collection-column > .chip-bar,
+.collection-column > .tag-bar {
+  flex-shrink: 0;
+}
+
 /* === Chip 标签栏 === */
+/* 桌面端（≥768px）隐藏：左侧 .folder-column 的目录树已完整呈现同一份顶级目录
+   （两者同源：chip-bar 渲染 topLevelDirs = directories.filter(d => !d.parentId)，
+   目录树首层即同一集合），同屏出现两遍是纯冗余。
+   移动端 .folder-column 为 display:none，chip-bar 是选目录的唯一入口，故仅在移动端显示。 */
 .chip-bar {
-  display: flex;
+  display: none;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
@@ -744,13 +767,55 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
 }
 
 /* === Spin === */
+/* 高度传递链的第二环（P1-11）。滚动容器是外层的 .collection-column，不是这里：
+   本元素只负责把确定高度继续往下传给 .module-content。
+   不写 overflow —— 一旦在这里设 overflow-y:auto，滚动条就会内缩到内容区右边缘，
+   与概览/回收站的 .j-page-body（滚动条贴玻璃面板边框内侧）不一致；
+   云盘/密码库无虚拟滚动，内容超出时本元素被 flex 压缩、内容自然溢出，仍由 .collection-column 滚。
+   改前这里是 overflow:visible + min-height:200px，且虚拟列表用 calc(100vh - 282px) 猜高度，
+   在移动端（chrome 253.5px）和标签换行时失配，制造出第二个滚动条。 */
 .spin-area {
-  min-height: 200px;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 /* 模块内容切换过渡（out-in） */
+/* 与 .spin-area 同为 flex 链条的一环，负责把确定高度继续传给下面的列表/网格组件。 */
 .module-content {
-  min-height: 200px;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 列表/网格组件填满 .module-content，把高度继续传给 .virtual-scroll。
+   这四条与下方 NSpin 两条共同构成一条「高度自上而下传递」的链路：
+     .collection-column(flex列) → .spin-area(flex:1) → .module-content(flex:1)
+       → .collection-list/.collection-grid/.note-list/.note-grid(flex:1) → .virtual-scroll(flex:1)
+   任一环断掉（未设 flex:1 或未设 min-height:0），虚拟列表就会失去确定高度而撑开，
+   退化成「外层滚 + 列表不虚拟」——实测正是改前双滚动条的成因。
+   注意子组件样式在各自 scoped 块里，这里必须用 :deep() 才够得着。
+   云盘 / 密码库（.disk-view / .vault-view）无虚拟滚动，内容超出时 .spin-area 被 flex
+   压缩、内容溢出后由 .collection-column 滚，故不在此列——给它们加 flex:1 只会无谓改变其内部布局。 */
+.spin-area :deep(.collection-list),
+.spin-area :deep(.collection-grid),
+.spin-area :deep(.note-list),
+.spin-area :deep(.note-grid) {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* NSpin 是 CollectionList/NoteList/NoteGrid 等的直接子元素，同样要传递高度。 */
+.spin-area :deep(.n-spin-container),
+.spin-area :deep(.n-spin-content) {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 .module-fade-enter-active,
 .module-fade-leave-active {
@@ -802,6 +867,8 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
     gap: 12px;
   }
   .chip-bar {
+    /* 桌面端隐藏（见 .chip-bar 基础规则注释），移动端恢复显示 */
+    display: flex;
     margin-bottom: 12px;
   }
   /* 目录 chips 可横滑，避免换行堆叠 */

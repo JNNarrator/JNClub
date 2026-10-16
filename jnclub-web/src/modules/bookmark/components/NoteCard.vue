@@ -182,10 +182,12 @@ const onRootClick = () => {
   position: relative;
   display: flex;
   flex-direction: column;
-  /* 便签用暖粉底 + 粉边框与书签卡区分（有意保留的语义差异）；
-     但结构属性须与 .bookmark-card 一致 —— 原先缺 transition，hover 是硬切 */
-  background: var(--pink-white);
-  border: 1px solid color-mix(in srgb, var(--pink-peach) 40%, transparent);
+  /* 卡片底/边框与 .bookmark-card 统一：同为 --bg-card + --border。
+     原先用 --pink-white + 粉边框做「便签更暖」的区分，但模块色 --module-note
+     实为 #2F9DF7（蓝），粉色属于品牌粉的历史遗留；且同屏两种卡片底色会让
+     网格读起来像两种控件。图标盒的 --pink-cherry 保留，模块识别交给图标。 */
+  background: var(--bg-card);
+  border: 1px solid var(--border);
   border-radius: var(--radius-md);
   cursor: pointer;
   overflow: hidden;

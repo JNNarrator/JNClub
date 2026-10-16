@@ -58,6 +58,18 @@ const lightThemeOverrides: GlobalThemeOverrides = {
     fontFamily: t.fontSans,
     fontFamilyMono: t.fontMono,
     fontWeightStrong: '600',
+    // —— 字号阶梯（P2-5）——
+    // naive 的组件字号全部从 common 的 fontSize* 派生（NTag/NButton/NInput/NSelect…），
+    // 不绑定时吃 naive 默认值（14/12/12/14/14/15/16px），一旦 naive 升级改默认值
+    // 就会静默漂移。这里显式绑到 --fs-* 阶梯上，且取值与 naive 当前默认**逐项等值**，
+    // 因此本次绑定不产生任何视觉变化，纯粹是防止未来漂移。
+    fontSize: t.fsBase, // 14px
+    fontSizeMini: t.fsSm, // 12px
+    fontSizeTiny: t.fsSm, // 12px
+    fontSizeSmall: t.fsBase, // 14px
+    fontSizeMedium: t.fsBase, // 14px
+    fontSizeLarge: t.fsLg, // 15px
+    fontSizeHuge: t.fsXl, // 16px
     // —— 动效：把 naive 的 Material 曲线换成站点的 Apple 弹性缓动 ——
     cubicBezierEaseInOut: t.ease,
     cubicBezierEaseOut: t.ease,

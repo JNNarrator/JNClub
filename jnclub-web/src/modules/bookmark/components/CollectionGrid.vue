@@ -92,7 +92,8 @@ watch(isVirtual, async (v) => {
   <div ref="rootRef" class="collection-grid">
     <NSpin :show="loading">
       <div v-if="isVirtual" v-bind="virtual.containerProps" class="virtual-scroll">
-        <div v-bind="virtual.wrapperProps">
+        <!-- wrapperProps 是 ComputedRef，必须显式取 .value（原因见 CollectionList.vue） -->
+        <div v-bind="virtual.wrapperProps.value">
           <div
             v-for="row in virtualRows"
             :key="row.index"
@@ -137,7 +138,12 @@ watch(isVirtual, async (v) => {
 }
 
 .virtual-scroll {
-  max-height: calc(100vh - 240px);
+  /* 高度不再自己按视口猜（原 calc(100vh - 240px) 与实际 chrome 失配，会同时激活
+     外层滚动条形成双滚动条），改为填满父级 flex 容器给的高度。
+     父级链路见 Home.vue 的 .spin-area 注释；本组件的根元素也必须是 flex 容器
+     （Home.vue 已用 :deep() 设好），否则 flex:1 不生效、列表会撑开而失去虚拟滚动。 */
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
   padding-right: 4px;
 }

@@ -693,7 +693,7 @@ defineExpose({ openCreate })
 }
 .guide-warn {
   font-size: var(--fs-sm);
-  color: var(--state-warning);
+  color: var(--warning-text);
   background: var(--state-warning-soft);
   border: 1px solid color-mix(in srgb, var(--state-warning) 25%, transparent);
   border-radius: var(--radius-sm);
@@ -728,9 +728,9 @@ defineExpose({ openCreate })
 .strength-fill.lv-medium { background: var(--state-warning); }
 .strength-fill.lv-strong { background: var(--state-success); }
 .strength-text { font-size: var(--fs-sm); min-width: 18px; }
-.strength-text.lv-weak { color: var(--state-error); }
-.strength-text.lv-medium { color: var(--state-warning); }
-.strength-text.lv-strong { color: var(--state-success); }
+.strength-text.lv-weak { color: var(--danger-text); }
+.strength-text.lv-medium { color: var(--warning-text); }
+.strength-text.lv-strong { color: var(--success-text); }
 .guide-actions {
   display: flex;
   gap: 10px;
@@ -786,7 +786,7 @@ defineExpose({ openCreate })
   gap: 4px;
 }
 .reset-link:hover {
-  color: var(--state-error);
+  color: var(--danger-text);
 }
 
 /* === 列表 === */
@@ -821,9 +821,12 @@ defineExpose({ openCreate })
   border-radius: var(--radius-sm);
   transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease), background var(--dur) var(--ease);
 }
+/* 与 .file-item / .recycle-item 的 hover 语言一致：边框转品牌色 + 浮起阴影。
+   原先此处叠 inset 3px 左条，与 SideNav 表示「当前所在位置」的持久符号同形，
+   且该行本身已有 1px 边框，会叠成「灰边 + 粉条」双线。 */
 .vault-item:hover {
-  background: var(--glass-chip-bg);
-  box-shadow: inset 3px 0 0 var(--brand);
+  border-color: var(--brand-text);
+  box-shadow: var(--shadow-card-hover);
 }
 .item-icon {
   width: 38px;
@@ -878,12 +881,12 @@ defineExpose({ openCreate })
 }
 .health-tag.weak {
   background: var(--state-warning-soft) !important;
-  color: var(--state-warning) !important;
+  color: var(--warning-text) !important;
   border: 1px solid var(--state-warning-soft) !important;
 }
 .health-tag.dup {
   background: var(--state-error-soft) !important;
-  color: var(--state-error) !important;
+  color: var(--danger-text) !important;
   border: 1px solid var(--state-error-soft) !important;
 }
 .item-actions {
@@ -911,7 +914,7 @@ defineExpose({ openCreate })
 }
 .reset-danger {
   font-size: var(--fs-md);
-  color: var(--state-error);
+  color: var(--danger-text);
   line-height: 1.6;
 }
 .reset-code {

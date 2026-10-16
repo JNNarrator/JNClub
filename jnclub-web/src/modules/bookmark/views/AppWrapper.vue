@@ -14,7 +14,6 @@ import RecycleView from './RecycleView.vue'
 import HelpDrawer from '../../../shared/components/HelpDrawer.vue'
 import { useAppShortcuts } from '../../../shared/composables/useAppShortcuts'
 import { useUserPreferences } from '../../../shared/composables/useUserPreferences'
-import { useUiDensity } from '../../../shared/composables/useUiDensity'
 import { useVaultStore } from '../stores/vault'
 import { MODULE_KEYS, type ModuleKey } from '../../../shared/types/nav'
 
@@ -31,7 +30,6 @@ const MODULES: ModuleKey[] = MODULE_KEYS
 const route = useRoute()
 const router = useRouter()
 const prefs = useUserPreferences()
-const { density } = useUiDensity()
 
 /** 回收站独立路由：同样进入主布局壳（侧边栏/移动端 TabBar 保持），仅内容区不同 */
 const isRecycle = computed(() => route.name === 'recycle')
@@ -84,7 +82,6 @@ useAppShortcuts({
   <MainLayout
     :is-dark="isDark"
     :active-module="activeModule"
-    :class="density === 'compact' ? 'app-density-compact' : ''"
     @toggle-theme="emit('toggle-theme')"
     @module-change="handleModuleChange"
   >

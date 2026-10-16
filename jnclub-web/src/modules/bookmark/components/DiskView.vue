@@ -686,7 +686,8 @@ const fileKindColor = (name: string) => FILE_KINDS.find(k => k.re.test(name))?.c
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 14px;
+  /* 列表行统一规范：与 .collection-row / .note-row / .vault-item / .recycle-item 同档 */
+  padding: 12px 14px;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -699,10 +700,16 @@ const fileKindColor = (name: string) => FILE_KINDS.find(k => k.re.test(name))?.c
 }
 .file-check { flex-shrink: 0; }
 .file-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius-xs);
+  /* 与 VaultView 的 .item-icon 同规格：同为「列表行首图标盒」，
+     38px 是项目既定的图标盒档位（JStatCard.vue:71、Welcome.vue:173 同值），
+     圆角与底/框取 --radius-sm + --glass-chip-bg/--glass-chip-border 这对配套玻璃变量。
+     颜色差异是语义的：云盘图标色由 fileKindColor() 按文件类型给出（见 :505 的 inline style），
+     密码库固定 --brand-text 作模块识别，故各自保留。 */
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-sm);
   background: var(--glass-chip-bg);
+  border: 1px solid var(--glass-chip-border);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -715,7 +722,8 @@ const fileKindColor = (name: string) => FILE_KINDS.find(k => k.re.test(name))?.c
 }
 .file-name {
   font-size: var(--fs-base);
-  font-weight: 500;
+  /* 行标题字重统一 600：与 .title-link(收藏) / .row-title(便签) / .item-title(密码库) 一致 */
+  font-weight: 600;
   color: var(--text-1);
   overflow: hidden;
   text-overflow: ellipsis;

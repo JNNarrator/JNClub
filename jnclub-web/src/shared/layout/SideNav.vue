@@ -28,9 +28,26 @@ const emit = defineEmits<{
 const router = useRouter()
 const route = useRoute()
 
-/** 侧栏副标题：模块/路由 → 中文名（补齐 vault/回收站，修复「密码库」误显示「云盘」） */
+/**
+ * 宽度令牌化（P2-6）说明：模板里 :collapsed-width 只能传数字 —— naive 的 collapsedWidth
+ * prop 类型是 Number，传 CSS 变量会被 Vue 的 prop 校验拦下；:width 支持 String，
+ * 且 naive 的 formatLength() 对非纯数字字符串原样返回，故可安全传 var()。
+ *
+ * ⚠ 这类说明不要写成 <template> 根层级的 HTML 注释：那会让组件从「单根」变成
+ * 「多根 Fragment」（编译产物出现 DEV_ROOT_FRAGMENT）。OverviewLayout / RecycleLayout
+ * 曾因此让 App.vue 的 <Transition mode="out-in"> 状态机卡死、离开该页即整页白屏。
+ */
+
+/**
+ * 侧栏副标题：模块/路由 → 中文名（补齐 vault/回收站，修复「密码库」误显示「云盘」）
+ *
+ * 路由页一律按 route.name 判定；activeModule 只对主壳（route.name === 'app'）有意义。
+ * 概览页曾经漏了分支而掉到 activeModule 兜底，因 OverviewLayout 传的是 'bookmarks'
+ * 而错显「收藏夹」——路由页的兜底值只是占位，不能当作真实模块名。
+ */
 const moduleLabel = computed(() => {
   const n = route.name
+  if (n === 'overview') return '概览'
   if (n === 'recycle') return '回收站'
   if (n === 'music') return '音乐'
   if (n === 'extension') return '浏览器插件'
@@ -132,7 +149,7 @@ const handleSettingsSelect = async (key: string) => {
 
 <template>
   <NLayoutSider
-    bordered collapse-mode="width" :collapsed-width="64" :width="240"
+    bordered collapse-mode="width" :collapsed-width="64" :width="'var(--layout-sider-width, 240px)'"
     :collapsed="props.collapsed ?? false" show-trigger="bar"
     :on-update:collapsed="(v: boolean) => emit('update:collapsed', v)"
     class="side-nav sidebar-glow"

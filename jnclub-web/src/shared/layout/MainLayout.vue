@@ -4,11 +4,13 @@
  * 嵌入 SideNav（三段式）+ 内容区
  * 移动端（<768px）：侧栏自动折叠为窄条，顶栏隐藏 FAB 标签文字由 Home 处理
  */
-import { ref, watch } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { NLayout, NLayoutContent } from 'naive-ui'
 import SideNav from './SideNav.vue'
 import MobileTabBar from './MobileTabBar.vue'
 import { useBreakpoint } from '../composables/useBreakpoint'
+import { useUiDensity } from '../composables/useUiDensity'
+import { useUserPreferences } from '../composables/useUserPreferences'
 import type { ModuleKey } from '../types/nav'
 
 const props = defineProps<{
@@ -34,10 +36,35 @@ const { isMobile } = useBreakpoint()
 watch(isMobile, (m) => {
   collapsed.value = m
 }, { immediate: true })
+
+/**
+ * 密度类在此内聚绑定，而不是由各页壳各自传入。
+ * `app-density-compact` 覆盖的是 --layout-page-gutter / --header-height /
+ * --layout-panel-padding 等**布局令牌**，而 MainLayout 正是这三个消费点
+ * （AppWrapper、OverviewLayout、RecycleLayout）共用的唯一布局根；
+ * 由它统一挂类，三处才能拿到同一份紧凑值。
+ * 此前只有 AppWrapper 传了这个类，导致概览/回收站在紧凑模式下仍是
+ * 60px 页头 + 20px 24px 面板内边距（实测），与主壳 52px/14px 16px 不一致。
+ */
+const { density } = useUiDensity()
+
+/**
+ * 偏好加载也在此内聚：useUiDensity 只在 prefs.ready 变 true 时才把后端权威值
+ * 同步进 density，而 load() 原先只有 AppWrapper 调 —— 概览/回收站不经过
+ * AppWrapper，ready 永远是 false，这两页的紧凑模式因此完全不生效
+ * （实测 compact 下仍是 60px 页头 + 20px 24px 面板内边距）。
+ * load() 已做成幂等，路由切换导致 MainLayout 重挂不会重复请求。
+ */
+const prefs = useUserPreferences()
+onMounted(() => { prefs.load() })
 </script>
 
 <template>
-  <NLayout has-sider class="app-layout" :class="{ 'is-mobile': isMobile }">
+  <NLayout
+    has-sider
+    class="app-layout"
+    :class="{ 'is-mobile': isMobile, 'app-density-compact': density === 'compact' }"
+  >
     <!-- 桌面端（≥768px）：三段式侧栏 -->
     <SideNav
       v-if="!isMobile"
@@ -78,6 +105,6 @@ watch(isMobile, (m) => {
 
 /* 移动端：底部 TabBar 让位（Home 内滚动，防止内容被 TabBar 遮挡） */
 .app-layout.is-mobile .app-content {
-  padding-bottom: calc(56px + env(safe-area-inset-bottom));
+  padding-bottom: calc(var(--tabbar-height, 56px) + env(safe-area-inset-bottom));
 }
 </style>

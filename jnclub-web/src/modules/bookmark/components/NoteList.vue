@@ -28,7 +28,10 @@ const emit = defineEmits<{
 
 const listRef = ref<HTMLElement | null>(null)
 const isVirtual = computed(() => props.notes.length > 80)
-const virtual = useVirtualList(computed(() => props.notes), { itemHeight: 64, overscan: 8 })
+/* itemHeight 必须 ≥ 行的真实占高，否则虚拟模式下行会溢出 wrapper 造成重叠。
+   便签行实测：padding 12×2 + 内容 43.6（标题 22.4 + 元信息 19.2）= 67.6，
+   加 1px 上下边框 + 8px 行间距 ≈ 77.6，取 80 留余量。 */
+const virtual = useVirtualList(computed(() => props.notes), { itemHeight: 80, overscan: 8 })
 const virtualItems = computed(() => Array.isArray(virtual.list.value) ? virtual.list.value : [])
 const dragDisabled = computed(() => isVirtual.value)
 const { init: initSort, destroy: destroySort } = useDraggableSort(listRef, (ids) => {
@@ -51,7 +54,8 @@ watch(isVirtual, async (v) => {
   <div class="note-list">
     <NSpin :show="loading">
       <div v-if="isVirtual" v-bind="virtual.containerProps" class="virtual-scroll">
-        <div v-bind="virtual.wrapperProps">
+        <!-- wrapperProps 是 ComputedRef，必须显式取 .value（原因见 CollectionList.vue） -->
+        <div v-bind="virtual.wrapperProps.value">
           <NoteRow
             v-for="item in virtualItems"
             :key="item.data.id"
@@ -91,7 +95,12 @@ watch(isVirtual, async (v) => {
 <style scoped>
 .note-list { min-height: 100px; }
 .virtual-scroll {
-  max-height: calc(100vh - 240px);
+  /* 高度不再自己按视口猜（原 calc(100vh - 240px) 与实际 chrome 失配，会同时激活
+     外层滚动条形成双滚动条），改为填满父级 flex 容器给的高度。
+     父级链路见 Home.vue 的 .spin-area 注释；本组件的根元素也必须是 flex 容器
+     （Home.vue 已用 :deep() 设好），否则 flex:1 不生效、列表会撑开而失去虚拟滚动。 */
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
   padding-right: 4px;
 }
@@ -99,10 +108,14 @@ watch(isVirtual, async (v) => {
   animation: none !important;
   opacity: 1 !important;
   transform: none !important;
+  /* 虚拟模式的间距必须做进 item 自身（wrapper 无 gap），
+     且该值已计入下方 useVirtualList 的 itemHeight —— 改这里要同步改 itemHeight */
+  margin-bottom: 8px;
 }
 .list-inner {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  /* 与 DiskView/VaultView/RecycleView 的列表间距统一（原 2px） */
+  gap: 8px;
 }
 </style>

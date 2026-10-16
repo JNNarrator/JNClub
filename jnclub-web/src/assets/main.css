@@ -152,17 +152,21 @@ html, body {
   border-radius: var(--radius-md) var(--radius-md) 0 0;
 }
 
-/* ---- 目录 chip ---- */
+/* ---- 目录 chip ----
+   几何档位与 .j-filter-chip（标签筛选）完全一致，但色相刻意分家：
+   本控件是「目录导航」（单选、决定数据范围），走中性档；标签筛选走品牌粉档。
+   两者在收藏夹页上下相邻，同款同色会让用户无法判断这是同一控件还是两种功能。
+   —— 统一的应该是几何（那才是视觉方言），色相差异是有效的语义编码。 */
 .chip {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 14px;
-  border-radius: var(--radius-sm);
+  padding: 5px 14px;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--border);
   background: var(--bg-card);
   color: var(--text-2);
-  font-size: var(--fs-md);
+  font-size: var(--fs-sm);
   font-weight: 500;
   cursor: pointer;
   transition: all var(--dur) var(--ease-bouncy);
@@ -171,8 +175,8 @@ html, body {
 .chip:hover {
   background: var(--hover-bg);
   color: var(--text-1);
-  border-color: var(--pink-peach);
 }
+/* 当前所在目录：用品牌色强调，与侧栏 NavItem 的激活语言一致 */
 .chip-active {
   background: var(--brand-soft) !important;
   color: var(--brand-text) !important;
@@ -523,7 +527,7 @@ html.custom-cursor-active.dragging * {
    ================================================================ */
 .app-density-compact {
   --layout-page-gutter: 16px;
-  --layout-page-padding: 8px 16px 0;
+  --layout-page-padding: 0 16px 0;
   --layout-panel-padding: 14px 16px;
   --header-height: 52px;
   --tabbar-height: 50px;
@@ -536,6 +540,12 @@ html.custom-cursor-active.dragging * {
   padding-top: 12px;
   padding-bottom: 12px;
 }
+/* 概览/回收站页壳的内容上边距必须跟着一起压，否则紧凑模式下会重新出现
+   20px（页壳）vs 12px（主壳）的错位——正是 P0-1 要消除的那种跳变。
+   用双类提高优先级，压过 JPageShell 里 scoped 的 .j-page-body[data-v-*]。 */
+.app-layout.app-density-compact .j-page-body {
+  margin-top: 12px;
+}
 .app-density-compact .folder-column {
   padding: 10px 10px;
 }
@@ -543,13 +553,10 @@ html.custom-cursor-active.dragging * {
   margin-bottom: 8px;
 }
 
-/* 页面头 / 模块工具栏 / 筛选条 */
-.app-density-compact .j-page-header {
-  padding-bottom: 8px;
-}
-.app-density-compact .j-page-header-title {
-  font-size: var(--fs-2xl);
-}
+/* 页面头 / 模块工具栏 / 筛选条
+   注：.j-page-header 的紧凑高度与字号已由 --header-height / --fs-2xl 令牌统一承载
+   （见 themes/tokens.ts），此处不再重复覆盖——原先的 padding-bottom:8px 会把
+   固定高度的页头条重新撑开，反而破坏与主壳 AppHeader 的对齐。 */
 .app-density-compact .module-toolbar {
   margin-bottom: 8px;
   gap: 6px;

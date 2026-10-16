@@ -28,7 +28,7 @@ withDefaults(defineProps<{
     <slot name="header" />
     <div
       class="j-page-body"
-      :style="{ maxWidth, padding: panelPadding }"
+      :style="{ maxWidth, '--page-panel-padding': panelPadding }"
     >
       <slot />
     </div>
@@ -42,7 +42,9 @@ withDefaults(defineProps<{
   display: flex;
   flex-direction: column;
   z-index: 1;
-  padding: var(--layout-page-padding, 12px 24px 0);
+  /* 只留水平 gutter：上边距交给 .j-page-body 的 margin-top，
+     页头才能用等量负 margin 抵消这里的 padding 让分隔线通栏（P0-1）。 */
+  padding: var(--layout-page-padding, 0 24px 0);
   min-height: 0;
 }
 
@@ -50,8 +52,14 @@ withDefaults(defineProps<{
   flex: 1;
   min-height: 0;
   width: 100%;
-  margin: 0 auto;
+  /* 与主壳 Home.vue 的 .content-area padding-top 对齐，均为 20px（P0-1） */
+  margin: 20px auto 0;
   overflow-y: auto;
+  /* panelPadding 由模板以 --page-panel-padding 变量注入，而非直接写 inline padding：
+     inline style 优先级高于媒体查询，直接写 padding 会让下面 767px 的移动端覆盖静默失效
+     （实测 390px 下内容可用宽仅 324px）。走变量后值仍来自组件 API
+     （--layout-panel-padding 与紧凑模式的 14px 16px 都能透传），是否覆盖交还给 CSS 层叠。 */
+  padding: var(--page-panel-padding, var(--layout-panel-padding));
   background:
     radial-gradient(1200px 500px at 10% -10%, var(--glass-glow-top), transparent 60%),
     var(--glass-bg-trans);
@@ -64,10 +72,15 @@ withDefaults(defineProps<{
 
 @media (max-width: 767px) {
   .j-page-shell {
-    padding: 8px 8px 0;
+    /* --shell-gutter 是与页头的契约变量：JPageHeader 用它做等量负 margin */
+    --shell-gutter: 8px;
+    padding: 0 var(--shell-gutter) 0;
   }
   .j-page-body {
-    margin: 0;
+    margin: 12px 0 0;
+    /* 与主壳 Home.vue 的 .content-area 移动端 padding:12px 对齐。
+       此处能生效依赖上面把 panelPadding 改成了变量：原先 inline padding 会压过本规则，
+       390px 下实际仍是 20px 24px，内容可用宽只剩 324px。 */
     padding: 12px;
   }
 }

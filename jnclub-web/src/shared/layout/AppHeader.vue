@@ -250,7 +250,9 @@ const handleBreadcrumbRoot = () => {
         <template #icon><NIcon :component="FolderOpen" size="18" /></template>
       </NButton>
       <NBreadcrumb class="jnclub-breadcrumb">
-        <NBreadcrumbItem @click="handleBreadcrumbRoot">JNClub</NBreadcrumbItem>
+        <!-- 首项不设品牌根「JNClub」（报告 IA-2）：它与第二项绑同一个 handleBreadcrumbRoot、
+             点击效果逐位相同（都是回到「全部」），属重复层级；品牌名在侧栏 logo 区已有。
+             移动端此前已用 CSS 隐藏首项，现在两端统一为「模块 / 当前目录」两项。 -->
         <NBreadcrumbItem @click="handleBreadcrumbRoot">
           {{ moduleName }}
         </NBreadcrumbItem>
@@ -664,10 +666,9 @@ const handleBreadcrumbRoot = () => {
     min-width: 0;
     overflow: hidden;
   }
-  /* 移动端不需要品牌根链接：目录按钮已能唤起完整目录树，宽度让给当前路径 */
-  .jnclub-breadcrumb :deep(.n-breadcrumb-item:first-child) {
-    display: none;
-  }
+  /* 注：原此处有 `:first-child { display: none }`，用于在窄屏隐藏品牌根「JNClub」。
+     报告 IA-2 已把品牌根从模板删除，首项变为模块名（不应隐藏），故该规则移除；
+     窄屏的宽度取舍改由下方 400px 断点按「有无目录项」决定。 */
   .jnclub-breadcrumb :deep(ul) {
     display: flex;
     flex-wrap: nowrap;
@@ -714,9 +715,11 @@ const handleBreadcrumbRoot = () => {
 /*
  * 超窄屏（320–400px）：底部 TabBar 已标明当前模块，把宽度让给路径。
  * 用 :has 限定「确实存在路径项」时才隐藏模块名，避免在根目录下把面包屑清空。
+ * 注：IA-2 删除品牌根后项序前移一位 —— 模块名由第 2 项变第 1 项、目录由第 3 项变第 2 项，
+ * 故选择器同步由 (2):has(~(3)) 改为 (1):has(~(2))。
  */
 @media (max-width: 400px) {
-  .jnclub-breadcrumb :deep(.n-breadcrumb-item:nth-child(2):has(~ .n-breadcrumb-item:nth-child(3))) {
+  .jnclub-breadcrumb :deep(.n-breadcrumb-item:nth-child(1):has(~ .n-breadcrumb-item:nth-child(2))) {
     display: none;
   }
 }

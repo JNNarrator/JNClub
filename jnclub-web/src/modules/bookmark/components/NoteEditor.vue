@@ -1295,8 +1295,8 @@ defineExpose({ hasUnsavedChanges })
 
 /* 保存同步状态图标 */
 .sync-indicator :deep(.n-icon) { color: var(--text-3); }
-.sync-dirty :deep(.n-icon) { color: var(--state-warning); }
-.sync-saved :deep(.n-icon) { color: var(--state-success); }
+.sync-dirty :deep(.n-icon) { color: var(--warning-text); }
+.sync-saved :deep(.n-icon) { color: var(--success-text); }
 .sync-saving :deep(.n-icon) {
   color: var(--brand-text);
   animation: sync-spin var(--dur-spin) var(--ease-linear) infinite;
@@ -1514,8 +1514,8 @@ defineExpose({ hasUnsavedChanges })
   white-space: nowrap;
 }
 .statusbar-time { white-space: nowrap; }
-.time-saved { color: var(--state-success); }
-.time-dirty { color: var(--state-warning); }
+.time-saved { color: var(--success-text); }
+.time-dirty { color: var(--warning-text); }
 .statusbar-hint {
   overflow: hidden;
   text-overflow: ellipsis;

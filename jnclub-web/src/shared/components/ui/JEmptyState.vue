@@ -204,7 +204,10 @@ const resolvedIcon = computed(() => (
   background: var(--glass-chip-bg);
   border: 1px solid var(--glass-chip-border);
   color: var(--brand-text);
-  border-radius: var(--radius-md);
+  /* 与同组件的 .empty-cta.glass-pill-btn 同为「空态 CTA」，圆角必须同档。
+     原为 --radius-md(16px)，与 pill 的 999px 差两档；两者虽由 variant 互斥、
+     不同屏出现，但同一组件内的主按钮不应有两种形状（P2-3）。 */
+  border-radius: var(--radius-pill);
   transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease);
 }
 

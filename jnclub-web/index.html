@@ -27,6 +27,8 @@
     <!-- PWA：可安装 + 离线应用壳（manifest 由 vite-plugin-pwa 生成，此处为显式声明） -->
     <link rel="manifest" href="manifest.webmanifest" />
     <meta name="theme-color" content="#EC5B8E" />
+    <!-- 标准名（Chrome 等）与 Apple 名（Safari）并存：只写 apple- 前缀会被 Chrome 报 deprecated -->
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="JNClub" />

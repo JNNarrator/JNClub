@@ -309,8 +309,8 @@ const onShowChange = (v: boolean) => emit('update:show', v)
   transition: width var(--dur) var(--ease-bouncy);
 }
 .strength-fill.strength-weak { background: var(--danger); }
-.strength-fill.strength-medium { background: var(--warning-text); }
-.strength-fill.strength-strong { background: var(--success-text); }
+.strength-fill.strength-medium { background: var(--state-warning); }
+.strength-fill.strength-strong { background: var(--state-success); }
 .strength-label {
   font-size: var(--fs-xs, 12px);
   font-weight: 600;

@@ -461,7 +461,7 @@ const diffStat = computed(() => {
   gap: 6px;
   background: var(--bg-page) !important;
 }
-.diff-add { color: var(--state-success); font-weight: 700; }
+.diff-add { color: var(--success-text); font-weight: 700; }
 .diff-del { color: var(--danger-text); font-weight: 700; }
 .diff-body {
   max-height: 46vh;
@@ -496,7 +496,7 @@ const diffStat = computed(() => {
   background: color-mix(in srgb, var(--state-success) 16%, transparent);
   color: var(--text-1);
 }
-.diff-add .diff-marker { color: var(--state-success); }
+.diff-add .diff-marker { color: var(--success-text); }
 .diff-del {
   background: color-mix(in srgb, var(--state-error) 16%, transparent);
   color: var(--text-1);

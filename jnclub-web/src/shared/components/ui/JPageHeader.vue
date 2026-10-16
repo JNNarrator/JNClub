@@ -77,20 +77,28 @@ const emit = defineEmits<{
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 4px 2px 14px;
+  /* 与主壳 AppHeader 对齐：同一 --header-height 的顶栏条 + 同一条底部通栏分隔线。
+     负 margin 抵消 JPageShell 的水平 padding，让分隔线通栏；
+     --shell-gutter 由 JPageShell 在移动端注入，缺失时回退到页面 gutter。 */
+  height: var(--header-height, 60px);
+  padding: 0 var(--shell-gutter, var(--layout-page-gutter, 24px));
+  margin: 0 calc(-1 * var(--shell-gutter, var(--layout-page-gutter, 24px)));
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
 }
 .j-page-header-main {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
   min-width: 0;
 }
 .j-page-header-title {
   margin: 0;
-  font-size: var(--fs-3xl);
-  font-weight: 800;
+  /* 原为 --fs-3xl(20px)/800 的落地页大标题；收到顶栏语境（面包屑条）同量级 */
+  font-size: var(--fs-2xl);
+  font-weight: 700;
   color: var(--text-1);
-  line-height: 1.3;
+  line-height: 1.25;
 }
 .j-page-header-subtitle {
   margin: 0;
@@ -124,7 +132,12 @@ const emit = defineEmits<{
   .j-page-header {
     flex-direction: column;
     align-items: flex-start;
-    gap: 10px;
+    justify-content: center;
+    gap: 8px;
+    /* 标题 + 副标题两行时允许撑高，但不得低于主壳顶栏高度 */
+    height: auto;
+    min-height: var(--header-height, 52px);
+    padding: 8px var(--shell-gutter, var(--layout-page-gutter, 24px));
   }
   .j-page-header-actions {
     width: 100%;

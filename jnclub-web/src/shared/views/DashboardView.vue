@@ -635,67 +635,6 @@ const openFile = (f: { id: number }) => {
 @media (max-width: 480px) {
   .stat-grid { grid-template-columns: 1fr; }
 }
-.stat-card {
-  display: flex;
-  align-items: center;
-  gap: 18px;
-  min-height: 112px;
-  padding: 24px;
-  background: var(--glass-bg-trans);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid var(--glass-chip-border);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-1), var(--glass-shadow);
-  cursor: pointer;
-  transition: border-color var(--dur) var(--ease), transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
-  text-align: left;
-}
-.stat-card:hover {
-  border-color: var(--brand-text);
-  box-shadow: var(--shadow-2), var(--glass-shadow);
-  transform: translateY(-2px);
-}
-.stat-card.stat-warn { border-color: color-mix(in srgb, var(--danger) 45%, transparent); }
-.stat-text {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
-.stat-icon {
-  width: 44px; height: 44px; border-radius: var(--radius-md);
-  flex-shrink: 0;
-  background: var(--brand-soft); color: var(--brand-text);
-  display: flex; align-items: center; justify-content: center;
-}
-.stat-warn .stat-icon { background: var(--danger-soft); color: var(--danger-text); }
-.stat-value {
-  font-size: var(--fs-7xl); font-weight: 800; color: var(--text-1); line-height: 1.1;
-  white-space: nowrap;
-}
-.stat-label {
-  display: inline-flex; align-items: center; gap: 6px;
-  font-size: var(--fs-md); color: var(--glass-text-secondary);
-}
-.stat-warn-dot {
-  width: 7px; height: 7px; border-radius: 50%;
-  background: var(--danger); animation: dash-blink var(--dur-loop) infinite;
-}
-@keyframes dash-blink {
-  50% { opacity: 0.3; }
-}
-@media (max-width: 767px) {
-  /* 移动端窄卡：改回纵向排布，避免横向挤压 */
-  .stat-card {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
-    min-height: 124px;
-  }
-  .stat-icon { width: 36px; height: 36px; border-radius: var(--radius-sm); }
-  .stat-value { font-size: var(--fs-6xl); }
-}
 
 /* 中排双栏 */
 .mid-grid {
@@ -777,7 +716,7 @@ const openFile = (f: { id: number }) => {
   background: var(--danger-soft);
   padding: 8px 10px; border-radius: var(--radius-sm);
 }
-.health-ok { font-size: var(--fs-sm); color: var(--state-success); }
+.health-ok { font-size: var(--fs-sm); color: var(--success-text); }
 
 /* 最近动态：桌面 4 列一排，平板 2 列，手机 1 列 */
 .recent-grid {
@@ -1019,7 +958,9 @@ const openFile = (f: { id: number }) => {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 18px 22px;
+  /* 与 .panel 的 20px 对齐：两者同为卡片容器、同为 --radius-md 圆角，
+     仅内边距相差 2px 属于无意义的档位漂移（P1-9）。 */
+  padding: 20px;
   border-radius: var(--radius-md);
   background: linear-gradient(120deg, var(--brand-soft), transparent 60%), var(--glass-bg-trans);
   border: 1px solid var(--glass-chip-border);

@@ -52,6 +52,15 @@ const darkThemeOverrides: GlobalThemeOverrides = {
     fontFamily: t.fontSans,
     fontFamilyMono: t.fontMono,
     fontWeightStrong: '600',
+    // —— 字号阶梯（P2-5，与 light.ts 同值：字号不随明暗分档）——
+    // 见 light.ts 的说明：绑定到 --fs-* 阶梯以防 naive 升级漂移，取值与默认等值、零视觉变化。
+    fontSize: t.fsBase, // 14px
+    fontSizeMini: t.fsSm, // 12px
+    fontSizeTiny: t.fsSm, // 12px
+    fontSizeSmall: t.fsBase, // 14px
+    fontSizeMedium: t.fsBase, // 14px
+    fontSizeLarge: t.fsLg, // 15px
+    fontSizeHuge: t.fsXl, // 16px
     // —— 动效 ——
     cubicBezierEaseInOut: t.ease,
     cubicBezierEaseOut: t.ease,

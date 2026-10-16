@@ -159,25 +159,31 @@ const handleDropdown = (key: string) => {
 </template>
 
 <style scoped>
+/* 列表行统一规范：与 .note-row / .file-item / .vault-item / .recycle-item 同档
+   （内边距 12px 14px、--bg-card 底、--border 框、radius-sm） */
 .collection-row {
   display: flex;
   align-items: center;
   gap: 12px;
-  /* 与 NoteRow 对齐（原为 10px 16px，两者不一致） */
-  padding: 12px 16px;
+  padding: 12px 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: background var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+  transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease), background var(--dur) var(--ease);
 }
 
+/* hover 不再叠 inset 3px 左条：那条品牌竖条是 SideNav 表示「当前所在位置」的持久符号，
+   列表行 hover 只是瞬时悬停，共用同一符号会让行读起来像「已选中」。
+   改用「边框转品牌色 + 浮起阴影」，与 DiskView 的 .file-item 一致。 */
 .collection-row:hover {
-  background: var(--glass-chip-bg);
-  box-shadow: inset 3px 0 0 var(--brand);
+  border-color: var(--brand-text);
+  box-shadow: var(--shadow-card-hover);
 }
 
 .collection-row:active {
   background: var(--brand-soft);
-  box-shadow: inset 3px 0 0 var(--brand);
+  border-color: var(--brand-text);
 }
 
 /* Favicon */
@@ -209,10 +215,13 @@ const handleDropdown = (key: string) => {
   overflow: hidden;
 }
 
-.title-link {
+/* NEllipsis 把 class 透传到 naive-ui 内部元素，该元素不携带本组件 scope id，
+   普通 scoped 选择器会静默失效（原 .title-link 规则的 font-weight/color 从未生效）。
+   必须用 :deep() 穿透，命中 .row-title[data-v-*] 的后代。 */
+:deep(.title-link) {
   color: var(--text-1) !important;
   font-size: var(--fs-base);
-  font-weight: 500;
+  font-weight: 600;
 }
 
 /* 行内标签 */
@@ -231,7 +240,7 @@ const handleDropdown = (key: string) => {
 .row-meta {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   flex-shrink: 0;
   color: var(--text-3);
   font-size: var(--fs-sm);

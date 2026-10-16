@@ -31,7 +31,7 @@ const { items: recentItems, record: recordRecentItem, clear: clearRecent } = use
 const keyword = ref('')
 const loading = ref(false)
 const searched = ref(false)
-const result = ref<{
+type SearchResult = {
   bookmarks: any[]
   notes: any[]
   files: any[]
@@ -39,7 +39,16 @@ const result = ref<{
   tags: any[]
   tracks: any[]
   parsed?: any
-}>({ bookmarks: [], notes: [], files: [], vault: [], tags: [], tracks: [] })
+}
+/**
+ * 空结果工厂：重置与「无结果」兜底共用同一来源。
+ * 原先这里是 4 处内联字面量，7c7f4f9 批量删除 todos 字段时把整行赋值一并删掉，
+ * 其中一处正是 doSearch 成功分支的写回 —— 导致搜索结果区恒为空（total() 恒为 0，
+ * 结果列表/类型筛选/语法 chip 永不渲染，.no-result 恒显示）。
+ * 收敛到工厂函数后，字段增删只需改一处，不会再出现同类回归。
+ */
+const emptyResult = (): SearchResult => ({ bookmarks: [], notes: [], files: [], vault: [], tags: [], tracks: [] })
+const result = ref<SearchResult>(emptyResult())
 
 const typeFilter = ref<'all' | 'bookmarks' | 'notes' | 'files' | 'vault' | 'tags' | 'tracks'>('all')
 
@@ -143,6 +152,7 @@ let searchCtl: AbortController | null = null
 watch(() => props.show, (v) => {
   if (v) {
     keyword.value = ''
+    result.value = emptyResult()
     typeFilter.value = 'all'
     searched.value = false
     activeIndex.value = -1
@@ -157,6 +167,7 @@ watch(() => props.show, (v) => {
 const doSearch = async () => {
   const kw = keyword.value.trim()
   if (!kw) {
+    result.value = emptyResult()
     searched.value = false
     return
   }
@@ -167,6 +178,8 @@ const doSearch = async () => {
   try {
     const res = await axios.get('/api/search', { params: { keyword: kw, limit: 20 }, signal: ctl.signal })
     if (res.data.code === 200) {
+      // 必须写回结果：这一行曾随 todos 字段一并被误删，导致结果区永不渲染
+      result.value = res.data.data || emptyResult()
       searched.value = true
       activeIndex.value = -1
       pushHistory(kw)
@@ -195,6 +208,17 @@ const onInput = () => {
 
 const total = () => result.value.bookmarks.length + result.value.notes.length + result.value.files.length
   + result.value.vault.length + result.value.tags.length + result.value.tracks.length
+
+/**
+ * 当前类型筛选下的可见条数。
+ * 空态判断必须用它而非 total()：total() 是各类型之和，筛到「本类型为空」时仍 > 0，
+ * 会导致所有结果分组被 shouldShowGroup 过滤掉、却又不满足 total()===0，
+ * 结果区渲染成一片空白（既无结果也无「没有找到」提示）。
+ */
+const visibleTotal = computed(() => {
+  if (typeFilter.value === 'all') return total()
+  return result.value[typeFilter.value].length
+})
 
 const handleJump = (module: NavJumpKey, directoryId: number | null) => {
   emit('close')
@@ -267,6 +291,7 @@ const removeSyntax = (kind: 'type' | 'date' | 'tag') => {
   if (keyword.value.trim()) {
     doSearch()
   } else {
+    result.value = emptyResult()
     searched.value = false
     refreshHistory()
   }
@@ -463,12 +488,15 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
 <template>
   <NDrawer v-model:show="props.show" :width="isMobileWidth()" placement="right" @update:show="(v: boolean) => !v && emit('close')">
     <div class="search-panel">
-      <!-- 标题（图标放渐变外：JGradientText 走 text prop，slot 拼接对转发链不可靠） -->
+      <!-- 标题（图标放渐变外：JGradientText 走 text prop，slot 拼接对转发链不可靠）
+           标题用「搜索」而非「命令面板」（报告 IA-4）：抽屉的主体是跨模块搜索
+           （placeholder 与有输入时的结果区都是搜索），命令列表只在空输入时作为回退出现；
+           且本项目面向个人工作台用户，不预设其熟悉 Command Palette 这一开发者术语。 -->
       <div class="search-header">
         <div class="search-title">
           <NIcon :component="Search" size="16" class="search-title-icon" />
           <JGradientText
-            text="命令面板"
+            text="搜索"
             :animation-speed="6"
             direction="horizontal"
             :colors="['var(--brand)', 'var(--brand-suppl)', 'var(--brand)']"
@@ -588,12 +616,12 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
           class="search-empty"
         />
 
-        <!-- 无结果 -->
-        <div v-else-if="searched && total() === 0" class="no-result">
+        <!-- 无结果（含「当前类型筛选下为空」） -->
+        <div v-else-if="searched && visibleTotal === 0" class="no-result">
           <JEmptyState
             variant="search"
-            message="没有找到相关内容"
-            hint="换个关键词试试"
+            :message="total() === 0 ? '没有找到相关内容' : '此类型下没有匹配内容'"
+            :hint="total() === 0 ? '换个关键词试试' : '切换到其他类型，或换个关键词'"
             :show-cta="false"
             class="search-empty"
           />
@@ -892,6 +920,7 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
 }
 .history-clear:hover { color: var(--brand-text); }
 .history-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+/* 抽屉内 chip 的统一档：4px 12px / --fs-sm（另见下方 .type-filter-chip 与 .syntax-chip 的说明，P1-10） */
 .history-chip {
   padding: 4px 12px;
   border-radius: var(--radius-pill);
@@ -926,13 +955,19 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
   flex-wrap: wrap;
   gap: 6px;
 }
+/* chip 规格只保留两级（P1-10）：
+     抽屉内（本文件三个 chip，均为 4px 12px / --fs-sm）—— .type-filter-chip / .syntax-chip / .history-chip
+     全局主筛选（5px 14px / --fs-sm）—— .j-filter-chip（JFilterBar.vue:63）与 .chip（assets/main.css）
+   改前这里是 3px 10px / --fs-xs(11px)，与同屏的 .history-chip（4px 12px / --fs-sm）并排时
+   高度差 2px、字号差 1px，读起来像两个不相干的控件；且 11px 是本项目留给元信息（如 .item-meta）
+   的字号，用在可点击控件上偏小。 */
 .type-filter-chip {
-  padding: 3px 10px;
+  padding: 4px 12px;
   border-radius: var(--radius-pill);
   border: 1px solid var(--glass-chip-border);
   background: var(--glass-chip-bg);
   color: var(--glass-chip-text);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   cursor: pointer;
   transition: border-color var(--dur) var(--ease), color var(--dur) var(--ease), background var(--dur) var(--ease);
 }
@@ -945,7 +980,9 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
   background: var(--brand-soft);
 }
 
-/* 已识别搜索语法标签 */
+/* 已识别搜索语法标签。规格与 .type-filter-chip / .history-chip 一致（见上，P1-10）；
+   三者共用几何、只靠色相区分语义：本 chip 常驻品牌色（--brand 描边 + --brand-soft 底）
+   表示「这是你已输入并解析成功的条件，点 × 移除」，另两个是中性档「可选的筛选 / 建议」。 */
 .syntax-chips {
   display: flex;
   flex-wrap: wrap;
@@ -955,12 +992,12 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 3px 10px;
+  padding: 4px 12px;
   border-radius: var(--radius-pill);
   border: 1px solid var(--brand);
   background: var(--brand-soft);
   color: var(--brand-text);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   cursor: pointer;
   transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
 }

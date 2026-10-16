@@ -29,6 +29,7 @@ const emit = defineEmits<{
   <div class="module-toolbar fade-in-up">
     <NButton
       v-if="activeModule === 'bookmarks'"
+      size="small"
       class="btn-new jnclub-bouncy-slow"
       @click="emit('create-bookmark')"
     >
@@ -48,6 +49,7 @@ const emit = defineEmits<{
     </NButton>
     <NButton
       v-if="activeModule === 'notes'"
+      size="small"
       class="btn-new jnclub-bouncy-slow"
       @click="emit('create-note')"
     >
@@ -77,6 +79,7 @@ const emit = defineEmits<{
     </NButton>
     <NButton
       v-if="activeModule === 'files'"
+      size="small"
       class="btn-new jnclub-bouncy-slow"
       :disabled="!canUpload"
       @click="emit('upload-file')"

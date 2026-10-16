@@ -151,6 +151,8 @@ const isActive = (tab: NavDef) => {
   z-index: 100;
   display: flex;
   align-items: center;
+  /* 各项 flex:1 平分宽度后已铺满，justify-content 不参与分配；
+     保留 flex-start 仅为语义正确（stretch 对 flex 容器等同 flex-start，易误读为在起作用） */
   justify-content: flex-start;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
@@ -168,7 +170,11 @@ const isActive = (tab: NavDef) => {
 }
 
 .tab-item {
-  flex: 0 0 64px;
+  /* 平分可用宽度而非固定 64px：MOBILE_KEYS 6 项 + 末尾「更多」= 7 项，
+     固定 64px 在 390px 视口下需要 448px，必然横向溢出（仅靠 overflow-x 横滑兜底会藏起末项）。
+     改为 flex:1 后每项约 55.7px，最宽标签（收藏夹/密码库/回收站，3 字 × 10px = 30px）仍有余量。 */
+  flex: 1 1 0;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -186,6 +192,11 @@ const isActive = (tab: NavDef) => {
 .tab-label {
   font-size: var(--fs-2xs);
   line-height: 1.2;
+  /* 极窄视口下宁可截断也不换行：换行会把图标挤出 56px 高度 */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .tab-active {

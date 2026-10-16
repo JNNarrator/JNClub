@@ -8,21 +8,35 @@ import axios from 'axios'
  */
 const cache = ref<Record<string, any>>({})
 let loaded = false
+/** 进行中的请求：并发调用 load() 时复用同一个 Promise，避免重复打后端 */
+let inflight: Promise<void> | null = null
 const ready = ref(false)
 
 export function useUserPreferences() {
+  /**
+   * 拉取后端偏好（幂等）。
+   * 之所以要幂等：load() 由 MainLayout 在挂载时调用，而 MainLayout 是
+   * AppWrapper / OverviewLayout / RecycleLayout 三个页壳的共同根，
+   * 路由切换会让它重新挂载 —— 没有这道保护就会每次切页都重发一次请求。
+   */
   const load = async () => {
-    try {
-      const res = await axios.get('/api/user-preferences')
-      if (res.data.code === 200) {
-        cache.value = res.data.data || {}
-        loaded = true
+    if (loaded) return
+    if (inflight) return inflight
+    inflight = (async () => {
+      try {
+        const res = await axios.get('/api/user-preferences')
+        if (res.data.code === 200) {
+          cache.value = res.data.data || {}
+          loaded = true
+        }
+      } catch {
+        /* 静默：未加载时由 localStorage 兜底 */
+      } finally {
+        ready.value = true
+        inflight = null
       }
-    } catch {
-      /* 静默：未加载时由 localStorage 兜底 */
-    } finally {
-      ready.value = true
-    }
+    })()
+    return inflight
   }
 
   const get = <T = any>(key: string, fallback: T): T => {

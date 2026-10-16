@@ -191,22 +191,27 @@ const handleDragEnd = () => setDragging(null)
 </template>
 
 <style scoped>
+/* 列表行统一规范：与 .collection-row / .file-item / .vault-item / .recycle-item 同档 */
 .note-row {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 16px;
+  padding: 12px 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: background var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+  transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease), background var(--dur) var(--ease);
 }
+/* hover 不再叠 inset 3px 左条（那是 SideNav「当前所在位置」的持久符号），
+   改用「边框转品牌色 + 浮起阴影」，与 .collection-row / .file-item 一致。 */
 .note-row:hover {
-  background: var(--glass-chip-bg);
-  box-shadow: inset 3px 0 0 var(--brand);
+  border-color: var(--brand-text);
+  box-shadow: var(--shadow-card-hover);
 }
 .note-row:active {
   background: var(--brand-soft);
-  box-shadow: inset 3px 0 0 var(--brand);
+  border-color: var(--brand-text);
 }
 
 /* 图标 */
@@ -271,7 +276,7 @@ const handleDragEnd = () => setDragging(null)
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 12px;
   color: var(--text-3);
   font-size: var(--fs-sm);
   white-space: nowrap;
