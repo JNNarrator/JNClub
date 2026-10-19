@@ -1956,3 +1956,35 @@ curl -s --unix-socket $SOCK -X PATCH -d '{"mode":"rule"}' http://localhost/confi
 1. **`DashboardView` 对 summary 缺字段无防御**（21.4 假象二），失败表现为永久骨架屏。
 2. **`.dash-group-title` 的 `text-transform: uppercase` 对中文无效果**（承 17.8-3），实测增益 0px，作为 overline 声明式写法保留无害。
 3. **虚拟滚动仅经 mock 验证**（承 17.8-6）：真实数据量超过 80 条才进虚拟模式，线上真实收藏数达标后建议复测一次滚动手感。
+
+### 21.8 上线验证（2026-10-19）
+
+提交 `e37d9ea`「fix(web): 清偿三项技术债」推送后由 gm cron watcher 自动部署。
+
+| 时刻 | 事件 |
+|---|---|
+| 09:40 | 本地 push：`4ebd217..e37d9ea  master -> master` |
+| 09:45:16 | watcher 检测到新提交，开始部署 |
+| 09:47:35 | 前端产物 `dist/index.html` 落盘 |
+| 09:47:54 | 重启服务 |
+| 09:48:47 | `✓ 部署成功` |
+
+全链路约 3 分 31 秒。
+
+**上线验证矩阵**
+
+| 项 | 证据 | 结果 |
+|---|---|---|
+| 远端 HEAD 与本地一致 | `/home/jiangnan/JNClub-src` → `e37d9ea` | ✓ |
+| 前端产物为本次构建 | `dist/index.html` 时间戳 `2026-10-19 09:47:35`，`dist/sw.js` 存在 | ✓ |
+| 统计数值降档在产物中 | `grep -lo "is-xlong"` → `OverviewLayout-BGRqBYHh.js` | ✓ |
+| 标签单行渐隐在产物中 | `grep -lo "card-tags"` → `AppWrapper-Nk_o4AUJ.css` | ✓ |
+| 紧凑模式宽度分档在产物中 | `index-CnCl0TPq.css` 含 `layout-sider-width: 208px` 与 `layout-folder-width: 192px` | ✓ |
+| 便签网格 itemHeight 在产物中 | `AppWrapper-Dsz_X6vb.js` | ✓ |
+| 公网 `/jnclub/`、`/music/`、`/sso/isLogin` | 全 `200`（t=1.88s / 1.71s / 0.68s） | ✓ |
+| 音乐接口 | `/music/api/v1/tracks` 返回真实曲目（庙前 / 双笙 / flac / 26.5MB） | ✓ |
+| 后端死锁 | `jstack 1112475` → 死锁计数 **0**；注解缓存相关线程 **0** | ✓ |
+| 新进程日志 | 自重启起 `ERROR\|Exception` 计数 **0** | ✓ |
+| 线上页面运行时 | Playwright 打开 `https://jiangnan.88933.vip/jnclub/` → 落 `/jnclub/welcome`（未登录态，符合守卫），标题「欢迎 - JNClub」，首屏 5 个模块卡全部渲染 | ✓ |
+
+**网络备注**：Playwright 首次访问报 `ERR_CONNECTION_CLOSED`，而 curl 同时段全部 200 —— 本机 Clash 的 `rule` 模式把 Chrome 的分流指到了不通节点。经 mihomo unix socket（本次 socket 路径已变，为 `/tmp/mihomo-party-501-6386.sock`，此前记录的 `-3081` 已失效）临时切 `direct` 完成验证，随后已恢复 `rule`。这一现象与 20.3 记录的是同一类问题，再次印证：**本机 `198.18.x.x` 或「curl 通、浏览器不通」的差异，先怀疑 Clash 分流，不要误判成部署故障。**
