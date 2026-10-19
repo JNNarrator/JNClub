@@ -531,6 +531,13 @@ html.custom-cursor-active.dragging * {
   --layout-panel-padding: 14px 16px;
   --header-height: 52px;
   --tabbar-height: 50px;
+  /* 布局宽度也要分档（技术债③）。此前紧凑模式只压了内边距与页头高度，
+     侧栏仍是 240px、目录栏仍是 220px —— 实测 compact 与 comfortable
+     两态下 siderW/folderW 完全相同（240/220），横向空间一点没让出来，
+     而紧凑模式的初衷正是「同屏多放内容」。收缩幅度对齐其他档位的
+     ~13%（页头 60→52 同为 13%），保留侧栏文字与目录树的可读宽度。 */
+  --layout-sider-width: 208px;
+  --layout-folder-width: 192px;
   /* 注：原先此处还覆盖了 --space-xs~xl 五档间距，但全项目没有任何 var(--space-*) 消费，
      属无效覆盖（密度压缩实际由下方 .content-area / .j-page-header 等具体规则实现）。 */
 }

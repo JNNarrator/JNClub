@@ -155,8 +155,11 @@ const handleDropdown = (key: string) => {
         </NEllipsis>
       </div>
 
-      <!-- 标签 -->
-      <div v-if="bookmark.tags?.length" class="card-tags">
+      <!-- 标签
+           始终渲染（即使无标签）—— 标签区是网格卡片唯一的高度变量，
+           空卡片少这一行会让同屏卡片高度参差 24px，进而让虚拟滚动的
+           行高无法用常量表达（技术债①）。标签区固定单行高度，卡片定高。 -->
+      <div class="card-tags">
         <NTag v-for="t in bookmark.tags" :key="t" size="tiny" round :bordered="false" class="card-tag">
           {{ t }}
         </NTag>
@@ -280,12 +283,22 @@ const handleDropdown = (key: string) => {
 }
 
 /* === 标签 === */
+/* 标签区固定单行高度（16px = NTag tiny 高度），这是卡片定高的前提：
+   原先 flex-wrap: wrap 会让 2 行标签的卡片高出 44px，网格里同屏卡片高度参差，
+   虚拟滚动的 itemHeight 也只能写死一个偏大的估值（见 CollectionGrid.vue 注释）。
+   现在不换行、超宽渐隐，卡片高度恒定。 */
 .card-tags {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 4px;
+  min-height: 16px;
+  overflow: hidden;
+  /* 溢出时右缘渐隐，作为「还有更多标签」的信号；未溢出时不影响观感 */
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 20px), transparent);
+  mask-image: linear-gradient(to right, #000 calc(100% - 20px), transparent);
 }
 .card-tag {
+  flex-shrink: 0;
   background: var(--brand-soft) !important;
   color: var(--brand-text) !important;
 }

@@ -12,6 +12,7 @@ import type { BookmarkItem } from './CollectionRow.vue'
 import { useDraggableSort } from '../../../shared/composables/useDraggableSort'
 import { useItemDragContext } from '../composables/useItemDragContext'
 import { useBreakpoint } from '../../../shared/composables/useBreakpoint'
+import { useUiDensity } from '../../../shared/composables/useUiDensity'
 
 const props = defineProps<{
   bookmarks: BookmarkItem[]
@@ -32,6 +33,7 @@ const visible = ref(false)
 const gridRef = ref<HTMLElement | null>(null)
 const { setDragging } = useItemDragContext()
 const { isCoarse } = useBreakpoint()
+const { density } = useUiDensity()
 
 const handleDragStart = (e: DragEvent, item: BookmarkItem) => {
   setDragging({
@@ -64,7 +66,32 @@ const rows = computed(() => {
   return result
 })
 const isVirtual = computed(() => props.bookmarks.length > 80)
-const virtual = useVirtualList(rows, { itemHeight: 220, overscan: 2 })
+
+/**
+ * 虚拟滚动的行高（技术债①）。
+ * 卡片高度原先不是常量 —— 唯一的高度变量是 `.card-tags` 的换行行数：
+ * 实测 0/1/2 行标签 = 132.58 / 156.58 / 176.58px（舒适档），
+ * 紧凑档 = 120.58 / 142.58 / 162.58 / 182.58px。
+ * 原先写死 `itemHeight: 220`，比最矮行（132.58 + 16 间距 = 148.58）虚高 48%：
+ * wrapper 占位因此过高（120 条 → scrollHeight 8800px，真实内容约 5943px），
+ * 滚到底出现大段空白，且 offsetTop = start × 220 与真实累计高度持续错位，
+ * 实测滚动中首个已渲染行的视口 top 在 -159 与 +21 之间跳变（180px 跳动）。
+ *
+ * 修复分两步（即报告 11.1 预判的「先给卡片加上界」）：
+ * ① CollectionCard 的标签区固定为单行（`.card-tags` 不再换行、始终占位），
+ *    卡片高度因此成为常量：舒适档 156.58px、紧凑档 142.58px（实测）；
+ * ② itemHeight 由密度映射到该常量 + 行间距 16px。
+ *
+ * 不用「渲染后实测每行高度再回写」：实测会让 totalHeight 在滚动过程中
+ * 持续收缩（4748 → 3882px），浏览器随之钳制 scrollTop，反而制造出比固定值
+ * 更剧烈的跳动。精度必须来自确定的布局，而不是运行时测量。
+ */
+const ROW_GAP = 16
+/** 卡片定高：1 行标签的实测值（两种密度各一档） */
+const CARD_HEIGHT = computed(() => (density.value === 'compact' ? 142.58 : 156.58))
+const itemHeight = () => CARD_HEIGHT.value + ROW_GAP
+
+const virtual = useVirtualList(rows, { itemHeight, overscan: 2 })
 const virtualRows = computed(() => Array.isArray(virtual.list.value) ? virtual.list.value : [])
 const dragDisabled = computed(() => isVirtual.value)
 const { init: initSort, destroy: destroySort } = useDraggableSort(gridRef, (ids) => {

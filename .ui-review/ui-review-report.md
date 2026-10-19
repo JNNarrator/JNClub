@@ -1816,5 +1816,143 @@ curl -s --unix-socket $SOCK -X PATCH -d '{"mode":"rule"}' http://localhost/confi
 
 ### 20.5 遗留
 
-1. **紧凑模式宽度令牌未分档**（承 19.8-2）：`--layout-sider-width` / `--layout-folder-width` 已就位，紧凑模式下仍为 240/220。
-2. **承前批未决技术债**：网格模式 `itemHeight` 虚高 32%（17.8-1）、概览统计数值层级待产品决策（17.8-2）、`.dash-group-title` 的 `uppercase` 对中文无效果（17.8-3）、虚拟滚动仅经 mock 验证（17.8-6）。
+1. **紧凑模式宽度令牌未分档**（承 19.8-2）：`--layout-sider-width` / `--layout-folder-width` 已就位，紧凑模式下仍为 240/220。→ **已于第十二批清偿，见 21.3。**
+2. **承前批未决技术债**：网格模式 `itemHeight` 虚高 32%（17.8-1）、概览统计数值层级待产品决策（17.8-2）、`.dash-group-title` 的 `uppercase` 对中文无效果（17.8-3）、虚拟滚动仅经 mock 验证（17.8-6）。→ 前两项已于第十二批清偿（见 21.1、21.2）；后两项保留为观察项，见 21.7。
+
+---
+
+## 二十一、第十二批：三项技术债清偿（2026-10-19 追加）
+
+第二十章 20.5 列出的三项遗留技术债在本批一次性清偿。三项都不是「视觉风格问题」，而是**布局常量与真实内容不匹配**导致的可测量缺陷：虚拟滚动的高度估值、统计卡的字号容量、紧凑模式的宽度让位。
+
+### 21.1 技术债①：网格虚拟滚动行高虚高
+
+**问题**：`CollectionGrid.vue` 与 `NoteGrid.vue` 均写死 `useVirtualList(rows, { itemHeight: 220 })`，但卡片真实高度不是 220。
+
+实测收藏卡有三种高度（差异全部来自标签行数，`.card-tags` 为 `flex-wrap: wrap`）：
+
+| 标签行数 | 卡片高（舒适） | 卡片高（紧凑） |
+|---|---|---|
+| 0 行 | 132.58px | 120.58px |
+| 1 行 | 156.58px | 142.58px |
+| 2 行 | 176.58px | 162.58px |
+
+加 `.virtual-row` 的 `margin-bottom: 16px` 后，真实行高在 148.58 ~ 192.58px 之间。`itemHeight: 220` 比最矮行虚高 **48%**，即便对齐最高行也虚高 14%。
+
+**后果**（120 条收藏、1440px、3 列 40 行实测）：
+
+- wrapper 占位高度 8800px（40 × 220），真实内容约 5943px → 滚到底出现约 **2857px 的大段空白**；
+- `offsetTop = start × 220` 与真实累计高度持续错位 → 滚动中首个已渲染行的视口 top 在 `-159` 与 `+21` 之间跳变（**180px 可见跳动**）。
+
+**修复**（两步，先让高度有上界，再让常量准确）：
+
+1. `CollectionCard.vue` 的标签区改为**固定单行**：`flex-wrap: nowrap`、`min-height: 16px`（= NTag tiny 高度）、`overflow: hidden`，并在右缘加 `mask-image` 渐隐作为「还有更多标签」的信号；标签区不再 `v-if`，无标签时也占位。卡片高度因此成为常量。
+2. `CollectionGrid.vue` 的 `itemHeight` 由密度映射到该常量：`CARD_HEIGHT = compact ? 142.58 : 156.58`，`itemHeight = () => CARD_HEIGHT + 16`。用函数而非数字，是因为 `@vueuse/core` 的 `createComputedTotalSize` 在 `computed` 内调用 `itemSize(i)`（`node_modules/@vueuse/core/dist/index.js:7971-7976`），函数内读取的 `density` 会被追踪，切换密度无需刷新即重算。
+3. `NoteGrid.vue` 的 `itemHeight` 由 220 改 202 —— 便签卡本就是定高（实测两种密度均为 185.58px），行高 = 185.58 + 16 = 201.58，取 202。
+
+**为什么不「渲染后实测每行高度再回写」**：实测会让 `totalHeight` 在滚动过程中持续收缩（4748 → 3882px），浏览器随之钳制 `scrollTop`，反而制造出比固定值更剧烈的跳动。精度必须来自确定的布局，而不是运行时测量。
+
+**验收**（1440×900）：
+
+| 项 | 舒适档 | 紧凑档 |
+|---|---|---|
+| 卡片高度取值数 | **1 种**（156.58） | **1 种**（142.58） |
+| 列数 / 行数 | 3 列 / 40 行 | 4 列 / 30 行 |
+| wrapper 占位 | 6903.2px（40 × 172.58） | 4757.4px（30 × 158.58） |
+| wrapper = scrollHeight | ✓ 6903.2 / 6903 | ✓ 4757.4 / 4757 |
+| 滚到底剩余空白 | **16px**（原约 2857px） | — |
+| 10 标签卡片 | 高度仍 156.58，标签区 241px 内容 383px → 溢出渐隐生效 | — |
+
+便签网格（100 条、1440px）：卡片高度取值 **1 种**（185.58），wrapper 6868px = 34 行 × 202，与 `scrollHeight` 一致。
+移动端 390px（单列 120 行）：卡片高度仍 **156.58**，wrapper 20709.6px = 120 × 172.58。
+
+### 21.2 技术债②：概览统计数值的位数降档
+
+**问题**：`JStatCard.vue` 的 `.j-stat-value` 固定 `--fs-5xl`（24px）。1440px 下 `.stat-grid` 为 6 列，单卡 170.3px，扣 `padding 16px 18px`×2 + icon 38px + `gap 14px` 后 `.j-stat-text` 可用宽度仅约 73~81px，而 `.j-stat-value` 是 `white-space: nowrap` —— 6 位数字实测 `scrollWidth` 已越界。
+
+**关键判断**：统计数字是**会随使用增长的量**（收藏数、便签数持续累积），不是固定文案。把全局字号提到 32px 的做法（11.1 已否决）实测连 4 位都放不下，方向错误。正确做法是「位数越多、字号越小」：层级在小数字上保持不变，只有真正变长时才让出字号换位数余量。
+
+**修复**：`JStatCard.vue` 新增 `valueSizeClass` computed，按 `String(Math.trunc(value)).length` 分档：
+
+| 位数 | class | 字号 |
+|---|---|---|
+| ≤ 5 | （无） | `--fs-5xl` 24px |
+| 6 | `is-mid` | `--fs-4xl` 22px |
+| 7 | `is-long` | `--fs-3xl` 20px |
+| ≥ 8 | `is-xlong` | `--fs-2xl` 18px |
+
+**验收**（1440px，注入 6/7/8 位数据）：
+
+| 位数 | 实测字号 | 值宽 / 可用宽 | 溢出 |
+|---|---|---|---|
+| 6（123456） | 22px | 73.1 / 73.1 | 否 |
+| 7（1234567） | 20px | 79.6 / 79.6 | 否 |
+| 8（12345678） | 18px | 77.7 / 77.7 | 否 |
+| 4（1234） | 24px | 50.9 | 否 |
+| 2（32） | 24px | 28.1 | 否 |
+
+移动端 390px（基础字号 `--fs-4xl` 22px）：6/7/8 位同样全部无溢出（`scrollWidth` 分别为 75 / 79 / 81，均 ≤ `clientWidth`），4 位及以下保持 22px。
+
+> 判据说明：`.j-stat-value` 是 block 元素、宽度撑满 `.j-stat-text`，所以 `getBoundingClientRect().width` 恒等于父宽、不能用作溢出判据；有效判据是 `scrollWidth > clientWidth`。
+
+### 21.3 技术债③：紧凑模式的布局宽度分档
+
+**问题**：`--layout-sider-width: 240px` / `--layout-folder-width: 220px` 已在 `tokens.generated.css` 就位并被 `SideNav.vue:152`、`Home.vue:678` 消费，但 `main.css` 的 `.app-density-compact` 块只覆盖了内边距与页头高度，没有覆盖这两个宽度 —— 紧凑模式下横向空间一点没让出来，而紧凑模式的初衷正是「同屏多放内容」。
+
+**修复**：`.app-density-compact` 内补 `--layout-sider-width: 208px`、`--layout-folder-width: 192px`。收缩幅度对齐其他档位的约 13%（页头 60→52 同为 13%），保留侧栏文字与目录树的可读宽度。
+
+**验收**（1440×900）：
+
+| 项 | 舒适档 | 紧凑档 |
+|---|---|---|
+| 侧栏宽 | 240px | **208px**（-13.3%） |
+| 目录栏宽 | 220px | **192px**（-12.7%） |
+| 内容区宽 | 1200px | **1232px** |
+| 收藏网格卡片宽 / 列数 | 275.3px / 3 列 | **225.5px / 4 列** |
+| 导航文字裁切 | 无 | 无（5 项 `scrollWidth ≤ clientWidth`） |
+| 目录文字裁切 | 无 | 无（4 项同上） |
+
+### 21.4 排查中的两个测试假象（重要教训）
+
+本批一度得出两个错误结论，均为测试环境构造问题而非产品缺陷，记录以免后续复现误判。
+
+**假象一：「紧凑模式整体不生效」。** 用 `localStorage.setItem('jn-pref-ui.density', 'compact')` 注入后，`.app-layout` 上没有 `app-density-compact` 类，侧栏、页头、卡片高度与舒适档**完全一致，零差异**。真实原因是 `useUserPreferences.get` 用 `JSON.parse` 读缓存值，裸字符串 `compact` 不是合法 JSON（`JSON.parse('compact')` 抛错）→ 解析失败回退默认值 `comfortable`。改成 `JSON.stringify('compact')` 后一切正常。**教训：走 JSON 序列化的偏好项，注入测试数据必须用 `JSON.stringify`。**
+
+**假象二：概览页永久骨架屏。** mock 的 `/api/stats/summary` 起初只返回 `counts` 与 `disk`，页面停在骨架屏不动，接口实际返回 200。原因是模板在 `v-else-if="data"` 分支内直接访问 `data.recent.bookmarks`，字段缺失时渲染抛 `TypeError`，Vue 中止该次渲染，DOM 停留在上一次成功状态（骨架屏），而 `loading` 早已置 false。
+
+> 这个假象同时暴露一个**真实的健壮性缺口**（记为观察项，本批未改）：`DashboardView.vue` 对 `StatsSummary` 的 `recent` / `vault` / `disk.byDirectory` 均无防御性访问，后端若因版本错配少返回字段，用户看到的是**永久骨架屏**，既没有错误态也没有提示，比直接报错更难排查。建议后续把 `data.recent.bookmarks` 一类访问改为 `data.recent?.bookmarks ?? []`，或在 `fetchSummary` 里做一次契约校验，缺失即转 `error` 态。
+
+### 21.5 改动清单
+
+| 文件 | 改动 |
+|---|---|
+| `jnclub-web/src/modules/bookmark/components/CollectionCard.vue` | 标签区去 `v-if` 始终占位；`.card-tags` 由 `flex-wrap: wrap` 改 `nowrap` + `min-height: 16px` + `overflow: hidden` + 右缘 `mask-image` 渐隐；`.card-tag` 补 `flex-shrink: 0` |
+| `jnclub-web/src/modules/bookmark/components/CollectionGrid.vue` | 引入 `useUiDensity`；`itemHeight: 220` → `() => CARD_HEIGHT + 16`，`CARD_HEIGHT` 按密度取 156.58 / 142.58 |
+| `jnclub-web/src/modules/bookmark/components/NoteGrid.vue` | `itemHeight: 220` → `202`（便签卡定高 185.58 + 行距 16） |
+| `jnclub-web/src/shared/components/ui/JStatCard.vue` | 新增 `valueSizeClass` computed 与 `.is-mid` / `.is-long` / `.is-xlong` 三档字号 |
+| `jnclub-web/src/assets/main.css` | `.app-density-compact` 补 `--layout-sider-width: 208px`、`--layout-folder-width: 192px` |
+
+构建验证：`cd jnclub-web && npm run build` → `✓ built in 6.20s`，exit 0。
+
+### 21.6 验收截图
+
+| 文件 | 内容 |
+|---|---|
+| `b12-01-stat-long-numbers-1440.png` | 概览统计区，注入 6/7/8 位数值后的降档表现 |
+| `b12-02-stat-grid-zoom.png` | 统计网格居中特写 |
+| `b12-03-grid-comfortable-1440.png` | 收藏网格舒适档（3 列、卡片定高） |
+| `b12-04-grid-compact-1440.png` | 收藏网格紧凑档（4 列、侧栏 208 / 目录栏 192，兼作紧凑模式整体验收） |
+| `b12-05-grid-bottom-1440.png` | 滚到底部（同时是 10 标签卡片区），剩余空白 16px、标签右缘渐隐 |
+| `b12-06-notes-grid-1440.png` | 便签网格（卡片定高 185.58） |
+| `b12-07-grid-multitag-1440.png` | 5 标签区，标签单行不换行 |
+| `b12-10-mobile-grid-390.png` | 移动端 390px 单列网格 |
+
+### 21.7 本批结论与遗留
+
+三项技术债全部清偿，且都做到了**可量化验收**：虚拟滚动的占位高度与内容高度精确一致（误差 0.2px 内），统计数值在 6~8 位区间零溢出，紧凑模式真正让出 32px 侧栏 + 28px 目录栏并换来一列卡片。
+
+遗留（均为观察项，非本批范围）：
+
+1. **`DashboardView` 对 summary 缺字段无防御**（21.4 假象二），失败表现为永久骨架屏。
+2. **`.dash-group-title` 的 `text-transform: uppercase` 对中文无效果**（承 17.8-3），实测增益 0px，作为 overline 声明式写法保留无害。
+3. **虚拟滚动仅经 mock 验证**（承 17.8-6）：真实数据量超过 80 条才进虚拟模式，线上真实收藏数达标后建议复测一次滚动手感。

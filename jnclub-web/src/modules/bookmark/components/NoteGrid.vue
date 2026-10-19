@@ -65,7 +65,14 @@ const rows = computed(() => {
   return result
 })
 const isVirtual = computed(() => props.notes.length > 80)
-const virtual = useVirtualList(rows, { itemHeight: 220, overscan: 2 })
+/**
+ * 便签卡是定高卡片 —— 实测两种密度下均为 185.58px（NoteCard 内部行数固定，
+ * 不像收藏卡那样随标签换行而变）。行高 = 卡片 185.58 + `.virtual-row`
+ * 的 margin-bottom 16 = 201.58，取 202 留 0.4px 余量。
+ * 原先写死 220 虚高 9%：100 条便签在 1440px 下排 34 行，
+ * wrapper 占位 7480px 而真实内容约 6854px，滚到底会多出约 600px 空白。
+ */
+const virtual = useVirtualList(rows, { itemHeight: 202, overscan: 2 })
 const virtualRows = computed(() => Array.isArray(virtual.list.value) ? virtual.list.value : [])
 const dragDisabled = computed(() => isVirtual.value)
 const { init: initSort, destroy: destroySort } = useDraggableSort(gridRef, (ids) => {
