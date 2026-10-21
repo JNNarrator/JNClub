@@ -3,10 +3,10 @@
  * 左栏可配置导航项的唯一定义：SideNav / NavEditorDrawer / MobileTabBar 共享
  * 可见性偏好 nav.hidden（隐藏列表）、顺序偏好 nav.order（全量顺序，可见在前/隐藏在后）
  */
-import { Bookmark, StickyNote, Cloud, KeyRound, Music, Trash2, Puzzle, LayoutDashboard } from 'lucide-vue-next'
+import { Bookmark, StickyNote, Cloud, KeyRound, Music, Trash2, Puzzle, LayoutDashboard, Wrench } from 'lucide-vue-next'
 
 /** 可配置导航项 key */
-export type NavKey = 'overview' | 'bookmarks' | 'notes' | 'files' | 'vault' | 'music' | 'recycle' | 'extension'
+export type NavKey = 'overview' | 'bookmarks' | 'notes' | 'files' | 'vault' | 'music' | 'devtools' | 'recycle' | 'extension'
 
 export interface NavDef {
   key: NavKey
@@ -25,12 +25,13 @@ export const NAV_META: Record<NavKey, Omit<NavDef, 'key'>> = {
   files: { icon: Cloud, label: '云盘', kind: 'module', target: '' },
   vault: { icon: KeyRound, label: '密码库', kind: 'module', target: '' },
   music: { icon: Music, label: '音乐', kind: 'route', target: '/music' },
+  devtools: { icon: Wrench, label: '开发者工具', kind: 'route', target: '/devtools' },
   recycle: { icon: Trash2, label: '回收站', kind: 'route', target: '/recycle' },
   extension: { icon: Puzzle, label: '下载中心', kind: 'route', target: '/extension' },
 }
 
 /** 默认全量顺序（兼容旧 nav.order 缺失项时补齐） */
-export const DEFAULT_ORDER: NavKey[] = ['overview', 'bookmarks', 'notes', 'files', 'vault', 'music', 'recycle', 'extension']
+export const DEFAULT_ORDER: NavKey[] = ['overview', 'bookmarks', 'notes', 'files', 'vault', 'music', 'devtools', 'recycle', 'extension']
 
 /** 移动端底部 TabBar 参与项（音乐/插件页移动端不显示） */
 export const MOBILE_KEYS: NavKey[] = ['overview', 'bookmarks', 'notes', 'files', 'vault', 'recycle']

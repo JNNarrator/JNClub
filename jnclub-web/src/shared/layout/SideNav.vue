@@ -51,6 +51,7 @@ const moduleLabel = computed(() => {
   if (n === 'recycle') return '回收站'
   if (n === 'music') return '音乐'
   if (n === 'extension') return '浏览器插件'
+  if (n === 'devtools') return '开发者工具'
   const m = props.activeModule
   return m === 'bookmarks' ? '收藏夹'
     : m === 'notes' ? '便签'

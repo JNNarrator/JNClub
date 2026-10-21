@@ -65,6 +65,12 @@ const router = createRouter({
       name: 'music',
       component: () => import('../views/Music.vue'),
     },
+    // 开发者工具（套用主壳 + 页内多标签，标签状态由 pinia + 用户偏好持久化）
+    {
+      path: '/devtools',
+      name: 'devtools',
+      component: () => import('../../modules/devtools/views/DevtoolsLayout.vue'),
+    },
   ],
 })
 
@@ -140,6 +146,7 @@ const TITLE_BY_NAME: Record<string, string> = {
   share: '分享 - JNClub',
   recycle: '回收站 - JNClub',
   music: '音乐 - JNClub',
+  devtools: '开发者工具 - JNClub',
   'note-create': '新建便签 - JNClub',
   'note-view': '便签 - JNClub',
   'sso-callback': '登录 - JNClub',
