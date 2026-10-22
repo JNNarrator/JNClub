@@ -426,7 +426,7 @@ defineExpose({ openCreate })
 <template>
   <div class="vault-view">
     <!-- 未设置主密钥：设置引导 -->
-    <div v-if="!configured && !skipped" class="master-guide glass-panel vault-panel">
+    <div v-if="!configured && !skipped" class="master-guide vault-panel">
       <div class="guide-head">
         <div class="guide-icon"><NIcon :component="ShieldAlert" size="22" /></div>
         <div>
@@ -467,7 +467,7 @@ defineExpose({ openCreate })
     </div>
 
     <!-- 已设置未解锁：锁定面板 -->
-    <div v-else-if="configured && !unlocked" class="master-lock glass-panel vault-panel">
+    <div v-else-if="configured && !unlocked" class="master-lock vault-panel">
       <div class="lock-icon"><NIcon :component="Lock" size="30" /></div>
       <div class="lock-title">密码库已锁定</div>
       <div class="lock-desc">输入主密钥解锁以查看密码条目</div>
@@ -658,10 +658,15 @@ defineExpose({ openCreate })
 </template>
 
 <style scoped>
-/* 仅补充内边距与圆角，玻璃材质本身走全局 .glass-panel */
+/* 2026-10：两个面板（master-guide / master-lock）移除 glass-panel 类，改 L1 实色。
+   它们是页面内的引导/锁定面板，命中反判据 N3（平铺面板），不满足 J1–J4 任何一条。
+   密码揭示气泡走的是 NPopover（main.css 的 L3 规则），因此仍为玻璃，未受影响。 */
 .vault-panel {
   padding: 28px 24px;
   border-radius: var(--radius-md);
+  background: var(--surface-1);
+  border: 1px solid var(--surface-border);
+  box-shadow: var(--shadow-1);
 }
 
 /* === 主密钥设置引导 === */
@@ -816,10 +821,11 @@ defineExpose({ openCreate })
   align-items: center;
   gap: 12px;
   padding: 12px 14px;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
+  /* L1 结构面：与 .collection-row / .note-row / .file-item 同档 */
+  background: var(--surface-1);
+  border: 1px solid var(--surface-border);
   border-radius: var(--radius-sm);
-  transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease), background var(--dur) var(--ease);
+  transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease), background var(--dur) var(--ease), transform var(--dur) var(--ease);
 }
 /* 与 .file-item / .recycle-item 的 hover 语言一致：边框转品牌色 + 浮起阴影。
    原先此处叠 inset 3px 左条，与 SideNav 表示「当前所在位置」的持久符号同形，

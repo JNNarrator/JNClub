@@ -97,11 +97,8 @@ const options: { key: ParticlesStyle; label: string; desc: string; preview: 'off
 </template>
 
 <style scoped>
-.particles-settings-drawer :deep(.n-drawer-body-content-wrapper) {
-  background: var(--glass-bg-trans);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-}
+/* 2026-10：删除 drawer body 的玻璃底与 blur —— .n-drawer 本身已是 L3 玻璃
+   （main.css 全局接管），再叠一层半透明属于重复叠加。 */
 
 .particles-settings-panel {
   display: flex;

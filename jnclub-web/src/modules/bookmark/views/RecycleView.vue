@@ -325,10 +325,9 @@ onMounted(() => { fetchItems(); fetchConfig() })
   gap: 12px;
   padding: 8px 14px;
   margin-bottom: 8px;
-  background: var(--glass-bg-trans);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid var(--glass-border);
+  /* 内嵌 L2 信息条：--hover-bg 底 + 中性描边（原为玻璃 + 白描边） */
+  background: var(--hover-bg);
+  border: 1px solid var(--surface-border);
   border-radius: var(--radius-sm);
 }
 .config-text {
@@ -431,15 +430,18 @@ onMounted(() => { fetchItems(); fetchConfig() })
   gap: 12px;
   /* 列表行统一规范：与 .collection-row / .note-row / .file-item / .vault-item 同档 */
   padding: 12px 14px;
-  background: var(--glass-bg-trans);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid var(--glass-border);
+  /* L1 结构面：与 .collection-row / .note-row / .file-item / .vault-item 同档 */
+  background: var(--surface-1);
+  border: 1px solid var(--surface-border);
   border-radius: var(--radius-sm);
-  transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+  transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease), transform var(--dur) var(--ease);
 }
-/* 补上浮起阴影，与 .file-item / .vault-item 的 hover 反馈对齐（原仅变边框色） */
-.recycle-item:hover { border-color: var(--brand-text); box-shadow: var(--shadow-card-hover); }
+/* hover 统一到 L2：中性描边加深 + 卡片阴影 + 抬升 1px（原为变粉边） */
+.recycle-item:hover {
+  transform: translateY(-1px);
+  border-color: var(--surface-border-strong);
+  box-shadow: var(--shadow-card-hover);
+}
 .item-main {
   flex: 1;
   min-width: 0;
@@ -487,9 +489,8 @@ onMounted(() => { fetchItems(); fetchConfig() })
 /* 永久删除：红色玻璃按钮 */
 .recycle-danger-btn {
   border-radius: var(--radius-pill) !important;
-  background: var(--glass-bg-trans) !important;
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
+  /* 按钮属内联控件（判据 N4）：控件面走 --bg-card，删 blur */
+  background: var(--bg-card) !important;
   border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent) !important;
   color: var(--danger-text) !important;
   font-weight: 500;

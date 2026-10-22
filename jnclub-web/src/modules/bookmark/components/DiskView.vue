@@ -622,10 +622,9 @@ const fileKindColor = (name: string) => FILE_KINDS.find(k => k.re.test(name))?.c
 
 .upload-progress-card {
   padding: 14px 16px;
-  background: var(--glass-bg-trans);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid var(--glass-border);
+  /* L1 结构面实色（判据 N3：平铺卡片，内容不从其下经过） */
+  background: var(--surface-1);
+  border: 1px solid var(--surface-border);
   border-radius: var(--radius-sm);
   margin-bottom: 18px;
   display: flex;
@@ -688,12 +687,18 @@ const fileKindColor = (name: string) => FILE_KINDS.find(k => k.re.test(name))?.c
   gap: 12px;
   /* 列表行统一规范：与 .collection-row / .note-row / .vault-item / .recycle-item 同档 */
   padding: 12px 14px;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
+  /* L1 结构面：与 .collection-row / .note-row 同档 */
+  background: var(--surface-1);
+  border: 1px solid var(--surface-border);
   border-radius: var(--radius-sm);
-  transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease), background var(--dur) var(--ease);
+  transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease), background var(--dur) var(--ease), transform var(--dur) var(--ease);
 }
-.file-item:hover { border-color: var(--brand-text); box-shadow: var(--shadow-card-hover); }
+/* hover 统一到 L2：中性描边加深 + 卡片阴影 + 抬升 1px（原为变粉边） */
+.file-item:hover {
+  transform: translateY(-1px);
+  border-color: var(--surface-border-strong);
+  box-shadow: var(--shadow-card-hover);
+}
 .file-item-selected {
   border-color: var(--brand-text);
   background: var(--brand-soft);
@@ -807,22 +812,8 @@ const fileKindColor = (name: string) => FILE_KINDS.find(k => k.re.test(name))?.c
   word-break: break-all;
 }
 
-/* 批量操作条 */
-.batch-bar {
-  position: sticky;
-  bottom: 0;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 14px;
-  padding: 10px 16px;
-  background: var(--glass-bg-trans);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-sm);
-  box-shadow: var(--glass-shadow);
-}
+/* 2026-10：删除死规则 .batch-bar —— 模板中零引用（批量条已统一到 JBatchBar 组件），
+   这条玻璃规则只是历史残留，还占着 2 次 backdrop-filter 的验收预算。 */
 .batch-info {
   flex: 1;
   font-size: var(--fs-md);

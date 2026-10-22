@@ -1053,10 +1053,9 @@ defineExpose({ hasUnsavedChanges })
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: var(--glass-bg-trans);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid var(--glass-border);
+  /* 编辑器舞台 = L1 结构面实色（判据 N1：页面壳） */
+  background: var(--surface-1);
+  border: 1px solid var(--surface-border);
   border-radius: var(--radius-md);
   overflow: hidden;
 }
@@ -1147,12 +1146,11 @@ defineExpose({ hasUnsavedChanges })
   max-height: 40vh;
   overflow: hidden;
   flex-shrink: 0;
-  border: 1px solid var(--glass-border);
+  /* L1 结构面实色（判据 N3：内嵌面板，内容不从其下经过） */
+  border: 1px solid var(--surface-border);
   border-radius: var(--radius-md);
-  background: var(--glass-bg-trans);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  box-shadow: var(--glass-shadow);
+  background: var(--surface-1);
+  box-shadow: var(--shadow-1);
 }
 .backlinks-panel:not(:has(.backlinks-body)) {
   width: auto;
@@ -1280,12 +1278,10 @@ defineExpose({ hasUnsavedChanges })
   font-weight: 600;
 }
 
-/* 导入/导出按钮（玻璃） */
+/* 导入/导出按钮：内联控件（判据 N4），控件面走 --bg-card，删 blur */
 .io-btn {
-  background: var(--glass-bg-trans) !important;
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid var(--glass-border) !important;
+  background: var(--bg-card) !important;
+  border: 1px solid var(--surface-border) !important;
   color: var(--text-2) !important;
 }
 .io-btn:hover {
@@ -1427,13 +1423,14 @@ defineExpose({ hasUnsavedChanges })
   font-size: var(--fs-md);
   font-weight: 600;
   color: var(--brand-text);
-  background: var(--glass-bg-trans);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
+  /* 重开按钮改实色（L2 + --shadow-2）：它只是 30×30 量级的小按钮，
+     不是「有内容从下方经过」的浮层，且改实色能给 backdrop-filter 预算留余量。
+     同一组件的 .outline-float 本体仍是 L3 玻璃（判据 J2：position: fixed + z-index）。 */
+  background: var(--surface-1);
   border: 1.5px solid var(--surface-border);
   border-radius: var(--radius-pill);
   cursor: grab;
-  box-shadow: var(--glass-shadow);
+  box-shadow: var(--shadow-2);
   transition: all var(--dur-fast) var(--ease);
   user-select: none;
   /* 同 .outline-float__head：让触摸手势交给拖拽逻辑而不是页面滚动 */
@@ -1581,12 +1578,11 @@ defineExpose({ hasUnsavedChanges })
   pointer-events: none;
   text-align: center;
   padding: 14px 24px;
-  background: var(--glass-bg-trans);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
+  /* L1 实色 + 中性虚线框（判据 N3） */
+  background: var(--surface-1);
   border: 1px dashed var(--surface-border);
   border-radius: var(--radius-sm);
-  box-shadow: var(--glass-shadow);
+  box-shadow: var(--shadow-1);
   animation: fade-in-up var(--dur-slow) var(--ease);
 }
 .guide-title {

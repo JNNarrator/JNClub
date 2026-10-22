@@ -138,11 +138,8 @@ onMounted(() => { initVisibleSort() })
 </template>
 
 <style scoped>
-.nav-editor-drawer :deep(.n-drawer-body-content-wrapper) {
-  background: var(--glass-bg-trans);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-}
+/* 2026-10：删除 drawer body 的玻璃底与 blur —— .n-drawer 本身已是 L3 玻璃
+   （main.css 全局接管），再叠一层半透明属于重复叠加。 */
 
 .nav-editor-panel {
   display: flex;
@@ -192,10 +189,9 @@ onMounted(() => { initVisibleSort() })
   align-items: center;
   gap: 10px;
   padding: 9px 12px;
-  background: var(--glass-bg-trans);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid var(--glass-border);
+  /* 抽屉内的行不是浮层 → 内嵌 L2：--hover-bg 底 + 强一档中性描边 */
+  background: var(--hover-bg);
+  border: 1px solid var(--surface-border-strong);
   border-radius: var(--radius-sm);
   transition: border-color var(--dur) var(--ease);
   cursor: default;
