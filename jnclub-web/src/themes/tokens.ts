@@ -25,9 +25,8 @@ export interface DesignTokens {
   pinkPeach: string
   pinkRose: string
   pinkAdzuki: string
-  pinkWhite: string
-  // 渐变
-  gradientTopBar: string
+  // 渐变（--gradient-top-bar 与 --glow-icon、--pink-white 已于 2026-10 随
+  // 「删卡片顶条」「图标盒换模块色」一并移除：它们都是零消费的死 token）
   gradientBtn: string
   gradientNavActive: string
   // 阴影
@@ -38,7 +37,6 @@ export interface DesignTokens {
   shadowCardHover: string
   shadowFab: string
   shadowFabHover: string
-  glowIcon: string
   // 状态色
   stateSuccess: string
   stateWarning: string
@@ -242,9 +240,7 @@ export const lightTokens: DesignTokens = {
   pinkPeach: '#FFB3C6',
   pinkRose: '#FF8FAB',
   pinkAdzuki: '#F472B6',
-  pinkWhite: '#FFF5F8',
   // 渐变
-  gradientTopBar: 'linear-gradient(90deg, #EC5B8E, #FFB3C6)',
   gradientBtn: 'linear-gradient(135deg, #EC5B8E, #FF8FAB)',
   gradientNavActive: 'linear-gradient(90deg, #FFE4EF 0%, transparent 100%)',
   // 阴影 — Apple 极轻
@@ -254,7 +250,6 @@ export const lightTokens: DesignTokens = {
   shadowCardHover: '0 4px 8px -2px rgba(0, 0, 0, 0.06), 0 2px 4px -2px rgba(0, 0, 0, 0.05)',
   shadowFab: '0 4px 12px -2px rgba(236, 91, 142, 0.15)',
   shadowFabHover: '0 8px 20px -4px rgba(236, 91, 142, 0.2)',
-  glowIcon: '0 0 0 4px rgba(236,91,142,0.06)',
   // 状态色（填充/图形档：进度条、diff 底色、图标描边。不用于承载文字）
   stateSuccess: '#7AC686',
   stateWarning: '#F3C470',
@@ -423,9 +418,7 @@ export const darkTokens: DesignTokens = {
   pinkPeach: '#5A3A45',
   pinkRose: '#FF8FAB',
   pinkAdzuki: '#F472B6',
-  pinkWhite: '#2D1F26',
   // 渐变（暗色）
-  gradientTopBar: 'linear-gradient(90deg, #FF8FAB, #F472B6)',
   gradientBtn: 'linear-gradient(135deg, #FF8FAB, #F472B6)',
   gradientNavActive: 'linear-gradient(90deg, rgba(255,143,171,0.12) 0%, transparent 100%)',
   // 阴影（暗色）
@@ -435,7 +428,6 @@ export const darkTokens: DesignTokens = {
   shadowCardHover: '0 4px 8px -2px rgba(0, 0, 0, 0.44)',
   shadowFab: '0 4px 12px -2px rgba(255, 143, 171, 0.20)',
   shadowFabHover: '0 8px 20px -4px rgba(255, 143, 171, 0.25)',
-  glowIcon: '0 0 0 4px rgba(255,143,171,0.06)',
   // 状态色（暗色侧填充档与文本档合并：深底上这组浅色同时满足两者的对比度，
   // 实测 --danger-text 6.70:1、--state-success 7.36:1、--state-error 5.30:1、--state-warning 9.29:1）
   stateSuccess: '#7AC686',
@@ -596,8 +588,6 @@ export function tokensToCSSVars(tokens: DesignTokens): Record<string, string> {
     '--pink-peach': tokens.pinkPeach,
     '--pink-rose': tokens.pinkRose,
     '--pink-adzuki': tokens.pinkAdzuki,
-    '--pink-white': tokens.pinkWhite,
-    '--gradient-top-bar': tokens.gradientTopBar,
     '--gradient-btn': tokens.gradientBtn,
     '--gradient-nav-active': tokens.gradientNavActive,
     '--shadow-1': tokens.shadow1,
@@ -606,7 +596,6 @@ export function tokensToCSSVars(tokens: DesignTokens): Record<string, string> {
     '--shadow-card-hover': tokens.shadowCardHover,
     '--shadow-fab': tokens.shadowFab,
     '--shadow-fab-hover': tokens.shadowFabHover,
-    '--glow-icon': tokens.glowIcon,
     '--state-success': tokens.stateSuccess,
     '--state-warning': tokens.stateWarning,
     '--state-error': tokens.stateError,

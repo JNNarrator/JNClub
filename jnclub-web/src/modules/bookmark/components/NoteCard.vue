@@ -182,7 +182,7 @@ const onRootClick = () => {
   /* 卡片底/边框与 .bookmark-card 统一：同为 --bg-card + --border。
      原先用 --pink-white + 粉边框做「便签更暖」的区分，但模块色 --module-note
      实为 #2F9DF7（蓝），粉色属于品牌粉的历史遗留；且同屏两种卡片底色会让
-     网格读起来像两种控件。图标盒的 --pink-cherry 保留，模块识别交给图标。 */
+     网格读起来像两种控件。2026-10 起图标盒也改模块色 soft 底，模块识别交给图标。 */
   /* L1 结构面：与 .bookmark-card 同档（--surface-1 + --surface-border） */
   background: var(--surface-1);
   border: 1px solid var(--surface-border);

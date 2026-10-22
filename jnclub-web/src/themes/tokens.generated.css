@@ -31,8 +31,6 @@
   --pink-peach: #FFB3C6;
   --pink-rose: #FF8FAB;
   --pink-adzuki: #F472B6;
-  --pink-white: #FFF5F8;
-  --gradient-top-bar: linear-gradient(90deg, #EC5B8E, #FFB3C6);
   --gradient-btn: linear-gradient(135deg, #EC5B8E, #FF8FAB);
   --gradient-nav-active: linear-gradient(90deg, #FFE4EF 0%, transparent 100%);
   --shadow-1: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
@@ -41,7 +39,6 @@
   --shadow-card-hover: 0 4px 8px -2px rgba(0, 0, 0, 0.06), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
   --shadow-fab: 0 4px 12px -2px rgba(236, 91, 142, 0.15);
   --shadow-fab-hover: 0 8px 20px -4px rgba(236, 91, 142, 0.2);
-  --glow-icon: 0 0 0 4px rgba(236,91,142,0.06);
   --state-success: #7AC686;
   --state-warning: #F3C470;
   --state-error: #E87878;
@@ -194,8 +191,6 @@
     --pink-peach: #5A3A45;
     --pink-rose: #FF8FAB;
     --pink-adzuki: #F472B6;
-    --pink-white: #2D1F26;
-    --gradient-top-bar: linear-gradient(90deg, #FF8FAB, #F472B6);
     --gradient-btn: linear-gradient(135deg, #FF8FAB, #F472B6);
     --gradient-nav-active: linear-gradient(90deg, rgba(255,143,171,0.12) 0%, transparent 100%);
     --shadow-1: 0 1px 2px 0 rgba(0, 0, 0, 0.30);
@@ -204,7 +199,6 @@
     --shadow-card-hover: 0 4px 8px -2px rgba(0, 0, 0, 0.44);
     --shadow-fab: 0 4px 12px -2px rgba(255, 143, 171, 0.20);
     --shadow-fab-hover: 0 8px 20px -4px rgba(255, 143, 171, 0.25);
-    --glow-icon: 0 0 0 4px rgba(255,143,171,0.06);
     --state-success: #7AC686;
     --state-warning: #F3C470;
     --state-error: #E87878;
@@ -357,8 +351,6 @@
   --pink-peach: #FFB3C6;
   --pink-rose: #FF8FAB;
   --pink-adzuki: #F472B6;
-  --pink-white: #FFF5F8;
-  --gradient-top-bar: linear-gradient(90deg, #EC5B8E, #FFB3C6);
   --gradient-btn: linear-gradient(135deg, #EC5B8E, #FF8FAB);
   --gradient-nav-active: linear-gradient(90deg, #FFE4EF 0%, transparent 100%);
   --shadow-1: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
@@ -367,7 +359,6 @@
   --shadow-card-hover: 0 4px 8px -2px rgba(0, 0, 0, 0.06), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
   --shadow-fab: 0 4px 12px -2px rgba(236, 91, 142, 0.15);
   --shadow-fab-hover: 0 8px 20px -4px rgba(236, 91, 142, 0.2);
-  --glow-icon: 0 0 0 4px rgba(236,91,142,0.06);
   --state-success: #7AC686;
   --state-warning: #F3C470;
   --state-error: #E87878;
@@ -519,8 +510,6 @@
   --pink-peach: #5A3A45;
   --pink-rose: #FF8FAB;
   --pink-adzuki: #F472B6;
-  --pink-white: #2D1F26;
-  --gradient-top-bar: linear-gradient(90deg, #FF8FAB, #F472B6);
   --gradient-btn: linear-gradient(135deg, #FF8FAB, #F472B6);
   --gradient-nav-active: linear-gradient(90deg, rgba(255,143,171,0.12) 0%, transparent 100%);
   --shadow-1: 0 1px 2px 0 rgba(0, 0, 0, 0.30);
@@ -529,7 +518,6 @@
   --shadow-card-hover: 0 4px 8px -2px rgba(0, 0, 0, 0.44);
   --shadow-fab: 0 4px 12px -2px rgba(255, 143, 171, 0.20);
   --shadow-fab-hover: 0 8px 20px -4px rgba(255, 143, 171, 0.25);
-  --glow-icon: 0 0 0 4px rgba(255,143,171,0.06);
   --state-success: #7AC686;
   --state-warning: #F3C470;
   --state-error: #E87878;

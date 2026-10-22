@@ -6,6 +6,7 @@
   "scripts": {
     "gen:theme": "node scripts/gen-theme-css.mjs",
     "check:template-root": "node scripts/check-template-root.mjs",
+    "verify:visual": "node scripts/verify-visual-tokens.mjs --strict",
     "predev": "node scripts/gen-theme-css.mjs && node scripts/check-template-root.mjs",
     "dev": "vite",
     "prebuild": "node scripts/gen-theme-css.mjs && node scripts/check-template-root.mjs",
