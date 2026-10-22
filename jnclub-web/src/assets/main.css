@@ -144,14 +144,6 @@ html, body {
   border-radius: var(--radius-sm);
 }
 
-/* ---- 卡片顶条 ---- */
-.card-top-bar {
-  height: 3px;
-  width: 100%;
-  background: var(--gradient-top-bar);
-  border-radius: var(--radius-md) var(--radius-md) 0 0;
-}
-
 /* ---- 目录 chip ----
    几何档位与 .j-filter-chip（标签筛选）完全一致，但色相刻意分家：
    本控件是「目录导航」（单选、决定数据范围），走中性档；标签筛选走品牌粉档。
@@ -217,19 +209,9 @@ html, body {
 .petal-3 { bottom: 22%; left: 22%; animation-delay: 2.1s; }
 .petal-4 { bottom: 18%; right: 24%; animation-delay: 0.6s; background: var(--pink-adzuki); }
 
-/* ---- 侧边栏底边渐变 ---- */
-.sidebar-glow::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 140px;
-  background: radial-gradient(ellipse at bottom, var(--pink-cherry) 0%, transparent 72%);
-  opacity: 0.55;
-  pointer-events: none;
-  z-index: 0;
-}
+/* 2026-10 视觉体系重塑：.sidebar-glow::after（侧栏底部 140px 粉色径向底光）已删除。
+   它让侧栏底部整片泛粉，与「品牌粉只作指示器」的定位冲突，且 P1-1 要求侧栏改 L1 实色。
+   模板中的 `sidebar-glow` 类已从 SideNav.vue 一并移除。 */
 
 /* ---- 毛玻璃顶栏 ---- */
 .glass-header {
@@ -242,17 +224,11 @@ html, body {
    玻璃拟态体系（从密码库弹框提炼，全项目统一）
    ================================================================ */
 
-/* 玻璃卡片基座：半透明 + 毛玻璃 + 细描边 + 内高光 + 柔和投影 */
-.glass-card {
-  position: relative;
-  background: var(--glass-bg-trans) !important;
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid var(--glass-border);
-  box-shadow: var(--glass-shadow);
-}
+/* 玻璃卡片基座 .glass-card 已于 2026-10 删除：唯一消费者 JErrorState 改为 L1 实色
+   （--surface-1 + --surface-border）。新代码请直接用表面层级 token，不要再造玻璃工具类。 */
 
-/* 弹框级玻璃：更强投影 + 品牌光晕 */
+/* 弹框级玻璃：更强投影 + 品牌光晕（仅 3 个真浮层消费：
+   NoteEditor .template-menu / ReadingModal .reader-settings-panel / PasswordEditorModal .pwd-modal） */
 .glass-card--modal {
   background:
     radial-gradient(1200px 500px at 10% -10%, var(--glass-glow-top), transparent 60%),
@@ -264,7 +240,10 @@ html, body {
   box-shadow: var(--glass-shadow);
 }
 
-/* 玻璃芯片（图标底盒 / 徽章） */
+/* 玻璃芯片（图标底盒 / 徽章）
+   ⚠ 与设计文档的偏差记录：DESIGN §4.3 判定本类「模板零引用」拟删除，
+   但实测 PasswordEditorModal.vue:101 / :154 仍在使用（.lock-chip / .generator），
+   故按「以代码为准」保留。这两个消费点都在弹窗内（L3 合法区域），不违反玻璃准入判据。 */
 .glass-chip {
   display: inline-flex;
   align-items: center;
@@ -310,11 +289,11 @@ html, body {
 .glass-primary-btn:hover { filter: brightness(1.12); transform: translateY(-1px); }
 .glass-primary-btn:active { transform: scale(0.97) translateY(0); }
 
-/* 玻璃抽屉 / 面板 */
+/* 玻璃抽屉 / 面板 —— 2026-10 起**移除 blur**：VaultView 的两个消费点
+   （.master-guide / .master-lock）已改 L1 实色，此规则只保留填充/描边/阴影，
+   防止未来误用时再引入 L1 玻璃（违反 G3/G5）。 */
 .glass-panel {
   background: var(--panel-bg) !important;
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
   border: 1px solid var(--panel-border);
   box-shadow: var(--panel-shadow);
 }
@@ -495,20 +474,13 @@ html.custom-cursor-active.dragging * {
   cursor: grabbing !important;
 }
 
-/* ---- 大尺寸滚动/拖拽容器：跨平台一致，用半透明渐变 + 边框 + 阴影模拟玻璃 ----
-   大面积 backdrop-filter 在 Windows 合成器开销高，统一改为渐变玻璃，两平台体验一致 */
-.side-nav,
-.folder-column,
-.collection-column {
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-  will-change: auto !important;
-  contain: none !important;
-  background:
-    radial-gradient(1200px 500px at 10% -10%, var(--glass-glow-top), transparent 60%),
-    radial-gradient(900px 400px at 110% 120%, var(--glass-glow-bottom), transparent 60%),
-    var(--glass-bg-trans) !important;
-}
+/* ---- 大尺寸滚动/拖拽容器：2026-10 起已全部改实色 ----
+   历史：这里曾用「双径向渐变 + --glass-bg-trans + backdrop-filter: none」模拟玻璃，
+   以规避 Windows 合成器在大面积 backdrop-filter 上的开销。改造后 .side-nav /
+   .folder-column / .collection-column 均为 L1 实色（--surface-1 + --surface-border），
+   该补丁随之整条删除 —— 连同它的 background: … !important 一起。
+   ⚠ 不要再在此处恢复任何 `background: … !important`：那会压掉组件 scoped 里的实色改动，
+   且不报错（改了没反应），是 DESIGN §11 坑 1 记录过的静默失效。 */
 
 /* ---- 长列表渲染优化：让离屏条目跳过布局/绘制（渐进增强） ---- */
 .grid-item-wrap,

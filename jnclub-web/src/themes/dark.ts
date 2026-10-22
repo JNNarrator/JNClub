@@ -21,7 +21,8 @@ const darkThemeOverrides: GlobalThemeOverrides = {
     errorColor: t.stateError,
     // —— 底色 ——
     bodyColor: t.bgPage,
-    cardColor: t.bgCard,
+    // cardColor 归位到 L1（--surface-1），与 light.ts 对称；值同为 #26262A，零视觉变化
+    cardColor: t.surface1,
     modalColor: t.bgCard,
     popoverColor: t.bgCard,
     // —— 文字 ——
@@ -68,7 +69,8 @@ const darkThemeOverrides: GlobalThemeOverrides = {
   },
   Layout: {
     color: t.bgPage,
-    siderColor: t.bgCard,
+    // 侧栏改 L1 实色，与 SideNav.vue 的 --surface-1 同源（见 light.ts）
+    siderColor: t.surface1,
     headerColor: t.bgCard,
   },
   Breadcrumb: {
@@ -86,6 +88,9 @@ const darkThemeOverrides: GlobalThemeOverrides = {
   },
   Card: {
     borderRadius: t.radiusMd,
+    // 显式化，与 light.ts 对称
+    color: t.surface1,
+    borderColor: t.surfaceBorder,
   },
   Tooltip: {
     borderRadius: t.radiusSm,

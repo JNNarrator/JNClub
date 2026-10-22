@@ -53,11 +53,30 @@ export interface DesignTokens {
   dangerText: string
   warningText: string
   successText: string
+  // 表面层级（2026-10 视觉体系重塑）
+  /** L1 结构面填充（实色，alpha=1）。与 --bg-card 分离：结构面走本项，控件面继续走 --bg-card */
+  surface1: string
+  /** L1 结构面 1px 中性描边（亮色必须 ≥1.2:1，否则白底白线隐形） */
+  surfaceBorder: string
+  /** L2 / hover / 内嵌块描边（比 surfaceBorder 重一档） */
+  surfaceBorderStrong: string
+  /** L0 全站唯一品牌光晕（≤6%，仅 MainLayout .app-content 一处消费） */
+  surfaceGlow: string
   // 模块色（概览趋势/统计/徽标）
   moduleBookmark: string
   moduleNote: string
   moduleFile: string
   moduleVault: string
+  // 模块图标色（压深档：承担「可访问描边色」职责，基色仅用于推导 soft 底色）
+  moduleBookmarkIcon: string
+  moduleNoteIcon: string
+  moduleFileIcon: string
+  moduleVaultIcon: string
+  // 图表序列色（禁止直接用 --module-* 或 --brand：前者语义污染，后者在 #F5F5F7 上仅 2.99:1）
+  chartSeries1: string
+  chartSeries2: string
+  chartSeries3: string
+  chartSeries4: string
   // 文件类型图标色
   fileTypeImage: string
   fileTypeDoc: string
@@ -211,6 +230,13 @@ export const lightTokens: DesignTokens = {
   border: '#D1D1D6',
   split: '#B8B8BD',
   hoverBg: '#F2F2F7',
+  // 表面层级：亮色 L1 = 纯白实色；描边 #D8D8DE（vs #F5F5F7 = 1.30:1 / vs #FFF = 1.42:1，
+  // 均 ≥1.2:1）。原 --glass-border 的 rgba(255,255,255,.6) 是「白底白描边」= 隐形，
+  // 这正是 PRD 11 章判定「糊」的直接技术根因。
+  surface1: '#FFFFFF',
+  surfaceBorder: '#D8D8DE',
+  surfaceBorderStrong: '#C7C7CC',
+  surfaceGlow: 'rgba(236, 91, 142, 0.06)',
   // 粉色阶
   pinkCherry: '#FFE4EF',
   pinkPeach: '#FFB3C6',
@@ -250,6 +276,20 @@ export const lightTokens: DesignTokens = {
   moduleNote: '#2F9DF7',
   moduleFile: '#0FBF8C',
   moduleVault: '#F0A13A',
+  // 图标压深档：L* 落在 46.1–50.9（视觉重量齐平），vs soft 底最低 4.13:1，
+  // 全部 ≥ WCAG SC 1.4.11 的 3:1。基色保留不动，只用于 color-mix 推导 soft 底色。
+  moduleBookmarkIcon: '#7C5CFF', // vs #FFF 4.35 / vs soft#EFEBFF 3.72
+  moduleNoteIcon: '#0A6FC2', // vs #FFF 5.17 / vs soft#E6F3FE 4.58
+  moduleFileIcon: '#0D8261', // vs #FFF 4.79 / vs soft#E2F7F1 4.29
+  moduleVaultIcon: '#A76611', // vs #FFF 4.61 / vs soft#FDF4E7 4.23
+  // 图表色：首序列用品牌粉压深档 #C9256A（vs #FFF 5.31），不用 #EC5B8E（vs #F5F5F7 仅 2.99）
+  chartSeries1: '#C9256A',
+  // 2–4 用 var() 别名而非复制 hex：让「图表色 = 图标色」由引用关系保证，不会漂移。
+  // tokensToCSSVars() 只做字符串透传，同一 :root 块内可正常解析。
+  // 未来若要解耦图表配色，把这三行换成 hex 即可，无需改任何组件。
+  chartSeries2: 'var(--module-note-icon)',
+  chartSeries3: 'var(--module-file-icon)',
+  chartSeries4: 'var(--module-vault-icon)',
   fileTypeImage: '#7EB8E8',
   fileTypeDoc: '#F472B6',
   fileTypeArchive: '#F3C470',
@@ -257,7 +297,7 @@ export const lightTokens: DesignTokens = {
   // 玻璃拟态（亮色：浅粉玻璃）
   glassBgSolid: '#FFFFFF',
   glassBgTrans: 'rgba(255, 255, 255, 0.72)',
-  glassBorder: 'rgba(255, 255, 255, 0.6)',
+  glassBorder: 'rgba(0, 0, 0, 0.08)',
   glassGlowTop: 'rgba(236, 91, 142, 0.16)',
   glassGlowBottom: 'rgba(255, 143, 171, 0.14)',
   glassShadow: '0 24px 64px -12px rgba(236, 91, 142, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
@@ -372,6 +412,12 @@ export const darkTokens: DesignTokens = {
   border: '#45454A',
   split: '#56565C',
   hoverBg: '#323238',
+  // 表面层级：暗色 L1 = #26262A（与 --bg-card 同值但语义独立）。
+  // ΔL*(#000 → #26262A) = 15.30（PRD 原文「16.6」计算有误），故判据按 O2 定为 ≥15。
+  surface1: '#26262A',
+  surfaceBorder: '#3F3F46', // vs #26262A = 1.44:1 / vs #000 = 2.01:1
+  surfaceBorderStrong: '#4A4A52', // vs #26262A = 1.72:1 / vs #000 = 2.39:1
+  surfaceGlow: 'rgba(255, 143, 171, 0.06)',
   // 粉色阶（暗色）
   pinkCherry: '#3D2A30',
   pinkPeach: '#5A3A45',
@@ -404,10 +450,21 @@ export const darkTokens: DesignTokens = {
   dangerText: '#FF8A97',
   warningText: '#F0A13A',
   successText: '#37C978',
-  moduleBookmark: '#8B7CFF',
-  moduleNote: '#5AA9F7',
-  moduleFile: '#2FCFA3',
-  moduleVault: '#F0A13A',
+  // 暗色基色按 §3.3 降饱和到对比度 [4.5, 6.5] 区间；图标色与基色同值
+  // （暗色 soft 底用 18% 混合，实测对比 3.72–4.63，均 ≥3:1）
+  moduleBookmark: '#8F81F8', // vs #26262A 4.78（原 #8B7CFF 4.61）
+  moduleNote: '#5AA9F7', // 6.07，不动
+  moduleFile: '#42BD9A', // 6.44（原 #2FCFA3 7.59，过亮）
+  moduleVault: '#E09E48', // 6.57（原 #F0A13A 7.03，过亮）
+  moduleBookmarkIcon: '#8F81F8',
+  moduleNoteIcon: '#5AA9F7',
+  moduleFileIcon: '#42BD9A',
+  moduleVaultIcon: '#E09E48',
+  // 图表色：首序列 = 品牌粉亮档（vs #26262A 7.01）
+  chartSeries1: '#FF8FAB',
+  chartSeries2: 'var(--module-note-icon)',
+  chartSeries3: 'var(--module-file-icon)',
+  chartSeries4: 'var(--module-vault-icon)',
   fileTypeImage: '#7EB8E8',
   fileTypeDoc: '#F472B6',
   fileTypeArchive: '#F3C470',
@@ -530,6 +587,11 @@ export function tokensToCSSVars(tokens: DesignTokens): Record<string, string> {
     '--border': tokens.border,
     '--split': tokens.split,
     '--hover-bg': tokens.hoverBg,
+    // 表面层级（2026-10）：结构面 / 描边 / 光晕
+    '--surface-1': tokens.surface1,
+    '--surface-border': tokens.surfaceBorder,
+    '--surface-border-strong': tokens.surfaceBorderStrong,
+    '--surface-glow': tokens.surfaceGlow,
     '--pink-cherry': tokens.pinkCherry,
     '--pink-peach': tokens.pinkPeach,
     '--pink-rose': tokens.pinkRose,
@@ -561,6 +623,15 @@ export function tokensToCSSVars(tokens: DesignTokens): Record<string, string> {
     '--module-note': tokens.moduleNote,
     '--module-file': tokens.moduleFile,
     '--module-vault': tokens.moduleVault,
+    // 模块图标色（压深档）+ 图表序列色（2–4 为 var() 别名，见 tokens.ts 注释）
+    '--module-bookmark-icon': tokens.moduleBookmarkIcon,
+    '--module-note-icon': tokens.moduleNoteIcon,
+    '--module-file-icon': tokens.moduleFileIcon,
+    '--module-vault-icon': tokens.moduleVaultIcon,
+    '--chart-series-1': tokens.chartSeries1,
+    '--chart-series-2': tokens.chartSeries2,
+    '--chart-series-3': tokens.chartSeries3,
+    '--chart-series-4': tokens.chartSeries4,
     '--file-type-image': tokens.fileTypeImage,
     '--file-type-doc': tokens.fileTypeDoc,
     '--file-type-archive': tokens.fileTypeArchive,

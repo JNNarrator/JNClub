@@ -27,7 +27,10 @@ const lightThemeOverrides: GlobalThemeOverrides = {
     errorColor: t.stateError,
     // —— 底色 ——
     bodyColor: t.bgPage,
-    cardColor: t.bgCard,
+    // cardColor 归位到 L1（--surface-1）：值当前与 --bg-card 相同（#FFF），零视觉变化，
+    // 但保证未来 --surface-1 独立演进时 naive 卡片跟随。
+    // 注意：结构面用 --surface-1，控件面（chip 底 / 下拉项 / sortable-fallback）继续用 --bg-card。
+    cardColor: t.surface1,
     modalColor: t.bgCard,
     popoverColor: t.bgCard,
     // —— 文字（naive 默认 rgb(31,34,37)/rgb(51,54,57)/rgb(118,124,130) 与 token 不一致）——
@@ -77,7 +80,8 @@ const lightThemeOverrides: GlobalThemeOverrides = {
   },
   Layout: {
     color: t.bgPage,
-    siderColor: t.bgCard,
+    // 侧栏改 L1 实色（P1-1）：naive sider 底色必须与 SideNav.vue 的 --surface-1 同源
+    siderColor: t.surface1,
     headerColor: t.bgCard,
   },
   Breadcrumb: {
@@ -86,7 +90,10 @@ const lightThemeOverrides: GlobalThemeOverrides = {
     itemTextColorPressed: t.text1,
     fontWeightActive: '600',
   },
-  // 弹层：颜色与阴影已由 common 覆盖，这里只补 common 没有的几何
+  // 弹层：颜色与阴影已由 common 覆盖，这里只补 common 没有的几何。
+  // 注：Dialog.color / Drawer.color / Popover.color / Message.color 刻意**不覆盖** ——
+  // main.css 的 L3 规则已用 !important 全局接管弹层背景（--glass-bg-trans / --panel-bg），
+  // 再加一层会形成「两处都改才生效」的隐性耦合。
   Dialog: {
     borderRadius: t.radiusLg,
     iconColor: t.brand,
@@ -97,6 +104,10 @@ const lightThemeOverrides: GlobalThemeOverrides = {
   },
   Card: {
     borderRadius: t.radiusMd,
+    // 显式化（防 naive 升级漂移）：裸 NCard 也拿到 L1 实色 + 中性描边。
+    // 弹窗内的 .n-modal .n-card 被 main.css 的 L3 规则强制透明，不受影响。
+    color: t.surface1,
+    borderColor: t.surfaceBorder,
   },
   Tooltip: {
     borderRadius: t.radiusSm,
