@@ -65,10 +65,11 @@ withDefaults(
 .j-inline-empty.pad-md { padding: var(--empty-pad) 16px; }
 .j-inline-empty.pad-none { padding: 0; }
 .j-inline-empty.is-bordered {
-  border: 1px dashed var(--glass-border);
+  /* 内嵌 L2 块：中性虚线框 + --hover-bg 底（原为 --glass-border 白描边 + 粉 chip 底） */
+  border: 1px dashed var(--surface-border);
   border-radius: var(--radius-sm);
-  /* 虚线框常用于图表/列表的留白区，垫一层 chip 底色让「空」有体积感 */
-  background: var(--glass-chip-bg);
+  /* 虚线框常用于图表/列表的留白区，垫一层中性底色让「空」有体积感 */
+  background: var(--hover-bg);
 }
 .j-inline-empty-msg {
   margin: 0;

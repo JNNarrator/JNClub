@@ -32,9 +32,10 @@ withDefaults(defineProps<{
   flex-direction: column;
   gap: 10px;
   padding: 16px;
-  border: 1px solid var(--border);
+  /* 骨架容器 = L1 结构面实色（原为玻璃 + --border 控件描边，语义错位） */
+  border: 1px solid var(--surface-border);
   border-radius: var(--radius-md);
-  background: var(--glass-bg-trans);
+  background: var(--surface-1);
 }
 .j-skeleton-line {
   height: 12px;

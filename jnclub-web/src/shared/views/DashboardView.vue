@@ -344,7 +344,7 @@ const openFile = (f: { id: number }) => {
       <template v-else-if="data">
         <!-- 问候与日期 -->
         <div v-if="visible('greet')" class="dash-section" :style="{ order: orderOf('greet') }">
-          <div class="greet-card glass-card--modal">
+          <div class="greet-card">
             <div class="greet-main">
               <span class="greet-emoji">{{ greeting === '夜深了' ? '🌙' : '👋' }}</span>
               <div class="greet-text">
@@ -652,12 +652,12 @@ const openFile = (f: { id: number }) => {
 }
 .panel {
   padding: 20px;
-  background: var(--glass-bg-trans);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid var(--glass-chip-border);
+  /* L1 结构面：实色 + 中性描边 + 轻阴影。
+     原为玻璃 + 粉色 1px 边框（--glass-chip-border）+ 双重阴影，命中反判据 N3（平铺面板）。 */
+  background: var(--surface-1);
+  border: 1px solid var(--surface-border);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-1), var(--glass-shadow);
+  box-shadow: var(--shadow-1);
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -769,8 +769,9 @@ const openFile = (f: { id: number }) => {
 .quick-bar {
   display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
   padding: 12px 14px;
-  background: var(--glass-bg-trans);
-  border: 1px dashed var(--glass-border);
+  /* 内嵌 L2 块：--hover-bg 底 + 中性虚线框（原为玻璃 + 白描边虚线） */
+  background: var(--hover-bg);
+  border: 1px dashed var(--surface-border);
   border-radius: var(--radius-md);
 }
 .quick-btn { border-radius: var(--radius-pill); }
@@ -962,9 +963,13 @@ const openFile = (f: { id: number }) => {
      仅内边距相差 2px 属于无意义的档位漂移（P1-9）。 */
   padding: 20px;
   border-radius: var(--radius-md);
-  background: linear-gradient(120deg, var(--brand-soft), transparent 60%), var(--glass-bg-trans);
-  border: 1px solid var(--glass-chip-border);
-  box-shadow: var(--shadow-1), var(--glass-shadow);
+  /* 2026-10：移除模板上的 glass-card--modal 类（R6）。该类提供 background /
+     backdrop-filter / border / box-shadow 四件事，原先 scoped 只覆盖了前三项、
+     **没覆盖 backdrop-filter**，所以 blur 是真在生效的。此处必须把 border 与
+     box-shadow 显式补回，否则删类后卡片会掉边框和阴影。 */
+  background: var(--surface-1);
+  border: 1px solid var(--surface-border);
+  box-shadow: var(--shadow-1);
   flex-wrap: wrap;
 }
 .greet-main {

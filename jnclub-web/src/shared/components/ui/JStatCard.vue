@@ -62,20 +62,22 @@ const emit = defineEmits<{
   gap: 14px;
   min-height: 96px;
   padding: 16px 18px;
-  background: var(--glass-bg-trans);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid var(--glass-chip-border);
+  /* L1 结构面：实色 + 中性描边 + 轻阴影（命中反判据 N3「平铺卡片」）。
+     原为玻璃 + 粉色描边 + 双重阴影。 */
+  background: var(--surface-1);
+  border: 1px solid var(--surface-border);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-1), var(--glass-shadow);
+  box-shadow: var(--shadow-1);
   cursor: pointer;
   transition: border-color var(--dur) var(--ease), transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
   text-align: left;
   font-family: inherit;
 }
+/* hover 统一到 L2 语言：描边加深一档 + 卡片阴影 + 抬升 1px。
+   2026-10 起不再变粉（粉边框配额让位给「激活/选中」态）。 */
 .j-stat-card:hover {
-  border-color: var(--brand-text);
-  box-shadow: var(--shadow-2), var(--glass-shadow);
+  border-color: var(--surface-border-strong);
+  box-shadow: var(--shadow-card-hover);
   transform: translateY(-1px);
 }
 .j-stat-card.j-stat-warn {

@@ -60,14 +60,14 @@ withDefaults(defineProps<{
      （实测 390px 下内容可用宽仅 324px）。走变量后值仍来自组件 API
      （--layout-panel-padding 与紧凑模式的 14px 16px 都能透传），是否覆盖交还给 CSS 层叠。 */
   padding: var(--page-panel-padding, var(--layout-panel-padding));
-  background:
-    radial-gradient(1200px 500px at 10% -10%, var(--glass-glow-top), transparent 60%),
-    var(--glass-bg-trans);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid var(--glass-border);
+  /* L1 结构面：实色填充 + 1px 中性描边 + 轻阴影。
+     2026-10 起不再用玻璃（原 --glass-bg-trans + backdrop-filter + 粉色径向光晕 + --glass-shadow）。
+     判据 N1（页面壳）+ N2（内容在内部滚动）双重命中，必须实色。
+     --surface-border（亮 #D8D8DE）vs --bg-page = 1.30:1，承担 L0/L1 的层级辨识载荷。 */
+  background: var(--surface-1);
+  border: 1px solid var(--surface-border);
   border-radius: var(--radius-md);
-  box-shadow: var(--glass-shadow);
+  box-shadow: var(--shadow-1);
 }
 
 @media (max-width: 767px) {

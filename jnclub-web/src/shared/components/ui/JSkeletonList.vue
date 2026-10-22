@@ -33,9 +33,10 @@ withDefaults(defineProps<{
   align-items: center;
   gap: 12px;
   padding: 12px 14px;
-  border: 1px solid var(--border);
+  /* 骨架行 = L1 结构面实色，与 JSkeletonGrid 同档 */
+  border: 1px solid var(--surface-border);
   border-radius: var(--radius-md);
-  background: var(--glass-bg-trans);
+  background: var(--surface-1);
 }
 .j-skeleton-icon {
   width: 36px;

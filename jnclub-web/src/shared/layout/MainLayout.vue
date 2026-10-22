@@ -97,9 +97,12 @@ onMounted(() => { prefs.load() })
 .app-content {
   height: 100vh;
   overflow: auto;
+  /* L0 页面底：实色 --bg-page + **全站唯一一层** 品牌光晕（--surface-glow，6%）。
+     原先是两层 16%/14% 的粉径向渐变（--glass-glow-top/bottom），
+     叠出来整片泛粉、且与「品牌粉只作指示器」的定位冲突（P0-2）。
+     光晕只允许这一处来源，组件内不要再各自加 radial-gradient。 */
   background:
-    radial-gradient(1200px 500px at 10% -10%, var(--glass-glow-top), transparent 60%),
-    radial-gradient(900px 400px at 110% 120%, var(--glass-glow-bottom), transparent 60%),
+    radial-gradient(1200px 500px at 10% -10%, var(--surface-glow), transparent 60%),
     var(--bg-page);
 }
 

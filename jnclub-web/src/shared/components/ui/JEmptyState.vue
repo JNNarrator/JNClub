@@ -134,19 +134,17 @@ const resolvedIcon = computed(() => (
 .empty-state-card {
   position: relative;
   overflow: hidden;
-  background:
-    radial-gradient(circle at 50% 30%, var(--glass-glow-top), transparent 65%),
-    linear-gradient(180deg, var(--glass-chip-bg) 0%, var(--glass-bg-trans) 40%);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid var(--glass-border);
+  /* L1 结构面：实色 + 中性描边 + 轻阴影。
+     2026-10 起删除径向粉光（P2-1）与 blur —— 空态是「平铺卡片」，命中反判据 N3。 */
+  background: var(--surface-1);
+  border: 1px solid var(--surface-border);
   border-radius: var(--radius-lg);
   padding: 64px 20px 56px;
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
-  box-shadow: var(--glass-shadow);
+  box-shadow: var(--shadow-1);
 }
 
 .empty-content {

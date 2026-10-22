@@ -22,7 +22,7 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <div class="j-error-state glass-card">
+  <div class="j-error-state">
     <div class="j-error-icon">
       <NIcon :component="AlertTriangle" size="30" />
     </div>
@@ -46,6 +46,11 @@ const emit = defineEmits<{
   text-align: center;
   border-radius: var(--radius-md);
   min-height: 220px;
+  /* 2026-10：模板上的 glass-card 类已删除（该类随之从 main.css 整条移除），
+     改 L1 实色 + 中性描边 + 轻阴影。 */
+  background: var(--surface-1);
+  border: 1px solid var(--surface-border);
+  box-shadow: var(--shadow-1);
 }
 .j-error-icon {
   width: 56px;
