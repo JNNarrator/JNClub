@@ -156,10 +156,9 @@ const handleDeleted = () => {
   height: 100vh;
   display: flex;
   flex-direction: column;
-  background:
-    radial-gradient(1200px 500px at 10% -10%, var(--glass-glow-top), transparent 60%),
-    radial-gradient(900px 400px at 110% 120%, var(--glass-glow-bottom), transparent 60%),
-    var(--bg-page);
+  /* P0-1：删除两层 16%/14% 粉光晕（PRD 4.2 / DESIGN §4.2 边缘页去光晕）。
+     编辑器是长时停留页面，粉色氛围光会与正文争夺注意力。 */
+  background: var(--bg-page);
 }
 .page-spin {
   flex: 1;

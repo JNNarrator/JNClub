@@ -182,17 +182,17 @@ const jnxFeatures = [
   padding: 40px 20px 60px;
   display: flex;
   justify-content: center;
-  background:
-    radial-gradient(1200px 500px at 10% -10%, var(--glass-glow-top), transparent 60%),
-    radial-gradient(900px 400px at 110% 120%, var(--glass-glow-bottom), transparent 60%),
-    var(--bg-page);
+  /* P0-1：删除两层 16%/14% 粉光晕（PRD 4.2 / DESIGN §4.2 边缘页去光晕） */
+  background: var(--bg-page);
   overflow-x: hidden;
 }
 .ext-texture {
   position: fixed;
   inset: 0;
   pointer-events: none;
-  background-image: radial-gradient(rgba(236, 91, 142, 0.08) 1px, transparent 1px);
+  /* P2-17：原为硬编码 rgba(236, 91, 142, 0.08) —— 与 --brand-soft 同值，
+     改用 token 后「硬编码粉色 rgba = 0」才成立（此前的 hex 检查只覆盖 #RRGGBB 形态）。 */
+  background-image: radial-gradient(var(--brand-soft) 1px, transparent 1px);
   background-size: 24px 24px;
   opacity: 0.5;
 }

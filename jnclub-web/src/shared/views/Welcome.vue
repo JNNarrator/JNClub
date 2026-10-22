@@ -146,10 +146,12 @@ const goRegister = () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background:
-    radial-gradient(1200px 500px at 10% -10%, var(--glass-glow-top), transparent 60%),
-    radial-gradient(900px 400px at 110% 120%, var(--glass-glow-bottom), transparent 60%),
-    var(--bg-page);
+  /* P0-1：删除两层 16%/14% 粉光晕，回到纯 --bg-page 实色。
+     依据 PRD 4.2「粉色作为页面底色 → 收敛为最多 1 层且 ≤6%」，以及 DESIGN §4.2
+     「边缘页去光晕」。本页是未登录用户的第一屏，粉色氛围光在这里代价最大。
+     与主壳 .app-content 的区别：那边保留 1 层 6% --surface-glow（全站唯一光晕），
+     边缘页连这 1 层也不给 —— 光晕的唯一性由「只此一处」保证，不是「每页都来一点」。 */
+  background: var(--bg-page);
   overflow: hidden;
 }
 
