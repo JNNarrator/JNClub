@@ -482,7 +482,7 @@ const handleRenameSubmit = async () => {
   gap: 8px;
   width: 100%;
   padding: 9px 12px;
-  border: 1px dashed var(--glass-chip-border);
+  border: 1px dashed var(--surface-border);
   border-radius: var(--radius-sm);
   background: var(--glass-chip-bg);
   color: var(--text-2);

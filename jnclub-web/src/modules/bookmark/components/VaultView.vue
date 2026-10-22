@@ -833,7 +833,7 @@ defineExpose({ openCreate })
   height: 38px;
   border-radius: var(--radius-sm);
   background: var(--glass-chip-bg);
-  border: 1px solid var(--glass-chip-border);
+  border: 1px solid var(--surface-border);
   display: flex;
   align-items: center;
   justify-content: center;

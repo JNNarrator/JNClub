@@ -253,7 +253,7 @@ const onShowChange = (v: boolean) => emit('update:show', v)
   font-weight: 600;
   color: var(--glass-chip-text);
   background: var(--glass-chip-bg);
-  border: 1px solid var(--glass-chip-border);
+  border: 1px solid var(--surface-border);
   border-radius: var(--radius-pill);
   padding: 2px 8px;
 }

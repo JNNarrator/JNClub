@@ -104,14 +104,11 @@ const onRootClick = () => {
       <div v-if="props.batchMode" class="batch-check" @click.stop="emit('toggle-select')">
         <NCheckbox :checked="props.selected" @update:checked="emit('toggle-select')" size="small" />
       </div>
-    <!-- 顶部渐变装饰条 -->
-    <div class="card-top-bar"></div>
-
     <div class="card-body">
       <div class="card-head">
         <!-- 图标底盒 -->
         <div class="icon-box">
-          <NIcon :component="StickyNote" size="20" color="var(--brand)" />
+          <NIcon :component="StickyNote" size="20" color="var(--module-note-icon)" />
         </div>
 
         <!-- 操作菜单 hover 出现 -->
@@ -186,8 +183,9 @@ const onRootClick = () => {
      原先用 --pink-white + 粉边框做「便签更暖」的区分，但模块色 --module-note
      实为 #2F9DF7（蓝），粉色属于品牌粉的历史遗留；且同屏两种卡片底色会让
      网格读起来像两种控件。图标盒的 --pink-cherry 保留，模块识别交给图标。 */
-  background: var(--bg-card);
-  border: 1px solid var(--border);
+  /* L1 结构面：与 .bookmark-card 同档（--surface-1 + --surface-border） */
+  background: var(--surface-1);
+  border: 1px solid var(--surface-border);
   border-radius: var(--radius-md);
   cursor: pointer;
   overflow: hidden;
@@ -196,8 +194,9 @@ const onRootClick = () => {
 }
 
 .note-card:hover {
-  transform: translateY(-2px);
-  border-color: var(--brand-text);
+  /* 与 .bookmark-card 逐项同参数：描边加深 + 卡片阴影 + 抬升 1px */
+  transform: translateY(-1px);
+  border-color: var(--surface-border-strong);
   box-shadow: var(--shadow-card-hover);
 }
 
@@ -222,16 +221,16 @@ const onRootClick = () => {
   gap: 10px;
 }
 
-/* 图标底盒 */
+/* 图标底盒：模块色 soft 底（12%）+ 模块图标色。模块识别交给图标，不再用粉色底 */
 .icon-box {
   width: 40px;
   height: 40px;
   border-radius: var(--radius-sm);
-  background: var(--pink-cherry);
+  background: color-mix(in srgb, var(--module-note) 12%, var(--surface-1));
+  color: var(--module-note-icon);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: var(--glow-icon);
   flex-shrink: 0;
 }
 
@@ -290,7 +289,7 @@ const onRootClick = () => {
   align-items: center;
   margin-top: auto;
   padding-top: 8px;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--surface-border);
 }
 
 .card-time {

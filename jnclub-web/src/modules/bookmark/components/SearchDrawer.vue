@@ -783,7 +783,7 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
   font-size: var(--fs-xs);
   color: var(--text-3);
   background: var(--glass-chip-bg);
-  border: 1px solid var(--glass-chip-border);
+  border: 1px solid var(--surface-border);
   padding: 2px 8px;
   border-radius: var(--radius-pill);
 }
@@ -1028,7 +1028,7 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
   font-size: var(--fs-xs);
   color: var(--text-3);
   background: var(--glass-chip-bg);
-  border: 1px solid var(--glass-chip-border);
+  border: 1px solid var(--surface-border);
   border-radius: var(--radius-pill);
   padding: 0 6px;
   white-space: nowrap;

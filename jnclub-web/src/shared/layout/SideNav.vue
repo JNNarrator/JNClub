@@ -153,7 +153,7 @@ const handleSettingsSelect = async (key: string) => {
     bordered collapse-mode="width" :collapsed-width="64" :width="'var(--layout-sider-width, 240px)'"
     :collapsed="props.collapsed ?? false" show-trigger="bar"
     :on-update:collapsed="(v: boolean) => emit('update:collapsed', v)"
-    class="side-nav sidebar-glow"
+    class="side-nav"
   >
     <!-- Logo 区：统一品牌标识（粉渐变 heart） -->
     <div :class="['logo-bar', { collapsed: props.collapsed }]">
@@ -208,9 +208,12 @@ const handleSettingsSelect = async (key: string) => {
   transition: width var(--dur) var(--ease);
   overflow: hidden;
   position: relative;
-  background: var(--glass-bg-trans) !important;
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
+  /* L1 结构面（P1-1）：实色 + 右侧 1px 中性描边。
+     原为玻璃 + .sidebar-glow 的 140px 粉色底光，整片泛粉。
+     判据 N1（页面壳）+ N2（导航在内部滚动）双命中，必须实色。
+     描边由 naive 的 bordered 提供内描边，这里补一条外描边确保与内容区可分（≥1.2:1）。 */
+  background: var(--surface-1) !important;
+  border-right: 1px solid var(--surface-border);
 }
 
 /* === Logo 区 === */
@@ -220,7 +223,7 @@ const handleSettingsSelect = async (key: string) => {
   gap: 12px;
   padding: 20px 20px;
   background: transparent;
-  border-bottom: 1px solid var(--glass-border);
+  border-bottom: 1px solid var(--surface-border);
   flex-shrink: 0;
   transition: padding var(--dur) var(--ease), justify-content var(--dur) var(--ease);
 }
@@ -257,7 +260,7 @@ const handleSettingsSelect = async (key: string) => {
   justify-content: flex-start;
   gap: 6px;
   padding: 6px 10px 10px;
-  border-top: 1px solid var(--glass-border);
+  border-top: 1px solid var(--surface-border);
 }
 .nav-editor-bar.collapsed {
   justify-content: center;

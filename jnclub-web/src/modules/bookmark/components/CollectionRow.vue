@@ -166,24 +166,29 @@ const handleDropdown = (key: string) => {
   align-items: center;
   gap: 12px;
   padding: 12px 14px;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
+  /* L1 结构面：--surface-1 + --surface-border（与 .bookmark-card 同档） */
+  background: var(--surface-1);
+  border: 1px solid var(--surface-border);
   border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease), background var(--dur) var(--ease);
+  transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease), background var(--dur) var(--ease), transform var(--dur) var(--ease);
 }
 
 /* hover 不再叠 inset 3px 左条：那条品牌竖条是 SideNav 表示「当前所在位置」的持久符号，
    列表行 hover 只是瞬时悬停，共用同一符号会让行读起来像「已选中」。
    改用「边框转品牌色 + 浮起阴影」，与 DiskView 的 .file-item 一致。 */
 .collection-row:hover {
-  border-color: var(--brand-text);
+  /* hover 统一到 L2：中性描边加深 + 卡片阴影 + 抬升 1px，与四类卡/行逐项同参数。
+     粉色只在 .is-selected（main.css 统一提供），hover 不再染粉。 */
+  transform: translateY(-1px);
+  border-color: var(--surface-border-strong);
   box-shadow: var(--shadow-card-hover);
 }
 
 .collection-row:active {
-  background: var(--brand-soft);
-  border-color: var(--brand-text);
+  transform: translateY(0);
+  background: var(--hover-bg);
+  border-color: var(--surface-border-strong);
 }
 
 /* Favicon */

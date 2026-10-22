@@ -168,11 +168,13 @@ html, body {
   background: var(--hover-bg);
   color: var(--text-1);
 }
-/* 当前所在目录：用品牌色强调，与侧栏 NavItem 的激活语言一致 */
+/* 当前所在目录：用品牌色强调，与侧栏 NavItem 的激活语言一致。
+   2026-10：描边由 --glass-chip-border 改为 --brand-text —— 粉边框配额从 34 处
+   收敛到 ≤8 处，只保留在「激活/选中态」与「弹层内输入框 focus」两类真需要强调的位置。 */
 .chip-active {
   background: var(--brand-soft) !important;
   color: var(--brand-text) !important;
-  border-color: var(--glass-chip-border) !important;
+  border-color: var(--brand-text) !important;
   font-weight: 600;
   box-shadow: none;
 }

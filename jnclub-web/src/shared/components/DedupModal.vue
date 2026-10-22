@@ -269,7 +269,7 @@ const toggle = (id: number) => {
   gap: 5px;
   padding: 5px 14px;
   border-radius: var(--radius-pill);
-  border: 1px solid var(--glass-chip-border);
+  border: 1px solid var(--surface-border);
   background: var(--glass-chip-bg);
   color: var(--glass-chip-text);
   font-size: var(--fs-sm);
@@ -301,7 +301,7 @@ const toggle = (id: number) => {
 .dedup-bulk-count { font-size: var(--fs-sm); color: var(--brand-text); font-weight: 600; flex: 1; }
 .dedup-groups { display: flex; flex-direction: column; gap: 14px; }
 .dedup-group {
-  border: 1px solid var(--glass-chip-border);
+  border: 1px solid var(--surface-border);
   border-radius: var(--radius-md);
   background: var(--glass-bg-trans);
   overflow: hidden;
@@ -313,7 +313,7 @@ const toggle = (id: number) => {
   gap: 10px;
   padding: 10px 14px;
   background: var(--glass-chip-bg);
-  border-bottom: 1px solid var(--glass-chip-border);
+  border-bottom: 1px solid var(--surface-border);
 }
 .dedup-group-title {
   display: flex;

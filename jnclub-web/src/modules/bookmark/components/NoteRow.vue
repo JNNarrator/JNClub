@@ -197,21 +197,25 @@ const handleDragEnd = () => setDragging(null)
   align-items: center;
   gap: 12px;
   padding: 12px 14px;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
+  /* L1 结构面：--surface-1 + --surface-border（与 .note-card 同档） */
+  background: var(--surface-1);
+  border: 1px solid var(--surface-border);
   border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease), background var(--dur) var(--ease);
+  transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease), background var(--dur) var(--ease), transform var(--dur) var(--ease);
 }
 /* hover 不再叠 inset 3px 左条（那是 SideNav「当前所在位置」的持久符号），
    改用「边框转品牌色 + 浮起阴影」，与 .collection-row / .file-item 一致。 */
 .note-row:hover {
-  border-color: var(--brand-text);
+  /* 与 .collection-row 逐项同参数（中性描边 + 卡片阴影 + 抬升 1px） */
+  transform: translateY(-1px);
+  border-color: var(--surface-border-strong);
   box-shadow: var(--shadow-card-hover);
 }
 .note-row:active {
-  background: var(--brand-soft);
-  border-color: var(--brand-text);
+  transform: translateY(0);
+  background: var(--hover-bg);
+  border-color: var(--surface-border-strong);
 }
 
 /* 图标 */

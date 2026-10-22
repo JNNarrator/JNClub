@@ -274,7 +274,7 @@ const close = () => {
 .reader-seg {
   display: inline-flex;
   background: var(--glass-chip-bg);
-  border: 1px solid var(--glass-chip-border);
+  border: 1px solid var(--surface-border);
   border-radius: var(--radius-sm);
   padding: 2px;
   gap: 2px;
@@ -374,7 +374,7 @@ const close = () => {
 }
 .reading-article :deep(pre) {
   background: var(--glass-chip-bg);
-  border: 1px solid var(--glass-chip-border);
+  border: 1px solid var(--surface-border);
   border-radius: var(--radius-sm);
   padding: 14px;
   overflow-x: auto;
@@ -400,7 +400,7 @@ const close = () => {
 }
 .reading-article :deep(th),
 .reading-article :deep(td) {
-  border: 1px solid var(--glass-chip-border);
+  border: 1px solid var(--surface-border);
   padding: 8px 12px;
   text-align: left;
 }

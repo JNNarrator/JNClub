@@ -1018,7 +1018,7 @@ defineExpose({ hasUnsavedChanges })
 .preview-width-seg {
   display: inline-flex;
   align-items: center;
-  border: 1px solid var(--glass-chip-border);
+  border: 1px solid var(--surface-border);
   border-radius: var(--radius-sm);
   padding: 2px;
   gap: 2px;
@@ -1181,7 +1181,7 @@ defineExpose({ hasUnsavedChanges })
   font-weight: 600;
   color: var(--glass-chip-text);
   background: var(--glass-chip-bg);
-  border: 1px solid var(--glass-chip-border);
+  border: 1px solid var(--surface-border);
   border-radius: var(--radius-pill);
   padding: 0 6px;
 }
@@ -1210,7 +1210,7 @@ defineExpose({ hasUnsavedChanges })
   flex-direction: column;
   gap: 2px;
   padding: 8px 10px;
-  border: 1px solid var(--glass-chip-border);
+  border: 1px solid var(--surface-border);
   border-radius: var(--radius-sm);
   background: var(--glass-chip-bg);
   cursor: pointer;
@@ -1430,7 +1430,7 @@ defineExpose({ hasUnsavedChanges })
   background: var(--glass-bg-trans);
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: 1.5px solid var(--glass-chip-border);
+  border: 1.5px solid var(--surface-border);
   border-radius: var(--radius-pill);
   cursor: grab;
   box-shadow: var(--glass-shadow);
@@ -1584,7 +1584,7 @@ defineExpose({ hasUnsavedChanges })
   background: var(--glass-bg-trans);
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: 1px dashed var(--glass-chip-border);
+  border: 1px dashed var(--surface-border);
   border-radius: var(--radius-sm);
   box-shadow: var(--glass-shadow);
   animation: fade-in-up var(--dur-slow) var(--ease);
@@ -1640,7 +1640,7 @@ defineExpose({ hasUnsavedChanges })
   align-items: center;
   padding: 8px 12px;
   background: var(--glass-chip-bg);
-  border: 1px solid var(--glass-chip-border);
+  border: 1px solid var(--surface-border);
   border-radius: var(--radius-sm);
   font-size: var(--fs-md);
 }

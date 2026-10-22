@@ -58,11 +58,8 @@ const handleSelect = async (id: number) => {
 </template>
 
 <style scoped>
-.mobile-dir-drawer :deep(.n-drawer-body-content-wrapper) {
-  background: var(--glass-bg-trans);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-}
+/* 2026-10：删除 drawer body 的玻璃底与 blur —— .n-drawer 本身已是 L3 玻璃，
+   再叠一层半透明会重复叠加（同屏玻璃层数与视觉重量都超标）。 */
 .drawer-title {
   display: inline-flex;
   align-items: center;

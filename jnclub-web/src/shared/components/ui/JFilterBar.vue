@@ -66,15 +66,19 @@ const handleSelect = (value: string | number | null) => {
   gap: 6px;
   padding: 5px 14px;
   border-radius: var(--radius-pill);
+  /* chip 语言：**透明底** + 1px 淡粉描边 + 粉字；只有激活态才给 --brand-soft 底。
+     原先是「粉底 + 粉边 + 粉字」三层粉，一排 chip 就吃掉大半个粉色面积预算。 */
   border: 1px solid var(--glass-chip-border);
-  background: var(--glass-chip-bg);
+  background: transparent;
   color: var(--glass-chip-text);
   font-size: var(--fs-sm);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+  flex-shrink: 0;
 }
 .j-filter-chip:hover {
   border-color: var(--brand-text);
+  background: var(--brand-soft);
   color: var(--brand-text);
 }
 .j-filter-chip-active {
@@ -88,7 +92,14 @@ const handleSelect = (value: string | number | null) => {
   line-height: 1;
   padding: 2px 5px;
   border-radius: var(--radius-pill);
-  background: var(--brand-soft);
+  /* 计数徽标去粉底：chip 本身已是淡粉描边，徽标再叠一层粉底会让每个 chip
+     出现两个粉色层级。改为中性底 + 继承文字色，激活态才跟随品牌色。 */
+  background: var(--hover-bg);
+  color: var(--text-3);
+}
+.j-filter-chip-active .j-filter-count,
+.j-filter-chip:hover .j-filter-count {
+  background: transparent;
   color: var(--brand-text);
 }
 

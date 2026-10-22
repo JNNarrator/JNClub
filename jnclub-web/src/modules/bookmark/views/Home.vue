@@ -653,10 +653,9 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
   max-width: var(--layout-content-max, 1560px);
   margin: 0 auto;
   padding: 20px var(--layout-page-gutter, 24px);
-  /* 品牌色氛围光晕（背景层次第 0 层） */
-  background:
-    radial-gradient(700px 280px at 4% 0%, var(--glass-glow-top), transparent 55%),
-    radial-gradient(700px 280px at 96% 100%, var(--glass-glow-bottom), transparent 55%);
+  /* 2026-10：删除本层光晕，回到透明继承 L0。
+     全站品牌光晕只允许 MainLayout .app-content 一处（--surface-glow）；
+     这里再叠两层 16% 粉会让主壳整片泛粉，与「粉色只作指示器」冲突（P0-2）。 */
 }
 
 /* 目录面板标题（与移动端抽屉标题呼应） */
@@ -678,12 +677,14 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
   flex: 0 0 var(--layout-folder-width, 220px);
   min-height: 0;
   overflow: hidden;
-  background: var(--glass-bg-trans);
-  border: 1px solid var(--glass-border);
+  /* L1 结构面：实色 + 中性描边（判据 N2：目录树在内部滚动）。
+     注意：此处原注释「隔离渲染边界，避免 backdrop-filter 影响兄弟合成」的前提已消失
+     —— blur 已移除，contain 保留仅为长列表的绘制隔离，不影响圆角/描边。 */
+  background: var(--surface-1);
+  border: 1px solid var(--surface-border);
   border-radius: var(--radius-md);
   padding: 14px 12px;
   box-shadow: var(--shadow-1);
-  /* 隔离渲染边界，避免 backdrop-filter 影响兄弟元素合成 */
   contain: paint layout style;
 }
 
@@ -695,8 +696,9 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
   display: flex;
   flex-direction: column;
   overflow-y: auto;
-  background: var(--glass-bg-trans);
-  border: 1px solid var(--glass-border);
+  /* L1 结构面：实色 + 中性描边（判据 N2：列表在内部滚动，滚动条贴面板边框内侧） */
+  background: var(--surface-1);
+  border: 1px solid var(--surface-border);
   border-radius: var(--radius-md);
   padding: var(--layout-panel-padding);
   box-shadow: var(--shadow-1);
@@ -734,10 +736,9 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
   gap: 8px;
   margin-bottom: 14px;
   padding: 8px 12px;
-  background: var(--glass-bg-trans);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid var(--glass-border);
+  /* 内嵌 L2 块：--hover-bg 底 + 中性描边（原为玻璃 + 白描边） */
+  background: var(--hover-bg);
+  border: 1px solid var(--surface-border);
   border-radius: var(--radius-sm);
 }
 .tag-chip {
@@ -843,12 +844,9 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
   white-space: nowrap;
 }
 
-/* 移动端目录抽屉 */
-.mobile-dir-drawer :deep(.n-drawer-body-content-wrapper) {
-  background: var(--glass-bg-trans);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-}
+/* 移动端目录抽屉：2026-10 起删除 .n-drawer-body-content-wrapper 的玻璃底与 blur。
+   .n-drawer 本身已是 L3 玻璃（main.css 全局接管），这里再叠一层属于重复叠加：
+   两层半透明相加会让抽屉比同屏其它弹层明显更实，且多一次 blur 采样。 */
 .drawer-title {
   display: inline-flex;
   align-items: center;

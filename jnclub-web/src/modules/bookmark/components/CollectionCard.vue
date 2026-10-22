@@ -111,9 +111,6 @@ const handleDropdown = (key: string) => {
       <div v-if="props.batchMode" class="batch-check" @click.stop="emit('toggle-select')">
         <NCheckbox :checked="props.selected" @update:checked="emit('toggle-select')" size="small" />
       </div>
-    <!-- 顶部渐变装饰条 -->
-    <div class="card-top-bar"></div>
-
     <div class="card-body">
       <div class="card-head">
         <!-- favicon 发光底盒 -->
@@ -128,7 +125,7 @@ const handleDropdown = (key: string) => {
             @error="imgError = true"
           />
           <div v-else class="favicon-fallback">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--brand-text)" stroke-width="1.5">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--module-bookmark-icon)" stroke-width="1.5">
               <path d="M12 2L2 7l10 5 10-5-10-5z" />
               <path d="M2 17l10 5 10-5" />
               <path d="M2 12l10 5 10-5" />
@@ -201,8 +198,10 @@ const handleDropdown = (key: string) => {
   position: relative;
   display: flex;
   flex-direction: column;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
+  /* L1 结构面：--surface-1 填充 + --surface-border 描边（不用控件描边 --border，
+     后者语义是输入框/表格线，混用会牵动表单观感） */
+  background: var(--surface-1);
+  border: 1px solid var(--surface-border);
   border-radius: var(--radius-md);
   cursor: pointer;
   overflow: hidden;
@@ -211,8 +210,10 @@ const handleDropdown = (key: string) => {
 }
 
 .bookmark-card:hover {
-  transform: translateY(-2px);
-  border-color: var(--brand-text);
+  /* hover 统一到 L2 语言：描边加深一档 + 卡片阴影 + 抬升 1px（原 -2px 偏跳）。
+     2026-10 起不再变粉边 —— 粉色配额只留给 .is-selected（选中态）。 */
+  transform: translateY(-1px);
+  border-color: var(--surface-border-strong);
   box-shadow: var(--shadow-card-hover);
 }
 
@@ -242,17 +243,20 @@ const handleDropdown = (key: string) => {
   width: 40px;
   height: 40px;
   border-radius: var(--radius-sm);
-  background: var(--pink-cherry);
+  /* 图标盒 = 模块色 soft 底（12% 混入 L1）+ 模块图标色。
+     ⚠ 不能写成 background: var(--module-*-icon)：那会变成大面积模块色填充，
+     直接违反 §3.5 的 3% 面积上限。soft 底视为中性面，不占模块色配额。 */
+  background: color-mix(in srgb, var(--module-bookmark) 12%, var(--surface-1));
+  color: var(--module-bookmark-icon);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: var(--glow-icon);
   flex-shrink: 0;
   transition: box-shadow var(--dur) var(--ease), transform var(--dur) var(--ease-bouncy);
 }
 .bookmark-card:hover .favicon-box {
-  /* hover 抬升用柔光：实色 --focus-ring 的 6px 环会盖住 favicon 本身的色彩 */
-  box-shadow: 0 0 0 6px var(--focus-ring-soft), var(--glow-icon);
+  /* hover 抬升改用中性卡片阴影：原来的 6px 粉色柔光环会盖住 favicon 本身的色彩 */
+  box-shadow: var(--shadow-card-hover);
   transform: scale(1.06);
 }
 
@@ -299,8 +303,12 @@ const handleDropdown = (key: string) => {
 }
 .card-tag {
   flex-shrink: 0;
-  background: var(--brand-soft) !important;
+  /* chip 语言：透明底 + 1px 淡粉描边 + 粉字。
+     NTag 的 :bordered="false" 不画边框，故用 inset box-shadow 补 1px 细线，
+     避免再加 padding 影响卡片定高。 */
+  background: transparent !important;
   color: var(--brand-text) !important;
+  box-shadow: inset 0 0 0 1px var(--glass-chip-border);
 }
 
 /* === 链接（底部唯一域名展示，去冗余） === */
@@ -309,7 +317,9 @@ const handleDropdown = (key: string) => {
   align-items: center;
   gap: 5px;
   font-size: var(--fs-sm);
-  color: var(--brand-text);
+  /* 域名是元信息，不是链接入口（整卡已可点）→ 降到 --text-3，
+     把「粉色 = 可交互指示」的语义收回到真正需要强调的地方。 */
+  color: var(--text-3);
   text-decoration: none;
   margin-top: auto;
   width: fit-content;

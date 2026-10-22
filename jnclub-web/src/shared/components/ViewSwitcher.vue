@@ -37,10 +37,9 @@ const modes: { key: ViewMode; label: string }[] = [
 <style scoped>
 .view-switcher {
   display: inline-flex;
-  background: var(--glass-bg-trans);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid var(--glass-border);
+  /* 内联分段控件（判据 N4）：--hover-bg 底 + 中性描边，删 blur */
+  background: var(--hover-bg);
+  border: 1px solid var(--surface-border);
   border-radius: var(--radius-sm);
   overflow: hidden;
   gap: 2px;
@@ -66,7 +65,7 @@ const modes: { key: ViewMode; label: string }[] = [
 
 .switcher-btn:hover:not(.active) {
   color: var(--text-1);
-  background: var(--glass-chip-bg);
+  background: var(--bg-card);
   box-shadow: var(--shadow-1);
 }
 

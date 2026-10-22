@@ -786,7 +786,7 @@ const openFile = (f: { id: number }) => {
   gap: 2px;
   padding: 2px;
   background: var(--glass-chip-bg);
-  border: 1px solid var(--glass-chip-border);
+  border: 1px solid var(--surface-border);
   border-radius: var(--radius-pill);
 }
 .trend-switch-btn {
@@ -1013,7 +1013,7 @@ const openFile = (f: { id: number }) => {
   gap: 10px;
   padding: 10px 12px;
   background: var(--glass-chip-bg);
-  border: 1px solid var(--glass-chip-border);
+  border: 1px solid var(--surface-border);
   border-radius: var(--radius-sm);
   cursor: grab;
 }
@@ -1045,7 +1045,7 @@ const openFile = (f: { id: number }) => {
   gap: 2px;
   padding: 10px 12px;
   background: var(--glass-chip-bg);
-  border: 1px solid var(--glass-chip-border);
+  border: 1px solid var(--surface-border);
   border-radius: var(--radius-sm);
   cursor: pointer;
   text-align: left;

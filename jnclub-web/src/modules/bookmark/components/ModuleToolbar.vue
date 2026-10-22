@@ -101,10 +101,9 @@ const emit = defineEmits<{
 
 .io-export-btn {
   border-radius: var(--radius-pill) !important;
-  background: var(--glass-bg-trans) !important;
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid var(--glass-border) !important;
+  /* 内联控件（判据 N4）：控件面走 --bg-card，描边走 --surface-border；删 blur */
+  background: var(--bg-card) !important;
+  border: 1px solid var(--surface-border) !important;
   color: var(--text-2) !important;
 }
 .io-export-btn:hover {
@@ -117,8 +116,8 @@ const emit = defineEmits<{
 
 .archived-toggle {
   border-radius: var(--radius-pill) !important;
-  background: var(--glass-bg-trans) !important;
-  border: 1px solid var(--glass-border) !important;
+  background: var(--bg-card) !important;
+  border: 1px solid var(--surface-border) !important;
   color: var(--text-2) !important;
 }
 .archived-toggle:hover {
