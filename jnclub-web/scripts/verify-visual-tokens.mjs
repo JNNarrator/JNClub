@@ -179,6 +179,31 @@ function stripComments(src) {
 /** 样式文件去注释后的正文 */
 const readCode = (f) => stripComments(read(f))
 
+/**
+ * 极简 CSS 规则块扫描（QA 2026-10 新增）。
+ * 只取「最内层规则块」：`@media { .x { … } }` 会被拆成内层的 `.x`，
+ * 因为 `[^{}]*` 不允许跨过大括号 —— 对本项目的用例足够。
+ */
+function cssBlocks(src) {
+  const out = []
+  const re = /([^{}]+)\{([^{}]*)\}/g
+  let m
+  while ((m = re.exec(src))) out.push({ selector: m[1].trim(), body: m[2] })
+  return out
+}
+
+/**
+ * 只取「样式正文」：`.vue` 文件截取所有 <style> 块，`.css` 直接返回。
+ * 不做这一步的话，cssBlocks 会把 <template> 里的标签文本当成选择器，
+ * 报错信息会变成一段 HTML 片段（实测踩到）。
+ */
+function styleSource(f) {
+  const code = readCode(f)
+  if (!f.endsWith('.vue')) return code
+  const blocks = [...code.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1])
+  return blocks.join('\n')
+}
+
 // ─────────────────────────────────────────── ① 表面层级与描边可见性
 const results = []
 const record = (group, name, actual, target, pass, note = '') => {
@@ -188,17 +213,34 @@ const record = (group, name, actual, target, pass, note = '') => {
 const L = lightVars
 const D = darkVars
 
-// 亮色 ΔL*（O1：判据 ≥3.2）
+/**
+ * ⚠ 判据口径修正（QA 2026-10 复核）：
+ *   原脚本把 PRD 8.1 的 [3.5, 6] 与 ≥16 直接换成了 DESIGN §12 的 O1/O2 备选判据
+ *   （≥3.2 / ≥15）并标 ✓。但 O1/O2 在 DESIGN 里是**「开放项，需用户拍板」**，
+ *   不是已生效的验收标准。用未获批的放宽判据给出绿灯，等于让 PRD 的硬指标静默失效。
+ *   现改为：**按 PRD 原文判据判定**，偏差写在 note 里，失败即失败（--strict 会拦）。
+ */
 const dLPageSurfaceLight = deltaLstar(L['--bg-page'], L['--surface-1'])
-record('明度阶梯', '亮 page↔surface ΔL*', dLPageSurfaceLight.toFixed(2), '≥3.2（O1）', dLPageSurfaceLight >= 3.2)
+record(
+  '明度阶梯', '亮 page↔surface ΔL*', dLPageSurfaceLight.toFixed(2), '∈[3.5, 6]（PRD 8.1）',
+  dLPageSurfaceLight >= 3.5 && dLPageSurfaceLight <= 6,
+  dLPageSurfaceLight < 3.5
+    ? `低于下限 3.5（Q1 决定不动 --bg-page 的直接后果）；DESIGN O1 建议改为 ≥3.2，但属待拍板开放项，不能自动视为达标`
+    : '',
+)
 
-// 暗色 ΔL*（O2：判据 ≥15）
 const dLPageSurfaceDark = deltaLstar(D['--bg-page'], D['--surface-1'])
-record('明度阶梯', '暗 page↔surface ΔL*', dLPageSurfaceDark.toFixed(2), '≥15（O2）', dLPageSurfaceDark >= 15)
+record(
+  '明度阶梯', '暗 page↔surface ΔL*', dLPageSurfaceDark.toFixed(2), '≥16（PRD 8.1）',
+  dLPageSurfaceDark >= 16,
+  dLPageSurfaceDark < 16
+    ? `低于 16（PRD 正文「16.6」计算有误，CIE 复算为 15.30）；DESIGN O2 建议改为 ≥15，同为待拍板开放项`
+    : '',
+)
 
-// 暗色 L1↔L2
+// 暗色 L1↔L2：PRD 无硬指标，但「L2 必须能从 L1 抬起来」是四层体系的前提，给一个真实下限
 const dLSurfaceRaisedDark = deltaLstar(D['--surface-1'], D['--hover-bg'])
-record('明度阶梯', '暗 surface↔raised ΔL*', dLSurfaceRaisedDark.toFixed(2), '无硬指标', true)
+record('明度阶梯', '暗 surface↔raised ΔL*', dLSurfaceRaisedDark.toFixed(2), '≥3（L1→L2 可辨，参考值）', dLSurfaceRaisedDark >= 3)
 
 // 描边可见性（G6：≥1.2:1）
 const borderVsPageLight = contrast(L['--surface-border'], L['--bg-page'])
@@ -245,7 +287,10 @@ for (const [label, key] of MODULES) {
     `${label} ${icon} vs #26262A / vs soft${soft}`,
     `${vsSurface.toFixed(2)} / ${vsSoft.toFixed(2)}`,
     'vs surface ∈[4.5,6.5]，vs soft ≥3.0',
-    vsSurface >= 4.5 && vsSurface <= 6.6 && vsSoft >= 3,
+    // 原脚本这里写成 `<= 6.6`，而目标字符串写的是 6.5 —— 密码库实测 6.57 因此「通过」。
+    // 上限放宽 0.1 是为了让 6.57 过关，属于把判据往结果上凑。恢复 PRD/DESIGN 的 6.5。
+    vsSurface >= 4.5 && vsSurface <= 6.5 && vsSoft >= 3,
+    vsSurface > 6.5 ? '超出 6.5 上限；DESIGN §3.3 已给出备选值 #E59A38（6.47），应改 token 而不是放宽判据' : '',
   )
 }
 
@@ -304,6 +349,41 @@ for (const f of styleFiles) {
   }
 }
 record('玻璃准入', 'L1 选择器上的 backdrop-filter', l1Violations.length, '=0', l1Violations.length === 0, l1Violations.join('; '))
+
+/**
+ * G5 的正题（QA 2026-10 补）：PRD 2.2 G5 与 8.1 都写的是
+ *   「L1 surface 的 background-color alpha 必须是 1（不允许 rgba / 玻璃）」，
+ * 原脚本只断言了「没有 backdrop-filter」—— 这是**近似物**：
+ * `background: rgba(255,255,255,.72)` 不带 blur 也能通过，但它仍然不是实色。
+ * 这里改成直接看声明值：L1 选择器的 background 必须引用不透明 token。
+ */
+const OPAQUE_TOKENS = ['--surface-1', '--bg-card', '--bg-page', '--hover-bg', '--glass-bg-solid', '--panel-bg']
+const l1AlphaViolations = []
+let l1Scanned = 0
+for (const f of styleFiles) {
+  for (const { selector, body } of cssBlocks(styleSource(f))) {
+    if (!L1_SELECTORS.some((sel) => selector.includes(sel))) continue
+    const decl = [...body.matchAll(/(?:^|[;{])\s*background(?:-color)?\s*:\s*([^;]+)/g)].map((m) => m[1].trim())
+    if (!decl.length) continue
+    l1Scanned++
+    const last = decl[decl.length - 1]
+    const usesOpaqueToken = OPAQUE_TOKENS.some((t) => last.includes(`var(${t})`))
+    const hasAlphaLiteral = /rgba\(|transparent|glass-bg-trans/.test(last)
+    if (!usesOpaqueToken || hasAlphaLiteral) {
+      l1AlphaViolations.push(`${rel(f)} :: ${selector} → background: ${last.slice(0, 60)}`)
+    }
+  }
+}
+/**
+ * 自校验：把「扫到几条 L1 规则」一并报出来。
+ * 否则正则一旦失效（例如注释夹在 `;` 与 `background` 之间导致锚点失配），
+ * 断言会以「0 违规」的姿态静默通过 —— 这正是本次审计在别人脚本里抓到的问题模式。
+ */
+record(
+  '玻璃准入', `L1 选择器的 background 为实色（扫描 ${l1Scanned} 条规则）`, l1AlphaViolations.length,
+  '=0 违规且扫描数 ≥6', l1AlphaViolations.length === 0 && l1Scanned >= 6,
+  l1AlphaViolations.slice(0, 4).join('; '),
+)
 
 // ─────────────────────────────────────────── ⑥ token 覆盖率
 const definedVars = new Set(Object.keys(lightVars))
@@ -386,23 +466,94 @@ for (const f of styleFiles) {
 record('粉色配额', '--glass-chip-border 的边框消费', pinkBorderHits.length, '≤8', pinkBorderHits.length <= 8)
 
 const cardTopBar = styleFiles.reduce((n, f) => n + (readCode(f).match(/card-top-bar/g) || []).length, 0)
-record('粉色配额', 'card-top-bar 消费', cardTopBar, '=0', cardTopBar === 0)
+record('粉色配额', 'card-top-bar 类名消费', cardTopBar, '=0', cardTopBar === 0)
+
+/**
+ * PRD 8.1 这一行的原文是「卡片顶部 3px 品牌渐变条（`--gradient-top-bar`）**消费处** 1 → 0」，
+ * 计量单位是 **token 消费**，不是类名。原脚本只数了 `card-top-bar` 类名 ——
+ * 只要把顶条换个类名（或直接在别的类里写 background: var(--gradient-top-bar)）就能绕过。
+ * 这里补上真正的口径。
+ */
+const topBarToken = styleFiles.reduce((n, f) => n + (readCode(f).match(/var\(--gradient-top-bar\)/g) || []).length, 0)
+record('粉色配额', '--gradient-top-bar token 消费处', topBarToken, '=0', topBarToken === 0)
 
 // 光晕来源唯一性：--surface-glow 只允许 1 处消费
 let glowConsumers = 0
 for (const f of styleFiles) glowConsumers += (readCode(f).match(/var\(--surface-glow\)/g) || []).length
 record('粉色配额', '--surface-glow 消费处', glowConsumers, '=1', glowConsumers === 1)
 
+// --surface-glow 的 alpha 必须 ≤6%（PRD 4.2「收敛为最多 1 层，且透明度 ≤6%」）
+const glowAlpha = (() => {
+  const m = String(L['--surface-glow']).match(/rgba?\(\s*[\d.]+\s*,\s*[\d.]+\s*,\s*[\d.]+\s*,\s*([\d.]+)\s*\)/)
+  return m ? Number(m[1]) : null
+})()
+record('粉色配额', '--surface-glow 的 alpha', glowAlpha === null ? '无法解析' : glowAlpha, '≤0.06', glowAlpha !== null && glowAlpha <= 0.06)
+
+/**
+ * ⚠ 原脚本最大的盲区（QA 2026-10 补）：
+ *   「--surface-glow 消费处 = 1」只能证明**新 token** 只用了一次，
+ *   证明不了「页面底不再有粉色光晕」。而 PRD 4.2 明令禁止的正是后者。
+ *   实测 `--glass-glow-top`（亮色 rgba(236,91,142,0.16)）仍被当作**页面底色**用在
+ *   Welcome / ExtensionPage / NoteEditorPage 三处 —— 每个页面还是 2 层 16%/14% 粉光。
+ *   这里按「选择器是否属于 L3 浮层」区分：浮层内的品牌光晕合法，页面级的不合法。
+ */
+const L3_SELECTOR_HINTS = [
+  '.n-modal', '.n-dialog', '.n-drawer', '.n-popover', '.n-message', '.n-notification',
+  '.glass-card--modal', '.glass-header', '.glass-chip', '.mobile-tabbar', '.j-batch-bar',
+  '.trend-tip', '.outline-float', '.backdrop-blur',
+]
+const pageGlowViolations = []
+for (const f of styleFiles) {
+  for (const { selector, body } of cssBlocks(styleSource(f))) {
+    if (!/var\(--glass-glow-(top|bottom)\)/.test(body)) continue
+    if (L3_SELECTOR_HINTS.some((h) => selector.includes(h))) continue
+    pageGlowViolations.push(`${rel(f)} :: ${selector.slice(0, 60)}`)
+  }
+}
+record(
+  '粉色配额', '页面级（非 L3 浮层）品牌光晕', pageGlowViolations.length, '=0（PRD 4.2）',
+  pageGlowViolations.length === 0, pageGlowViolations.slice(0, 6).join('; '),
+)
+
+// ─────────────────────────────────────────── 已声明偏差（需主理人拍板）
+/**
+ * PRD 8.1 的两条明度阶梯判据，在 Q1/Q6「不动 --bg-page」的前提下数学上不可达：
+ *   亮：#F5F5F7 → #FFFFFF 的 ΔL* 上限就是 3.41，要到 3.5 必须压深 --bg-page；
+ *   暗：#000 → #26262A 是 15.30（PRD 正文「16.6」算错），要到 16 必须提亮 --bg-card，
+ *       会连锁 20+ 处面板底色。
+ * DESIGN §12 的 O1/O2 提案把判据放宽为 亮 ≥3.2 / 暗 ≥15，并追加硬条件「描边 ≥1.2:1」。
+ *
+ * 处理原则（QA 立场）：
+ *   - **默认不放行**：不加开关时按 PRD 原文判据判，仍报 ✗，避免「放宽判据 → 静默转绿」。
+ *   - 加 `--accept-approved` 才按放宽判据放行，且输出里保留 `⚠ 已批准偏差` 字样，
+ *     并计入单独的「已批准偏差」计数 —— 它永远不算「达标项」。
+ *   - 若哪天 --bg-page / --bg-card 调整到位，这几项会自然回绿，届时应删除本表。
+ */
+const ACCEPT_APPROVED = process.argv.includes('--accept-approved')
+const APPROVED_DEVIATIONS = {
+  '亮 page↔surface ΔL*': { floor: 3.2, ref: 'DESIGN §12 O1 + tokens.ts surface1 注释' },
+  '暗 page↔surface ΔL*': { floor: 15, ref: 'DESIGN §12 O2 + tokens.ts surface1 注释' },
+}
+
 // ─────────────────────────────────────────── 输出
 const groups = [...new Set(results.map((r) => r.group))]
 let failures = 0
+let approvedCount = 0
 console.log('\n═══ JNClub 视觉体系静态复核（2026-10）═══\n')
 for (const g of groups) {
   console.log(`▌ ${g}`)
   for (const r of results.filter((x) => x.group === g)) {
-    const mark = r.pass ? '✓' : '✗'
-    if (!r.pass) failures++
-    const note = r.note ? `  ⚠ ${r.note}` : ''
+    let mark = r.pass ? '✓' : '✗'
+    let note = r.note ? `  ⚠ ${r.note}` : ''
+    if (!r.pass && ACCEPT_APPROVED) {
+      const dev = APPROVED_DEVIATIONS[r.name]
+      if (dev && Number(r.actual) >= dev.floor) {
+        mark = '◐'
+        approvedCount++
+        note = `  ◐ 已批准偏差：PRD 原文 ${r.target}，实测 ${r.actual} 未达；按放宽判据 ≥${dev.floor} 放行（依据 ${dev.ref}，需主理人书面确认）`
+      }
+    }
+    if (mark === '✗') failures++
     console.log(`  ${mark} ${r.name}  =  ${r.actual}   [目标 ${r.target}]${note}`)
   }
   console.log('')
@@ -414,5 +565,10 @@ for (const [f, n] of blurByFile.sort((a, b) => b[1] - a[1])) {
 }
 console.log('')
 
-console.log(failures === 0 ? `✓ 全部 ${results.length} 项达标` : `✗ ${failures}/${results.length} 项未达标`)
+const hardPass = results.length - failures - approvedCount
+console.log(
+  failures === 0
+    ? `✓ ${hardPass} 项达标${approvedCount ? ` + ${approvedCount} 项已批准偏差（不计入达标）` : ''}，共 ${results.length} 项`
+    : `✗ ${failures}/${results.length} 项未达标${approvedCount ? `（另有 ${approvedCount} 项已批准偏差）` : ''}`,
+)
 if (isStrict && failures > 0) process.exit(1)
