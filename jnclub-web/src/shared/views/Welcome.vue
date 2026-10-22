@@ -172,11 +172,10 @@ const goRegister = () => {
   justify-content: center;
   width: 38px;
   height: 38px;
-  border: 1px solid var(--glass-border);
+  /* 圆形图标按钮：控件面走 --bg-card，中性描边，删 blur */
+  border: 1px solid var(--surface-border);
   border-radius: var(--radius-pill);
-  background: var(--glass-bg-trans);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
+  background: var(--bg-card);
   color: var(--text-2);
   cursor: pointer;
   transition: all var(--dur) var(--ease);
@@ -194,15 +193,11 @@ const goRegister = () => {
   width: min(960px, 92vw);
   text-align: center;
   padding: 48px 48px 44px;
-  background:
-    radial-gradient(1200px 500px at 10% -10%, var(--glass-glow-top), transparent 60%),
-    radial-gradient(900px 400px at 110% 120%, var(--glass-glow-bottom), transparent 60%),
-    var(--glass-bg-trans);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid var(--glass-border);
+  /* L1 结构面实色（判据 N1：页面壳）+ 删除两层 16% 粉光晕 */
+  background: var(--surface-1);
+  border: 1px solid var(--surface-border);
   border-radius: var(--radius-xl);
-  box-shadow: var(--glass-shadow);
+  box-shadow: var(--shadow-1);
 }
 
 /* 品牌区 */
@@ -247,18 +242,18 @@ const goRegister = () => {
 .feature-card {
   padding: 24px 20px;
   height: 100%;
-  background: var(--glass-bg-trans);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid var(--glass-border);
+  /* L1 结构面实色（判据 N3：平铺卡片） */
+  background: var(--surface-1);
+  border: 1px solid var(--surface-border);
   border-radius: var(--radius-lg);
   text-align: left;
   transition: transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease), border-color var(--dur) var(--ease);
 }
 .feature-card-wrap:hover .feature-card {
-  transform: translateY(-4px);
-  box-shadow: var(--glass-shadow);
-  border-color: var(--brand-text);
+  /* hover 统一到 L2（中性描边 + 卡片阴影），与全站卡片/行同参数 */
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-card-hover);
+  border-color: var(--surface-border-strong);
 }
 .feature-icon {
   display: inline-flex;

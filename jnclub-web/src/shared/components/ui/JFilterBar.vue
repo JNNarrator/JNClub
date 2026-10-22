@@ -60,6 +60,29 @@ const handleSelect = (value: string | number | null) => {
   gap: 8px;
   flex-wrap: wrap;
 }
+
+/* 移动端（<768px）：标签筛选改「横向滚动单行」（Q5 = C 方案）。
+   零新增状态：不折叠、不加「更多」按钮，纯 CSS 让一行装下全部 chip。
+   可发现性补偿：右缘 12px 渐隐遮罩（与 CollectionCard 的 .card-tags 同一手法），
+   作为「右边还有内容」的信号。 */
+@media (max-width: 767px) {
+  .j-filter-bar {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+    /* 右缘 12px 渐隐：未溢出时不可见，不影响观感 */
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 12px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 12px), transparent);
+  }
+  .j-filter-bar::-webkit-scrollbar {
+    display: none;
+  }
+  .j-filter-chip {
+    scroll-snap-align: start;
+  }
+}
 .j-filter-chip {
   display: inline-flex;
   align-items: center;

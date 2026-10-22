@@ -161,21 +161,18 @@ const bookmarkDomain = computed(() => {
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background:
-    radial-gradient(1200px 500px at 10% -10%, var(--glass-glow-top), transparent 60%),
-    radial-gradient(900px 400px at 110% 120%, var(--glass-glow-bottom), transparent 60%),
-    var(--bg-page);
+  /* L0：纯 --bg-page，删除两层 16% 粉光晕（全站光晕只留 MainLayout 一处） */
+  background: var(--bg-page);
 }
 .share-card {
   width: 100%;
   max-width: 560px;
   padding: 32px;
-  background: var(--glass-bg-trans);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid var(--glass-border);
+  /* L1 结构面实色（判据 N3） */
+  background: var(--surface-1);
+  border: 1px solid var(--surface-border);
   border-radius: var(--radius-lg);
-  box-shadow: var(--glass-shadow);
+  box-shadow: var(--shadow-1);
 }
 .share-lock { display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; }
 .lock-ic { color: var(--brand-text); }

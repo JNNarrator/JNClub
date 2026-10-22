@@ -869,15 +869,24 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
     display: flex;
     margin-bottom: 12px;
   }
-  /* 目录 chips 可横滑，避免换行堆叠 */
+  /* 目录 chips 可横滑，避免换行堆叠。
+     与 JFilterBar 的移动端写法逐项对齐（Q5 = C）：nowrap + 横向滚动 +
+     scroll-snap + 右缘 12px 渐隐遮罩（与 CollectionCard .card-tags 同一手法）。
+     渐隐是「还有更多」的可发现性补偿，零新增状态。 */
   .chip-bar {
     flex-wrap: nowrap;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
     scrollbar-width: none;
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 12px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 12px), transparent);
   }
   .chip-bar::-webkit-scrollbar {
     display: none;
+  }
+  .chip-bar > * {
+    scroll-snap-align: start;
   }
   /* 收藏卡片网格：窄屏单列 */
   .collection-grid {

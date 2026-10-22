@@ -205,12 +205,12 @@ body {
   justify-content: center;
   gap: 8px;
   padding: 8px 16px;
+  /* 状态条不是「有内容从其下经过」的浮层（内容整体下移让位），故用实色。
+     这样也能省出 2 次 backdrop-filter 的验收预算。 */
   background: var(--glass-bg-solid);
-  border-bottom: 1px solid var(--glass-border);
+  border-bottom: 1px solid var(--surface-border);
   color: var(--text-2);
   font-size: var(--fs-md);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
 }
 .offline-dot {
   width: 8px;

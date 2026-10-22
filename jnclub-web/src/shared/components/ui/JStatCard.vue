@@ -7,13 +7,25 @@ import { computed } from 'vue'
 import { NIcon } from 'naive-ui'
 import JCountUp from '../animation/JCountUp.vue'
 
+/**
+ * 图标色调：承载「模块身份」。
+ * - bookmark / note / file / vault → 模块色 soft 底 + --module-*-icon 描边色
+ * - neutral → 中性档（--hover-bg 底 + --text-3），用于没有对应模块色的统计项
+ *   （标签 / 回收站，见 DESIGN §11.2 N6）
+ * ⚠ 图标盒背景**不是** --module-*-icon 本身：那会变成大面积模块色填充，
+ *   违反 §3.5 的 3% 面积上限。soft 底（12% 混入 L1）视为中性面，不占配额。
+ */
+type StatTone = 'bookmark' | 'note' | 'file' | 'vault' | 'neutral'
+
 const props = withDefaults(defineProps<{
   label: string
   value: number
   icon: any
   warn?: boolean
+  tone?: StatTone
 }>(), {
   warn: false,
+  tone: 'neutral',
 })
 
 /**
@@ -44,10 +56,10 @@ const emit = defineEmits<{
   <button
     type="button"
     class="j-stat-card jnclub-bouncy"
-    :class="{ 'j-stat-warn': warn }"
+    :class="[`tone-${props.tone}`, { 'j-stat-warn': warn }]"
     @click="emit('click')"
   >
-    <div class="j-stat-icon"><NIcon :component="icon" size="20" /></div>
+    <div class="j-stat-icon"><NIcon :component="icon" size="18" /></div>
     <div class="j-stat-text">
       <div class="j-stat-value" :class="valueSizeClass"><JCountUp :to="value" /></div>
       <div class="j-stat-label">{{ label }}<span v-if="warn" class="j-stat-warn-dot" /></div>
@@ -89,18 +101,45 @@ const emit = defineEmits<{
   gap: 3px;
   min-width: 0;
 }
+/* 图标盒 38 → 32px：单卡内它是「身份标记」而非主视觉，
+   缩小 6px 同时给 6 位数字让出横向空间（技术债②的降档逻辑不因此回归）。 */
 .j-stat-icon {
-  width: 38px; height: 38px; border-radius: var(--radius-sm);
+  width: 32px; height: 32px; border-radius: var(--radius-sm);
   flex-shrink: 0;
-  background: var(--brand-soft); color: var(--brand-text);
   display: flex; align-items: center; justify-content: center;
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
 }
+/* 模块色 soft 底 + 模块图标色（唯一允许的模块色用法：图标 + soft 底） */
+.j-stat-card.tone-bookmark .j-stat-icon {
+  background: color-mix(in srgb, var(--module-bookmark) 12%, var(--surface-1));
+  color: var(--module-bookmark-icon);
+}
+.j-stat-card.tone-note .j-stat-icon {
+  background: color-mix(in srgb, var(--module-note) 12%, var(--surface-1));
+  color: var(--module-note-icon);
+}
+.j-stat-card.tone-file .j-stat-icon {
+  background: color-mix(in srgb, var(--module-file) 12%, var(--surface-1));
+  color: var(--module-file-icon);
+}
+.j-stat-card.tone-vault .j-stat-icon {
+  background: color-mix(in srgb, var(--module-vault) 12%, var(--surface-1));
+  color: var(--module-vault-icon);
+}
+.j-stat-card.tone-neutral .j-stat-icon {
+  background: var(--hover-bg);
+  color: var(--text-3);
+}
+/* 警告态（回收站有内容）优先于 tone：用语义色 --danger，不属品牌粉 */
 .j-stat-warn .j-stat-icon {
   background: var(--danger-soft);
   color: var(--danger-text);
 }
 .j-stat-value {
-  font-size: var(--fs-5xl); font-weight: 800; color: var(--text-1); line-height: 1.1;
+  /* 字重 800 → 700：800 在 DM Sans 下笔画过厚，6 位数字会糊成一块；
+     700 仍明显重于正文（正文 400/600），层级不变而可读性更好。
+     字号档位（24px）不动 —— decisions-ia.md 决策 6 已闭环。 */
+  font-size: var(--fs-5xl); font-weight: 700; color: var(--text-1); line-height: 1.1;
   white-space: nowrap;
 }
 /* 位数降档（见 script 中 valueSizeClass 的说明）：
@@ -111,7 +150,9 @@ const emit = defineEmits<{
 .j-stat-value.is-xlong { font-size: var(--fs-2xl); } /* 18px */
 .j-stat-label {
   display: inline-flex; align-items: center; gap: 6px;
-  font-size: var(--fs-sm); color: var(--glass-text-secondary);
+  /* 标签 12 → 13px，颜色由 --glass-text-secondary（65% 黑）改为 --text-2 实色：
+     12px 是「辅助文字」档，13px 才是「可读标签」档；实色保证暗色下不发灰。 */
+  font-size: var(--fs-md); color: var(--text-2);
 }
 .j-stat-warn-dot {
   width: 7px; height: 7px; border-radius: 50%;
@@ -130,6 +171,7 @@ const emit = defineEmits<{
     min-height: 104px;
     padding: 14px;
   }
+  /* 移动端图标盒与桌面同档（32px），不再单独放大 */
   .j-stat-icon { width: 32px; height: 32px; border-radius: var(--radius-sm); }
   .j-stat-value { font-size: var(--fs-4xl); }
 }

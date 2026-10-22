@@ -92,11 +92,24 @@ interface TrendPoint {
 }
 const trendData = ref<TrendPoint[]>([])
 
+/**
+ * 图表序列色：只允许 --chart-series-*。
+ *
+ * 三个禁止：
+ * 1. 不能直接用 --module-*（语义污染：模块色一旦被图表绑定，未来改图标色就会
+ *    连带改图表配色，而图表本可以有独立的色板演进路径）；
+ * 2. 不能直接用 --brand（#EC5B8E 在页面底 #F5F5F7 上仅 2.99:1，不达 WCAG SC 1.4.11 的 3:1）；
+ * 3. 不能新增第五套图表 token。
+ *
+ * 首序列用 --brand-text 档 #C9256A（vs #FFF 5.31:1），色相仍是 335° 玫红，
+ * 视觉上依然读作「品牌粉那条最重要的线」，同时满足对比度与粉色面积纪律。
+ * 2–4 序列在 token 层就是 var(--module-*-icon) 的别名，由引用关系保证「图表色 = 图标色」。
+ */
 const TREND_SERIES: Array<{ key: keyof Omit<TrendPoint, 'month'>; label: string; color: string }> = [
-  { key: 'bookmarks', label: '收藏', color: 'var(--module-bookmark)' },
-  { key: 'notes', label: '便签', color: 'var(--module-note)' },
-  { key: 'files', label: '云盘', color: 'var(--module-file)' },
-  { key: 'vault', label: '密码库', color: 'var(--module-vault)' },
+  { key: 'bookmarks', label: '收藏', color: 'var(--chart-series-1)' },
+  { key: 'notes', label: '便签', color: 'var(--chart-series-2)' },
+  { key: 'files', label: '云盘', color: 'var(--chart-series-3)' },
+  { key: 'vault', label: '密码库', color: 'var(--chart-series-4)' },
 ]
 
 const trendMonths = ref(6)
@@ -165,13 +178,15 @@ const statCards = computed(() => {
   const c = data.value?.counts
   if (!c) return []
   const recycleTotal = c.recycle.bookmark + c.recycle.note + c.recycle.file + c.recycle.vault
+  // tone 承载模块色身份：4 个模块各一色相，标签与回收站走中性档
+  // （N6：它们没有对应模块色；回收站的 warn 态继续用 --danger/--danger-soft 语义色）
   return [
-    { key: 'bookmarks', label: '收藏', value: c.bookmarks, icon: Bookmark, to: '/?module=bookmarks' },
-    { key: 'notes', label: '便签', value: c.notes, icon: StickyNote, to: '/?module=notes' },
-    { key: 'files', label: '云盘文件', value: c.files, icon: Cloud, to: '/?module=files' },
-    { key: 'vault', label: '密码库', value: c.vault, icon: KeyRound, to: '/?module=vault' },
-    { key: 'tags', label: '标签', value: c.tags, icon: Tag, to: '/?module=bookmarks' },
-    { key: 'recycle', label: '回收站', value: recycleTotal, icon: Trash2, to: '/recycle', warn: recycleTotal > 0 },
+    { key: 'bookmarks', label: '收藏', value: c.bookmarks, icon: Bookmark, to: '/?module=bookmarks', tone: 'bookmark' as const },
+    { key: 'notes', label: '便签', value: c.notes, icon: StickyNote, to: '/?module=notes', tone: 'note' as const },
+    { key: 'files', label: '云盘文件', value: c.files, icon: Cloud, to: '/?module=files', tone: 'file' as const },
+    { key: 'vault', label: '密码库', value: c.vault, icon: KeyRound, to: '/?module=vault', tone: 'vault' as const },
+    { key: 'tags', label: '标签', value: c.tags, icon: Tag, to: '/?module=bookmarks', tone: 'neutral' as const },
+    { key: 'recycle', label: '回收站', value: recycleTotal, icon: Trash2, to: '/recycle', warn: recycleTotal > 0, tone: 'neutral' as const },
   ]
 })
 
@@ -362,7 +377,7 @@ const openFile = (f: { id: number }) => {
           <div class="stat-grid">
             <JStatCard
               v-for="c in statCards" :key="c.key"
-              :label="c.label" :value="c.value" :icon="c.icon" :warn="c.warn"
+              :label="c.label" :value="c.value" :icon="c.icon" :warn="c.warn" :tone="c.tone"
               @click="router.push(c.to)"
             />
           </div>
@@ -697,7 +712,9 @@ const openFile = (f: { id: number }) => {
 }
 .disk-bar {
   height: 100%; border-radius: var(--radius-2xs);
-  background: linear-gradient(90deg, var(--brand), var(--brand-suppl, var(--brand)));
+  /* 单色而非渐变：暗色下原渐变的尾端（--brand-suppl 18% 粉）几乎不可见，
+     导致「进度条比数字亮」的观感（P0-4）。改单色后让数值成为最亮层。 */
+  background: var(--brand);
   transition: width var(--dur-slower) var(--ease);
 }
 
@@ -785,7 +802,8 @@ const openFile = (f: { id: number }) => {
   align-items: center;
   gap: 2px;
   padding: 2px;
-  background: var(--glass-chip-bg);
+  /* 分段控件外壳走中性档，激活段才给 --brand-soft（见 .trend-switch-active） */
+  background: var(--hover-bg);
   border: 1px solid var(--surface-border);
   border-radius: var(--radius-pill);
 }
@@ -839,7 +857,8 @@ const openFile = (f: { id: number }) => {
 .trend-grid-line {
   position: absolute;
   left: 0; right: 0;
-  border-top: 1px dashed var(--glass-border);
+  /* 网格线是中性辅助线，走 --surface-border（原 --glass-border 在白底上不可见） */
+  border-top: 1px dashed var(--surface-border);
 }
 .trend-bars {
   position: absolute;
@@ -959,9 +978,11 @@ const openFile = (f: { id: number }) => {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  /* 与 .panel 的 20px 对齐：两者同为卡片容器、同为 --radius-md 圆角，
-     仅内边距相差 2px 属于无意义的档位漂移（P1-9）。 */
-  padding: 20px;
+  /* 2026-10 配重（P0-4）：问候卡是「身份条」而不是内容面板，
+     高度必须 ≤76px，否则它会和下面的统计卡抢视觉重量。
+     内边距 20 → 12/16、emoji 32 → 24、左缘 3px 品牌竖条作为唯一粉色指示。 */
+  padding: 12px 16px;
+  min-height: 0;
   border-radius: var(--radius-md);
   /* 2026-10：移除模板上的 glass-card--modal 类（R6）。该类提供 background /
      backdrop-filter / border / box-shadow 四件事，原先 scoped 只覆盖了前三项、
@@ -969,25 +990,32 @@ const openFile = (f: { id: number }) => {
      box-shadow 显式补回，否则删类后卡片会掉边框和阴影。 */
   background: var(--surface-1);
   border: 1px solid var(--surface-border);
+  /* 左侧 3px 品牌竖条：整张问候卡的唯一粉色指示（1 处，不超预算） */
+  border-left: 3px solid var(--brand);
   box-shadow: var(--shadow-1);
   flex-wrap: wrap;
 }
 .greet-main {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
 }
-.greet-emoji { font-size: var(--fs-7xl); }
-.greet-text { display: flex; flex-direction: column; gap: 2px; }
+.greet-emoji {
+  /* 32px → 24px：emoji 只是装饰，不该是整张卡的最高元素 */
+  font-size: var(--fs-5xl);
+  line-height: 1;
+}
+.greet-text { display: flex; flex-direction: column; gap: 0; }
 .greet-title {
   font-size: var(--fs-2xl);
   font-weight: 700;
+  line-height: 1.25;
   color: var(--text-1);
 }
-.greet-date { font-size: var(--fs-sm); color: var(--glass-text-secondary); }
+.greet-date { font-size: var(--fs-sm); line-height: 1.4; color: var(--text-2); }
 .greet-quote {
   font-size: var(--fs-sm);
-  color: var(--glass-text-secondary);
+  color: var(--text-2);
   font-style: italic;
   text-align: right;
 }
@@ -1012,7 +1040,8 @@ const openFile = (f: { id: number }) => {
   align-items: center;
   gap: 10px;
   padding: 10px 12px;
-  background: var(--glass-chip-bg);
+  /* 抽屉内的拖拽行不是浮层 → 内嵌 L2（--hover-bg 底 + 中性描边） */
+  background: var(--hover-bg);
   border: 1px solid var(--surface-border);
   border-radius: var(--radius-sm);
   cursor: grab;
@@ -1044,7 +1073,8 @@ const openFile = (f: { id: number }) => {
   align-items: flex-start;
   gap: 2px;
   padding: 10px 12px;
-  background: var(--glass-chip-bg);
+  /* 未选中走中性档，选中态才给 --brand-soft + --brand-text（见 .density-active） */
+  background: var(--hover-bg);
   border: 1px solid var(--surface-border);
   border-radius: var(--radius-sm);
   cursor: pointer;

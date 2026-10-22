@@ -218,12 +218,11 @@ const jnxFeatures = [
   flex-direction: column;
   gap: 16px;
   padding: 22px;
-  background: var(--glass-bg-trans);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid var(--glass-border);
+  /* L1 结构面实色（判据 N3：平铺区块） */
+  background: var(--surface-1);
+  border: 1px solid var(--surface-border);
   border-radius: var(--radius-lg);
-  box-shadow: var(--glass-shadow);
+  box-shadow: var(--shadow-1);
 }
 .section-head { display: flex; align-items: center; gap: 12px; }
 .section-icon {
@@ -238,12 +237,10 @@ const jnxFeatures = [
 .features { display: flex; flex-direction: column; gap: 10px; }
 .feature-card {
   display: flex; align-items: center; gap: 14px; padding: 14px 16px;
-  background: var(--glass-bg-trans);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid var(--glass-border);
+  /* 内嵌 L2 块：--hover-bg 底 + 中性描边 */
+  background: var(--hover-bg);
+  border: 1px solid var(--surface-border);
   border-radius: var(--radius-md);
-  box-shadow: var(--glass-shadow);
 }
 .feature-icon {
   width: 44px; height: 44px; border-radius: var(--radius-sm);
@@ -256,12 +253,11 @@ const jnxFeatures = [
 
 .download-box {
   padding: 20px;
-  background: var(--glass-bg-trans);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid var(--glass-border);
+  /* L1 结构面实色（判据 N3） */
+  background: var(--surface-1);
+  border: 1px solid var(--surface-border);
   border-radius: var(--radius-lg);
-  box-shadow: var(--glass-shadow);
+  box-shadow: var(--shadow-1);
   text-align: center;
   display: flex; flex-direction: column; align-items: center; gap: 12px;
 }
