@@ -782,7 +782,8 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
 .search-hint {
   font-size: var(--fs-xs);
   color: var(--text-3);
-  background: var(--glass-chip-bg);
+  /* 提示 pill 是内容底，不是粉色语义 → 中性 L2 */
+  background: var(--hover-bg);
   border: 1px solid var(--surface-border);
   padding: 2px 8px;
   border-radius: var(--radius-pill);
@@ -828,9 +829,10 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
   opacity: 0;
   animation: search-item-in var(--dur-slow) var(--ease) forwards;
 }
+/* hover 与键盘导航高亮同一语义（位置指示）→ 中性 L2 */
 .result-item:hover,
 .result-item.search-nav-active {
-  background: var(--glass-chip-bg);
+  background: var(--hover-bg);
 }
 .result-item.search-nav-active .item-arrow {
   opacity: 1;
@@ -921,17 +923,23 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
 .history-clear:hover { color: var(--brand-text); }
 .history-chips { display: flex; flex-wrap: wrap; gap: 8px; }
 /* 抽屉内 chip 的统一档：4px 12px / --fs-sm（另见下方 .type-filter-chip 与 .syntax-chip 的说明，P1-10） */
+/* chip 语言与 JFilterBar 对齐：透明底 + 1px 淡粉描边 + 粉字，
+   只有 hover/激活态才给 --brand-soft 底（原先每个 chip 都是粉底，属 PRD 4.2 禁止项） */
 .history-chip {
   padding: 4px 12px;
   border-radius: var(--radius-pill);
   border: 1px solid var(--glass-chip-border);
-  background: var(--glass-chip-bg);
+  background: transparent;
   color: var(--glass-chip-text);
   font-size: var(--fs-sm);
   cursor: pointer;
-  transition: border-color var(--dur) var(--ease), color var(--dur) var(--ease);
+  transition: border-color var(--dur) var(--ease), color var(--dur) var(--ease), background var(--dur) var(--ease);
 }
-.history-chip:hover { border-color: var(--brand-text); color: var(--brand-text); }
+.history-chip:hover {
+  border-color: var(--brand-text);
+  background: var(--brand-soft);
+  color: var(--brand-text);
+}
 .cmd-list { display: flex; flex-direction: column; gap: 4px; }
 .cmd-item {
   display: flex; align-items: center; gap: 10px;
@@ -943,8 +951,9 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
   text-align: left;
   transition: background var(--dur) var(--ease);
 }
+/* 键盘导航高亮 = 位置指示，不是品牌强调 → 中性 L2 */
 .cmd-item:hover,
-.cmd-item.search-nav-active { background: var(--glass-chip-bg); }
+.cmd-item.search-nav-active { background: var(--hover-bg); }
 .cmd-ic { color: var(--brand-text); flex-shrink: 0; }
 .cmd-label { flex: 1; }
 .cmd-group { font-size: var(--fs-xs); color: var(--text-3); }
@@ -965,7 +974,8 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
   padding: 4px 12px;
   border-radius: var(--radius-pill);
   border: 1px solid var(--glass-chip-border);
-  background: var(--glass-chip-bg);
+  /* 同上：未选中透明底，选中态才 --brand-soft（见 .type-filter-chip.active） */
+  background: transparent;
   color: var(--glass-chip-text);
   font-size: var(--fs-sm);
   cursor: pointer;
@@ -1027,7 +1037,8 @@ const isMobileWidth = () => (typeof window !== 'undefined' && window.innerWidth 
 .item-meta {
   font-size: var(--fs-xs);
   color: var(--text-3);
-  background: var(--glass-chip-bg);
+  /* 元信息 pill：中性 L2（原粉底 12%，属 PRD 4.2 禁止的背景用粉） */
+  background: var(--hover-bg);
   border: 1px solid var(--surface-border);
   border-radius: var(--radius-pill);
   padding: 0 6px;

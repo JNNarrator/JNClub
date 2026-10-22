@@ -147,7 +147,7 @@ const isExpired = (row: ShareRow) => row.expiresAt && new Date(row.expiresAt).ge
   justify-content: space-between;
   gap: 10px;
   padding: 12px 14px;
-  background: var(--glass-chip-bg);
+  background: var(--hover-bg);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-md);
 }

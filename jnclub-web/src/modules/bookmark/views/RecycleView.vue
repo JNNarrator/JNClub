@@ -438,7 +438,7 @@ onMounted(() => { fetchItems(); fetchConfig() })
 }
 /* hover 统一到 L2：中性描边加深 + 卡片阴影 + 抬升 1px（原为变粉边） */
 .recycle-item:hover {
-  transform: translateY(-1px);
+  transform: translateY(-2px);
   border-color: var(--surface-border-strong);
   box-shadow: var(--shadow-card-hover);
 }

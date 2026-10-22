@@ -270,7 +270,8 @@ const toggle = (id: number) => {
   padding: 5px 14px;
   border-radius: var(--radius-pill);
   border: 1px solid var(--surface-border);
-  background: var(--glass-chip-bg);
+  /* 未选中透明底，选中态才 --brand-soft（见 .dedup-tab.active） */
+  background: transparent;
   color: var(--glass-chip-text);
   font-size: var(--fs-sm);
   cursor: pointer;
@@ -312,7 +313,8 @@ const toggle = (id: number) => {
   justify-content: space-between;
   gap: 10px;
   padding: 10px 14px;
-  background: var(--glass-chip-bg);
+  /* 组头是内容底 → 中性 L2 */
+  background: var(--hover-bg);
   border-bottom: 1px solid var(--surface-border);
 }
 .dedup-group-title {

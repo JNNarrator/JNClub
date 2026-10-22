@@ -273,7 +273,7 @@ const close = () => {
 }
 .reader-seg {
   display: inline-flex;
-  background: var(--glass-chip-bg);
+  background: var(--hover-bg);
   border: 1px solid var(--surface-border);
   border-radius: var(--radius-sm);
   padding: 2px;
@@ -369,11 +369,11 @@ const close = () => {
   padding: 8px 16px;
   border-left: 3px solid var(--brand);
   color: var(--text-2);
-  background: var(--glass-chip-bg);
+  background: var(--hover-bg);
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
 }
 .reading-article :deep(pre) {
-  background: var(--glass-chip-bg);
+  background: var(--hover-bg);
   border: 1px solid var(--surface-border);
   border-radius: var(--radius-sm);
   padding: 14px;
@@ -383,7 +383,7 @@ const close = () => {
 }
 .reading-article :deep(code) {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  background: var(--glass-chip-bg);
+  background: var(--hover-bg);
   border-radius: var(--radius-2xs);
   padding: 1px 5px;
   font-size: 0.92em;
@@ -404,5 +404,5 @@ const close = () => {
   padding: 8px 12px;
   text-align: left;
 }
-.reading-article :deep(th) { background: var(--glass-chip-bg); font-weight: 600; }
+.reading-article :deep(th) { background: var(--hover-bg); font-weight: 600; }
 </style>

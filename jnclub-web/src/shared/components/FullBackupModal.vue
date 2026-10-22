@@ -200,7 +200,7 @@ const handleImport = async () => {
   color: var(--text-1);
 }
 .section-tag {
-  background: var(--glass-chip-bg) !important;
+  background: var(--hover-bg) !important;
   color: var(--glass-chip-text) !important;
 }
 .section-row {

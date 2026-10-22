@@ -173,8 +173,9 @@ const copyLink = async () => {
   align-items: center;
   gap: 8px;
   padding: 10px 12px;
-  background: var(--glass-chip-bg);
-  border: 1px solid var(--glass-border);
+  /* 链接展示块是内容底 → 中性 L2；顺带把 --glass-border 换成 --surface-border */
+  background: var(--hover-bg);
+  border: 1px solid var(--surface-border);
   border-radius: var(--radius-sm);
   color: var(--text-2);
 }

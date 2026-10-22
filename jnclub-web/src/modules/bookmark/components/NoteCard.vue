@@ -195,7 +195,7 @@ const onRootClick = () => {
 
 .note-card:hover {
   /* 与 .bookmark-card 逐项同参数：描边加深 + 卡片阴影 + 抬升 1px */
-  transform: translateY(-1px);
+  transform: translateY(-2px);
   border-color: var(--surface-border-strong);
   box-shadow: var(--shadow-card-hover);
 }

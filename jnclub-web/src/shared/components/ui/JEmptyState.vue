@@ -199,7 +199,7 @@ const resolvedIcon = computed(() => (
 }
 
 .empty-cta-ghost {
-  background: var(--glass-chip-bg);
+  background: var(--hover-bg);
   border: 1px solid var(--surface-border);
   color: var(--brand-text);
   /* 与同组件的 .empty-cta.glass-pill-btn 同为「空态 CTA」，圆角必须同档。

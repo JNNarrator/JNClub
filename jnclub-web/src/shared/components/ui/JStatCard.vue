@@ -90,7 +90,7 @@ const emit = defineEmits<{
 .j-stat-card:hover {
   border-color: var(--surface-border-strong);
   box-shadow: var(--shadow-card-hover);
-  transform: translateY(-1px);
+  transform: translateY(-2px);
 }
 .j-stat-card.j-stat-warn {
   border-color: color-mix(in srgb, var(--danger) 45%, transparent);

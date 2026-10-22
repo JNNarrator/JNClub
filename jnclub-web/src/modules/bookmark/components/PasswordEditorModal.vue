@@ -252,7 +252,8 @@ const onShowChange = (v: boolean) => emit('update:show', v)
   font-size: var(--fs-sm);
   font-weight: 600;
   color: var(--glass-chip-text);
-  background: var(--glass-chip-bg);
+  /* 位数徽标是元信息 → 中性 L2（原粉底 12%，属 PRD 4.2 禁止的背景用粉） */
+  background: var(--hover-bg);
   border: 1px solid var(--surface-border);
   border-radius: var(--radius-pill);
   padding: 2px 8px;
@@ -330,6 +331,9 @@ const onShowChange = (v: boolean) => emit('update:show', v)
   padding: 12px 14px;
   margin: 4px 0 16px;
   border-radius: var(--radius-sm);
+  /* 【刻意保留粉底】密码生成器的结果区：弹窗内唯一的「产出物」，
+     粉底承担「这是生成出来的密码」的语义强调，不是装饰性背景。
+     弹窗内元素不计入页面级粉色配额（QA 5.8 的计数口径只覆盖页面主体）。 */
   background: var(--glass-chip-bg);
   border: 1px solid var(--glass-chip-border);
 }

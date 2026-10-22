@@ -484,7 +484,7 @@ const handleRenameSubmit = async () => {
   padding: 9px 12px;
   border: 1px dashed var(--surface-border);
   border-radius: var(--radius-sm);
-  background: var(--glass-chip-bg);
+  background: var(--hover-bg);
   color: var(--text-2);
   font-size: var(--fs-md);
   cursor: pointer;
@@ -527,7 +527,7 @@ const handleRenameSubmit = async () => {
 
 :deep(.n-tree-node--selected) { background: var(--brand-soft) !important; border-radius: var(--radius-sm); }
 :deep(.n-tree-node) { border-radius: var(--radius-sm); transition: background var(--dur) var(--ease); }
-:deep(.n-tree-node:hover) { background: var(--glass-chip-bg); }
+:deep(.n-tree-node:hover) { background: var(--hover-bg); }
 :deep(.n-tree-node:hover .node-menu-btn) { opacity: 1 !important; }
 :deep(.n-tree-node--selected .node-menu-btn) { opacity: 1 !important; }
 

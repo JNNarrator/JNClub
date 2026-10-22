@@ -182,7 +182,7 @@ const save = async () => {
   gap: 10px;
   padding: 10px 14px;
   margin-bottom: 16px;
-  background: var(--glass-chip-bg);
+  background: var(--hover-bg);
   border-radius: var(--radius-sm);
   font-size: var(--fs-md);
   color: var(--text-2);

@@ -180,7 +180,7 @@ const handleDropdown = (key: string) => {
 .collection-row:hover {
   /* hover 统一到 L2：中性描边加深 + 卡片阴影 + 抬升 1px，与四类卡/行逐项同参数。
      粉色只在 .is-selected（main.css 统一提供），hover 不再染粉。 */
-  transform: translateY(-1px);
+  transform: translateY(-2px);
   border-color: var(--surface-border-strong);
   box-shadow: var(--shadow-card-hover);
 }

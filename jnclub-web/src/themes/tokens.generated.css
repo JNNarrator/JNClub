@@ -36,7 +36,7 @@
   --shadow-1: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
   --shadow-2: 0 2px 4px -1px rgba(0, 0, 0, 0.06), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
   --shadow-popover: 0 8px 24px -6px rgba(0, 0, 0, 0.12), 0 2px 6px -1px rgba(0, 0, 0, 0.06);
-  --shadow-card-hover: 0 4px 8px -2px rgba(0, 0, 0, 0.06), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+  --shadow-card-hover: 0 6px 16px -4px rgba(0, 0, 0, 0.10), 0 2px 6px -2px rgba(0, 0, 0, 0.06);
   --shadow-fab: 0 4px 12px -2px rgba(236, 91, 142, 0.15);
   --shadow-fab-hover: 0 8px 20px -4px rgba(236, 91, 142, 0.2);
   --state-success: #7AC686;
@@ -196,7 +196,7 @@
     --shadow-1: 0 1px 2px 0 rgba(0, 0, 0, 0.30);
     --shadow-2: 0 2px 4px -1px rgba(0, 0, 0, 0.40);
     --shadow-popover: 0 8px 24px -6px rgba(0, 0, 0, 0.55), 0 2px 6px -1px rgba(0, 0, 0, 0.40);
-    --shadow-card-hover: 0 4px 8px -2px rgba(0, 0, 0, 0.44);
+    --shadow-card-hover: 0 6px 16px -4px rgba(0, 0, 0, 0.52), 0 2px 6px -2px rgba(0, 0, 0, 0.36);
     --shadow-fab: 0 4px 12px -2px rgba(255, 143, 171, 0.20);
     --shadow-fab-hover: 0 8px 20px -4px rgba(255, 143, 171, 0.25);
     --state-success: #7AC686;
@@ -214,11 +214,11 @@
     --module-bookmark: #8F81F8;
     --module-note: #5AA9F7;
     --module-file: #42BD9A;
-    --module-vault: #E09E48;
+    --module-vault: #E59A38;
     --module-bookmark-icon: #8F81F8;
     --module-note-icon: #5AA9F7;
     --module-file-icon: #42BD9A;
-    --module-vault-icon: #E09E48;
+    --module-vault-icon: #E59A38;
     --chart-series-1: #FF8FAB;
     --chart-series-2: var(--module-note-icon);
     --chart-series-3: var(--module-file-icon);
@@ -356,7 +356,7 @@
   --shadow-1: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
   --shadow-2: 0 2px 4px -1px rgba(0, 0, 0, 0.06), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
   --shadow-popover: 0 8px 24px -6px rgba(0, 0, 0, 0.12), 0 2px 6px -1px rgba(0, 0, 0, 0.06);
-  --shadow-card-hover: 0 4px 8px -2px rgba(0, 0, 0, 0.06), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+  --shadow-card-hover: 0 6px 16px -4px rgba(0, 0, 0, 0.10), 0 2px 6px -2px rgba(0, 0, 0, 0.06);
   --shadow-fab: 0 4px 12px -2px rgba(236, 91, 142, 0.15);
   --shadow-fab-hover: 0 8px 20px -4px rgba(236, 91, 142, 0.2);
   --state-success: #7AC686;
@@ -515,7 +515,7 @@
   --shadow-1: 0 1px 2px 0 rgba(0, 0, 0, 0.30);
   --shadow-2: 0 2px 4px -1px rgba(0, 0, 0, 0.40);
   --shadow-popover: 0 8px 24px -6px rgba(0, 0, 0, 0.55), 0 2px 6px -1px rgba(0, 0, 0, 0.40);
-  --shadow-card-hover: 0 4px 8px -2px rgba(0, 0, 0, 0.44);
+  --shadow-card-hover: 0 6px 16px -4px rgba(0, 0, 0, 0.52), 0 2px 6px -2px rgba(0, 0, 0, 0.36);
   --shadow-fab: 0 4px 12px -2px rgba(255, 143, 171, 0.20);
   --shadow-fab-hover: 0 8px 20px -4px rgba(255, 143, 171, 0.25);
   --state-success: #7AC686;
@@ -533,11 +533,11 @@
   --module-bookmark: #8F81F8;
   --module-note: #5AA9F7;
   --module-file: #42BD9A;
-  --module-vault: #E09E48;
+  --module-vault: #E59A38;
   --module-bookmark-icon: #8F81F8;
   --module-note-icon: #5AA9F7;
   --module-file-icon: #42BD9A;
-  --module-vault-icon: #E09E48;
+  --module-vault-icon: #E59A38;
   --chart-series-1: #FF8FAB;
   --chart-series-2: var(--module-note-icon);
   --chart-series-3: var(--module-file-icon);

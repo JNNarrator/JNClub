@@ -264,7 +264,7 @@ const goRegister = () => {
   width: 46px;
   height: 46px;
   border-radius: var(--radius-md);
-  background: var(--glass-chip-bg);
+  background: var(--hover-bg);
   border: 1px solid var(--surface-border);
   color: var(--brand-text);
   margin-bottom: 14px;

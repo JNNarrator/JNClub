@@ -208,7 +208,7 @@ const handleDragEnd = () => setDragging(null)
    改用「边框转品牌色 + 浮起阴影」，与 .collection-row / .file-item 一致。 */
 .note-row:hover {
   /* 与 .collection-row 逐项同参数（中性描边 + 卡片阴影 + 抬升 1px） */
-  transform: translateY(-1px);
+  transform: translateY(-2px);
   border-color: var(--surface-border-strong);
   box-shadow: var(--shadow-card-hover);
 }

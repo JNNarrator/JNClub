@@ -729,6 +729,11 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
 }
 
 /* === 标签筛选条 === */
+/* 注意：.tag-bar 是 JFilterBar 的外层类，两条 scoped 规则同 specificity（0,2,0），
+   谁后加载谁赢 —— QA 实测 390px 下这里胜出，把 JFilterBar 的 nowrap 覆盖成 wrap，
+   导致 Q5=C 的横滑机制完全没生效（2 行、scrollWidth==clientWidth）。
+   故移动端的 nowrap/overflow 必须在本文件显式声明（见 @media 块），
+   不能指望 JFilterBar 的 scoped 规则穿透过来。 */
 .tag-bar {
   display: flex;
   flex-wrap: wrap;
@@ -832,7 +837,7 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
   gap: 10px;
   padding: 10px 14px;
   margin-bottom: 16px;
-  background: var(--glass-chip-bg);
+  background: var(--hover-bg);
   border-radius: var(--radius-sm);
   font-size: var(--fs-md);
   color: var(--text-2);
@@ -869,24 +874,37 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
     display: flex;
     margin-bottom: 12px;
   }
-  /* 目录 chips 可横滑，避免换行堆叠。
-     与 JFilterBar 的移动端写法逐项对齐（Q5 = C）：nowrap + 横向滚动 +
-     scroll-snap + 右缘 12px 渐隐遮罩（与 CollectionCard .card-tags 同一手法）。
-     渐隐是「还有更多」的可发现性补偿，零新增状态。 */
+  /* 目录 chips 可横滑，避免换行堆叠（Q5 = C）。
+     右缘渐隐遮罩已移除，原因见 JFilterBar.vue 同名注释：
+     CSS 判断不了溢出，恒生效的 mask 会在没溢出时制造假信号。 */
   .chip-bar {
     flex-wrap: nowrap;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     scroll-snap-type: x proximity;
     scrollbar-width: none;
-    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 12px), transparent);
-    mask-image: linear-gradient(to right, #000 calc(100% - 12px), transparent);
   }
   .chip-bar::-webkit-scrollbar {
     display: none;
   }
   .chip-bar > * {
     scroll-snap-align: start;
+  }
+  /* 标签筛选条：与 .chip-bar 同一套横滑参数，且必须在本文件声明
+     （否则被上面的基础规则 .tag-bar{flex-wrap:wrap} 覆盖掉，见文件头注释） */
+  .tag-bar {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+  }
+  .tag-bar::-webkit-scrollbar {
+    display: none;
+  }
+  .tag-bar > * {
+    scroll-snap-align: start;
+    flex-shrink: 0;
   }
   /* 收藏卡片网格：窄屏单列 */
   .collection-grid {

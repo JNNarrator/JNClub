@@ -707,7 +707,7 @@ const openFile = (f: { id: number }) => {
 .disk-meta { color: var(--text-3); flex-shrink: 0; margin-left: 8px; }
 .disk-bar-wrap {
   height: 6px; border-radius: var(--radius-2xs);
-  background: var(--glass-chip-bg);
+  background: var(--hover-bg);
   overflow: hidden;
 }
 .disk-bar {
@@ -760,13 +760,13 @@ const openFile = (f: { id: number }) => {
   border-radius: var(--radius-sm);
   transition: background var(--dur) var(--ease);
 }
-.recent-item:hover { background: var(--glass-chip-bg); }
+.recent-item:hover { background: var(--hover-bg); }
 .recent-link { cursor: pointer; }
 .recent-title {
   font-size: var(--fs-sm); color: var(--text-2);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.recent-time { font-size: var(--fs-xs); color: var(--text-3); flex-shrink: 0; }
+.recent-time { font-size: var(--fs-sm); color: var(--text-3); flex-shrink: 0; }
 .recent-arrow {
   margin-left: 4px;
   color: var(--brand-text);
@@ -791,7 +791,13 @@ const openFile = (f: { id: number }) => {
   border: 1px dashed var(--surface-border);
   border-radius: var(--radius-md);
 }
-.quick-btn { border-radius: var(--radius-pill); }
+.quick-btn {
+  border-radius: var(--radius-pill);
+  /* P1-2：NButton size="small" 默认取 common.fontSizeSmall = --fs-base(14px)，
+     会把概览页的字号档位撑到 5 档。压到 --fs-md(13px) 后与 .panel-title /
+     .j-stat-label 同档，同屏档位收敛为 12/13/18/24 共 4 档（PRD 8.1 要求 ≤4）。 */
+  font-size: var(--fs-md);
+}
 
 /* 数据趋势 */
 .trend-panel { min-height: 200px; }
@@ -810,7 +816,7 @@ const openFile = (f: { id: number }) => {
 .trend-switch-btn {
   border: none;
   background: transparent;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   color: var(--text-3);
   padding: 4px 10px;
   border-radius: var(--radius-pill);
@@ -825,7 +831,7 @@ const openFile = (f: { id: number }) => {
 .trend-legend {
   margin-left: auto;
   display: flex; align-items: center; flex-wrap: wrap; gap: 12px;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   color: var(--text-3);
   font-weight: 400;
 }
@@ -910,7 +916,7 @@ const openFile = (f: { id: number }) => {
   pointer-events: none;
 }
 .trend-tip-month {
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   font-weight: 600;
   color: var(--brand-text);
   margin-bottom: 4px;
@@ -919,7 +925,7 @@ const openFile = (f: { id: number }) => {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   color: var(--text-2);
   white-space: nowrap;
 }
@@ -936,7 +942,7 @@ const openFile = (f: { id: number }) => {
 }
 .trend-month {
   text-align: center;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   color: var(--text-3);
   white-space: nowrap;
 }
@@ -950,7 +956,7 @@ const openFile = (f: { id: number }) => {
   position: absolute;
   right: 0;
   transform: translateY(50%);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   color: var(--text-3);
 }
 @media (max-width: 767px) {
@@ -1093,7 +1099,7 @@ const openFile = (f: { id: number }) => {
   color: var(--text-1);
 }
 .density-desc {
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   color: var(--text-3);
   line-height: 1.4;
 }

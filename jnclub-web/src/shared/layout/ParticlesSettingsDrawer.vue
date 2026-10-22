@@ -173,7 +173,7 @@ const options: { key: ParticlesStyle; label: string; desc: string; preview: 'off
   justify-content: center;
   flex-shrink: 0;
   border-radius: var(--radius-sm);
-  background: var(--glass-chip-bg);
+  background: var(--hover-bg);
   color: var(--text-3);
   overflow: hidden;
 }

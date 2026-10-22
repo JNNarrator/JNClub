@@ -192,9 +192,9 @@ const bookmarkDomain = computed(() => {
   color: var(--text-1);
   margin: 0;
 }
-.bookmark-box { width: 100%; padding: 16px; text-align: center; background: var(--glass-chip-bg); border-radius: var(--radius-md); }
+.bookmark-box { width: 100%; padding: 16px; text-align: center; background: var(--hover-bg); border-radius: var(--radius-md); }
 .bookmark-domain { font-family: var(--font-mono); color: var(--brand-text); }
-.file-box { display: flex; align-items: center; gap: 14px; width: 100%; padding: 16px; background: var(--glass-chip-bg); border-radius: var(--radius-md); }
+.file-box { display: flex; align-items: center; gap: 14px; width: 100%; padding: 16px; background: var(--hover-bg); border-radius: var(--radius-md); }
 .file-ic { color: var(--brand-text); flex-shrink: 0; }
 .file-info { min-width: 0; }
 .file-name { font-weight: 600; color: var(--text-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

@@ -63,8 +63,15 @@ const handleSelect = (value: string | number | null) => {
 
 /* 移动端（<768px）：标签筛选改「横向滚动单行」（Q5 = C 方案）。
    零新增状态：不折叠、不加「更多」按钮，纯 CSS 让一行装下全部 chip。
-   可发现性补偿：右缘 12px 渐隐遮罩（与 CollectionCard 的 .card-tags 同一手法），
-   作为「右边还有内容」的信号。 */
+
+   ⚠ 关于右缘渐隐遮罩（原 O5 方案）：**已移除**。
+   原因：CSS 无法判断内容是否溢出，`mask-image` 只要挂上就恒生效 ——
+   QA 实测 390px 下这个容器 `scrollWidth == clientWidth`（完全没溢出），
+   于是「右边还有内容」的渐隐成了纯假信号，比没有更糟。
+   现在的可发现性由「内容在容器边缘被截断」承担：`overflow-x: auto` 天然会把
+   最后一个 chip 切在边界上，这本身就是可滚动的视觉线索。
+   若日后确实需要渐隐，正确做法是用 ResizeObserver 监听
+   `scrollWidth > clientWidth` 再挂 data 属性，而不是无条件上 mask。 */
 @media (max-width: 767px) {
   .j-filter-bar {
     flex-wrap: nowrap;
@@ -72,9 +79,6 @@ const handleSelect = (value: string | number | null) => {
     -webkit-overflow-scrolling: touch;
     scroll-snap-type: x proximity;
     scrollbar-width: none;
-    /* 右缘 12px 渐隐：未溢出时不可见，不影响观感 */
-    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 12px), transparent);
-    mask-image: linear-gradient(to right, #000 calc(100% - 12px), transparent);
   }
   .j-filter-bar::-webkit-scrollbar {
     display: none;

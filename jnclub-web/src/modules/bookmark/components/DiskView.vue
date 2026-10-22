@@ -695,7 +695,7 @@ const fileKindColor = (name: string) => FILE_KINDS.find(k => k.re.test(name))?.c
 }
 /* hover 统一到 L2：中性描边加深 + 卡片阴影 + 抬升 1px（原为变粉边） */
 .file-item:hover {
-  transform: translateY(-1px);
+  transform: translateY(-2px);
   border-color: var(--surface-border-strong);
   box-shadow: var(--shadow-card-hover);
 }
@@ -705,20 +705,22 @@ const fileKindColor = (name: string) => FILE_KINDS.find(k => k.re.test(name))?.c
 }
 .file-check { flex-shrink: 0; }
 .file-icon {
-  /* 与 VaultView 的 .item-icon 同规格：同为「列表行首图标盒」，
-     38px 是项目既定的图标盒档位（JStatCard.vue:71、Welcome.vue:173 同值），
-     圆角与底/框取 --radius-sm + --glass-chip-bg/--glass-chip-border 这对配套玻璃变量。
-     颜色差异是语义的：云盘图标色由 fileKindColor() 按文件类型给出（见 :505 的 inline style），
-     密码库固定 --brand-text 作模块识别，故各自保留。 */
+  /* 与 VaultView 的 .item-icon 同规格：同为「列表行首图标盒」，38px 是项目既定的
+     图标盒档位（JStatCard / Welcome 同值），圆角取 --radius-sm。
+     底：模块色 soft（12% 混入 L1）—— 原先用 --glass-chip-bg（粉 12%），
+     违反 PRD 4.2「❌ 粉色作为所有图标盒底」。同屏 9 个图标盒 = 9 个粉块，
+     是云盘页粉色元素 13 > 8 的主因（P1-4）。
+     色：图标色由 fileKindColor() 按文件类型 inline 给出（见 template 的 :style），
+     这里的 color 只是无 kind 时的兜底，走模块图标色。 */
   width: 38px;
   height: 38px;
   border-radius: var(--radius-sm);
-  background: var(--glass-chip-bg);
+  background: color-mix(in srgb, var(--module-file) 12%, var(--surface-1));
   border: 1px solid var(--surface-border);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--text-2);
+  color: var(--module-file-icon);
   flex-shrink: 0;
 }
 .file-main {

@@ -52,6 +52,21 @@ export interface DesignTokens {
   warningText: string
   successText: string
   // 表面层级（2026-10 视觉体系重塑）
+  /**
+   * ⚠ 明度阶梯判据说明（PRD 8.1 与实测的差异，已由主理人 2026-10-22 批准）
+   *
+   * PRD 8.1 原文：亮 page↔surface ΔL* ∈[3.5, 6]、暗 page↔surface ΔL* ≥16。
+   * 实测：亮 3.41（#F5F5F7 → #FFFFFF）、暗 15.30（#000000 → #26262A），均低于原文门槛。
+   *
+   * 根因不是取值不当，而是 Q1/Q6 决策「不动 --bg-page」的数学必然：
+   * 亮色下 #F5F5F7 到 #FFFFFF 的 ΔL* 上限就是 3.41，要达 3.5 必须压深 --bg-page；
+   * 暗色下 #000 到 #26262A 的 ΔL* 是 15.30（PRD 正文「16.6」计算有误），
+   * 要达 16 必须提亮 --bg-card，会连锁 20+ 处面板底色。
+   *
+   * 判据经主理人 2026-10-22 批准调整为：亮 ≥3.2、暗 ≥15，并追加硬条件
+   * 「描边 ≥1.2:1 必达」（实测亮 1.30 / 暗 1.44，均满足）。
+   * 代价是保持 --bg-page 不变（Q1/Q6）。这是**经批准的偏差**，不是「已达标」。
+   */
   /** L1 结构面填充（实色，alpha=1）。与 --bg-card 分离：结构面走本项，控件面继续走 --bg-card */
   surface1: string
   /** L1 结构面 1px 中性描边（亮色必须 ≥1.2:1，否则白底白线隐形） */
@@ -167,8 +182,10 @@ export interface DesignTokens {
   layoutSiderWidth: string
   /**
    * 侧栏折叠宽度（NLayoutSider :collapsed-width）
-   * 仅作记录：naive-ui 的 collapsedWidth prop 类型限定为 Number、不接受 CSS 变量，
-   * 故此项无法被组件消费（见 SideNav.vue 的注释）。
+   * ⚠ 双源陷阱：本项**只作记录，改它不会有任何效果**。
+   * naive-ui 的 collapsedWidth prop 类型限定为 Number、不接受 CSS 变量，
+   * 真正生效的是 SideNav.vue:153 硬编码的 `:collapsed-width="64"`。
+   * 改这里必须同步改 SideNav.vue:153（两个 64 必须一致）。
    */
   layoutSiderCollapsedWidth: string
   /** 主壳目录栏宽度（Home.vue 的 .folder-column） */
@@ -247,7 +264,11 @@ export const lightTokens: DesignTokens = {
   shadow1: '0 1px 2px 0 rgba(0, 0, 0, 0.04)',
   shadow2: '0 2px 4px -1px rgba(0, 0, 0, 0.06), 0 1px 2px -1px rgba(0, 0, 0, 0.05)',
   shadowPopover: '0 8px 24px -6px rgba(0, 0, 0, 0.12), 0 2px 6px -1px rgba(0, 0, 0, 0.06)',
-  shadowCardHover: '0 4px 8px -2px rgba(0, 0, 0, 0.06), 0 2px 4px -2px rgba(0, 0, 0, 0.05)',
+  // P1-7：本轮删掉了 hover 的唯一强信号（粉边），承接它的阴影必须真的能被看见。
+  // 原 6%/5% 黑 + 8px 模糊，在 #FFF 卡片叠 #F5F5F7 页面上实测几乎不可辨
+  // （最深处 ΔL* 仅 2.6）。现提到 10%/6% 黑 + 16px 模糊 + 更大负扩散：
+  // 最深处合成 #DCDCDE，ΔL* ≈ 4.5（接近 --surface-border 的 3.41 量级），肉眼可辨。
+  shadowCardHover: '0 6px 16px -4px rgba(0, 0, 0, 0.10), 0 2px 6px -2px rgba(0, 0, 0, 0.06)',
   shadowFab: '0 4px 12px -2px rgba(236, 91, 142, 0.15)',
   shadowFabHover: '0 8px 20px -4px rgba(236, 91, 142, 0.2)',
   // 状态色（填充/图形档：进度条、diff 底色、图标描边。不用于承载文字）
@@ -425,7 +446,10 @@ export const darkTokens: DesignTokens = {
   shadow1: '0 1px 2px 0 rgba(0, 0, 0, 0.30)',
   shadow2: '0 2px 4px -1px rgba(0, 0, 0, 0.40)',
   shadowPopover: '0 8px 24px -6px rgba(0, 0, 0, 0.55), 0 2px 6px -1px rgba(0, 0, 0, 0.40)',
-  shadowCardHover: '0 4px 8px -2px rgba(0, 0, 0, 0.44)',
+  // 暗色：黑底上投影本就几乎不可见，L2 的主要信号是「描边加深 + 位移」。
+  // 这里只把模糊半径与扩散对齐亮色，透明度温和上调（0.44 → 0.52），
+  // 避免在 #000 页面上叠出脏灰边。
+  shadowCardHover: '0 6px 16px -4px rgba(0, 0, 0, 0.52), 0 2px 6px -2px rgba(0, 0, 0, 0.36)',
   shadowFab: '0 4px 12px -2px rgba(255, 143, 171, 0.20)',
   shadowFabHover: '0 8px 20px -4px rgba(255, 143, 171, 0.25)',
   // 状态色（暗色侧填充档与文本档合并：深底上这组浅色同时满足两者的对比度，
@@ -447,11 +471,13 @@ export const darkTokens: DesignTokens = {
   moduleBookmark: '#8F81F8', // vs #26262A 4.78（原 #8B7CFF 4.61）
   moduleNote: '#5AA9F7', // 6.07，不动
   moduleFile: '#42BD9A', // 6.44（原 #2FCFA3 7.59，过亮）
-  moduleVault: '#E09E48', // 6.57（原 #F0A13A 7.03，过亮）
+  // P1-6：6.57 超出 [4.5, 6.5] 上界 0.07（原脚本把上界写成 6.6 才「通过」）。
+  // 采用 DESIGN §3.3 已给的备选值 #E59A38（6.47），改 token 而不是放宽判据。
+  moduleVault: '#E59A38', // 6.47
   moduleBookmarkIcon: '#8F81F8',
   moduleNoteIcon: '#5AA9F7',
   moduleFileIcon: '#42BD9A',
-  moduleVaultIcon: '#E09E48',
+  moduleVaultIcon: '#E59A38', // 6.47
   // 图表色：首序列 = 品牌粉亮档（vs #26262A 7.01）
   chartSeries1: '#FF8FAB',
   chartSeries2: 'var(--module-note-icon)',

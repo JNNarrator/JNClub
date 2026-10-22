@@ -1022,7 +1022,7 @@ defineExpose({ hasUnsavedChanges })
   border-radius: var(--radius-sm);
   padding: 2px;
   gap: 2px;
-  background: var(--glass-chip-bg);
+  background: var(--hover-bg);
 }
 .pv-seg-btn {
   border: none;
@@ -1129,7 +1129,7 @@ defineExpose({ hasUnsavedChanges })
   text-align: left;
   transition: background var(--dur) var(--ease);
 }
-.template-item:hover { background: var(--glass-chip-bg); }
+.template-item:hover { background: var(--hover-bg); }
 .template-icon { font-size: var(--fs-xl); }
 .template-label { font-weight: 500; }
 
@@ -1178,7 +1178,7 @@ defineExpose({ hasUnsavedChanges })
   font-size: var(--fs-xs);
   font-weight: 600;
   color: var(--glass-chip-text);
-  background: var(--glass-chip-bg);
+  background: var(--hover-bg);
   border: 1px solid var(--surface-border);
   border-radius: var(--radius-pill);
   padding: 0 6px;
@@ -1210,7 +1210,7 @@ defineExpose({ hasUnsavedChanges })
   padding: 8px 10px;
   border: 1px solid var(--surface-border);
   border-radius: var(--radius-sm);
-  background: var(--glass-chip-bg);
+  background: var(--hover-bg);
   cursor: pointer;
   font-family: inherit;
   text-align: left;
@@ -1465,7 +1465,7 @@ defineExpose({ hasUnsavedChanges })
   height: 26px !important;
   min-width: 26px !important;
 }
-:deep(.md-editor-toolbar-item:hover) { color: var(--brand-text) !important; background: var(--glass-chip-bg) !important; }
+:deep(.md-editor-toolbar-item:hover) { color: var(--brand-text) !important; background: var(--hover-bg) !important; }
 :deep(.md-editor-toolbar-item.active) { color: var(--brand-text) !important; }
 :deep(.md-editor-content) { background: transparent !important; }
 :deep(.md-editor-input) { background: transparent !important; }
@@ -1635,7 +1635,7 @@ defineExpose({ hasUnsavedChanges })
   justify-content: space-between;
   align-items: center;
   padding: 8px 12px;
-  background: var(--glass-chip-bg);
+  background: var(--hover-bg);
   border: 1px solid var(--surface-border);
   border-radius: var(--radius-sm);
   font-size: var(--fs-md);

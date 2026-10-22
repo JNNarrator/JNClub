@@ -294,7 +294,7 @@ const trailOptions: { key: TrailEffectType; label: string; desc: string; color: 
   justify-content: center;
   flex-shrink: 0;
   border-radius: var(--radius-sm);
-  background: var(--glass-chip-bg);
+  background: var(--hover-bg);
 }
 .preview-dot {
   position: absolute;
@@ -347,7 +347,7 @@ const trailOptions: { key: TrailEffectType; label: string; desc: string; color: 
 
 /* 点击特效预览 */
 .preview-click {
-  background: var(--glass-chip-bg);
+  background: var(--hover-bg);
 }
 .preview-click-emoji {
   font-size: var(--fs-4xl);

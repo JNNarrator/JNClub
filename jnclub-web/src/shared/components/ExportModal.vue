@@ -148,7 +148,7 @@ const items = [
   color: var(--text-3);
 }
 .export-ext-tag {
-  background: var(--glass-chip-bg) !important;
+  background: var(--hover-bg) !important;
   color: var(--glass-chip-text) !important;
 }
 </style>

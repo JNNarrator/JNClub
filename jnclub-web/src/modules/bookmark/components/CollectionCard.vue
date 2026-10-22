@@ -212,7 +212,7 @@ const handleDropdown = (key: string) => {
 .bookmark-card:hover {
   /* hover 统一到 L2 语言：描边加深一档 + 卡片阴影 + 抬升 1px（原 -2px 偏跳）。
      2026-10 起不再变粉边 —— 粉色配额只留给 .is-selected（选中态）。 */
-  transform: translateY(-1px);
+  transform: translateY(-2px);
   border-color: var(--surface-border-strong);
   box-shadow: var(--shadow-card-hover);
 }

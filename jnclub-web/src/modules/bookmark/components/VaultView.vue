@@ -831,20 +831,23 @@ defineExpose({ openCreate })
    .note-row / .file-item / .recycle-item 逐项同参数。2026-10 起不再变粉边
    （粉色配额只留给 .is-selected）。 */
 .vault-item:hover {
-  transform: translateY(-1px);
+  transform: translateY(-2px);
   border-color: var(--surface-border-strong);
   box-shadow: var(--shadow-card-hover);
 }
 .item-icon {
+  /* 底：模块色 soft（12% 混入 L1），色：模块图标色。
+     与 CollectionCard .favicon-box / NoteCard .icon-box / JStatCard .j-stat-icon
+     以及 DiskView .file-icon 完全同手法 —— 原先这里是「粉底 + 粉图标」双层粉（P1-4）。 */
   width: 38px;
   height: 38px;
   border-radius: var(--radius-sm);
-  background: var(--glass-chip-bg);
+  background: color-mix(in srgb, var(--module-vault) 12%, var(--surface-1));
   border: 1px solid var(--surface-border);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--brand-text);
+  color: var(--module-vault-icon);
   flex-shrink: 0;
 }
 .item-main {
@@ -957,7 +960,8 @@ defineExpose({ openCreate })
 }
 .totp-ring {
   width: 12px; height: 12px; border-radius: 50%;
-  background: conic-gradient(var(--brand) var(--r, 360deg), var(--glass-chip-bg) 0);
+  /* 轨道走中性 L2；粉色只留给进度本身（--brand 那段） */
+  background: conic-gradient(var(--brand) var(--r, 360deg), var(--hover-bg) 0);
 }
 .totp-tip { font-size: var(--fs-sm); color: var(--text-3); text-align: center; line-height: 1.6; margin: 0; }
 .totp-secret-input { width: 100%; }
