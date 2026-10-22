@@ -827,11 +827,12 @@ defineExpose({ openCreate })
   border-radius: var(--radius-sm);
   transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease), background var(--dur) var(--ease), transform var(--dur) var(--ease);
 }
-/* 与 .file-item / .recycle-item 的 hover 语言一致：边框转品牌色 + 浮起阴影。
-   原先此处叠 inset 3px 左条，与 SideNav 表示「当前所在位置」的持久符号同形，
-   且该行本身已有 1px 边框，会叠成「灰边 + 粉条」双线。 */
+/* hover 统一到 L2：中性描边加深 + 卡片阴影 + 抬升 1px，与 .collection-row /
+   .note-row / .file-item / .recycle-item 逐项同参数。2026-10 起不再变粉边
+   （粉色配额只留给 .is-selected）。 */
 .vault-item:hover {
-  border-color: var(--brand-text);
+  transform: translateY(-1px);
+  border-color: var(--surface-border-strong);
   box-shadow: var(--shadow-card-hover);
 }
 .item-icon {
