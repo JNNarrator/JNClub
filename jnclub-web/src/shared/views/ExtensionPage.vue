@@ -277,14 +277,14 @@ const jnxFeatures = [
 .step-num {
   position: absolute; inset: 0;
   display: flex; align-items: center; justify-content: center;
-  border-radius: 50%; background: var(--brand-soft); color: var(--brand-text);
+  border-radius: 50%; background: var(--hover-bg); color: var(--text-2);
   font-size: var(--fs-sm); font-weight: 700; line-height: 1;
 }
 :deep(.n-step) {
   --n-title-text-color: var(--text-1) !important;
   --n-description-text-color: var(--text-2) !important;
-  --n-indicator-color: var(--brand-soft) !important;
-  --n-indicator-text-color: var(--brand-text) !important;
+  --n-indicator-color: var(--hover-bg) !important;
+  --n-indicator-text-color: var(--text-2) !important;
   --n-line-color: var(--glass-border) !important;
   --n-indicator-size: 28px !important;
   --n-indicator-icon-size: 28px !important;

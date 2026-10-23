@@ -266,7 +266,7 @@ const goRegister = () => {
   border-radius: var(--radius-md);
   background: var(--hover-bg);
   border: 1px solid var(--surface-border);
-  color: var(--brand-text);
+  color: var(--text-2);
   margin-bottom: 14px;
 }
 .feature-title {
