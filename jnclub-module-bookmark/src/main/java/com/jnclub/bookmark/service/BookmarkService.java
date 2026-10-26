@@ -18,10 +18,18 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.net.URL;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -417,13 +425,22 @@ public class BookmarkService extends ServiceImpl<BookmarkMapper, Bookmark> {
     }
 
     // ============================================================
-    // 收藏失效检测（死链检测）：HEAD 探测 + 状态落库 + 限速
+    // 收藏失效检测（死链检测）：并行 HEAD 探测 + 状态批量落库
     // ============================================================
+
+    /** 探测并发度：8 个线程足以在 20~100 条收藏规模下把耗时压到秒级，同时避免触发目标站反爬 */
+    private static final int PROBE_THREADS = 8;
+
+    /** 单次探测（HEAD/GET）超时：5s。域名不可达时不再叠加第二次 5s，见 probeUrl 的回退条件 */
+    private static final int PROBE_TIMEOUT_MS = 5_000;
+
+    /** 整批探测的总预算（秒）：超时后取消未完成任务并记为「无法判断」，保证接口一定在 60s 内返回 */
+    private static final long PROBE_BATCH_TIMEOUT_SECONDS = 40L;
 
     /**
      * 检测当前用户全部收藏的链接可用性。
-     * 串行 + 每次间隔（避免触发目标站反爬/被封），状态写 t_bookmark.check_status。
-     * 返回 { total, ok, dead, error, deadList }
+     * 并行探测（有界线程池 8 线程）→ 主线程批量写回 t_bookmark.check_status / checked_at。
+     * 返回 { total, ok, dead, error, deadList }，deadList 每项 { id, title, url }。
      */
     public Map<String, Object> checkDeadLinks() {
         String userId = StpUtil.getLoginIdAsString();
@@ -434,12 +451,19 @@ public class BookmarkService extends ServiceImpl<BookmarkMapper, Bookmark> {
             return Map.of("total", 0, "ok", 0, "dead", 0, "error", 0, "deadList", List.of());
         }
 
+        // 1) 并行探测：worker 线程只返回 (id, status)，不碰数据库
+        Map<Long, Integer> statusById = probeAll(bookmarks);
+
+        // 2) 主线程聚合结果 + 组装批量更新实体
         int ok = 0, dead = 0, error = 0;
-        List<Map<String, Object>> deadList = new java.util.ArrayList<>();
+        List<Map<String, Object>> deadList = new ArrayList<>();
+        List<Bookmark> patches = new ArrayList<>(bookmarks.size());
+        LocalDateTime now = LocalDateTime.now();
         for (Bookmark b : bookmarks) {
-            int status = probeUrl(b.getUrl());
-            if (status == 1) ok++;
-            else if (status == 2) {
+            int status = statusById.getOrDefault(b.getId(), 0);
+            if (status == 1) {
+                ok++;
+            } else if (status == 2) {
                 dead++;
                 Map<String, Object> item = new LinkedHashMap<>();
                 item.put("id", b.getId());
@@ -449,12 +473,16 @@ public class BookmarkService extends ServiceImpl<BookmarkMapper, Bookmark> {
             } else {
                 error++;
             }
-            b.setCheckStatus(status);
-            b.setCheckedAt(java.time.LocalDateTime.now());
-            updateById(b);
-            // 限速：每请求间隔 120ms，平衡速度与被封风险
-            try { Thread.sleep(120); } catch (InterruptedException ignored) { Thread.currentThread().interrupt(); break; }
+            // 仅携带 id + 需要更新的两列，避免整行回写覆盖并发修改
+            Bookmark patch = new Bookmark();
+            patch.setId(b.getId());
+            patch.setCheckStatus(status);
+            patch.setCheckedAt(now);
+            patches.add(patch);
         }
+
+        // 3) 批量写库（一次 flush，替代循环内 N 次 updateById）
+        persistCheckStatus(patches);
 
         cacheService.evictByPrefix(CacheKey.bookmarkPrefix(userId));
         Map<String, Object> result = new LinkedHashMap<>();
@@ -464,6 +492,74 @@ public class BookmarkService extends ServiceImpl<BookmarkMapper, Bookmark> {
         result.put("error", error);
         result.put("deadList", deadList);
         return result;
+    }
+
+    /**
+     * 并行探测全部收藏，返回 id → status(1/2/0) 映射。
+     * 使用有界线程池 + 整批超时，任何单条异常都只影响该条（降级为 0），不会让接口 500。
+     * 线程池在 finally 中 shutdown，避免线程泄漏。
+     */
+    private Map<Long, Integer> probeAll(List<Bookmark> bookmarks) {
+        Map<Long, Integer> statusById = new LinkedHashMap<>();
+        ExecutorService pool = Executors.newFixedThreadPool(PROBE_THREADS, runnable -> {
+            Thread thread = new Thread(runnable, "dead-link-probe");
+            thread.setDaemon(true);
+            return thread;
+        });
+        try {
+            List<Callable<ProbeResult>> tasks = new ArrayList<>(bookmarks.size());
+            for (Bookmark bookmark : bookmarks) {
+                final Long id = bookmark.getId();
+                final String url = bookmark.getUrl();
+                tasks.add(() -> new ProbeResult(id, probeUrl(url)));
+            }
+            // invokeAll 带超时：到期未完成的任务会被取消，保证整体耗时可控
+            List<Future<ProbeResult>> futures =
+                    pool.invokeAll(tasks, PROBE_BATCH_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            for (Future<ProbeResult> future : futures) {
+                try {
+                    ProbeResult probeResult = future.get();
+                    if (probeResult != null && probeResult.id() != null) {
+                        statusById.put(probeResult.id(), probeResult.status());
+                    }
+                } catch (CancellationException e) {
+                    // 整批超时被取消 → 该条无法判断，保持默认 0
+                    log.debug("收藏链接探测被取消（超出整批时间预算）");
+                } catch (ExecutionException e) {
+                    log.debug("收藏链接探测任务异常: {}", e.getCause() == null ? "unknown" : e.getCause().getMessage());
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.warn("收藏失效检测被中断，已探测 {} 条", statusById.size());
+        } finally {
+            pool.shutdownNow();
+        }
+        return statusById;
+    }
+
+    /** 批量写回检测状态；批量失败时降级为逐条更新，保证状态尽量落库且不抛给上层 */
+    private void persistCheckStatus(List<Bookmark> patches) {
+        if (patches.isEmpty()) return;
+        try {
+            updateBatchById(patches);
+        } catch (Exception e) {
+            log.warn("批量写入收藏检测状态失败，降级逐条更新: {}", e.getMessage());
+            for (Bookmark patch : patches) {
+                try {
+                    updateById(patch);
+                } catch (Exception ignored) {
+                    log.debug("单条写入收藏检测状态失败 id={}", patch.getId());
+                }
+            }
+        }
+    }
+
+    /** 单条探测结果（worker 线程返回值，不含实体引用，避免跨线程写库） */
+    private record ProbeResult(Long id, int status) {
     }
 
     /** 失效收藏列表（check_status=2） */
@@ -505,37 +601,47 @@ public class BookmarkService extends ServiceImpl<BookmarkMapper, Bookmark> {
 
     /**
      * 探测单个 URL：返回 1=正常 2=失效 0=无法判断（网络错误/超时）
-     * HEAD 优先，部分站点不支持 HEAD 则回退 GET（不下载 body）
+     * HEAD 优先；仅当服务端明确「不支持 HEAD」（403/405/501）时才回退 GET。
+     * 连接失败/超时属于「无法判断」，直接返回 0，绝不再叠加第二次超时（这是原实现单条 20s 的根因）。
      */
     private int probeUrl(String url) {
         if (url == null || url.isBlank()) return 0;
         try {
-            // 1) HEAD
+            int code;
             try (HttpResponse resp = HttpRequest.head(url)
-                    .timeout(10_000)
+                    .setFollowRedirects(true)
+                    .timeout(PROBE_TIMEOUT_MS)
                     .header("User-Agent", UA)
                     .header("Accept-Language", "zh-CN,zh;q=0.9")
                     .execute()) {
-                int code = resp.getStatus();
-                if (code >= 200 && code < 400) return 1;
-                if (code >= 400) return 2;
-                return 0;
+                code = resp.getStatus();
             } catch (Exception e) {
-                // 2) HEAD 失败（部分站点拒绝）→ GET 只读状态
+                // 连接失败/超时/DNS 失败：无法判断，不再重试 GET
+                log.debug("收藏链接 HEAD 探测失败 {}: {}", url, e.getMessage());
+                return 0;
+            }
+
+            // 只有服务端不支持 HEAD 时才用 GET 复核
+            if (code == 403 || code == 405 || code == 501) {
                 try (HttpResponse resp = HttpRequest.get(url)
-                        .timeout(10_000)
+                        .setFollowRedirects(true)
+                        .timeout(PROBE_TIMEOUT_MS)
                         .header("User-Agent", UA)
                         .header("Accept", "*/*")
                         .execute()) {
-                    int code = resp.getStatus();
-                    if (code >= 200 && code < 400) return 1;
-                    if (code >= 400) return 2;
+                    code = resp.getStatus();
+                } catch (Exception e) {
+                    log.debug("收藏链接 GET 回退探测失败 {}: {}", url, e.getMessage());
                     return 0;
                 }
             }
+
+            if (code >= 200 && code < 400) return 1;
+            if (code >= 400) return 2;
+            return 0;
         } catch (Exception e) {
             log.debug("收藏链接探测失败 {}: {}", url, e.getMessage());
-            return 2; // 网络不可达视为失效
+            return 0;
         }
     }
 }
