@@ -606,35 +606,37 @@ public class BookmarkService extends ServiceImpl<BookmarkMapper, Bookmark> {
     /**
      * 探测单个 URL：返回 1=正常 2=失效 0=无法判断。
      *
+     * <p><b>原则：宁可漏报，不可误删。</b>前端「一键清理」对 check_status=2 是
+     * {@code removeById} 永久删除（不进回收站），所以判定 2 必须是「确定性的死亡信号」。</p>
+     *
      * <p>判定表（任一分支都不允许叠加第二次超时，否则单条会翻倍到 10s）：</p>
      * <ul>
      *   <li>HEAD 2xx/3xx → 1</li>
-     *   <li>HEAD 429 → 0（限流，不能当死链，否则「一键清理」会误删正常站点）</li>
-     *   <li>HEAD 403/405/501 → 回退 GET 复核（服务端不支持 HEAD 或反爬）：
-     *       2xx/3xx → 1；403/429 → 0；其它 4xx/5xx → 2；GET 异常 → 0</li>
-     *   <li>HEAD 其它 4xx/5xx → 2</li>
-     *   <li>HEAD 抛异常：DNS 解析失败 / 连接被拒 / 路由不可达 → 2（域名已消失，是真死链）；
-     *       其余（读超时、SSL 握手失败等）→ 0（无法判断）</li>
+     *   <li>HEAD 403/405/501 → 回退 GET 复核（不支持 HEAD 或对 HEAD 反爬）：
+     *       2xx/3xx → 1，其余交给同一套状态码判定</li>
+     *   <li>状态码 → 只有 <b>404 / 410</b> 判 2（页面确定不存在）；
+     *       401（需登录）、408（超时）、429（限流）、451（法律屏蔽）、5xx（维护/网关抖动）
+     *       一律 0 —— 这些站点都是「活着但暂时问不出来」，判 2 会被永久删除</li>
+     *   <li>HEAD 抛异常：DNS 解析失败 / 连接被拒 / 路由不可达 → 2（主机已消失，真死链）；
+     *       其余（读超时、SSL 握手失败等）→ 0</li>
+     *   <li>非 http(s) 协议（mailto: / obsidian: / ftp: / file: / tel: …）→ 0，不探测</li>
      * </ul>
+     *
+     * <p><b>已知限制</b>：回环/私网地址（{@code localhost:3000}、{@code 192.168.x.x}）会被
+     * 正常探测，本地服务未启动时判 2。严格说服务端探测回环地址意义有限（探测的是服务器自己的
+     * 网络），但这类地址是否该一律「无法判断」取决于部署形态，且会与本地桩测试冲突，暂不处理。</p>
      */
     private int probeUrl(String url) {
         if (url == null || url.isBlank()) return 0;
-        // 非 http/https 协议（obsidian://、ftp://、chrome-extension:// 等）一律不探测：
-        // Hutool 会把协议名当成主机名去解析，必然得到 UnknownHostException，
-        // 从而把「本来有效」的收藏误判成死链，进而被前端「一键清理」真删（数据丢失）。
-        // 只拦「显式带协议」的串，裸域名（example.com）保持原有探测行为。
-        String lower = url.trim().toLowerCase(Locale.ROOT);
-        int schemeSep = lower.indexOf("://");
-        if (schemeSep > 0) {
-            String scheme = lower.substring(0, schemeSep);
-            if (!"http".equals(scheme) && !"https".equals(scheme)) {
-                log.debug("收藏链接协议非 http(s)，跳过探测 {}: {}", url, scheme);
-                return 0;
-            }
+        // 归一化探测目标：非 http(s) 协议直接放弃（返回 null），裸 host[:port] 补 http:// 前缀
+        String target = normalizeProbeTarget(url.trim());
+        if (target == null) {
+            log.debug("收藏链接协议非 http(s)，跳过探测: {}", url);
+            return 0;
         }
         try {
             int code;
-            try (HttpResponse resp = HttpRequest.head(url)
+            try (HttpResponse resp = HttpRequest.head(target)
                     .setFollowRedirects(true)
                     .timeout(PROBE_TIMEOUT_MS)
                     .header("User-Agent", UA)
@@ -643,19 +645,13 @@ public class BookmarkService extends ServiceImpl<BookmarkMapper, Bookmark> {
                 code = resp.getStatus();
             } catch (Exception e) {
                 // 只探测一次：能确定「主机已消失」的才判失效，其余一律无法判断
-                log.debug("收藏链接 HEAD 探测异常 {}: {}", url, e.getMessage());
+                log.debug("收藏链接 HEAD 探测异常 {}: {}", target, e.getMessage());
                 return isHostGone(e) ? 2 : 0;
-            }
-
-            // 429 限流：站点活着，只是不让我们访问 → 无法判断（绝不能判死链）
-            if (code == 429) {
-                log.debug("收藏链接被限流 {}: HTTP 429", url);
-                return 0;
             }
 
             // 只有服务端不支持 HEAD（403/405/501）时才用 GET 复核
             if (code == 403 || code == 405 || code == 501) {
-                try (HttpResponse resp = HttpRequest.get(url)
+                try (HttpResponse resp = HttpRequest.get(target)
                         .setFollowRedirects(true)
                         .timeout(PROBE_TIMEOUT_MS)
                         .header("User-Agent", UA)
@@ -663,31 +659,82 @@ public class BookmarkService extends ServiceImpl<BookmarkMapper, Bookmark> {
                         .execute()) {
                     code = resp.getStatus();
                 } catch (Exception e) {
-                    log.debug("收藏链接 GET 回退探测失败 {}: {}", url, e.getMessage());
+                    log.debug("收藏链接 GET 回退探测失败 {}: {}", target, e.getMessage());
                     return 0;
                 }
-                if (code >= 200 && code < 400) return 1;
-                if (code == 403 || code == 429) {
-                    log.debug("收藏链接 GET 回退仍被拒绝 {}: HTTP {}（反爬/限流，不判死链）", url, code);
-                    return 0;
-                }
-                if (code >= 400) return 2;
-                return 0;
             }
 
-            if (code >= 200 && code < 400) return 1;
-            if (code >= 400) return 2;
-            return 0;
+            int verdict = judgeHttpStatus(code);
+            if (verdict == 2) {
+                log.debug("收藏链接判定失效 {}: HTTP {}（页面确定不存在）", target, code);
+            } else if (verdict == 0) {
+                log.debug("收藏链接无法判断 {}: HTTP {}（活着但问不出来）", target, code);
+            }
+            return verdict;
         } catch (Exception e) {
-            log.debug("收藏链接探测失败 {}: {}", url, e.getMessage());
+            log.debug("收藏链接探测失败 {}: {}", target, e.getMessage());
             return isHostGone(e) ? 2 : 0;
         }
+    }
+
+    /**
+     * HTTP 状态码 → 判定结果。
+     *
+     * <p>只有 <b>404 / 410</b> 是「页面确定不存在」的确定性信号，才允许判 2。
+     * 其余 4xx/5xx 全部退化为 0：401 需登录、408 超时、429 限流、451 法律屏蔽、
+     * 5xx 维护或网关抖动——站点都还活着，判 2 会被「一键清理」永久删除。</p>
+     */
+    private static int judgeHttpStatus(int code) {
+        if (code >= 200 && code < 400) return 1;
+        if (code == 404 || code == 410) return 2;
+        return 0;
+    }
+
+    /** RFC 3986 scheme 前缀：必须出现在串首，由字母开头 + 字母数字和 + - . 组成 */
+    private static final Pattern URL_SCHEME = Pattern.compile("^([a-zA-Z][a-zA-Z0-9+.\\-]*):");
+
+    /**
+     * 归一化探测目标。
+     *
+     * <p>返回 null 表示「不该探测」（非 http/https 协议）。</p>
+     *
+     * <p>必须用 scheme 正则而非 {@code indexOf("://")}，否则：</p>
+     * <ul>
+     *   <li>{@code mailto:a@b.com}（scheme: 无 //）漏网 → Hutool 把 "mailto" 当主机名做 DNS
+     *       → UnknownHostException → 误判死链 → 被永久删除</li>
+     *   <li>{@code example.com/path?u=http://foo} 的 {@code ://} 在 query 里 → 误取
+     *       scheme="example.com/path?u=http" → 永久跳过探测，永远卡在「无法判断」</li>
+     *   <li>{@code localhost:3000} / {@code example.com:8080} 会被当成 scheme="localhost"
+     *       → 误判死链</li>
+     * </ul>
+     */
+    private static String normalizeProbeTarget(String url) {
+        // 协议相对 URL（//example.com/x）补 http: 而非 http://，避免出现 http:////example.com
+        if (url.startsWith("//")) return "http:" + url;
+
+        Matcher matcher = URL_SCHEME.matcher(url);
+        if (matcher.find()) {
+            String scheme = matcher.group(1).toLowerCase(Locale.ROOT);
+            // scheme 冒号后紧跟数字 → 是 host:port（localhost:3000），不是协议
+            boolean portLike = url.length() > matcher.end()
+                    && Character.isDigit(url.charAt(matcher.end()));
+            if (!portLike) {
+                if (!"http".equals(scheme) && !"https".equals(scheme)) return null;
+                return url;
+            }
+        }
+        // 裸 host[:port]/path（无协议）补默认协议，让 Hutool 按主机而非协议解析
+        return "http://" + url;
     }
 
     /**
      * 判断异常链上是否存在「主机已消失」类异常（DNS 解析失败 / 连接被拒 / 路由不可达）。
      * 必须遍历 cause 链：Hutool 会把底层 IOException 包进 {@code HttpException} /
      * {@code IORuntimeException}，只 catch 顶层异常会漏判，导致真死链退化成「无法判断」。
+     *
+     * <p><b>前提</b>：服务端直连、不经过 HTTP 代理。{@code ConnectException} 的语义比
+     * "Connection refused" 宽，代理拒绝/防火墙 RST 也可能抛它；若将来给探测配置代理，
+     * 需收窄到 message 含 "refused"，否则代理故障会让全站被判死链并批量误删。</p>
      */
     private static boolean isHostGone(Throwable error) {
         Throwable current = error;

@@ -5,6 +5,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
@@ -20,11 +21,15 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *
  * <p>契约：1=正常 / 2=失效 / 0=无法判断。</p>
  *
+ * <p><b>2 意味着前端「一键清理」会 removeById 永久删除（不进回收站），
+ * 因此只有确定性死亡信号才允许判 2。</b>本测试的首要目的是钉住「什么不该被判 2」。</p>
+ *
  * <p>关键回归点：</p>
  * <ul>
  *   <li>HEAD 抛异常时**不得**叠加第二次 GET 超时——这是接口挂起 60s 的根因。</li>
  *   <li>DNS 解析失败 / 连接被拒 = 主机已消失 → 2（真死链），否则失效检测失去核心价值。</li>
- *   <li>403 / 429 = 反爬或限流，站点活着 → 0，否则前端「一键清理」会误删正常收藏。</li>
+ *   <li>403 / 429 / 401 / 451 / 408 / 5xx = 活着但暂时问不出来 → 0，否则会误删正常收藏。</li>
+ *   <li>只有 404 / 410 判 2；非 http(s) 协议一律不探测。</li>
  * </ul>
  *
  * <p>用 JDK 自带的 {@code com.sun.net.httpserver} 起本地桩服务，不引入任何新依赖、不访问外网。</p>
@@ -93,6 +98,20 @@ class BookmarkServiceProbeUrlTest {
     }
 
     @Test
+    @DisplayName("HEAD 204 → 1 正常（2xx 无内容也算活着）")
+    void head204_判定为正常() throws Exception {
+        stubSame("/no-content", 204);
+        assertEquals(1, probe(url("/no-content")));
+    }
+
+    @Test
+    @DisplayName("带 user:pass 的 URL → 1 正常（凭据不影响判定）")
+    void 带凭据的URL_判定为正常() throws Exception {
+        stubSame("/auth", 200);
+        assertEquals(1, probe("http://user:pass@127.0.0.1:" + port + "/auth"));
+    }
+
+    @Test
     @DisplayName("HEAD 404 → 2 失效（真死链）")
     void head404_判定为失效() throws Exception {
         stubSame("/gone", 404);
@@ -100,10 +119,17 @@ class BookmarkServiceProbeUrlTest {
     }
 
     @Test
-    @DisplayName("HEAD 500 → 2 失效（服务端错误按原语义判死链）")
-    void head500_判定为失效() throws Exception {
+    @DisplayName("HEAD 500 → 0 无法判断（服务端错误常为瞬时，判死链会被永久删除）")
+    void head500_返回0() throws Exception {
         stubSame("/boom", 500);
-        assertEquals(2, probe(url("/boom")));
+        assertEquals(0, probe(url("/boom")));
+    }
+
+    @Test
+    @DisplayName("HEAD 410 → 2 失效（资源已永久移除，与 404 同为确定性死亡信号）")
+    void head410_判定为失效() throws Exception {
+        stubSame("/removed", 410);
+        assertEquals(2, probe(url("/removed")));
     }
 
     @Test
@@ -130,13 +156,29 @@ class BookmarkServiceProbeUrlTest {
         assertEquals(2, probe(url("/temp-moved")));
     }
 
-    // ---------------- 429 限流：不能判死链（防误删） ----------------
+    // ---------------- 429 限流 / 4xx-5xx「活着但问不出来」：不能判死链（防误删） ----------------
 
     @Test
     @DisplayName("HEAD 429 → 0 无法判断（限流，绝不判死链，否则一键清理会误删）")
     void head429_返回0() throws Exception {
         stubSame("/rate-limited", 429);
         assertEquals(0, probe(url("/rate-limited")));
+    }
+
+    /**
+     * 这一组是 P1 数据丢失风险的回归防线：这些状态码全部代表「站点活着」，
+     * 一旦被判 2，前端「一键清理」会 removeById 永久删除（不进回收站）。
+     */
+    @Test
+    @DisplayName("401 / 408 / 451 / 502 / 503 / 504 → 0 无法判断（站点活着，禁止判死链）")
+    void 非确定性4xx5xx_返回0() throws Exception {
+        // 401 需登录、408 请求超时、451 法律屏蔽、502/503/504 维护与网关抖动
+        int[] codes = {401, 408, 451, 502, 503, 504};
+        for (int code : codes) {
+            String path = "/c" + code;
+            stubSame(path, code);
+            assertEquals(0, probe(url(path)), "HTTP " + code + " 属「活着但问不出来」，必须为 0");
+        }
     }
 
     @Test
@@ -219,6 +261,7 @@ class BookmarkServiceProbeUrlTest {
     // ---------------- 异常路径：无法判断 → 0 ----------------
 
     @Test
+    @Timeout(15)
     @DisplayName("读超时 → 0 无法判断，且只等一个超时周期（不叠加 GET 的第二次超时）")
     void 读超时_返回0且不叠加二次超时() throws Exception {
         server.createContext("/hang", exchange -> {
@@ -260,6 +303,36 @@ class BookmarkServiceProbeUrlTest {
         assertEquals(0, probe("obsidian://open?vault=notes"));
         assertEquals(0, probe("ftp://127.0.0.1/some/file"));
         assertEquals(0, probe("chrome-extension://abcdefg/popup.html"));
+        assertEquals(0, probe("file:///Users/x.html"));
+        // scheme: 形式（无 //）必须同样拦住——实测曾漏网被判 2 并会被真删
+        assertEquals(0, probe("mailto:a@b.com"));
+        assertEquals(0, probe("tel:+8613800000000"));
+    }
+
+    // ---------------- URL 归一化：scheme 正则 vs indexOf("://") ----------------
+
+    @Test
+    @DisplayName("裸 host:port（无协议）→ 按 http 正常探测，不把 host 当协议")
+    void 裸host端口_能正常探测() throws Exception {
+        stubSame("/ok", 200);
+        // localhost:3000 这类曾被解析成 scheme="localhost" → 误判死链
+        assertEquals(1, probe("127.0.0.1:" + port + "/ok"));
+    }
+
+    @Test
+    @DisplayName("裸域名带含 :// 的 query → 仍能正常探测（旧实现被永久跳过）")
+    void 裸域名query含双斜杠_能正常探测() throws Exception {
+        stubSame("/ok2", 200);
+        // 旧实现用 indexOf("://") 会命中 query 里的 ://，把 scheme 误取成
+        // "127.0.0.1:port/ok2?u=http" → 非 http → 永久返回 0，永远无法判定
+        assertEquals(1, probe("127.0.0.1:" + port + "/ok2?u=http://foo.example"));
+    }
+
+    @Test
+    @DisplayName("协议相对 URL（//host/path）→ 补 http: 前缀后可探测")
+    void 协议相对URL_能正常探测() throws Exception {
+        stubSame("/ok3", 200);
+        assertEquals(1, probe("//127.0.0.1:" + port + "/ok3"));
     }
 
     @Test
