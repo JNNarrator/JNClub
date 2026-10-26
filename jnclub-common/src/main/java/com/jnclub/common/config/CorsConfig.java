@@ -32,11 +32,21 @@ public class CorsConfig {
 
     private final List<String> allowedOrigins;
 
-    public CorsConfig(@Value("${jnclub.cors.allowed-origins:" + DEFAULT_ALLOWED_ORIGINS + "}") String allowedOrigins) {
-        this.allowedOrigins = Arrays.stream(allowedOrigins.split(","))
+    public CorsConfig(
+            @Value("${jnclub.cors.allowed-origins:" + DEFAULT_ALLOWED_ORIGINS + "}") String allowedOrigins,
+            @Value("${jnclub.frontend-url:}") String frontendUrl) {
+        List<String> origins = Arrays.stream(allowedOrigins.split(","))
                 .map(String::trim)
                 .filter(origin -> !origin.isEmpty())
-                .toList();
+                .collect(java.util.ArrayList::new, java.util.ArrayList::add, java.util.ArrayList::addAll);
+        // 自动将前端部署域名加入白名单（去除路径后缀，只保留 origin）
+        if (!frontendUrl.isBlank()) {
+            String origin = frontendUrl.replaceAll("/+$", "").replaceAll("/jnclub/.*$", "");
+            if (!origin.isEmpty() && !origins.contains(origin)) {
+                origins.add(origin);
+            }
+        }
+        this.allowedOrigins = List.copyOf(origins);
     }
 
     @Bean

@@ -37,6 +37,8 @@ jnclub:
     crypto-key: ${JNCLUB_DAO_CRYPTO_KEY:change-me-in-production}
   # 跨域白名单：仅列出的来源允许跨域访问（同源部署无需配置）。
   # 本地 Vite dev 走代理属同源，浏览器扩展由 host_permissions 覆盖，均不需要额外来源。
+  # 2026-10-26：代码已自动将 jnclub.frontend-url 的域名解析后加入白名单，
+  # 生产环境只需正确配置 frontend-url 即可，无需再单独维护 cors.allowed-origins。
   cors:
     allowed-origins: http://localhost:5173,http://127.0.0.1:5173
   dufs:
