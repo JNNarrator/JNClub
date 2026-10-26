@@ -113,6 +113,14 @@ export interface DesignTokens {
   glassChipText: string
   glassTextSecondary: string
   glassTextPlaceholder: string
+  // 极光背景（2026-10 玻璃升级版：粉紫氛围光）
+  auroraTop: string
+  auroraBottom: string
+  auroraCenter: string
+  // 玻璃大面板（侧栏/目录栏/内容区/页壳）
+  glassSurfaceBg: string
+  glassSurfaceBorder: string
+  glassSurfaceShadow: string
   focusRing: string
   /** 焦点环外晕（半透明，与实色 focusRing 叠成双层环） */
   focusRingSoft: string
@@ -317,7 +325,7 @@ export const lightTokens: DesignTokens = {
   glassGlowTop: 'rgba(236, 91, 142, 0.16)',
   glassGlowBottom: 'rgba(255, 143, 171, 0.14)',
   glassShadow: '0 24px 64px -12px rgba(236, 91, 142, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
-  glassBlur: '12px',
+  glassBlur: '16px',
   glassInputBg: 'rgba(255, 255, 255, 0.6)',
   glassInputBorder: 'rgba(236, 91, 142, 0.22)',
   glassBtnPrimary: 'linear-gradient(135deg, #EC5B8E, #FF8FAB)',
@@ -328,6 +336,14 @@ export const lightTokens: DesignTokens = {
   glassChipText: '#B82A63',
   glassTextSecondary: 'rgba(29, 29, 31, 0.65)',
   glassTextPlaceholder: 'rgba(29, 29, 31, 0.62)',
+  // 极光背景（亮色：粉紫氛围光）
+  auroraTop: 'rgba(255, 143, 171, 0.30)',
+  auroraBottom: 'rgba(190, 170, 250, 0.16)',
+  auroraCenter: 'rgba(255, 228, 239, 0.10)',
+  // 玻璃大面板（亮色）
+  glassSurfaceBg: 'rgba(255, 255, 255, 0.70)',
+  glassSurfaceBorder: 'rgba(255, 255, 255, 0.55)',
+  glassSurfaceShadow: '0 8px 32px -8px rgba(236, 91, 142, 0.18), 0 2px 8px -2px rgba(0, 0, 0, 0.05)',
   focusRing: '#C9256A',
   focusRingSoft: 'rgba(201, 37, 106, 0.22)',
   brandText: '#C9256A',
@@ -494,7 +510,7 @@ export const darkTokens: DesignTokens = {
   glassGlowTop: 'rgba(255, 143, 171, 0.16)',
   glassGlowBottom: 'rgba(244, 114, 182, 0.12)',
   glassShadow: '0 24px 64px -12px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.08)',
-  glassBlur: '12px',
+  glassBlur: '16px',
   glassInputBg: 'rgba(255, 255, 255, 0.06)',
   glassInputBorder: 'rgba(255, 255, 255, 0.14)',
   glassBtnPrimary: 'linear-gradient(135deg, #FF8FAB, #F472B6)',
@@ -505,6 +521,14 @@ export const darkTokens: DesignTokens = {
   glassChipText: '#FFB3C6',
   glassTextSecondary: 'rgba(245, 245, 247, 0.6)',
   glassTextPlaceholder: 'rgba(245, 245, 247, 0.5)',
+  // 极光背景（暗色：深粉紫光）
+  auroraTop: 'rgba(255, 143, 171, 0.20)',
+  auroraBottom: 'rgba(140, 120, 220, 0.14)',
+  auroraCenter: 'rgba(255, 143, 171, 0.06)',
+  // 玻璃大面板（暗色）
+  glassSurfaceBg: 'rgba(38, 38, 42, 0.68)',
+  glassSurfaceBorder: 'rgba(255, 255, 255, 0.10)',
+  glassSurfaceShadow: '0 8px 32px -8px rgba(0, 0, 0, 0.50), 0 2px 8px -2px rgba(0, 0, 0, 0.30)',
   focusRing: '#FF8FAB',
   focusRingSoft: 'rgba(255, 143, 171, 0.32)',
   brandText: '#FF8FAB',
@@ -668,6 +692,13 @@ export function tokensToCSSVars(tokens: DesignTokens): Record<string, string> {
     '--glass-chip-text': tokens.glassChipText,
     '--glass-text-secondary': tokens.glassTextSecondary,
     '--glass-text-placeholder': tokens.glassTextPlaceholder,
+    // 极光 + 玻璃大面板（2026-10 玻璃升级版）
+    '--aurora-top': tokens.auroraTop,
+    '--aurora-bottom': tokens.auroraBottom,
+    '--aurora-center': tokens.auroraCenter,
+    '--glass-surface-bg': tokens.glassSurfaceBg,
+    '--glass-surface-border': tokens.glassSurfaceBorder,
+    '--glass-surface-shadow': tokens.glassSurfaceShadow,
     '--focus-ring': tokens.focusRing,
     '--focus-ring-soft': tokens.focusRingSoft,
     '--brand-text': tokens.brandText,

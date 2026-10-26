@@ -146,12 +146,12 @@ const goRegister = () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  /* P0-1：删除两层 16%/14% 粉光晕，回到纯 --bg-page 实色。
-     依据 PRD 4.2「粉色作为页面底色 → 收敛为最多 1 层且 ≤6%」，以及 DESIGN §4.2
-     「边缘页去光晕」。本页是未登录用户的第一屏，粉色氛围光在这里代价最大。
-     与主壳 .app-content 的区别：那边保留 1 层 6% --surface-glow（全站唯一光晕），
-     边缘页连这 1 层也不给 —— 光晕的唯一性由「只此一处」保证，不是「每页都来一点」。 */
-  background: var(--bg-page);
+  /* 玻璃升级版：独立页自带极光背景 */
+  background:
+    radial-gradient(1200px 600px at 15% -5%, var(--aurora-top), transparent 55%),
+    radial-gradient(1000px 500px at 105% 105%, var(--aurora-bottom), transparent 50%),
+    radial-gradient(800px 400px at 50% 50%, var(--aurora-center), transparent 60%),
+    var(--bg-page);
   overflow: hidden;
 }
 
@@ -195,11 +195,13 @@ const goRegister = () => {
   width: min(960px, 92vw);
   text-align: center;
   padding: 48px 48px 44px;
-  /* L1 结构面实色（判据 N1：页面壳）+ 删除两层 16% 粉光晕 */
-  background: var(--surface-1);
-  border: 1px solid var(--surface-border);
+  /* 玻璃升级版：页面壳改磨砂玻璃 */
+  background: var(--glass-surface-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-surface-border);
   border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-1);
+  box-shadow: var(--glass-surface-shadow);
 }
 
 /* 品牌区 */

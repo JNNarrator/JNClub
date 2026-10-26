@@ -208,12 +208,12 @@ const handleSettingsSelect = async (key: string) => {
   transition: width var(--dur) var(--ease);
   overflow: hidden;
   position: relative;
-  /* L1 结构面（P1-1）：实色 + 右侧 1px 中性描边。
-     原为玻璃 + .sidebar-glow 的 140px 粉色底光，整片泛粉。
-     判据 N1（页面壳）+ N2（导航在内部滚动）双命中，必须实色。
-     描边由 naive 的 bordered 提供内描边，这里补一条外描边确保与内容区可分（≥1.2:1）。 */
-  background: var(--surface-1) !important;
-  border-right: 1px solid var(--surface-border);
+  /* 玻璃升级版：侧栏改磨砂玻璃，透出极光背景 */
+  background: var(--glass-surface-bg) !important;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-right: 1px solid var(--glass-surface-border) !important;
+  box-shadow: var(--glass-surface-shadow);
 }
 
 /* === Logo 区 === */

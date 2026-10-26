@@ -182,8 +182,12 @@ const jnxFeatures = [
   padding: 40px 20px 60px;
   display: flex;
   justify-content: center;
-  /* P0-1：删除两层 16%/14% 粉光晕（PRD 4.2 / DESIGN §4.2 边缘页去光晕） */
-  background: var(--bg-page);
+  /* 玻璃升级版：独立页自带极光背景 */
+  background:
+    radial-gradient(1200px 600px at 15% -5%, var(--aurora-top), transparent 55%),
+    radial-gradient(1000px 500px at 105% 105%, var(--aurora-bottom), transparent 50%),
+    radial-gradient(800px 400px at 50% 50%, var(--aurora-center), transparent 60%),
+    var(--bg-page);
   overflow-x: hidden;
 }
 .ext-texture {
@@ -218,11 +222,13 @@ const jnxFeatures = [
   flex-direction: column;
   gap: 16px;
   padding: 22px;
-  /* L1 结构面实色（判据 N3：平铺区块） */
-  background: var(--surface-1);
-  border: 1px solid var(--surface-border);
+  /* 玻璃升级版：平铺区块改磨砂玻璃 */
+  background: var(--glass-surface-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-surface-border);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-1);
+  box-shadow: var(--glass-surface-shadow);
 }
 .section-head { display: flex; align-items: center; gap: 12px; }
 .section-icon {
@@ -253,11 +259,13 @@ const jnxFeatures = [
 
 .download-box {
   padding: 20px;
-  /* L1 结构面实色（判据 N3） */
-  background: var(--surface-1);
-  border: 1px solid var(--surface-border);
+  /* 玻璃升级版：下载盒改磨砂玻璃 */
+  background: var(--glass-surface-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-surface-border);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-1);
+  box-shadow: var(--glass-surface-shadow);
   text-align: center;
   display: flex; flex-direction: column; align-items: center; gap: 12px;
 }

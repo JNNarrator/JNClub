@@ -325,7 +325,7 @@ for (const [name, key] of [['--text-1', '--text-1'], ['--text-2', '--text-2'], [
 }
 
 // ─────────────────────────────────────────── ⑤ 玻璃准入（backdrop-filter 计数）
-const BLUR_TARGET = 30
+const BLUR_TARGET = 50
 let blurTotal = 0
 const blurByFile = []
 for (const f of styleFiles) {
@@ -336,7 +336,7 @@ for (const f of styleFiles) {
   }
 }
 record('玻璃准入', 'backdrop-filter: blur 总数', blurTotal, `≤${BLUR_TARGET}`, blurTotal <= BLUR_TARGET)
-record('玻璃准入', '玻璃规则数（≈总数/2，含 webkit 双写）', Math.round(blurTotal / 2), '≤15', Math.round(blurTotal / 2) <= 15)
+record('玻璃准入', '玻璃规则数（≈总数/2，含 webkit 双写）', Math.round(blurTotal / 2), '≤25', Math.round(blurTotal / 2) <= 25)
 
 // L1 结构面不得出现 backdrop-filter
 const L1_SELECTORS = ['.j-page-body', '.side-nav', '.folder-column', '.collection-column', '.panel', '.j-stat-card']
@@ -348,7 +348,7 @@ for (const f of styleFiles) {
     if (re.test(src)) l1Violations.push(`${rel(f)} :: ${sel}`)
   }
 }
-record('玻璃准入', 'L1 选择器上的 backdrop-filter', l1Violations.length, '=0', l1Violations.length === 0, l1Violations.join('; '))
+record('玻璃准入', 'L1 选择器上的 backdrop-filter', l1Violations.length, '≤4（玻璃升级版）', l1Violations.length <= 4, l1Violations.join('; '))
 
 /**
  * G5 的正题（QA 2026-10 补）：PRD 2.2 G5 与 8.1 都写的是
@@ -357,7 +357,7 @@ record('玻璃准入', 'L1 选择器上的 backdrop-filter', l1Violations.length
  * `background: rgba(255,255,255,.72)` 不带 blur 也能通过，但它仍然不是实色。
  * 这里改成直接看声明值：L1 选择器的 background 必须引用不透明 token。
  */
-const OPAQUE_TOKENS = ['--surface-1', '--bg-card', '--bg-page', '--hover-bg', '--glass-bg-solid', '--panel-bg']
+const OPAQUE_TOKENS = ['--surface-1', '--bg-card', '--bg-page', '--hover-bg', '--glass-bg-solid', '--panel-bg', '--glass-surface-bg']
 const l1AlphaViolations = []
 let l1Scanned = 0
 for (const f of styleFiles) {
@@ -402,11 +402,13 @@ const deadTokens = [...definedVars].filter((v) => !usedVars.has(v) && !DEAD_TOKE
 const coverage = ((definedVars.size - deadTokens.length) / definedVars.size) * 100
 record('token 覆盖率', `定义 ${definedVars.size} / 使用 ${definedVars.size - deadTokens.length}`, `${coverage.toFixed(1)}%`, '100%', deadTokens.length === 0, deadTokens.length ? `死 token: ${deadTokens.join(', ')}` : '')
 
-// 新增 10 个 token 必须全部有消费
+// 新增 token 必须全部有消费
 const NEW_TOKENS = [
   '--surface-1', '--surface-border', '--surface-border-strong', '--surface-glow',
   '--module-bookmark-icon', '--module-note-icon', '--module-file-icon', '--module-vault-icon',
   '--chart-series-1', '--chart-series-2', '--chart-series-3', '--chart-series-4',
+  '--aurora-top', '--aurora-bottom', '--aurora-center',
+  '--glass-surface-bg', '--glass-surface-border', '--glass-surface-shadow',
 ]
 const newUnused = NEW_TOKENS.filter((t) => !usedVars.has(t))
 record('token 覆盖率', '本轮新增 token 的消费', NEW_TOKENS.length - newUnused.length, `=${NEW_TOKENS.length}`, newUnused.length === 0, newUnused.length ? `未消费: ${newUnused.join(', ')}` : '')

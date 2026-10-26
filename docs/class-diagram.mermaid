@@ -1,0 +1,284 @@
+%% JNClub 视觉体系重塑 2026-10 — 数据结构与接口
+%% 说明：本项目无后端改动，故类图聚焦「token 数据模型 + 主题覆盖 + 表面层 + 组件契约」
+classDiagram
+    direction LR
+
+    %% ============ ① token 数据模型 ============
+    class DesignTokens {
+        <<interface>>
+        +string brand
+        +string brandText
+        +string text1
+        +string text2
+        +string text3
+        +string bgPage
+        +string bgCard
+        +string border
+        +string hoverBg
+        +string surface1  «新增»
+        +string surfaceBorder  «新增»
+        +string surfaceBorderStrong  «新增»
+        +string surfaceGlow  «新增»
+        +string moduleBookmark
+        +string moduleNote
+        +string moduleFile
+        +string moduleVault
+        +string moduleBookmarkIcon  «新增»
+        +string moduleNoteIcon  «新增»
+        +string moduleFileIcon  «新增»
+        +string moduleVaultIcon  «新增»
+        +string chartSeries1  «新增»
+        +string chartSeries2  «新增»
+        +string chartSeries3  «新增»
+        +string chartSeries4  «新增»
+        +string glassBgTrans
+        +string glassBorder
+        +string glassBlur
+        +string glassGlowTop
+        +string glassShadow
+        +string panelBg
+        +string shadow1
+        +string shadowCardHover
+        +string brandSoft
+        +string selectedBg
+        +string focusRing
+        +string gradientBtn
+        +string gradientTopBar  «待删·O3»
+        +string skeletonBase
+        +string fsSm
+        +string fsMd
+        +string fsBase
+        +string fs5xl
+        +string radiusSm
+        +string radiusMd
+        +string dur
+        +string ease
+    }
+
+    class lightTokens {
+        <<const>>
+        +surface1 = "#FFFFFF"
+        +surfaceBorder = "#D8D8DE"
+        +surfaceBorderStrong = "#C7C7CC"
+        +surfaceGlow = "rgba(236,91,142,0.06)"
+        +moduleBookmarkIcon = "#7C5CFF"
+        +moduleNoteIcon = "#0A6FC2"
+        +moduleFileIcon = "#0D8261"
+        +moduleVaultIcon = "#A76611"
+        +chartSeries1 = "#C9256A"
+        +chartSeries2 = "var(--module-note-icon)"
+        +chartSeries3 = "var(--module-file-icon)"
+        +chartSeries4 = "var(--module-vault-icon)"
+        +glassBorder = "rgba(0,0,0,0.08)"  «值变更»
+        +bgPage = "#F5F5F7"  «不改·Q1»
+    }
+
+    class darkTokens {
+        <<const>>
+        +surface1 = "#26262A"
+        +surfaceBorder = "#3F3F46"
+        +surfaceBorderStrong = "#4A4A52"
+        +surfaceGlow = "rgba(255,143,171,0.06)"
+        +moduleBookmark = "#8F81F8"  «值变更»
+        +moduleNote = "#5AA9F7"
+        +moduleFile = "#42BD9A"  «值变更»
+        +moduleVault = "#E09E48"  «值变更»
+        +moduleBookmarkIcon = "#8F81F8"
+        +moduleNoteIcon = "#5AA9F7"
+        +moduleFileIcon = "#42BD9A"
+        +moduleVaultIcon = "#E09E48"
+        +chartSeries1 = "#FF8FAB"
+        +glassBorder = "rgba(255,255,255,0.14)"  «不变»
+        +bgPage = "#000000"  «不改·Q6»
+    }
+
+    class TokenPipeline {
+        <<module scripts/gen-theme-css.mjs>>
+        +loadTokens() Promise~object~
+        +rule(selector, vars, indent) string
+        +ruleNested(selector, vars, indent) string
+        +tokensToCSSVars(tokens) Record~string,string~
+        +main() void  «--check 模式校验生成物是否最新»
+    }
+
+    class GeneratedCSS {
+        <<src/themes/tokens.generated.css · 生成物·禁止手改>>
+        +:root  «亮色默认»
+        +@media prefers-color-scheme:dark :root:not([data-theme])
+        +:root[data-theme='light']
+        +:root[data-theme='dark']
+    }
+
+    class NaiveThemeOverrides {
+        <<light.ts / dark.ts>>
+        +common.bodyColor = t.bgPage  «不改»
+        +common.cardColor = t.surface1  «改»
+        +common.borderColor = t.border  «不改»
+        +common.hoverColor = t.hoverBg  «不改»
+        +common.boxShadow1/2/3  «不改»
+        +Layout.color = t.bgPage  «不改»
+        +Layout.siderColor = t.surface1  «改»
+        +Layout.headerColor = t.bgCard  «不改»
+        +Card.color / Card.borderColor  «建议加·T05»
+    }
+
+    %% ============ ② 表面层模型 ============
+    class SurfaceLayer {
+        <<enumeration>>
+        L0_PAGE
+        L1_SURFACE
+        L2_RAISED
+        L3_OVERLAY
+    }
+
+    class LayerSpec {
+        +SurfaceLayer layer
+        +string fillToken
+        +string borderToken
+        +string shadowToken
+        +boolean allowsBackdropBlur
+        +string admittanceRule
+        +boolean isSolidFill()
+    }
+
+    class GlassAdmittance {
+        <<判据·可 grep>>
+        +boolean J1_fixedOverlay(selector)
+        +boolean J2_absoluteOverlay(selector)
+        +boolean J3_naiveOverlay(selector)
+        +boolean J4_viewportHeader(selector)
+        +boolean N1_pageShell(selector)
+        +boolean N2_innerScroll(selector)
+        +boolean N3_flatCard(selector)
+        +boolean N4_inlineControl(selector)
+        +boolean allowed(selector) boolean
+    }
+
+    %% ============ ③ 组件契约 ============
+    class JPageShell {
+        +string maxWidth = "var(--layout-content-max)"
+        +string panelPadding = "var(--layout-panel-padding)"
+        +render() void
+    }
+
+    class SideNav {
+        +string activeModule
+        +boolean collapsed
+        +emit moduleChange(module)
+        +emit update:collapsed(v)
+    }
+
+    class JStatCard {
+        +string label
+        +number value
+        +any icon
+        +boolean warn = false
+        +ModuleTone tone = 'neutral'  «新增»
+        +string valueSizeClass()  «位数降档·不得回归»
+        +emit click()
+    }
+
+    class ModuleTone {
+        <<union type>>
+        +string values  «bookmark, note, file, vault, neutral»
+    }
+
+    class JFilterBar {
+        +FilterItem[] items
+        +any modelValue
+        +string allLabel
+        +emit update:modelValue(v)
+        +emit select(v)
+        +boolean isMobileScrollable  «新增·Q5=C»
+    }
+
+    class FilterItem {
+        +string label
+        +any value
+        +number count
+        +any icon
+    }
+
+    class CollectionCard {
+        +Bookmark bookmark
+        +boolean selected
+        +boolean batchMode
+        +string iconTone = 'bookmark'
+        +boolean hasTopBar  «删除·Q2»
+        +string hoverLayer = 'L2'
+    }
+
+    class NoteCard {
+        +Note note
+        +boolean selected
+        +boolean batchMode
+        +string iconTone = 'note'
+        +boolean hasTopBar  «删除·Q2»
+        +string hoverLayer = 'L2'
+    }
+
+    class DashboardView {
+        +StatsSummary data
+        +TrendPoint[] trendData
+        +TrendSeries[] TREND_SERIES  «色值改 --chart-series-*»
+        +DashSection[] dashOrder
+        +string greeting
+        +number trendMax()
+        +string trendBarHeight(v)
+        +void fetchSummary()
+        +void fetchTrend(months)
+    }
+
+    class TrendSeries {
+        +keyof TrendPoint key
+        +string label
+        +string color  «必须来自 --chart-series-N»
+    }
+
+    class MobileTabBar {
+        +string activeModule
+        +boolean glassLayer = true  «保留·J1»
+    }
+
+    class JBatchBar {
+        +number selectedCount
+        +boolean glassLayer = true  «保留·J1»
+        +emit cancel()
+    }
+
+    class ThemeCSSGenerator {
+        <<验收侧·T05 一次性脚本>>
+        +number countBackdropBlur()
+        +number countPinkElements(viewport)
+        +number countModuleColorArea(viewport)
+        +number countFontSizeTiers(viewport)
+        +boolean assertSolidFill(selectors)
+        +number contrastRatio(hexA, hexB)
+        +number deltaLstar(hexA, hexB)
+        +object tokenCoverage()
+    }
+
+    %% ============ 关系 ============
+    DesignTokens <|.. lightTokens : 实现
+    DesignTokens <|.. darkTokens : 实现
+    lightTokens --> TokenPipeline : 输入
+    darkTokens --> TokenPipeline : 输入
+    TokenPipeline ..> GeneratedCSS : 生成
+    DesignTokens --> NaiveThemeOverrides : 同源取值
+    GeneratedCSS ..> LayerSpec : 提供 CSS 变量
+    SurfaceLayer --> LayerSpec : 实例化为 4 条
+    LayerSpec --> GlassAdmittance : L3 需通过判据
+    GeneratedCSS ..> JPageShell : var(--surface-1)
+    GeneratedCSS ..> SideNav : var(--surface-1)
+    GeneratedCSS ..> JStatCard : var(--module-*-icon)
+    GeneratedCSS ..> CollectionCard : var(--module-bookmark-icon)
+    GeneratedCSS ..> NoteCard : var(--module-note-icon)
+    GeneratedCSS ..> JFilterBar : var(--glass-chip-border)
+    GeneratedCSS ..> DashboardView : var(--chart-series-1..4)
+    GeneratedCSS ..> MobileTabBar : var(--glass-bg-trans)
+    GeneratedCSS ..> JBatchBar : var(--glass-bg-trans)
+    ModuleTone <.. JStatCard : 约束
+    FilterItem <.. JFilterBar : 组合
+    TrendSeries <.. DashboardView : 组合
+    ThemeCSSGenerator ..> GeneratedCSS : 读取变量定义集
+    ThemeCSSGenerator ..> GlassAdmittance : 校验

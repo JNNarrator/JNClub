@@ -73,7 +73,7 @@
   --glass-glow-top: rgba(236, 91, 142, 0.16);
   --glass-glow-bottom: rgba(255, 143, 171, 0.14);
   --glass-shadow: 0 24px 64px -12px rgba(236, 91, 142, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.9);
-  --glass-blur: 12px;
+  --glass-blur: 16px;
   --glass-input-bg: rgba(255, 255, 255, 0.6);
   --glass-input-border: rgba(236, 91, 142, 0.22);
   --glass-btn-primary: linear-gradient(135deg, #EC5B8E, #FF8FAB);
@@ -84,6 +84,12 @@
   --glass-chip-text: #B82A63;
   --glass-text-secondary: rgba(29, 29, 31, 0.65);
   --glass-text-placeholder: rgba(29, 29, 31, 0.62);
+  --aurora-top: rgba(255, 143, 171, 0.30);
+  --aurora-bottom: rgba(190, 170, 250, 0.16);
+  --aurora-center: rgba(255, 228, 239, 0.10);
+  --glass-surface-bg: rgba(255, 255, 255, 0.70);
+  --glass-surface-border: rgba(255, 255, 255, 0.55);
+  --glass-surface-shadow: 0 8px 32px -8px rgba(236, 91, 142, 0.18), 0 2px 8px -2px rgba(0, 0, 0, 0.05);
   --focus-ring: #C9256A;
   --focus-ring-soft: rgba(201, 37, 106, 0.22);
   --brand-text: #C9256A;
@@ -233,7 +239,7 @@
     --glass-glow-top: rgba(255, 143, 171, 0.16);
     --glass-glow-bottom: rgba(244, 114, 182, 0.12);
     --glass-shadow: 0 24px 64px -12px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.08);
-    --glass-blur: 12px;
+    --glass-blur: 16px;
     --glass-input-bg: rgba(255, 255, 255, 0.06);
     --glass-input-border: rgba(255, 255, 255, 0.14);
     --glass-btn-primary: linear-gradient(135deg, #FF8FAB, #F472B6);
@@ -244,6 +250,12 @@
     --glass-chip-text: #FFB3C6;
     --glass-text-secondary: rgba(245, 245, 247, 0.6);
     --glass-text-placeholder: rgba(245, 245, 247, 0.5);
+    --aurora-top: rgba(255, 143, 171, 0.20);
+    --aurora-bottom: rgba(140, 120, 220, 0.14);
+    --aurora-center: rgba(255, 143, 171, 0.06);
+    --glass-surface-bg: rgba(38, 38, 42, 0.68);
+    --glass-surface-border: rgba(255, 255, 255, 0.10);
+    --glass-surface-shadow: 0 8px 32px -8px rgba(0, 0, 0, 0.50), 0 2px 8px -2px rgba(0, 0, 0, 0.30);
     --focus-ring: #FF8FAB;
     --focus-ring-soft: rgba(255, 143, 171, 0.32);
     --brand-text: #FF8FAB;
@@ -393,7 +405,7 @@
   --glass-glow-top: rgba(236, 91, 142, 0.16);
   --glass-glow-bottom: rgba(255, 143, 171, 0.14);
   --glass-shadow: 0 24px 64px -12px rgba(236, 91, 142, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.9);
-  --glass-blur: 12px;
+  --glass-blur: 16px;
   --glass-input-bg: rgba(255, 255, 255, 0.6);
   --glass-input-border: rgba(236, 91, 142, 0.22);
   --glass-btn-primary: linear-gradient(135deg, #EC5B8E, #FF8FAB);
@@ -404,6 +416,12 @@
   --glass-chip-text: #B82A63;
   --glass-text-secondary: rgba(29, 29, 31, 0.65);
   --glass-text-placeholder: rgba(29, 29, 31, 0.62);
+  --aurora-top: rgba(255, 143, 171, 0.30);
+  --aurora-bottom: rgba(190, 170, 250, 0.16);
+  --aurora-center: rgba(255, 228, 239, 0.10);
+  --glass-surface-bg: rgba(255, 255, 255, 0.70);
+  --glass-surface-border: rgba(255, 255, 255, 0.55);
+  --glass-surface-shadow: 0 8px 32px -8px rgba(236, 91, 142, 0.18), 0 2px 8px -2px rgba(0, 0, 0, 0.05);
   --focus-ring: #C9256A;
   --focus-ring-soft: rgba(201, 37, 106, 0.22);
   --brand-text: #C9256A;
@@ -552,7 +570,7 @@
   --glass-glow-top: rgba(255, 143, 171, 0.16);
   --glass-glow-bottom: rgba(244, 114, 182, 0.12);
   --glass-shadow: 0 24px 64px -12px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  --glass-blur: 12px;
+  --glass-blur: 16px;
   --glass-input-bg: rgba(255, 255, 255, 0.06);
   --glass-input-border: rgba(255, 255, 255, 0.14);
   --glass-btn-primary: linear-gradient(135deg, #FF8FAB, #F472B6);
@@ -563,6 +581,12 @@
   --glass-chip-text: #FFB3C6;
   --glass-text-secondary: rgba(245, 245, 247, 0.6);
   --glass-text-placeholder: rgba(245, 245, 247, 0.5);
+  --aurora-top: rgba(255, 143, 171, 0.20);
+  --aurora-bottom: rgba(140, 120, 220, 0.14);
+  --aurora-center: rgba(255, 143, 171, 0.06);
+  --glass-surface-bg: rgba(38, 38, 42, 0.68);
+  --glass-surface-border: rgba(255, 255, 255, 0.10);
+  --glass-surface-shadow: 0 8px 32px -8px rgba(0, 0, 0, 0.50), 0 2px 8px -2px rgba(0, 0, 0, 0.30);
   --focus-ring: #FF8FAB;
   --focus-ring-soft: rgba(255, 143, 171, 0.32);
   --brand-text: #FF8FAB;

@@ -677,14 +677,14 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
   flex: 0 0 var(--layout-folder-width, 220px);
   min-height: 0;
   overflow: hidden;
-  /* L1 结构面：实色 + 中性描边（判据 N2：目录树在内部滚动）。
-     注意：此处原注释「隔离渲染边界，避免 backdrop-filter 影响兄弟合成」的前提已消失
-     —— blur 已移除，contain 保留仅为长列表的绘制隔离，不影响圆角/描边。 */
-  background: var(--surface-1);
-  border: 1px solid var(--surface-border);
+  /* 玻璃升级版：目录栏改磨砂玻璃，透出极光背景 */
+  background: var(--glass-surface-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-surface-border);
   border-radius: var(--radius-md);
   padding: 14px 12px;
-  box-shadow: var(--shadow-1);
+  box-shadow: var(--glass-surface-shadow);
   contain: paint layout style;
 }
 
@@ -696,12 +696,14 @@ const emptyHint = computed(() => props.activeModule === 'bookmarks' ? '点击顶
   display: flex;
   flex-direction: column;
   overflow-y: auto;
-  /* L1 结构面：实色 + 中性描边（判据 N2：列表在内部滚动，滚动条贴面板边框内侧） */
-  background: var(--surface-1);
-  border: 1px solid var(--surface-border);
+  /* 玻璃升级版：内容区改磨砂玻璃，透出极光背景 */
+  background: var(--glass-surface-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-surface-border);
   border-radius: var(--radius-md);
   padding: var(--layout-panel-padding);
-  box-shadow: var(--shadow-1);
+  box-shadow: var(--glass-surface-shadow);
   contain: paint layout style;
 }
 
