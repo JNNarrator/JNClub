@@ -39,14 +39,42 @@ public class CorsConfig {
                 .map(String::trim)
                 .filter(origin -> !origin.isEmpty())
                 .collect(java.util.ArrayList::new, java.util.ArrayList::add, java.util.ArrayList::addAll);
-        // 自动将前端部署域名加入白名单（去除路径后缀，只保留 origin）
+        // 自动将前端部署域名加入白名单（用 URI 解析出 scheme://host[:port]，去掉任何路径）
         if (!frontendUrl.isBlank()) {
-            String origin = frontendUrl.replaceAll("/+$", "").replaceAll("/jnclub/.*$", "");
-            if (!origin.isEmpty() && !origins.contains(origin)) {
+            String origin = toOrigin(frontendUrl);
+            if (origin != null && !origins.contains(origin)) {
                 origins.add(origin);
             }
         }
         this.allowedOrigins = List.copyOf(origins);
+    }
+
+    /**
+     * 从任意 URL 提取 CORS origin（scheme://host[:port]）。
+     * 例如 {@code https://jiangnan.88933.vip/jnclub} → {@code https://jiangnan.88933.vip}。
+     * 解析失败返回 null（不阻断启动）。
+     */
+    private static String toOrigin(String url) {
+        try {
+            java.net.URI uri = java.net.URI.create(url.trim());
+            if (uri.getScheme() == null || uri.getHost() == null) {
+                return null;
+            }
+            StringBuilder sb = new StringBuilder()
+                    .append(uri.getScheme().toLowerCase())
+                    .append("://")
+                    .append(uri.getHost());
+            int port = uri.getPort();
+            boolean defaultPort = (port == -1)
+                    || ("http".equalsIgnoreCase(uri.getScheme()) && port == 80)
+                    || ("https".equalsIgnoreCase(uri.getScheme()) && port == 443);
+            if (!defaultPort) {
+                sb.append(':').append(port);
+            }
+            return sb.toString();
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
     @Bean
