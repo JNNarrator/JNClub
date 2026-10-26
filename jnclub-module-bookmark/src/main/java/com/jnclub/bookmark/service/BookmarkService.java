@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.net.ConnectException;
 import java.net.NoRouteToHostException;
+import java.net.URI;
 import java.net.URL;
 import java.net.UnknownHostException;
 import java.time.LocalDateTime;
@@ -34,6 +35,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.function.ToIntFunction;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -499,11 +501,25 @@ public class BookmarkService extends ServiceImpl<BookmarkMapper, Bookmark> {
     }
 
     /**
-     * 并行探测全部收藏，返回 id → status(1/2/0) 映射。
+     * 并行探测全部收藏（生产入口），返回 id → status(1/2/0) 映射。
      * 使用有界线程池 + 整批超时，任何单条异常都只影响该条（降级为 0），不会让接口 500。
      * 线程池在 finally 中 shutdown，避免线程泄漏。
+     *
+     * <p>包级可见：便于同包测试用 Mockito spy 拦截，从而在不依赖真实网络的前提下
+     * 验证 {@code checkDeadLinks} 的统计口径与批量写库行为。</p>
      */
-    private Map<Long, Integer> probeAll(List<Bookmark> bookmarks) {
+    Map<Long, Integer> probeAll(List<Bookmark> bookmarks) {
+        return probeAll(bookmarks, this::probeUrl);
+    }
+
+    /**
+     * 并行探测实现，探测函数以参数注入。
+     *
+     * <p>注入而非直接调用 {@link #probeUrl(String)}，是为了让同包测试可以传入
+     * {@code probeHttp} 绕过「协议/主机护栏」，从而用 127.0.0.1 本地桩覆盖并发、
+     * 超时降级、id 映射等逻辑（生产路径始终传 probeUrl）。</p>
+     */
+    Map<Long, Integer> probeAll(List<Bookmark> bookmarks, ToIntFunction<String> prober) {
         Map<Long, Integer> statusById = new LinkedHashMap<>();
         ExecutorService pool = Executors.newFixedThreadPool(PROBE_THREADS, runnable -> {
             Thread thread = new Thread(runnable, "dead-link-probe");
@@ -515,7 +531,7 @@ public class BookmarkService extends ServiceImpl<BookmarkMapper, Bookmark> {
             for (Bookmark bookmark : bookmarks) {
                 final Long id = bookmark.getId();
                 final String url = bookmark.getUrl();
-                tasks.add(() -> new ProbeResult(id, probeUrl(url)));
+                tasks.add(() -> new ProbeResult(id, prober.applyAsInt(url)));
             }
             // invokeAll 带超时：到期未完成的任务会被取消，保证整体耗时可控
             List<Future<ProbeResult>> futures =
@@ -607,33 +623,46 @@ public class BookmarkService extends ServiceImpl<BookmarkMapper, Bookmark> {
      * 探测单个 URL：返回 1=正常 2=失效 0=无法判断。
      *
      * <p><b>原则：宁可漏报，不可误删。</b>前端「一键清理」对 check_status=2 是
-     * {@code removeById} 永久删除（不进回收站），所以判定 2 必须是「确定性的死亡信号」。</p>
+     * {@code removeById} 永久删除（不进回收站），所以判定 2 必须是「确定性的死亡信号」。
+     * {@code 2} 只有三个来源：GET 复核后的 404/410、HEAD 抛异常且 isHostGone。</p>
+     *
+     * <p>分两层：本方法是<b>策略层</b>（协议/主机护栏，在任何网络请求之前完成），
+     * 通过后交给 {@link #probeHttp(String)} 这层<b>机制层</b>做真正的 HTTP 探测。</p>
      *
      * <p>判定表（任一分支都不允许叠加第二次超时，否则单条会翻倍到 10s）：</p>
      * <ul>
      *   <li>HEAD 2xx/3xx → 1</li>
-     *   <li>HEAD 403/405/501 → 回退 GET 复核（不支持 HEAD 或对 HEAD 反爬）：
-     *       2xx/3xx → 1，其余交给同一套状态码判定</li>
-     *   <li>状态码 → 只有 <b>404 / 410</b> 判 2（页面确定不存在）；
-     *       401（需登录）、408（超时）、429（限流）、451（法律屏蔽）、5xx（维护/网关抖动）
-     *       一律 0 —— 这些站点都是「活着但暂时问不出来」，判 2 会被永久删除</li>
-     *   <li>HEAD 抛异常：DNS 解析失败 / 连接被拒 / 路由不可达 → 2（主机已消失，真死链）；
-     *       其余（读超时、SSL 握手失败等）→ 0</li>
-     *   <li>非 http(s) 协议（mailto: / obsidian: / ftp: / file: / tel: …）→ 0，不探测</li>
+     *   <li>HEAD ∈ {403,404,405,410,501} → 回退 GET 复核（不支持 HEAD / 反爬 / 再确认是否真不存在）</li>
+     *   <li>HEAD 429 或其它 4xx/5xx（401/408/451/5xx …）→ 0</li>
+     *   <li>HEAD 抛异常：DNS 不存在 / 连接被拒 / 路由不可达 → 2；其余（超时、SSL 握手失败）→ 0</li>
      * </ul>
-     *
-     * <p><b>已知限制</b>：回环/私网地址（{@code localhost:3000}、{@code 192.168.x.x}）会被
-     * 正常探测，本地服务未启动时判 2。严格说服务端探测回环地址意义有限（探测的是服务器自己的
-     * 网络），但这类地址是否该一律「无法判断」取决于部署形态，且会与本地桩测试冲突，暂不处理。</p>
      */
     private int probeUrl(String url) {
         if (url == null || url.isBlank()) return 0;
-        // 归一化探测目标：非 http(s) 协议直接放弃（返回 null），裸 host[:port] 补 http:// 前缀
+        // 策略层：协议 + 主机护栏，先于任何网络请求
         String target = normalizeProbeTarget(url.trim());
         if (target == null) {
-            log.debug("收藏链接协议非 http(s)，跳过探测: {}", url);
+            log.debug("收藏链接协议或主机不可探测，跳过: {}", url);
             return 0;
         }
+        return probeHttp(target);
+    }
+
+    /**
+     * 机制层：对已归一化的 URL 做 HEAD 探测（必要时 GET 复核），返回 1/2/0。
+     *
+     * <p>入参必须是 {@link #normalizeProbeTarget(String)} 的产物（含 http/https scheme），
+     * 本方法不再做协议/主机校验。</p>
+     *
+     * <p>判定表：</p>
+     * <ul>
+     *   <li>HEAD 2xx/3xx → 1</li>
+     *   <li>HEAD ∈ {403,404,405,410,501} → GET 复核：2xx/3xx → 1；404/410 → 2；其它 → 0</li>
+     *   <li>HEAD 其它 4xx/5xx（含 401/408/429/451/5xx）→ 0（站点活着，只是暂时问不出来）</li>
+     *   <li>HEAD 抛异常 → isHostGone ? 2 : 0</li>
+     * </ul>
+     */
+    private int probeHttp(String target) {
         try {
             int code;
             try (HttpResponse resp = HttpRequest.head(target)
@@ -649,8 +678,8 @@ public class BookmarkService extends ServiceImpl<BookmarkMapper, Bookmark> {
                 return isHostGone(e) ? 2 : 0;
             }
 
-            // 只有服务端不支持 HEAD（403/405/501）时才用 GET 复核
-            if (code == 403 || code == 405 || code == 501) {
+            // 服务端不支持 HEAD / 对 HEAD 反爬 / HEAD 报不存在 → 用 GET 复核一次
+            if (code == 403 || code == 404 || code == 405 || code == 410 || code == 501) {
                 try (HttpResponse resp = HttpRequest.get(target)
                         .setFollowRedirects(true)
                         .timeout(PROBE_TIMEOUT_MS)
@@ -666,7 +695,7 @@ public class BookmarkService extends ServiceImpl<BookmarkMapper, Bookmark> {
 
             int verdict = judgeHttpStatus(code);
             if (verdict == 2) {
-                log.debug("收藏链接判定失效 {}: HTTP {}（页面确定不存在）", target, code);
+                log.debug("收藏链接判定失效 {}: HTTP {}（GET 复核后仍不存在）", target, code);
             } else if (verdict == 0) {
                 log.debug("收藏链接无法判断 {}: HTTP {}（活着但问不出来）", target, code);
             }
@@ -694,37 +723,64 @@ public class BookmarkService extends ServiceImpl<BookmarkMapper, Bookmark> {
     private static final Pattern URL_SCHEME = Pattern.compile("^([a-zA-Z][a-zA-Z0-9+.\\-]*):");
 
     /**
-     * 归一化探测目标。
+     * 归一化探测目标（策略层）。返回 null 表示「不该探测」，调用方必须直接判 0。
      *
-     * <p>返回 null 表示「不该探测」（非 http/https 协议）。</p>
-     *
-     * <p>必须用 scheme 正则而非 {@code indexOf("://")}，否则：</p>
+     * <p><b>协议判定</b>必须用 scheme 正则而非 {@code indexOf("://")}，否则：</p>
      * <ul>
      *   <li>{@code mailto:a@b.com}（scheme: 无 //）漏网 → Hutool 把 "mailto" 当主机名做 DNS
      *       → UnknownHostException → 误判死链 → 被永久删除</li>
      *   <li>{@code example.com/path?u=http://foo} 的 {@code ://} 在 query 里 → 误取
      *       scheme="example.com/path?u=http" → 永久跳过探测，永远卡在「无法判断」</li>
-     *   <li>{@code localhost:3000} / {@code example.com:8080} 会被当成 scheme="localhost"
-     *       → 误判死链</li>
+     *   <li>{@code localhost:3000} / {@code example.com:8080} 会被当成 scheme="localhost"</li>
      * </ul>
+     *
+     * <p><b>主机判定</b>：解析不出主机、主机是回环/未指定地址、或是不含点的单标签名，
+     * 一律不探测——这些地址要么服务器探测无意义（回环是服务器自己的网络），要么
+     * 不可能是公网域名（{@code not-a-url}、{@code example}），探测只会白跑一次 DNS
+     * 并把有效收藏误判成死链。</p>
      */
-    private static String normalizeProbeTarget(String url) {
+    static String normalizeProbeTarget(String url) {
         // 协议相对 URL（//example.com/x）补 http: 而非 http://，避免出现 http:////example.com
-        if (url.startsWith("//")) return "http:" + url;
+        String candidate = url.startsWith("//") ? "http:" + url : url;
 
-        Matcher matcher = URL_SCHEME.matcher(url);
+        String withScheme = candidate;
+        Matcher matcher = URL_SCHEME.matcher(candidate);
         if (matcher.find()) {
             String scheme = matcher.group(1).toLowerCase(Locale.ROOT);
             // scheme 冒号后紧跟数字 → 是 host:port（localhost:3000），不是协议
-            boolean portLike = url.length() > matcher.end()
-                    && Character.isDigit(url.charAt(matcher.end()));
+            boolean portLike = candidate.length() > matcher.end()
+                    && Character.isDigit(candidate.charAt(matcher.end()));
             if (!portLike) {
                 if (!"http".equals(scheme) && !"https".equals(scheme)) return null;
-                return url;
+            } else {
+                // 裸 host:port（无协议）补默认协议，让下游按主机而非协议解析
+                withScheme = "http://" + candidate;
             }
+        } else {
+            // 裸 host[:port]/path（无协议）同样补默认协议
+            withScheme = "http://" + candidate;
         }
-        // 裸 host[:port]/path（无协议）补默认协议，让 Hutool 按主机而非协议解析
-        return "http://" + url;
+        return isProbeableTarget(withScheme) ? withScheme : null;
+    }
+
+    /** 主机护栏：解析得出、非回环/未指定、且看起来是公网主机才允许探测 */
+    private static boolean isProbeableTarget(String withScheme) {
+        String host;
+        try {
+            // 用 URI 而非 new URL：java.net.URL 自 JDK 20 起已废弃
+            host = URI.create(withScheme).getHost();
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
+        if (host == null || host.isBlank()) return false;
+        String h = host.toLowerCase(Locale.ROOT);
+        // 回环 / 未指定：服务端探测的是自己的网络，判断不了用户侧是否可达
+        if (h.equals("localhost") || h.endsWith(".localhost")) return false;
+        if (h.equals("0.0.0.0") || h.equals("[::]")) return false;
+        if (h.equals("[::1]") || h.equals("::1")) return false;
+        if (h.startsWith("127.")) return false;      // 整个 127.0.0.0/8 都是回环
+        // 单标签主机（无点、非 IPv6 字面量）不可能是公网域名
+        return h.indexOf('.') >= 0 || h.indexOf(':') >= 0;
     }
 
     /**

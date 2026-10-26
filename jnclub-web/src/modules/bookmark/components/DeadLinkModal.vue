@@ -34,6 +34,8 @@ const startCheck = async () => {
         // error = 无法判断（超时/反爬/限流），不能笼统说「全部正常」
         message.warning(`检测完成：${d.ok} 个正常，${d.error} 个无法判断`)
       }
+      // dead > 0 时有意不弹 toast：统计条已在弹窗内显著展示失效数量，
+      // 再弹一次是重复噪音。改动前就是该行为，此处仅显式记录，勿「顺手修复」。
     } else {
       loadError.value = true
       message.error(res.data.message || '检测失败')
