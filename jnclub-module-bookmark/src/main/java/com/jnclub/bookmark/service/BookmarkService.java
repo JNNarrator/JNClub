@@ -17,11 +17,15 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.net.ConnectException;
+import java.net.NoRouteToHostException;
 import java.net.URL;
+import java.net.UnknownHostException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
@@ -600,12 +604,34 @@ public class BookmarkService extends ServiceImpl<BookmarkMapper, Bookmark> {
     }
 
     /**
-     * 探测单个 URL：返回 1=正常 2=失效 0=无法判断（网络错误/超时）
-     * HEAD 优先；仅当服务端明确「不支持 HEAD」（403/405/501）时才回退 GET。
-     * 连接失败/超时属于「无法判断」，直接返回 0，绝不再叠加第二次超时（这是原实现单条 20s 的根因）。
+     * 探测单个 URL：返回 1=正常 2=失效 0=无法判断。
+     *
+     * <p>判定表（任一分支都不允许叠加第二次超时，否则单条会翻倍到 10s）：</p>
+     * <ul>
+     *   <li>HEAD 2xx/3xx → 1</li>
+     *   <li>HEAD 429 → 0（限流，不能当死链，否则「一键清理」会误删正常站点）</li>
+     *   <li>HEAD 403/405/501 → 回退 GET 复核（服务端不支持 HEAD 或反爬）：
+     *       2xx/3xx → 1；403/429 → 0；其它 4xx/5xx → 2；GET 异常 → 0</li>
+     *   <li>HEAD 其它 4xx/5xx → 2</li>
+     *   <li>HEAD 抛异常：DNS 解析失败 / 连接被拒 / 路由不可达 → 2（域名已消失，是真死链）；
+     *       其余（读超时、SSL 握手失败等）→ 0（无法判断）</li>
+     * </ul>
      */
     private int probeUrl(String url) {
         if (url == null || url.isBlank()) return 0;
+        // 非 http/https 协议（obsidian://、ftp://、chrome-extension:// 等）一律不探测：
+        // Hutool 会把协议名当成主机名去解析，必然得到 UnknownHostException，
+        // 从而把「本来有效」的收藏误判成死链，进而被前端「一键清理」真删（数据丢失）。
+        // 只拦「显式带协议」的串，裸域名（example.com）保持原有探测行为。
+        String lower = url.trim().toLowerCase(Locale.ROOT);
+        int schemeSep = lower.indexOf("://");
+        if (schemeSep > 0) {
+            String scheme = lower.substring(0, schemeSep);
+            if (!"http".equals(scheme) && !"https".equals(scheme)) {
+                log.debug("收藏链接协议非 http(s)，跳过探测 {}: {}", url, scheme);
+                return 0;
+            }
+        }
         try {
             int code;
             try (HttpResponse resp = HttpRequest.head(url)
@@ -616,12 +642,18 @@ public class BookmarkService extends ServiceImpl<BookmarkMapper, Bookmark> {
                     .execute()) {
                 code = resp.getStatus();
             } catch (Exception e) {
-                // 连接失败/超时/DNS 失败：无法判断，不再重试 GET
-                log.debug("收藏链接 HEAD 探测失败 {}: {}", url, e.getMessage());
+                // 只探测一次：能确定「主机已消失」的才判失效，其余一律无法判断
+                log.debug("收藏链接 HEAD 探测异常 {}: {}", url, e.getMessage());
+                return isHostGone(e) ? 2 : 0;
+            }
+
+            // 429 限流：站点活着，只是不让我们访问 → 无法判断（绝不能判死链）
+            if (code == 429) {
+                log.debug("收藏链接被限流 {}: HTTP 429", url);
                 return 0;
             }
 
-            // 只有服务端不支持 HEAD 时才用 GET 复核
+            // 只有服务端不支持 HEAD（403/405/501）时才用 GET 复核
             if (code == 403 || code == 405 || code == 501) {
                 try (HttpResponse resp = HttpRequest.get(url)
                         .setFollowRedirects(true)
@@ -634,6 +666,13 @@ public class BookmarkService extends ServiceImpl<BookmarkMapper, Bookmark> {
                     log.debug("收藏链接 GET 回退探测失败 {}: {}", url, e.getMessage());
                     return 0;
                 }
+                if (code >= 200 && code < 400) return 1;
+                if (code == 403 || code == 429) {
+                    log.debug("收藏链接 GET 回退仍被拒绝 {}: HTTP {}（反爬/限流，不判死链）", url, code);
+                    return 0;
+                }
+                if (code >= 400) return 2;
+                return 0;
             }
 
             if (code >= 200 && code < 400) return 1;
@@ -641,7 +680,28 @@ public class BookmarkService extends ServiceImpl<BookmarkMapper, Bookmark> {
             return 0;
         } catch (Exception e) {
             log.debug("收藏链接探测失败 {}: {}", url, e.getMessage());
-            return 0;
+            return isHostGone(e) ? 2 : 0;
         }
+    }
+
+    /**
+     * 判断异常链上是否存在「主机已消失」类异常（DNS 解析失败 / 连接被拒 / 路由不可达）。
+     * 必须遍历 cause 链：Hutool 会把底层 IOException 包进 {@code HttpException} /
+     * {@code IORuntimeException}，只 catch 顶层异常会漏判，导致真死链退化成「无法判断」。
+     */
+    private static boolean isHostGone(Throwable error) {
+        Throwable current = error;
+        // 防御异常链自引用/过深（生产上见过 cause 环）
+        for (int depth = 0; current != null && depth < 16; depth++) {
+            if (current instanceof UnknownHostException
+                    || current instanceof ConnectException
+                    || current instanceof NoRouteToHostException) {
+                return true;
+            }
+            Throwable cause = current.getCause();
+            if (cause == current) break;
+            current = cause;
+        }
+        return false;
     }
 }

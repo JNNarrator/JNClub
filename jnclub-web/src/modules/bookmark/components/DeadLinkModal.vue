@@ -27,8 +27,12 @@ const startCheck = async () => {
     const res = await axios.post('/api/bookmarks/check-dead', {}, { timeout: 300000 })
     if (res.data.code === 200) {
       result.value = res.data.data
-      if (res.data.data?.dead === 0) {
-        message.success(`检测完成：${res.data.data.total} 个链接全部正常`)
+      const d = res.data.data
+      if (d?.dead === 0 && d?.error === 0) {
+        message.success(`检测完成：${d.total} 个链接全部正常`)
+      } else if (d?.dead === 0 && d?.error > 0) {
+        // error = 无法判断（超时/反爬/限流），不能笼统说「全部正常」
+        message.warning(`检测完成：${d.ok} 个正常，${d.error} 个无法判断`)
       }
     } else {
       loadError.value = true
