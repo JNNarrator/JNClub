@@ -27,6 +27,12 @@
             <artifactId>jnclub-module-music</artifactId>
         </dependency>
 
+        <!-- 剪贴板同步模块 -->
+        <dependency>
+            <groupId>com.jnclub</groupId>
+            <artifactId>jnclub-module-clipboard</artifactId>
+        </dependency>
+
         <!-- Spring Boot Actuator -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

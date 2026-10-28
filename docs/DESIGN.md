@@ -15,6 +15,7 @@ JNClub 后端 (Spring Boot :19005)
    │  ┌─────────────────────────────────┐
    │  │ jnclub-common  SSO/异常/统一返回  │
    │  │ jnclub-module-bookmark 业务      │
+   │  │ jnclub-module-clipboard 剪贴板同步│
    │  └─────────────────────────────────┘
    ├──► MySQL :3306 (jnclub)
    └──► dufs :8000 (文件存储)
@@ -26,6 +27,7 @@ JNClub 后端 (Spring Boot :19005)
 
 - **jnclub-common**：Sa-Token 拦截器（`WebMvcConfig`）、SSO 客户端、统一返回 `R<T>`、全局异常、跨域、静态资源。
 - **jnclub-module-bookmark**：核心业务。目录 / 收藏 / 便签 / 云盘 / 图片资产。
+- **jnclub-module-clipboard**：jn-clipboard 桌面端与 PWA 的跨端同步接口（`/api/clipboard/**`），协议见 `docs/DESIGN-clipboard-sync.md`。
 - **jnclub-gateway**：启动入口（:19005），含 `application.yml`。
 
 ### 关键约定
