@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Map;
 
 @Slf4j
@@ -79,9 +80,57 @@ public class SsoClientController {
         response.sendRedirect(serverUrl + "/register?redirect=" + URLEncoder.encode(callbackUrl, StandardCharsets.UTF_8));
     }
 
+    /**
+     * 桌面端登录完成后要回到的本机地址前缀。
+     *
+     * <p>只接受回环地址。桌面应用在 127.0.0.1 上临时起一个监听，登录完成后
+     * 浏览器带着 token 跳回来，应用读到就关掉监听。限制回环是这里唯一的安全
+     * 边界——若放行任意地址，这个参数就是一个把 token 送去任何地方的开
+     * 放重定向。
+     */
+    private static final List<String> LOOPBACK_PREFIXES = List.of(
+        "http://127.0.0.1:", "http://localhost:", "http://[::1]:"
+    );
+
+    static boolean isLoopbackCallback(String callback) {
+        if (callback == null || callback.isBlank()) {
+            return false;
+        }
+        String lower = callback.toLowerCase();
+        for (String prefix : LOOPBACK_PREFIXES) {
+            if (!lower.startsWith(prefix)) {
+                continue;
+            }
+            // 端口必须是纯数字且紧跟路径分隔符。否则 `http://127.0.0.1:1.evil.com`
+            // 这类主机名也会命中前缀——它的 "端口" 是 `1.evil.com`。
+            int i = prefix.length();
+            int digitsStart = i;
+            while (i < lower.length() && Character.isDigit(lower.charAt(i))) {
+                i++;
+            }
+            if (i == digitsStart || i >= lower.length()) {
+                return false;
+            }
+            return lower.charAt(i) == '/';
+        }
+        return false;
+    }
+
+    /**
+     * @param desktop_callback 桌面端本机回调地址；Web 登录时不传
+     */
     @GetMapping("/login")
-    public void ssoLogin(String ticket, HttpServletResponse response) throws IOException {        if (ticket == null || ticket.isBlank()) {
-            String callbackUrl = clientUrl + "/sso/login";
+    public void ssoLogin(String ticket, String desktop_callback, HttpServletResponse response) throws IOException {
+        // 这个参数得跟着 SSO 往返一圈才能回到这里，所以先挂到回跳地址上。
+        // 此刻不校验，下面真正用到它时再校验。
+        String desktopSuffix = "";
+        if (isLoopbackCallback(desktop_callback)) {
+            desktopSuffix = "?desktop_callback="
+                + URLEncoder.encode(desktop_callback, StandardCharsets.UTF_8);
+        }
+
+        if (ticket == null || ticket.isBlank()) {
+            String callbackUrl = clientUrl + "/sso/login" + desktopSuffix;
             response.sendRedirect(serverUrl + "/auth"
                 + "?client=" + URLEncoder.encode("app-jnclub", StandardCharsets.UTF_8)
                 + "&redirect=" + URLEncoder.encode(callbackUrl, StandardCharsets.UTF_8));
@@ -133,8 +182,16 @@ public class SsoClientController {
                 log.info("JNClub 登录成功, userId={}, ssoToken={}, jnclubToken={}",
                         userId, ssoToken, jnclubToken);
 
-                String redirectUrl = frontendUrl;
-                redirectUrl += (redirectUrl.contains("?") ? "&" : "?") + "token=" + jnclubToken;
+                String redirectUrl;
+                if (isLoopbackCallback(desktop_callback)) {
+                    // 桌面端：把 token 交给本机监听，浏览器随即关掉自己。
+                    redirectUrl = desktop_callback
+                        + (desktop_callback.contains("?") ? "&" : "?")
+                        + "token=" + URLEncoder.encode(jnclubToken, StandardCharsets.UTF_8);
+                } else {
+                    redirectUrl = frontendUrl;
+                    redirectUrl += (redirectUrl.contains("?") ? "&" : "?") + "token=" + jnclubToken;
+                }
                 response.sendRedirect(redirectUrl);
             } else {
                 log.error("SSO ticket 验证失败: code={}, msg={}",
