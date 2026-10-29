@@ -117,17 +117,52 @@ public class SsoClientController {
     }
 
     /**
+     * Web 端登录后要回到哪一页：只接受本站路径（以单个 {@code /} 开头），
+     * 用于让 PWA 这类挂在子路径下的应用登录完回到自己那一页，而不是被
+     * 送去 JNClub 前端。
+     *
+     * <p>只放行路径不放行主机——主机永远是 {@code clientUrl} 的主机，所以
+     * 这个参数无法把 token 送到别处。{@code //host} 是协议相对 URL，会被
+     * 浏览器解释成外站，必须拒绝。
+     */
+    static boolean isSameSitePath(String path) {
+        if (path == null || path.isBlank()) {
+            return false;
+        }
+        return path.charAt(0) == '/' && (path.length() == 1 || path.charAt(1) != '/');
+    }
+
+    /** {@code scheme://host[:port]}，取自 clientUrl。 */
+    private String clientOrigin() {
+        try {
+            java.net.URI uri = java.net.URI.create(clientUrl);
+            int port = uri.getPort();
+            return uri.getScheme() + "://" + uri.getHost() + (port > 0 ? ":" + port : "");
+        } catch (IllegalArgumentException e) {
+            return clientUrl;
+        }
+    }
+
+    /**
      * @param desktop_callback 桌面端本机回调地址；Web 登录时不传
+     * @param web_path         Web 端登录后要返回的本站路径，例如 {@code /clipboard/}
      */
     @GetMapping("/login")
-    public void ssoLogin(String ticket, String desktop_callback, HttpServletResponse response) throws IOException {
-        // 这个参数得跟着 SSO 往返一圈才能回到这里，所以先挂到回跳地址上。
-        // 此刻不校验，下面真正用到它时再校验。
-        String desktopSuffix = "";
+    public void ssoLogin(String ticket, String desktop_callback, String web_path,
+                         HttpServletResponse response) throws IOException {
+        // 这两个参数得跟着 SSO 往返一圈才能回到这里，所以先挂到回跳地址上。
+        // 此刻不校验，下面真正用到它们时再校验。
+        StringBuilder suffix = new StringBuilder();
         if (isLoopbackCallback(desktop_callback)) {
-            desktopSuffix = "?desktop_callback="
-                + URLEncoder.encode(desktop_callback, StandardCharsets.UTF_8);
+            suffix.append("?desktop_callback=")
+                .append(URLEncoder.encode(desktop_callback, StandardCharsets.UTF_8));
         }
+        if (isSameSitePath(web_path)) {
+            suffix.append(suffix.length() == 0 ? "?" : "&")
+                .append("web_path=")
+                .append(URLEncoder.encode(web_path, StandardCharsets.UTF_8));
+        }
+        String desktopSuffix = suffix.toString();
 
         if (ticket == null || ticket.isBlank()) {
             String callbackUrl = clientUrl + "/sso/login" + desktopSuffix;
@@ -188,6 +223,10 @@ public class SsoClientController {
                     redirectUrl = desktop_callback
                         + (desktop_callback.contains("?") ? "&" : "?")
                         + "token=" + URLEncoder.encode(jnclubToken, StandardCharsets.UTF_8);
+                } else if (isSameSitePath(web_path)) {
+                    // Web 端：回到调用方指定的本站页面（例如 /clipboard/）。
+                    redirectUrl = clientOrigin() + web_path;
+                    redirectUrl += (redirectUrl.contains("?") ? "&" : "?") + "token=" + jnclubToken;
                 } else {
                     redirectUrl = frontendUrl;
                     redirectUrl += (redirectUrl.contains("?") ? "&" : "?") + "token=" + jnclubToken;
