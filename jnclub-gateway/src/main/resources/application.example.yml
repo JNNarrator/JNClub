@@ -46,6 +46,8 @@ jnclub:
     public-url: http://jn_file.88933.vip
     upload-path: /jnclub/images/
     disk-path: /jnclub/disk/
+    # 剪贴板图片在 dufs 上的根路径；末尾斜杠会补齐
+    clipboard-path: /jnclub/clipboard/
     username: your_dufs_user
     password: your_dufs_password
   upload:
