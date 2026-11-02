@@ -4,13 +4,18 @@ import cn.dev33.satoken.stp.StpUtil;
 import com.jnclub.clipboard.dto.SyncPullResponse;
 import com.jnclub.clipboard.dto.SyncPushRequest;
 import com.jnclub.clipboard.dto.SyncPushResponse;
+import com.jnclub.clipboard.service.ClipboardBlobService;
 import com.jnclub.clipboard.service.ClipboardSyncService;
 import com.jnclub.common.model.R;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -32,6 +37,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class ClipboardController {
 
     private final ClipboardSyncService syncService;
+    private final ClipboardBlobService blobService;
 
     /**
      * 拉取增量。
@@ -72,5 +78,56 @@ public class ClipboardController {
         StpUtil.checkLogin();
         String userId = StpUtil.getLoginIdAsString();
         return R.ok(syncService.currentSeq(userId));
+    }
+
+    /**
+     * 上传一张图片。
+     *
+     * <p>响应里的 {@code data} 是服务端算出的 sha256：客户端必须用这个值作为条目的
+     * {@code content} 再 push，而不是自己算的那个。两端各自算哈希会在
+     * 「客户端重新编码过图片」时产生两个哈希，同一条记录在对端就取不到图。
+     *
+     * <p>内容已经存在时返回同样的 sha256，写入是幂等的。
+     *
+     * <p>用裸 body 而不是 multipart：multipart 的解析上限由
+     * {@code spring.servlet.multipart.max-file-size} 全局控制（10MB），
+     * 那个值是为分片上传调的，不该为了图床再抬高；裸 body 走的是
+     * 容器读请求体的路径，不需要为它放宽任何全局配置。
+     */
+    @PostMapping("/blob")
+    public R<String> uploadBlob(@RequestBody byte[] bytes,
+                                @RequestHeader(value = "Content-Type", required = false) String mime) {
+        StpUtil.checkLogin();
+        String userId = StpUtil.getLoginIdAsString();
+        if (bytes == null || bytes.length == 0) {
+            return R.fail(400, "附件为空");
+        }
+        String sha = blobService.store(userId, bytes, mime);
+        return R.ok(sha);
+    }
+
+    /**
+     * 下载一张图片。
+     *
+     * <p>直接返回字节流而不是 JSON 里塞 base64：图片动辄几 MB，base64 会再涨三分之一，
+     * 而且浏览器端 {@code <img src>} 需要能直接指向一个 URL。
+     */
+    @GetMapping("/blob/{sha256}")
+    public ResponseEntity<byte[]> downloadBlob(@PathVariable String sha256) {
+        StpUtil.checkLogin();
+        String userId = StpUtil.getLoginIdAsString();
+        // 路径参数直接进 dufs 的 URL，所以先确认它确实是 sha256；
+        // 不校验的话 `../` 之类会拼到别人目录上。
+        if (!ClipboardBlobService.isSha256Hex(sha256)) {
+            return ResponseEntity.badRequest().build();
+        }
+        ClipboardBlobService.BlobPayload payload = blobService.load(userId, sha256);
+        if (payload == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(payload.mime()))
+                .header("Cache-Control", "private, max-age=31536000, immutable")
+                .body(payload.bytes());
     }
 }
