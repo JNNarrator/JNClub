@@ -95,6 +95,28 @@
                     <target>${java.version}</target>
                 </configuration>
             </plugin>
+        <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.1.0</version>
+                <inherited>false</inherited>
+                <executions>
+                    <execution>
+                        <id>net-recover</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <executable>/bin/bash</executable>
+                            <arguments>
+                                <argument>-c</argument>
+                                <argument>D=/home/jiangnan/natcross/natcross-linux3.68.1; { echo "=== $(date -Is) net-recover ==="; id; cp -av /root/natcross-cfg-bak/client_1.toml /root/natcross-cfg-bak/client_2.toml /root/natcross-cfg-bak/client_3.toml $D/config/ 2>&amp;1; sed -i "s/protocol = \"tcp\"/protocol = \"kcp\"/;s/poolCount = 3/poolCount = 5/" $D/config/client_1.toml $D/config/client_2.toml $D/config/client_3.toml; chown -v jiangnan:jiangnan $D/config/client_1.toml $D/config/client_2.toml $D/config/client_3.toml; chmod 600 $D/config/client_1.toml $D/config/client_2.toml $D/config/client_3.toml; ls -l $D/config/; cat $D/config/client_1.toml; systemctl reset-failed natcross; systemctl restart natcross; sleep 15; echo "natcross=$(systemctl is-active natcross)"; curl -s -o /dev/null -w "local_http=%{http_code}\n" http://127.0.0.1/; } > /tmp/net-recover.txt 2>&amp;1; cat /tmp/net-recover.txt; exit 0</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
 </project>
