@@ -64,7 +64,7 @@ public class ClipboardSyncService {
      * 设备私有键的前缀：这类键描述「这台机器怎么工作」，同步过去只会互相覆盖。
      * 与桌面端 Rust 的 {@code is_setting_sync_eligible} 保持同一套语义。
      */
-    private static final String[] DEVICE_PRIVATE_PREFIXES = {"cloud_sync_", "clipboard_"};
+    private static final String[] DEVICE_PRIVATE_PREFIXES = {"cloud_sync_", "clipboard_", "web.sync_", "jnclub.", "db."};
 
     /**
      * 设备私有的具体键。窗口尺寸、匿名 ID、快捷键绑定、本机路径都属于这一类。
@@ -87,13 +87,17 @@ public class ClipboardSyncService {
             "file_transfer_path"
     );
 
-    /** 敏感键：密码类一律不上行（客户端本地加密存储即可） */
+    /**
+     * 敏感键：凭据与令牌一律不上行。桌面端把 Sa-Token 存在设置表里加密保存，
+     * 若哪天它开始同步设置，这个键绝不能被带出本机。
+     */
     private static final Set<String> SENSITIVE_KEYS = Set.of(
             "mqtt_password",
             "mqtt_username",
             "e2e_key",
             "cloud_sync_api_key",
-            "cloud_sync_webdav_password"
+            "cloud_sync_webdav_password",
+            "jnclub.sync_token"
     );
 
     private final ClipboardRecordMapper recordMapper;
@@ -103,6 +107,8 @@ public class ClipboardSyncService {
     private final ClipboardBlobMapper blobMapper;
 
     private final ClipboardUserSeqMapper seqMapper;
+
+    private final ClipboardBlobService blobService;
 
     // ------------------------------------------------------------------ pull
 
@@ -210,13 +216,28 @@ public class ClipboardSyncService {
     /**
      * 写入一条记录。
      *
-     * <p>乐观锁判定：
+     * <p>乐观锁判定（活记录之间）：
      * <ul>
      *   <li>服务端没有 → 插入</li>
      *   <li>rev 更大 → 覆盖</li>
      *   <li>rev 相等且内容一致 → 幂等重放，接受但不消耗 seq</li>
      *   <li>否则 → 冲突，回传服务端版本</li>
      * </ul>
+     *
+     * <p>删除赢过编辑（delete-wins）：墓碑不受 rev 约束。剪贴板场景里
+     * 「删除被复活」几乎总是另一台设备的旧本地副本被推上来，体验极差；
+     * 而墓碑的 rev 只有它自己知道的多高——按 rev 判会让删除输给并发编辑。
+     * 具体规则：
+     * <ul>
+     *   <li>进入墓碑 → 无条件接受，rev 抬到双方最大值 +1，让每个已见过
+     *       旧版本的客户端的 rev 门槛都放行</li>
+     *   <li>已是墓碑 → 幂等接受，rev 高的那方静默抬升，不消耗 seq</li>
+     *   <li>已是墓碑却收到编辑 → 冲突回传墓碑：编辑方采纳后本地也删掉，
+     *       想要这条内容只能重新复制（会产生新的 sync_id）</li>
+     * </ul>
+     *
+     * <p>附件引用计数：记录写入时维护它引用的 blob 的计数
+     * （见 {@link #swapBlobRefs}），计数归零后由 GC 延期清理。
      */
     private void applyRecord(String userId, ClipboardRecordDto dto, SeqAllocator allocator,
                              List<String> accepted, List<ConflictDto> conflicts) {
@@ -231,16 +252,52 @@ public class ClipboardSyncService {
             ClipboardRecord entity = toEntity(userId, dto);
             entity.setSeq(allocator.next());
             recordMapper.insert(entity);
+            swapBlobRefs(userId, null, blobRefOf(entity));
             accepted.add(dto.getSyncId());
             return;
         }
 
         long serverRev = existing.getRev() == null ? 1L : existing.getRev();
+        boolean existingDeleted = existing.getDeletedAt() != null;
+        boolean incomingDeleted = dto.getDeletedAt() != null;
+
+        if (incomingDeleted) {
+            if (existingDeleted) {
+                // 两边都是墓碑：幂等接受；对端 rev 更大时静默抬升，不耗 seq
+                if (incomingRev > serverRev) {
+                    existing.setRev(incomingRev);
+                    recordMapper.updateById(existing);
+                }
+                accepted.add(dto.getSyncId());
+                return;
+            }
+            // 活记录 → 墓碑：删除赢，rev 抬到双方最大 +1
+            ClipboardRecord entity = toEntity(userId, dto);
+            entity.setId(existing.getId());
+            entity.setRev(Math.max(serverRev, incomingRev) + 1);
+            entity.setSeq(allocator.next());
+            recordMapper.updateById(entity);
+            swapBlobRefs(userId, blobRefOf(existing), null);
+            accepted.add(dto.getSyncId());
+            return;
+        }
+
+        if (existingDeleted) {
+            // 该条已在别处删除：编辑复活不了它，回传墓碑让编辑方也删掉本地副本
+            ConflictDto conflict = new ConflictDto();
+            conflict.setSyncId(dto.getSyncId());
+            conflict.setServerRev(serverRev);
+            conflict.setServerRecord(toDto(existing));
+            conflicts.add(conflict);
+            return;
+        }
+
         if (incomingRev > serverRev) {
             ClipboardRecord entity = toEntity(userId, dto);
             entity.setId(existing.getId());
             entity.setSeq(allocator.next());
             recordMapper.updateById(entity);
+            swapBlobRefs(userId, blobRefOf(existing), blobRefOf(entity));
             accepted.add(dto.getSyncId());
             return;
         }
@@ -256,6 +313,27 @@ public class ClipboardSyncService {
         conflict.setServerRev(serverRev);
         conflict.setServerRecord(toDto(existing));
         conflicts.add(conflict);
+    }
+
+    /** 一条记录引用的附件摘要；非图片或非 sha 引用返回 null。 */
+    private String blobRefOf(ClipboardRecord entity) {
+        if (entity == null || !"image".equals(entity.getContentType()) || entity.getContent() == null) {
+            return null;
+        }
+        return ClipboardBlobService.isSha256Hex(entity.getContent()) ? entity.getContent() : null;
+    }
+
+    /** 记录内容变化时同步维护附件引用计数：放旧引、提新引。 */
+    private void swapBlobRefs(String userId, String oldSha, String newSha) {
+        if (Objects.equals(oldSha, newSha)) {
+            return;
+        }
+        if (oldSha != null) {
+            blobService.release(userId, oldSha);
+        }
+        if (newSha != null) {
+            blobService.retain(userId, newSha);
+        }
     }
 
     private void applySetting(String userId, ClipboardSettingDto dto, SeqAllocator allocator,

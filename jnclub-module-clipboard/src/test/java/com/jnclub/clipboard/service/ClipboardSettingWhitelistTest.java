@@ -40,6 +40,14 @@ class ClipboardSettingWhitelistTest {
         assertFalse(ClipboardSyncService.isSettingSyncable("cloud_sync_cursor"));
         assertFalse(ClipboardSyncService.isSettingSyncable("cloud_sync_webdav_url"));
         assertFalse(ClipboardSyncService.isSettingSyncable("clipboard_last_seq"));
+        // web 端的同步开关/地址：每台浏览器自己的运行时配置
+        assertFalse(ClipboardSyncService.isSettingSyncable("web.sync_enabled"));
+        assertFalse(ClipboardSyncService.isSettingSyncable("web.sync_base_url"));
+        // 桌面端 JNClub 同步的游标与登录态
+        assertFalse(ClipboardSyncService.isSettingSyncable("jnclub.sync_last_seq"));
+        assertFalse(ClipboardSyncService.isSettingSyncable("jnclub.sync_base_url"));
+        // 本机迁移标记：只描述本库走到哪一步了
+        assertFalse(ClipboardSyncService.isSettingSyncable("db.sensitive_alignment_done"));
     }
 
     @Test
@@ -48,6 +56,8 @@ class ClipboardSettingWhitelistTest {
         assertFalse(ClipboardSyncService.isSettingSyncable("cloud_sync_api_key"));
         assertFalse(ClipboardSyncService.isSettingSyncable("cloud_sync_webdav_password"));
         assertFalse(ClipboardSyncService.isSettingSyncable("e2e_key"));
+        // 桌面端的会话令牌存在设置表里；哪天它开始同步设置，这个键绝不能出本机
+        assertFalse(ClipboardSyncService.isSettingSyncable("jnclub.sync_token"));
     }
 
     @Test

@@ -5,8 +5,10 @@ import com.jnclub.clipboard.dto.SyncPullResponse;
 import com.jnclub.clipboard.dto.SyncPushRequest;
 import com.jnclub.clipboard.dto.SyncPushResponse;
 import com.jnclub.clipboard.service.ClipboardBlobService;
+import com.jnclub.clipboard.service.ClipboardStreamService;
 import com.jnclub.clipboard.service.ClipboardSyncService;
 import com.jnclub.common.model.R;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
@@ -19,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 /**
  * 剪贴板跨端同步接口。
@@ -38,6 +41,7 @@ public class ClipboardController {
 
     private final ClipboardSyncService syncService;
     private final ClipboardBlobService blobService;
+    private final ClipboardStreamService streamService;
 
     /**
      * 拉取增量。
@@ -64,7 +68,26 @@ public class ClipboardController {
         log.debug("剪贴板 push: user={} accepted={} conflicts={} rejectedSettings={}",
                 userId, response.getAccepted().size(), response.getConflicts().size(),
                 response.getRejectedSettings().size());
+        // 在事务提交后广播：空闲的误报（幂等重放）只让对方多探测一次 state，
+        // 漏报则让对端等到下一拍。这里放宽到 accepted/conflicts 非空即报。
+        if (!response.getAccepted().isEmpty() || !response.getConflicts().isEmpty()) {
+            streamService.notifyUser(userId);
+        }
         return R.ok(response);
+    }
+
+    /**
+     * SSE 变更流：任何设备 push 落库后，登录用户的其它在线连接被立刻唤醒。
+     *
+     * <p>认证与其它接口一样走 Sa-Token 请求头（桌面端 reqwest 可带）；
+     * 事件体只是「该看一眼了」的信号，不携带任何内容，所以无需鉴权外的
+     * 权限区分。`X-Accel-Buffering: no` 让 nginx 不要缓冲这条响应。
+     */
+    @GetMapping("/sync/stream")
+    public SseEmitter stream(HttpServletResponse response) {
+        StpUtil.checkLogin();
+        response.setHeader("X-Accel-Buffering", "no");
+        return streamService.subscribe(StpUtil.getLoginIdAsString());
     }
 
     /**

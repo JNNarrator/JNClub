@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.LocalDateTime;
 
 /**
  * 剪贴板附件（图片）实体的存取。
@@ -149,6 +150,7 @@ public class ClipboardBlobService {
             entity.setByteSize((long) bytes.length);
             entity.setMime(mime == null ? "" : mime);
             entity.setRefCount(0);
+            entity.setZeroedAt(null);
             blobMapper.insert(entity);
         } else if (existing.getByteSize() == null || existing.getByteSize() == 0L) {
             existing.setByteSize((long) bytes.length);
@@ -156,6 +158,84 @@ public class ClipboardBlobService {
             blobMapper.updateById(existing);
         }
         return sha;
+    }
+
+    /**
+     * 引用计数 +1。记录写入时调用；计数归零过的附件被重新引用时
+     * 会清掉 {@code zeroedAt}，避免随后被 GC 误判为“已长期无引用”。
+     *
+     * <p>元数据行不存在时什么都不做：行由 {@link #store} 建造，
+     * 只 push 记录而不上传字节的客户端会先被上传器补齐。
+     */
+    public void retain(String userId, String sha) {
+        if (sha == null) {
+            return;
+        }
+        ClipboardBlob existing = blobMapper.selectOne(new QueryWrapper<ClipboardBlob>()
+                .eq("user_id", userId)
+                .eq("sha256", sha)
+                .last("LIMIT 1"));
+        if (existing == null) {
+            log.debug("retain 引用的附件元数据不存在: user={} sha={}", userId, sha);
+            return;
+        }
+        existing.setRefCount(Math.max(0, nz(existing.getRefCount())) + 1);
+        existing.setZeroedAt(null);
+        blobMapper.updateById(existing);
+    }
+
+    /**
+     * 引用计数 -1；归零时记下 {@code zeroedAt}，GC 过了保留期才真删
+     * （离线几天的设备不应当丢失它们还没拉取的图片）。
+     */
+    public void release(String userId, String sha) {
+        if (sha == null) {
+            return;
+        }
+        ClipboardBlob existing = blobMapper.selectOne(new QueryWrapper<ClipboardBlob>()
+                .eq("user_id", userId)
+                .eq("sha256", sha)
+                .last("LIMIT 1"));
+        if (existing == null) {
+            return;
+        }
+        int next = Math.max(0, nz(existing.getRefCount()) - 1);
+        existing.setRefCount(next);
+        if (next == 0 && existing.getZeroedAt() == null) {
+            existing.setZeroedAt(LocalDateTime.now());
+        }
+        blobMapper.updateById(existing);
+    }
+
+    /**
+     * 删掉 dufs 上的实体文件；元数据行由调用方（GC）删除。
+     *
+     * @return true 表示文件已不在（删成功或本来就没有）
+     */
+    public boolean deleteFromDufs(String userId, String sha256) {
+        if (!isSha256Hex(sha256)) {
+            return false;
+        }
+        String relative = relativePath(userId, sha256);
+        var req = HttpRequest.delete(dufsBaseUrl + relative);
+        if (dufsUser != null && !dufsUser.isBlank()) {
+            String auth = dufsUser + ":" + dufsPass;
+            req.header("Authorization", "Basic "
+                    + Base64.encode(auth.getBytes(StandardCharsets.UTF_8)));
+        }
+        try (HttpResponse response = req.execute()) {
+            int status = response.getStatus();
+            // 204 删除成功；404 本来就没有，视为成功，让 GC 能把残留行清掉
+            if (status == 204 || status == 200 || status == 404) {
+                return true;
+            }
+            log.warn("dufs 附件删除失败: sha={}, status={}", sha256, status);
+            return false;
+        }
+    }
+
+    private static int nz(Integer value) {
+        return value == null ? 0 : value;
     }
 
     /**

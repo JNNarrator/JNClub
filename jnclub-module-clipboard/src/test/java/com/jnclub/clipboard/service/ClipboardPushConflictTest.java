@@ -56,7 +56,8 @@ class ClipboardPushConflictTest {
         // push 末尾回报的游标
         Mockito.when(seqMapper.maxVisibleSeq(anyString())).thenReturn(1L);
 
-        service = new ClipboardSyncService(recordMapper, settingMapper, blobMapper, seqMapper);
+        ClipboardBlobService blobService = new ClipboardBlobService(blobMapper);
+        service = new ClipboardSyncService(recordMapper, settingMapper, blobMapper, seqMapper, blobService);
     }
 
     private static ClipboardRecordDto dto(String syncId, long rev, String content) {
@@ -225,5 +226,77 @@ class ClipboardPushConflictTest {
 
         assertTrue(resp.getAccepted().isEmpty());
         Mockito.verify(recordMapper, Mockito.never()).insert(any(ClipboardRecord.class));
+    }
+
+    // ------------------------------------------------ delete-wins：删除赢过编辑
+
+    private static ClipboardRecordDto tombstone(String syncId, long rev, long deletedAt) {
+        ClipboardRecordDto d = new ClipboardRecordDto();
+        d.setSyncId(syncId);
+        d.setContentType("text");
+        d.setContent("");
+        d.setRev(rev);
+        d.setDeletedAt(deletedAt);
+        return d;
+    }
+
+    @Test
+    void 墓碑不採rev胜过并发编辑() {
+        // 服务端已是 rev 7 的活记录，一台只见过 rev 3 的设备删除了它
+        Mockito.when(recordMapper.selectOne(any())).thenReturn(serverRow(42L, 7, "edited later"));
+
+        SyncPushResponse resp = push(tombstone("sync-1", 4, 1761602000000L));
+
+        ArgumentCaptor<ClipboardRecord> captor = ArgumentCaptor.forClass(ClipboardRecord.class);
+        Mockito.verify(recordMapper).updateById(captor.capture());
+        assertEquals(42L, captor.getValue().getId());
+        assertNotNull(captor.getValue().getDeletedAt(), "删除必须赢：活记录被墓碑覆盖");
+        // rev 抬到双方最大 +1，保证已见过 rev 7 的客户端的 rev 门槛也放行这条墓碑
+        assertEquals(8L, captor.getValue().getRev());
+        assertEquals(List.of("sync-1"), resp.getAccepted());
+    }
+
+    @Test
+    void 两条墓碑幂等且不耗seq() {
+        ClipboardRecord alreadyGone = serverRow(42L, 5, "");
+        alreadyGone.setDeletedAt(1761601000000L);
+        Mockito.when(recordMapper.selectOne(any())).thenReturn(alreadyGone);
+
+        SyncPushResponse resp = push(tombstone("sync-1", 5, 1761602000000L));
+
+        assertEquals(List.of("sync-1"), resp.getAccepted());
+        assertTrue(resp.getConflicts().isEmpty());
+        Mockito.verify(recordMapper, Mockito.never()).updateById(any(ClipboardRecord.class));
+    }
+
+    @Test
+    void 两条墓碑时对端rev更高则抬升rev但不耗seq() {
+        ClipboardRecord alreadyGone = serverRow(42L, 5, "");
+        alreadyGone.setDeletedAt(1761601000000L);
+        Mockito.when(recordMapper.selectOne(any())).thenReturn(alreadyGone);
+
+        push(tombstone("sync-1", 9, 1761602000000L));
+
+        ArgumentCaptor<ClipboardRecord> captor = ArgumentCaptor.forClass(ClipboardRecord.class);
+        Mockito.verify(recordMapper).updateById(captor.capture());
+        assertEquals(9L, captor.getValue().getRev(), "只抬 rev，不产生新 seq");
+        assertNotNull(captor.getValue().getDeletedAt());
+    }
+
+    @Test
+    void 已删条目被编辑时回传墓碑而不是复活() {
+        ClipboardRecord gone = serverRow(42L, 3, "old text");
+        gone.setDeletedAt(1761601000000L);
+        Mockito.when(recordMapper.selectOne(any())).thenReturn(gone);
+
+        // 一台离线设备编辑了它还不知道已删的条目，rev 甚至更高
+        SyncPushResponse resp = push(dto("sync-1", 9, "edited after delete"));
+
+        assertTrue(resp.getAccepted().isEmpty());
+        assertEquals(1, resp.getConflicts().size(), "编辑必须判冲突，不能静默接受复活");
+        assertEquals(3L, resp.getConflicts().get(0).getServerRev());
+        assertNotNull(resp.getConflicts().get(0).getServerRecord().getDeletedAt(),
+                "回传的服务端版本必须携带墓碑，让编辑方也删掉本地副本");
+        Mockito.verify(recordMapper, Mockito.never()).updateById(any(ClipboardRecord.class));
     }
 }

@@ -33,5 +33,8 @@ public class ClipboardBlob {
     /** 引用计数，条目删除时递减；为 0 且超期后由 GC 清理 dufs 实体 */
     private Integer refCount;
 
+    /** 引用计数归零的时间；GC 只清理「归零超过保留期」的附件，null 表示仍有引用 */
+    private LocalDateTime zeroedAt;
+
     private LocalDateTime createdAt;
 }

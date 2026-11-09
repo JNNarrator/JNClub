@@ -86,11 +86,16 @@ public class ClipboardTableInit implements ApplicationRunner {
                     byte_size BIGINT NOT NULL DEFAULT 0 COMMENT '字节数',
                     mime VARCHAR(120) DEFAULT '' COMMENT 'MIME 类型',
                     ref_count INT NOT NULL DEFAULT 0 COMMENT '引用计数，为 0 且超期后由 GC 清理',
+                    zeroed_at DATETIME DEFAULT NULL COMMENT '引用计数归零时间，GC 依据；NULL 表示仍有引用',
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                     UNIQUE KEY uk_user_sha (user_id, sha256),
-                    KEY idx_ref (user_id, ref_count, created_at)
+                    KEY idx_ref (user_id, ref_count, created_at),
+                    KEY idx_gc (ref_count, zeroed_at)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='剪贴板附件元数据（实体在 dufs）'
                 """);
+        // 老库补列：引用计数引入 zeroed_at 之前建的表没有这一列
+        ensureColumn("t_clipboard_blob", "zeroed_at",
+                "ALTER TABLE t_clipboard_blob ADD COLUMN zeroed_at DATETIME DEFAULT NULL COMMENT '引用计数归零时间，GC 依据；NULL 表示仍有引用'");
 
         ensureTable("t_clipboard_user_seq", """
                 CREATE TABLE IF NOT EXISTS t_clipboard_user_seq (
@@ -114,6 +119,22 @@ public class ClipboardTableInit implements ApplicationRunner {
             }
         } catch (Exception e) {
             log.warn("{} 建表失败（不影响启动）: {}", table, e.getMessage());
+        }
+    }
+
+    /** 检查列是否存在，不存在则执行 ALTER（幂等，与建表同模式） */
+    private void ensureColumn(String table, String column, String alterSql) {
+        try {
+            Integer count = jdbcTemplate.queryForObject("""
+                    SELECT COUNT(*) FROM information_schema.COLUMNS
+                    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?
+                    """, Integer.class, table, column);
+            if (count != null && count == 0) {
+                jdbcTemplate.execute(alterSql);
+                log.info("已为 {} 补列 {}", table, column);
+            }
+        } catch (Exception e) {
+            log.warn("{} 补列 {} 失败（不影响启动）: {}", table, column, e.getMessage());
         }
     }
 }

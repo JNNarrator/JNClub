@@ -43,7 +43,8 @@ class ClipboardPullPaginationTest {
         settingMapper = Mockito.mock(ClipboardSettingMapper.class);
         ClipboardUserSeqMapper seqMapper = Mockito.mock(ClipboardUserSeqMapper.class);
         ClipboardBlobMapper blobMapper = Mockito.mock(ClipboardBlobMapper.class);
-        service = new ClipboardSyncService(recordMapper, settingMapper, blobMapper, seqMapper);
+        ClipboardBlobService blobService = new ClipboardBlobService(blobMapper);
+        service = new ClipboardSyncService(recordMapper, settingMapper, blobMapper, seqMapper, blobService);
     }
 
     private static ClipboardRecord record(long seq, String content) {
