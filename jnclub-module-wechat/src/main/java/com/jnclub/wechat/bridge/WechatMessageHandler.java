@@ -4,7 +4,6 @@ import com.jnclub.clipboard.dto.ClipboardRecordDto;
 import com.jnclub.clipboard.dto.SyncPullResponse;
 import com.jnclub.clipboard.service.ClipboardSyncService;
 import com.jnclub.wechat.config.WechatProperties;
-import com.jnclub.wechat.ilink.media.MediaService;
 import com.jnclub.wechat.ilink.model.message.MessageItem;
 import com.jnclub.wechat.ilink.model.message.WechatMessage;
 import com.jnclub.wechat.ilink.sender.MessageSenderService;
@@ -34,7 +33,6 @@ public class WechatMessageHandler {
     private final ClipboardBridgeService bridge;
     private final ClipboardSyncService clipboardSyncService;
     private final WechatChannelManager channelManager;
-    private final MediaService mediaService;
     private final com.jnclub.clipboard.service.ClipboardBlobService clipboardBlobService;
 
     public void handle(WechatMessage message) {
@@ -93,13 +91,21 @@ public class WechatMessageHandler {
         }
     }
 
+    /** 判断一项是不是图片：type=IMAGE 且 image_item 不为空。 */
+    private static boolean isImageItem(MessageItem item) {
+        return item != null
+                && item.getType() != null
+                && item.getType() == com.jnclub.wechat.ilink.model.message.MessageType.Item.IMAGE
+                && item.getImageItem() != null;
+    }
+
     /** 从消息里找第一个图片项。 */
     private static MessageItem firstImageItem(WechatMessage message) {
         if (message.getItemList() == null) {
             return null;
         }
         for (MessageItem item : message.getItemList()) {
-            if (MediaService.isImage(item)) {
+            if (isImageItem(item)) {
                 return item;
             }
         }
@@ -109,7 +115,7 @@ public class WechatMessageHandler {
     /** 手机发来的图片 → 下载解密 → 存入 dufs → 写入剪贴板。 */
     private void handleImage(WechatMessage message, String fromUserId, MessageItem imageItem) {
         try {
-            byte[] bytes = mediaService.downloadImage(imageItem.getImageItem());
+            byte[] bytes = channelManager.downloadImage(imageItem.getImageItem());
             long limit = com.jnclub.clipboard.service.ClipboardBlobService.MAX_BLOB_BYTES;
             if (bytes.length > limit) {
                 // 微信原图常超过 20MB 的附件上限，先压缩再试——

@@ -14,6 +14,7 @@ import com.jnclub.wechat.persistence.JdbcBufferStore;
 import com.jnclub.wechat.persistence.JdbcCredentialsStore;
 import com.jnclub.wechat.bridge.WechatMessageHandler;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
@@ -37,7 +38,16 @@ public class WechatChannelManager {
 
     private final JdbcTemplate jdbcTemplate;
     private final ContextTokenStore contextTokenStore;
-    private final WechatMessageHandler messageHandler;
+    /**
+     * 用 ObjectProvider 延迟取，而不是直接注入。
+     *
+     * <p>MessageHandler 需要 ChannelManager 来回复消息，ChannelManager 又需要
+     * Handler 来分发收到的消息——直接构造注入会形成环，Spring 启动时报
+     * "Requested bean is currently in creation"。这不是靠 allow-circular-references
+     * 该开的开关：那个开关在有代理（AOP）时仍可能失效，而且把环留在了架构里。
+     * 在这里把"取用时机"推迟到真正收到消息时，环就不存在了。
+     */
+    private final ObjectProvider<WechatMessageHandler> messageHandlerProvider;
 
     private final AtomicReference<State> state = new AtomicReference<>(State.DOWN);
     private final AtomicReference<String> lastError = new AtomicReference<>();
@@ -47,10 +57,10 @@ public class WechatChannelManager {
 
     public WechatChannelManager(JdbcTemplate jdbcTemplate,
                                 ContextTokenStore contextTokenStore,
-                                WechatMessageHandler messageHandler) {
+                                ObjectProvider<WechatMessageHandler> messageHandlerProvider) {
         this.jdbcTemplate = jdbcTemplate;
         this.contextTokenStore = contextTokenStore;
-        this.messageHandler = messageHandler;
+        this.messageHandlerProvider = messageHandlerProvider;
     }
 
     public State state() {
@@ -154,7 +164,8 @@ public class WechatChannelManager {
             public void onMessagesReceived(List<WechatMessage> messages) {
                 for (WechatMessage msg : messages) {
                     try {
-                        messageHandler.handle(msg);
+                        // 收到消息时才解析 Handler，避开启动期的构造环
+                        messageHandlerProvider.getObject().handle(msg);
                     } catch (Exception e) {
                         log.error("消息处理异常：{}", e.getMessage(), e);
                     }
@@ -184,6 +195,15 @@ public class WechatChannelManager {
             throw new IllegalStateException("微信通道未连接");
         }
         return current.sendImage(toUserId, bytes);
+    }
+
+    /** 下载图片字节；未连接时抛出。 */
+    public byte[] downloadImage(com.jnclub.wechat.ilink.model.message.ImageItem image) throws Exception {
+        WechatBotSdk current = this.sdk;
+        if (current == null || !current.isAuthenticated()) {
+            throw new IllegalStateException("微信通道未连接");
+        }
+        return current.downloadImage(image);
     }
 
     public synchronized void stop() {

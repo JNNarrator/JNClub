@@ -227,6 +227,16 @@ public class WechatBotSdk implements AutoCloseable {
     }
 
     /**
+     * 下载一条图片消息的原始字节。
+     *
+     * <p>MediaService 不是单例 Bean——它需要这个 SDK 实例的 apiClient
+     * （每个登录会话一份，带各自的 bot token），所以按需构造而非注入。
+     */
+    public byte[] downloadImage(com.jnclub.wechat.ilink.model.message.ImageItem image) throws ApiException {
+        return new com.jnclub.wechat.ilink.media.MediaService(apiClient).downloadImage(image);
+    }
+
+    /**
      * 发送自定义消息
      */
     public boolean sendMessage(WechatMessage message) throws ApiException {
