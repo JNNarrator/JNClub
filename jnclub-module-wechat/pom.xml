@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.jnclub</groupId>
+        <artifactId>jnclub</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>jnclub-module-wechat</artifactId>
+    <name>jnclub-module-wechat</name>
+    <description>微信通道模块：iLink 长轮询收发微信消息，桥接剪贴板同步（手机不装 App 也能与电脑互传）</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.jnclub</groupId>
+            <artifactId>jnclub-common</artifactId>
+        </dependency>
+
+        <!-- 直接复用剪贴板同步引擎的 push 能力，避免重复实现 seq/rev/去重规则 -->
+        <dependency>
+            <groupId>com.jnclub</groupId>
+            <artifactId>jnclub-module-clipboard</artifactId>
+        </dependency>
+
+        <!-- iLink 通道走 Apache HttpClient 5 直连，不依赖 MyBatis-Plus -->
+        <dependency>
+            <groupId>org.apache.httpcomponents.client5</groupId>
+            <artifactId>httpclient5</artifactId>
+        </dependency>
+
+        <!-- 二维码生成：扫码登录时后端直接把 PNG 吐给前端 -->
+        <dependency>
+            <groupId>com.google.zxing</groupId>
+            <artifactId>core</artifactId>
+            <version>3.5.3</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.zxing</groupId>
+            <artifactId>javase</artifactId>
+            <version>3.5.3</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-jdbc</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

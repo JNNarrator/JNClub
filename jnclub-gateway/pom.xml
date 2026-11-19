@@ -33,6 +33,12 @@
             <artifactId>jnclub-module-clipboard</artifactId>
         </dependency>
 
+        <!-- 微信通道模块 -->
+        <dependency>
+            <groupId>com.jnclub</groupId>
+            <artifactId>jnclub-module-wechat</artifactId>
+        </dependency>
+
         <!-- Spring Boot Actuator -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
