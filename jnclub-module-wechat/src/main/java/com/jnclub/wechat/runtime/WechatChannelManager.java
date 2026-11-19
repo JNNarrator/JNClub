@@ -13,6 +13,7 @@ import com.jnclub.wechat.persistence.ContextTokenStore;
 import com.jnclub.wechat.persistence.JdbcBufferStore;
 import com.jnclub.wechat.persistence.JdbcCredentialsStore;
 import com.jnclub.wechat.bridge.WechatMessageHandler;
+import com.jnclub.wechat.config.WechatProperties;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -38,6 +39,7 @@ public class WechatChannelManager {
 
     private final JdbcTemplate jdbcTemplate;
     private final ContextTokenStore contextTokenStore;
+    private final WechatProperties properties;
     /**
      * 用 ObjectProvider 延迟取，而不是直接注入。
      *
@@ -57,10 +59,26 @@ public class WechatChannelManager {
 
     public WechatChannelManager(JdbcTemplate jdbcTemplate,
                                 ContextTokenStore contextTokenStore,
+                                WechatProperties properties,
                                 ObjectProvider<WechatMessageHandler> messageHandlerProvider) {
         this.jdbcTemplate = jdbcTemplate;
         this.contextTokenStore = contextTokenStore;
+        this.properties = properties;
         this.messageHandlerProvider = messageHandlerProvider;
+    }
+
+    /**
+     * 剪贴板归属用户是否未配置。
+     *
+     * <p>配错时不会有任何报错：消息照常写入、手机照常收到"已同步"，
+     * 但数据落在别人的 user_id 下，网页端永远看不到。所以这里宁可拒绝启用。
+     */
+    private void requireUserId() {
+        String userId = properties.getUserId();
+        if (userId == null || userId.isBlank()) {
+            throw new IllegalStateException(
+                    "未配置 jnclub.wechat.user-id：微信消息会写进错误的剪贴板空间");
+        }
     }
 
     public State state() {
@@ -89,6 +107,10 @@ public class WechatChannelManager {
      * @return 是否恢复成功
      */
     public synchronized boolean resume() {
+        if (properties.getUserId() == null || properties.getUserId().isBlank()) {
+            log.error("未配置 jnclub.wechat.user-id，跳过微信通道恢复");
+            return false;
+        }
         try {
             WechatBotSdk candidate = newSdk();
             if (!candidate.isAuthenticated()) {
@@ -106,6 +128,7 @@ public class WechatChannelManager {
 
     /** 请求登录二维码；已登录则直接返回空。 */
     public synchronized String requestQrcode() throws Exception {
+        requireUserId();
         if (isConnected()) {
             return null;
         }
@@ -220,6 +243,8 @@ public class WechatChannelManager {
     }
 
     private WechatBotSdk newSdk() {
+        // 这是"凭据存放在哪一行"的键，与剪贴板归属用户无关——
+        // 凭据是通道自身的，剪贴板数据才是 properties.userId 的。
         String userId = "wechat-channel";
         JdbcCredentialsStore credentialsStore = new JdbcCredentialsStore(jdbcTemplate, userId);
         JdbcBufferStore bufferStore = new JdbcBufferStore(jdbcTemplate, userId);

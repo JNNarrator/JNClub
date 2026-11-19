@@ -31,6 +31,15 @@ sa-token:
   timeout: 604800
 
 jnclub:
+  # 微信通道：手机在微信里收发消息即可与电脑剪贴板互传（iLink 长轮询）。
+  # user-id 必须与剪贴板实际使用的用户一致（可在 t_clipboard_record.user_id 查），
+  # 配错不会报错，只会表现为"手机说已同步但网页端看不到"。
+  # whitelist 为空表示不限制——强烈建议填上自己的微信 userId。
+  wechat:
+    auto-start: ${JNCLUB_WECHAT_AUTOSTART:true}
+    user-id: ${JNCLUB_WECHAT_USER_ID:}
+    whitelist: ${JNCLUB_WECHAT_WHITELIST:}
+    notify-on-copy: ${JNCLUB_WECHAT_NOTIFY:true}
   frontend-url: http://localhost:5173
   # Sa-Token 会话持久化 DAO 的加密密钥：生产必须用环境变量 JNCLUB_DAO_CRYPTO_KEY 覆盖
   sa-token-dao:

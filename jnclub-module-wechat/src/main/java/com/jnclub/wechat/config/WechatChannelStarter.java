@@ -34,6 +34,13 @@ public class WechatChannelStarter implements ApplicationRunner {
             log.info("微信通道自动启动已关闭（jnclub.wechat.auto-start=false）");
             return;
         }
+        // userId 决定消息写进谁的剪贴板。配错不会报错，只会"看起来同步成功
+        // 但对方看不到"，所以在这里直接拦住。
+        if (properties.getUserId() == null || properties.getUserId().isBlank()) {
+            log.error("微信通道未配置 jnclub.wechat.user-id，已跳过启动。"
+                    + "请填成与该实例剪贴板实际使用的用户 id 一致（可在 t_clipboard_record.user_id 查）。");
+            return;
+        }
         try {
             boolean resumed = channelManager.resume();
             if (resumed) {
