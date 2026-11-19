@@ -1,5 +1,7 @@
 package com.jnclub.wechat.runtime;
 
+import com.jnclub.wechat.bridge.WechatMessageHandler;
+import com.jnclub.wechat.config.WechatUserConfig;
 import com.jnclub.wechat.ilink.WechatBotSdk;
 import com.jnclub.wechat.ilink.auth.LoginManager;
 import com.jnclub.wechat.ilink.cache.ContextTokenCache;
@@ -12,73 +14,57 @@ import com.jnclub.wechat.ilink.model.response.QrcodeStatusResponse;
 import com.jnclub.wechat.persistence.ContextTokenStore;
 import com.jnclub.wechat.persistence.JdbcBufferStore;
 import com.jnclub.wechat.persistence.JdbcCredentialsStore;
-import com.jnclub.wechat.bridge.WechatMessageHandler;
-import com.jnclub.wechat.config.WechatProperties;
+import com.jnclub.wechat.persistence.WechatConfigStore;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * 微信通道的生命周期管理：扫码登录、启动/停止监听、发送消息。
+ * <b>一个 JNClub 用户</b>的微信通道：扫码登录、启停监听、发送消息。
  *
- * <p>整个应用只维护一个通道实例（单用户自用），因此这里是一个单例的
- * 状态持有者，而不是每用户一份。
+ * <h2>为什么是每用户一个实例，而不是单例</h2>
+ * iLink 的 bot 就是"扫码登录的那个微信号"。两个 JNClub 账号若共用一个实例，
+ * 就只能共用一个 bot、一份凭据、一个 context_token 集合，消息必然串到同一处。
+ * 所以每个账号各自扫码、各自持有一份 SDK 实例，互不干扰。
+ *
+ * <p>本类不再注册为 Spring Bean，由 {@link WechatChannelRegistry} 按需创建。
  *
  * <p>状态机：{@code DOWN → WAITING_SCAN → CONNECTED}，任一步失败回到 DOWN。
- * 前端轮询 {@code /api/wechat/status} 展示。
  */
 @Slf4j
-@Component
 public class WechatChannelManager {
 
     public enum State { DOWN, WAITING_SCAN, CONNECTED }
 
+    private final String userId;
     private final JdbcTemplate jdbcTemplate;
     private final ContextTokenStore contextTokenStore;
-    private final WechatProperties properties;
-    /**
-     * 用 ObjectProvider 延迟取，而不是直接注入。
-     *
-     * <p>MessageHandler 需要 ChannelManager 来回复消息，ChannelManager 又需要
-     * Handler 来分发收到的消息——直接构造注入会形成环，Spring 启动时报
-     * "Requested bean is currently in creation"。这不是靠 allow-circular-references
-     * 该开的开关：那个开关在有代理（AOP）时仍可能失效，而且把环留在了架构里。
-     * 在这里把"取用时机"推迟到真正收到消息时，环就不存在了。
-     */
+    private final WechatConfigStore configStore;
     private final ObjectProvider<WechatMessageHandler> messageHandlerProvider;
 
     private final AtomicReference<State> state = new AtomicReference<>(State.DOWN);
     private final AtomicReference<String> lastError = new AtomicReference<>();
     private volatile WechatBotSdk sdk;
-    private volatile String loggedInUserId;
+    private volatile String loggedInWechatUserId;
     private volatile String pendingQrcode;
 
-    public WechatChannelManager(JdbcTemplate jdbcTemplate,
+    public WechatChannelManager(String userId,
+                                JdbcTemplate jdbcTemplate,
                                 ContextTokenStore contextTokenStore,
-                                WechatProperties properties,
+                                WechatConfigStore configStore,
                                 ObjectProvider<WechatMessageHandler> messageHandlerProvider) {
+        this.userId = userId;
         this.jdbcTemplate = jdbcTemplate;
         this.contextTokenStore = contextTokenStore;
-        this.properties = properties;
+        this.configStore = configStore;
         this.messageHandlerProvider = messageHandlerProvider;
     }
 
-    /**
-     * 剪贴板归属用户是否未配置。
-     *
-     * <p>配错时不会有任何报错：消息照常写入、手机照常收到"已同步"，
-     * 但数据落在别人的 user_id 下，网页端永远看不到。所以这里宁可拒绝启用。
-     */
-    private void requireUserId() {
-        String userId = properties.getUserId();
-        if (userId == null || userId.isBlank()) {
-            throw new IllegalStateException(
-                    "未配置 jnclub.wechat.user-id：微信消息会写进错误的剪贴板空间");
-        }
+    public String userId() {
+        return userId;
     }
 
     public State state() {
@@ -89,8 +75,8 @@ public class WechatChannelManager {
         return lastError.get();
     }
 
-    public String loggedInUserId() {
-        return loggedInUserId;
+    public String loggedInWechatUserId() {
+        return loggedInWechatUserId;
     }
 
     public boolean isConnected() {
@@ -101,34 +87,32 @@ public class WechatChannelManager {
         return pendingQrcode;
     }
 
+    /** 当前用户配置（每次读库，量小且保证与设置页的改动一致）。 */
+    public WechatUserConfig config() {
+        return configStore.load(userId);
+    }
+
     /**
-     * 用已保存的凭据尝试恢复通道（应用启动时调用）。
-     *
-     * @return 是否恢复成功
+     * 用已保存的凭据恢复通道。
      */
     public synchronized boolean resume() {
-        if (properties.getUserId() == null || properties.getUserId().isBlank()) {
-            log.error("未配置 jnclub.wechat.user-id，跳过微信通道恢复");
-            return false;
-        }
         try {
             WechatBotSdk candidate = newSdk();
             if (!candidate.isAuthenticated()) {
-                log.info("没有可用的微信凭据，需要扫码登录");
+                log.debug("[{}] 没有可用的微信凭据，需要扫码登录", userId);
                 return false;
             }
             startListening(candidate);
             return true;
         } catch (Exception e) {
-            log.warn("恢复微信通道失败：{}", e.getMessage());
+            log.warn("[{}] 恢复微信通道失败：{}", userId, e.getMessage());
             lastError.set(e.getMessage());
             return false;
         }
     }
 
-    /** 请求登录二维码；已登录则直接返回空。 */
+    /** 请求登录二维码；已登录则返回 null。 */
     public synchronized String requestQrcode() throws Exception {
-        requireUserId();
         if (isConnected()) {
             return null;
         }
@@ -141,8 +125,7 @@ public class WechatChannelManager {
         this.sdk = candidate;
         this.pendingQrcode = qrcode.getQrcode();
         this.state.set(State.WAITING_SCAN);
-        // 登录在后台线程等扫码，避免阻塞 HTTP 请求
-        Thread.ofVirtual().name("wechat-login").start(() -> awaitScan(candidate, qrcode.getQrcode()));
+        Thread.ofVirtual().name("wechat-login-" + userId).start(() -> awaitScan(candidate, qrcode.getQrcode()));
         return qrcode.getQrcodeImgContent();
     }
 
@@ -151,29 +134,32 @@ public class WechatChannelManager {
             Credentials credentials = candidate.loginWithQrcode(qrcodeToken, new LoginManager.QrcodeStatusCallback() {
                 @Override
                 public void onStatusChanged(QrcodeStatus status, QrcodeStatusResponse response) {
-                    log.info("扫码状态：{}", status == null ? "未知" : status.getDescription());
+                    log.info("[{}] 扫码状态：{}", userId, status == null ? "未知" : status.getDescription());
                 }
 
                 @Override
                 public void onScanned() {
-                    log.info("二维码已扫描，等待确认");
+                    log.info("[{}] 二维码已扫描，等待确认", userId);
                 }
 
                 @Override
                 public void onSuccess(Credentials c) {
-                    log.info("微信登录成功：{}", c.getUserId());
+                    log.info("[{}] 微信登录成功：{}", userId, c.getUserId());
                 }
 
                 @Override
                 public void onExpired() {
-                    log.warn("二维码已过期");
+                    log.warn("[{}] 二维码已过期", userId);
                     state.set(State.DOWN);
                 }
             });
-            this.loggedInUserId = credentials.getUserId();
+            this.loggedInWechatUserId = credentials.getUserId();
+            // bot 属于登录者本人，所以登录后自动把本人加进白名单：
+            // 这样通道开箱即用，又不会因为白名单为空而对陌生人敞开。
+            configStore.addWhitelistEntry(userId, credentials.getUserId());
             startListening(candidate);
         } catch (Exception e) {
-            log.error("扫码登录失败：{}", e.getMessage());
+            log.error("[{}] 扫码登录失败：{}", userId, e.getMessage());
             lastError.set(e.getMessage());
             state.set(State.DOWN);
         } finally {
@@ -187,10 +173,9 @@ public class WechatChannelManager {
             public void onMessagesReceived(List<WechatMessage> messages) {
                 for (WechatMessage msg : messages) {
                     try {
-                        // 收到消息时才解析 Handler，避开启动期的构造环
-                        messageHandlerProvider.getObject().handle(msg);
+                        messageHandlerProvider.getObject().handle(WechatChannelManager.this, msg);
                     } catch (Exception e) {
-                        log.error("消息处理异常：{}", e.getMessage(), e);
+                        log.error("[{}] 消息处理异常：{}", userId, e.getMessage(), e);
                     }
                 }
             }
@@ -199,10 +184,9 @@ public class WechatChannelManager {
         this.sdk = candidate;
         this.state.set(State.CONNECTED);
         this.lastError.set(null);
-        log.info("微信通道已连接");
+        log.info("[{}] 微信通道已连接", userId);
     }
 
-    /** 发送文本；未连接时抛出，由调用方决定降级。 */
     public boolean sendText(String toUserId, String content) throws Exception {
         WechatBotSdk current = this.sdk;
         if (current == null || !current.isAuthenticated()) {
@@ -211,7 +195,6 @@ public class WechatChannelManager {
         return current.sendTextMessage(toUserId, content);
     }
 
-    /** 发送图片；未连接时抛出。 */
     public boolean sendImage(String toUserId, byte[] bytes) throws Exception {
         WechatBotSdk current = this.sdk;
         if (current == null || !current.isAuthenticated()) {
@@ -220,7 +203,6 @@ public class WechatChannelManager {
         return current.sendImage(toUserId, bytes);
     }
 
-    /** 下载图片字节；未连接时抛出。 */
     public byte[] downloadImage(com.jnclub.wechat.ilink.model.message.ImageItem image) throws Exception {
         WechatBotSdk current = this.sdk;
         if (current == null || !current.isAuthenticated()) {
@@ -235,19 +217,22 @@ public class WechatChannelManager {
             try {
                 current.stopListening();
             } catch (Exception e) {
-                log.warn("停止监听失败：{}", e.getMessage());
+                log.warn("[{}] 停止监听失败：{}", userId, e.getMessage());
             }
         }
         this.state.set(State.DOWN);
-        log.info("微信通道已停止");
+        log.info("[{}] 微信通道已停止", userId);
+    }
+
+    /** 已缓存的对话方，用于主动推送。 */
+    public List<String> knownPeers() {
+        return contextTokenStore.peersOf(userId);
     }
 
     private WechatBotSdk newSdk() {
-        // 这是"凭据存放在哪一行"的键，与剪贴板归属用户无关——
-        // 凭据是通道自身的，剪贴板数据才是 properties.userId 的。
-        String userId = "wechat-channel";
         JdbcCredentialsStore credentialsStore = new JdbcCredentialsStore(jdbcTemplate, userId);
         JdbcBufferStore bufferStore = new JdbcBufferStore(jdbcTemplate, userId);
+        // 凭据与 context_token 都按本用户隔离：两个账号各扫各的码，互不可见。
         ContextTokenCache.Persistence persistence = new ContextTokenCache.Persistence() {
             @Override
             public void save(String peerId, String contextToken) {
@@ -256,7 +241,9 @@ public class WechatChannelManager {
 
             @Override
             public String load(String peerId) {
-                return contextTokenStore.get(peerId);
+                // 必须带 userId：同一个微信用户可能分别给两个账号的 bot 发过消息，
+                // 各自的 context_token 不同。
+                return contextTokenStore.get(userId, peerId);
             }
         };
         return new WechatBotSdk(credentialsStore, bufferStore, persistence);
