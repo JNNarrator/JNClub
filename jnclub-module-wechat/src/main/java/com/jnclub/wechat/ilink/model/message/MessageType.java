@@ -29,6 +29,12 @@ public final class MessageType {
 
         /** 语音消息项 */
         public static final int VOICE = 3;
+
+        /** 文件消息项 */
+        public static final int FILE = 4;
+
+        /** 视频消息项 */
+        public static final int VIDEO = 5;
     }
 
     /**

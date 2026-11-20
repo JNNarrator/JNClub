@@ -121,6 +121,8 @@ public class ClipboardStreamListener {
             try {
                 if ("image".equals(latest.getContentType())) {
                     sendImageTo(channel, peer, latest);
+                } else if ("file_path".equals(latest.getContentType())) {
+                    sendFileTo(channel, peer, latest);
                 } else {
                     String content = latest.getContent();
                     String preview = content.length() <= properties.getNotifyPreviewLength()
@@ -135,6 +137,61 @@ public class ClipboardStreamListener {
                 log.debug("[{}] 推送到 {} 失败：{}", channel.userId(), peer, e.getMessage());
             }
         }
+    }
+
+    /**
+     * 把一条文件记录推给微信。
+     *
+     * <p>只有从微信来的文件才带 sha256（存在 note 里）；电脑本地复制的文件
+     * 记的是本地路径，服务端没有它的字节，无法推送——此时明确告知，
+     * 而不是假装成功。
+     */
+    private void sendFileTo(WechatChannelManager channel, String peer, ClipboardRecordDto dto) {
+        String sha = extractSha(dto);
+        if (sha == null) {
+            try {
+                channel.sendText(peer, "📎 电脑上复制了一个文件引用：" + dto.getContent()
+                        + "（本地路径，无法传输到手机）");
+            } catch (Exception ignored) {
+                // 发不出去就算了
+            }
+            return;
+        }
+        try {
+            ClipboardBlobService.BlobPayload payload =
+                    clipboardBlobService.load(channel.userId(), sha);
+            if (payload == null || payload.bytes() == null || payload.bytes().length == 0) {
+                channel.sendText(peer, "📎 电脑复制了文件「" + dto.getContent() + "」，但附件已不在服务端。");
+                return;
+            }
+            String name = dto.getContent() == null ? "file" : dto.getContent();
+            channel.sendFile(peer, name, payload.bytes());
+        } catch (Exception e) {
+            log.debug("[{}] 文件推送到 {} 失败：{}", channel.userId(), peer, e.getMessage());
+            try {
+                channel.sendText(peer, "📎 文件「" + dto.getContent() + "」同步失败。");
+            } catch (Exception ignored) {
+                // context_token 可能已失效
+            }
+        }
+    }
+
+    /** 从 note 里的 "sha256=..." 取出摘要；没有就返回 null。 */
+    static String extractSha(ClipboardRecordDto dto) {
+        String note = dto.getNote();
+        if (note == null) {
+            return null;
+        }
+        for (String line : note.split("\n")) {
+            String trimmed = line.trim();
+            if (trimmed.startsWith("sha256=")) {
+                String value = trimmed.substring("sha256=".length()).trim();
+                if (value.length() == 64) {
+                    return value;
+                }
+            }
+        }
+        return null;
     }
 
     /**

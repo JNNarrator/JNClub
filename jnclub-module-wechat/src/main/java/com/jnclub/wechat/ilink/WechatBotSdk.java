@@ -236,6 +236,51 @@ public class WechatBotSdk implements AutoCloseable {
         return new com.jnclub.wechat.ilink.media.MediaService(apiClient).downloadImage(image);
     }
 
+    /** 发送文件：先传 CDN，再发一条 FILE 消息。 */
+    public boolean sendFile(String toUserId, String fileName, byte[] bytes) throws ApiException {
+        if (!isAuthenticated()) {
+            throw new IllegalStateException("微信未登录,请先扫码二维码登录");
+        }
+        com.jnclub.wechat.ilink.model.message.FileItem file =
+                new com.jnclub.wechat.ilink.media.MediaService(apiClient).uploadFile(toUserId, fileName, bytes);
+        return sendItemMessage(toUserId,
+                com.jnclub.wechat.ilink.model.message.MessageItem.createFile(file));
+    }
+
+    /** 发送视频：先传 CDN，再发一条 VIDEO 消息。 */
+    public boolean sendVideo(String toUserId, byte[] bytes) throws ApiException {
+        if (!isAuthenticated()) {
+            throw new IllegalStateException("微信未登录,请先扫码二维码登录");
+        }
+        com.jnclub.wechat.ilink.model.message.VideoItem video =
+                new com.jnclub.wechat.ilink.media.MediaService(apiClient).uploadVideo(toUserId, bytes);
+        return sendItemMessage(toUserId,
+                com.jnclub.wechat.ilink.model.message.MessageItem.createVideo(video));
+    }
+
+    /** 下载文件字节。 */
+    public byte[] downloadFile(com.jnclub.wechat.ilink.model.message.FileItem file) throws ApiException {
+        return new com.jnclub.wechat.ilink.media.MediaService(apiClient).downloadFile(file);
+    }
+
+    /** 下载视频字节。 */
+    public byte[] downloadVideo(com.jnclub.wechat.ilink.model.message.VideoItem video) throws ApiException {
+        return new com.jnclub.wechat.ilink.media.MediaService(apiClient).downloadVideo(video);
+    }
+
+    /** 把单个消息项包成 BOT 消息发出去。图片/文件/视频共用。 */
+    private boolean sendItemMessage(String toUserId,
+                                    com.jnclub.wechat.ilink.model.message.MessageItem item) throws ApiException {
+        com.jnclub.wechat.ilink.model.message.WechatMessage msg =
+                new com.jnclub.wechat.ilink.model.message.WechatMessage();
+        msg.setToUserId(toUserId);
+        msg.setMessageType(com.jnclub.wechat.ilink.model.message.MessageType.BOT);
+        msg.setMessageState(com.jnclub.wechat.ilink.model.message.MessageType.State.FINISH);
+        msg.setContextToken(contextTokenCache.getOrThrow(toUserId));
+        msg.setItemList(java.util.List.of(item));
+        return messageSender.sendMessage(msg);
+    }
+
     /**
      * 发送自定义消息
      */

@@ -255,6 +255,79 @@ public class ClipboardBridgeService {
         }
     }
 
+    /**
+     * 把微信发来的文件写入剪贴板。
+     *
+     * <h2>为什么用 file_path 而不是 image</h2>
+     * 客户端的同步引擎只对 {@code image} 类型做 blob 本地化（下载到本地文件、
+     * 把 content 换成路径）。若把任意文件标成 image，桌面端会尝试按图片解码，
+     * 得到一堆乱码或直接失败。{@code file_path} 类型在两端的处理是"原样展示"，
+     * 语义上正好对应"这是一个文件"。
+     *
+     * <h2>正文里放什么</h2>
+     * 文件名 + 提示语。真实字节上传到 dufs 并以 sha256 记账，
+     * 需要取用时走 {@code /api/clipboard/blob/{sha}}。这样既保留了文件本身，
+     * 又不会让几 MB 的二进制塞进同步协议。
+     */
+    public boolean pushFile(String userId, String clientId, String fileName,
+                            byte[] bytes, Long createTimeMs) {
+        if (bytes == null || bytes.length == 0) {
+            return false;
+        }
+        if (bytes.length > ClipboardBlobService.MAX_BLOB_BYTES) {
+            log.warn("文件超过上限 {}B，拒绝写入：{}B", ClipboardBlobService.MAX_BLOB_BYTES, bytes.length);
+            return false;
+        }
+        if (!markSeen(userId, clientId)) {
+            log.debug("微信文件 {} 已处理过，跳过", clientId);
+            return false;
+        }
+
+        String sha;
+        try {
+            sha = clipboardBlobService.store(userId, bytes, "application/octet-stream");
+        } catch (Exception e) {
+            log.error("文件存入 dufs 失败：{}", e.getMessage(), e);
+            unmarkSeen(clientId);
+            return false;
+        }
+
+        String safeName = fileName == null || fileName.isBlank() ? "unnamed" : fileName;
+        ClipboardRecordDto dto = new ClipboardRecordDto();
+        dto.setSyncId(syncIdOf(clientId));
+        dto.setContentType("file_path");
+        dto.setContent(safeName);
+        dto.setContentHash(hashOf(safeName + ":" + sha));
+        dto.setPreview("[文件] " + safeName);
+        dto.setNote("sha256=" + sha + " len=" + bytes.length
+                + "\n下载：/api/clipboard/blob/" + sha);
+        dto.setSourceApp(SOURCE_APP);
+        dto.setIsPinned(false);
+        dto.setTags(List.of());
+        long now = createTimeMs != null && createTimeMs > 0 ? createTimeMs : System.currentTimeMillis();
+        dto.setCreatedAt(now);
+        dto.setLastUsedAt(now);
+        dto.setSortAt(now);
+        dto.setUseCount(1);
+        dto.setRev(1L);
+
+        SyncPushRequest request = new SyncPushRequest();
+        request.setRecords(List.of(dto));
+        request.setSettings(List.of());
+        request.setBlobs(List.of(blobRef(sha, bytes.length, "application/octet-stream")));
+
+        try {
+            SyncPushResponse response = clipboardSyncService.push(userId, request);
+            log.info("微信文件 → 剪贴板：user={} name={} sha={} accepted={}",
+                    userId, safeName, sha, response.getAccepted().size());
+            return true;
+        } catch (Exception e) {
+            log.error("文件写入剪贴板失败：{}", e.getMessage(), e);
+            unmarkSeen(clientId);
+            return false;
+        }
+    }
+
     /** 插入幂等标记；已存在返回 false。 */
     private boolean markSeen(String userId, String clientId) {
         if (clientId == null || clientId.isBlank()) {

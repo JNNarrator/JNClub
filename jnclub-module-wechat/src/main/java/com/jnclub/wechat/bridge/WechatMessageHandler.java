@@ -53,10 +53,20 @@ public class WechatMessageHandler {
             return;
         }
 
-        // 图片先于文本判断：图片消息也可能带文字说明，但用户真正想同步的是那张图
-        MessageItem imageItem = firstImageItem(message);
+        // 媒体先于文本判断：媒体消息也可能带文字说明，但用户真正想同步的是那个文件
+        MessageItem imageItem = firstMediaItem(message, MessageType.Item.IMAGE);
         if (imageItem != null) {
             handleImage(channel, message, fromUserId, imageItem);
+            return;
+        }
+        MessageItem fileItem = firstMediaItem(message, MessageType.Item.FILE);
+        if (fileItem != null) {
+            handleFile(channel, message, fromUserId, fileItem);
+            return;
+        }
+        MessageItem videoItem = firstMediaItem(message, MessageType.Item.VIDEO);
+        if (videoItem != null) {
+            handleVideo(channel, message, fromUserId, videoItem);
             return;
         }
 
@@ -118,14 +128,22 @@ public class WechatMessageHandler {
                 && item.getImageItem() != null;
     }
 
-    /** 从消息里找第一个图片项。 */
-    private static MessageItem firstImageItem(WechatMessage message) {
+    /** 从消息里找第一个指定类型的媒体项。 */
+    private static MessageItem firstMediaItem(WechatMessage message, int type) {
         if (message.getItemList() == null) {
             return null;
         }
         for (MessageItem item : message.getItemList()) {
-            if (isImageItem(item)) {
-                return item;
+            if (item.getType() != null && item.getType() == type) {
+                if (type == MessageType.Item.IMAGE && item.getImageItem() != null) {
+                    return item;
+                }
+                if (type == MessageType.Item.FILE && item.getFileItem() != null) {
+                    return item;
+                }
+                if (type == MessageType.Item.VIDEO && item.getVideoItem() != null) {
+                    return item;
+                }
             }
         }
         return null;
@@ -161,6 +179,74 @@ public class WechatMessageHandler {
             log.error("[{}] 处理微信图片失败：{}", channel.userId(), e.getMessage(), e);
             safeSend(channel, fromUserId, "❌ 图片同步失败：" + e.getMessage());
         }
+    }
+
+    /** 手机发来的文件 → 下载解密 → 存入 dufs → 写入剪贴板。 */
+    private void handleFile(WechatChannelManager channel, WechatMessage message,
+                            String fromUserId, MessageItem item) {
+        try {
+            var file = item.getFileItem();
+            String fileName = file.getFileName() == null ? "unnamed" : file.getFileName();
+            byte[] bytes = channel.downloadFile(file);
+            long limit = ClipboardBlobService.MAX_BLOB_BYTES;
+            if (bytes.length > limit) {
+                safeSend(channel, fromUserId, "❌ 文件过大（" + (bytes.length / 1024 / 1024)
+                        + "MB，上限 " + (limit / 1024 / 1024) + "MB），未能同步：" + fileName);
+                return;
+            }
+            boolean ok = bridge.pushFile(
+                    channel.userId(), message.getClientId(), fileName, bytes, message.getCreateTimeMs());
+            if (ok) {
+                safeSend(channel, fromUserId,
+                        "✅ 文件已同步到电脑：" + fileName + "（" + humanSize(bytes.length) + "）");
+            }
+        } catch (Exception e) {
+            log.error("[{}] 处理微信文件失败：{}", channel.userId(), e.getMessage(), e);
+            safeSend(channel, fromUserId, "❌ 文件同步失败：" + e.getMessage());
+        }
+    }
+
+    /**
+     * 手机发来的视频 → 下载解密 → 存入 dufs。
+     *
+     * <p>视频按文件方式落库（content_type=file_path），不以 image 类型存放：
+     * 客户端会对 image 做图片解码，视频会直接失败。因为视频动辄几十 MB 且
+     * 常超出附件上限，这里单独提示，比让用户猜"为什么没同步"要好。
+     */
+    private void handleVideo(WechatChannelManager channel, WechatMessage message,
+                             String fromUserId, MessageItem item) {
+        try {
+            var video = item.getVideoItem();
+            byte[] bytes = channel.downloadVideo(video);
+            long limit = ClipboardBlobService.MAX_BLOB_BYTES;
+            if (bytes.length > limit) {
+                safeSend(channel, fromUserId, "❌ 视频过大（" + (bytes.length / 1024 / 1024)
+                        + "MB，上限 " + (limit / 1024 / 1024) + "MB），未能同步。"
+                        + "视频建议直接用微信的文件传输方式。");
+                return;
+            }
+            String name = "wechat-video-" + System.currentTimeMillis() + ".mp4";
+            boolean ok = bridge.pushFile(
+                    channel.userId(), message.getClientId(), name, bytes, message.getCreateTimeMs());
+            if (ok) {
+                safeSend(channel, fromUserId,
+                        "✅ 视频已同步到电脑（" + humanSize(bytes.length) + "）");
+            }
+        } catch (Exception e) {
+            log.error("[{}] 处理微信视频失败：{}", channel.userId(), e.getMessage(), e);
+            safeSend(channel, fromUserId, "❌ 视频同步失败：" + e.getMessage());
+        }
+    }
+
+    /** 把字节数变成人能读的大小。 */
+    static String humanSize(long bytes) {
+        if (bytes < 1024) {
+            return bytes + "B";
+        }
+        if (bytes < 1024 * 1024) {
+            return String.format("%.1fKB", bytes / 1024.0);
+        }
+        return String.format("%.1fMB", bytes / 1024.0 / 1024.0);
     }
 
     /** 普通文本 → 写入电脑剪贴板。 */

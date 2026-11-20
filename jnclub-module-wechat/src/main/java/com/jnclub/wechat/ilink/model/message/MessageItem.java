@@ -22,6 +22,12 @@ public class MessageItem {
     @JsonProperty("voice_item")
     private VoiceItem voiceItem;
 
+    @JsonProperty("file_item")
+    private FileItem fileItem;
+
+    @JsonProperty("video_item")
+    private VideoItem videoItem;
+
     @JsonProperty("ref_msg")
     private RefMessage refMsg;
 
@@ -48,6 +54,36 @@ public class MessageItem {
 
     public void setImageItem(ImageItem imageItem) {
         this.imageItem = imageItem;
+    }
+
+    public FileItem getFileItem() {
+        return fileItem;
+    }
+
+    public void setFileItem(FileItem fileItem) {
+        this.fileItem = fileItem;
+    }
+
+    public VideoItem getVideoItem() {
+        return videoItem;
+    }
+
+    public void setVideoItem(VideoItem videoItem) {
+        this.videoItem = videoItem;
+    }
+
+    public static MessageItem createFile(FileItem file) {
+        MessageItem item = new MessageItem();
+        item.setType(MessageType.Item.FILE);
+        item.setFileItem(file);
+        return item;
+    }
+
+    public static MessageItem createVideo(VideoItem video) {
+        MessageItem item = new MessageItem();
+        item.setType(MessageType.Item.VIDEO);
+        item.setVideoItem(video);
+        return item;
     }
 
     public static MessageItem createImage(ImageItem image) {

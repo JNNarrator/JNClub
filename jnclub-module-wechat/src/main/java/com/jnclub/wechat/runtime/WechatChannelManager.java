@@ -246,6 +246,38 @@ public class WechatChannelManager {
         return current.downloadImage(image);
     }
 
+    public boolean sendFile(String toUserId, String fileName, byte[] bytes) throws Exception {
+        WechatBotSdk current = this.sdk;
+        if (current == null || !current.isAuthenticated()) {
+            throw new IllegalStateException("微信通道未连接");
+        }
+        return current.sendFile(toUserId, fileName, bytes);
+    }
+
+    public boolean sendVideo(String toUserId, byte[] bytes) throws Exception {
+        WechatBotSdk current = this.sdk;
+        if (current == null || !current.isAuthenticated()) {
+            throw new IllegalStateException("微信通道未连接");
+        }
+        return current.sendVideo(toUserId, bytes);
+    }
+
+    public byte[] downloadFile(com.jnclub.wechat.ilink.model.message.FileItem file) throws Exception {
+        WechatBotSdk current = this.sdk;
+        if (current == null || !current.isAuthenticated()) {
+            throw new IllegalStateException("微信通道未连接");
+        }
+        return current.downloadFile(file);
+    }
+
+    public byte[] downloadVideo(com.jnclub.wechat.ilink.model.message.VideoItem video) throws Exception {
+        WechatBotSdk current = this.sdk;
+        if (current == null || !current.isAuthenticated()) {
+            throw new IllegalStateException("微信通道未连接");
+        }
+        return current.downloadVideo(video);
+    }
+
     public synchronized void stop() {
         WechatBotSdk current = this.sdk;
         if (current != null) {
