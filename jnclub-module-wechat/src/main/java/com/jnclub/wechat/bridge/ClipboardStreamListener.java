@@ -121,7 +121,7 @@ public class ClipboardStreamListener {
             try {
                 if ("image".equals(latest.getContentType())) {
                     sendImageTo(channel, peer, latest);
-                } else if ("file_path".equals(latest.getContentType())) {
+                } else if ("file".equals(latest.getContentType())) {
                     sendFileTo(channel, peer, latest);
                 } else {
                     String content = latest.getContent();

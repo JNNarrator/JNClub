@@ -209,9 +209,13 @@ public class WechatMessageHandler {
     /**
      * 手机发来的视频 → 下载解密 → 存入 dufs。
      *
-     * <p>视频按文件方式落库（content_type=file_path），不以 image 类型存放：
-     * 客户端会对 image 做图片解码，视频会直接失败。因为视频动辄几十 MB 且
-     * 常超出附件上限，这里单独提示，比让用户猜"为什么没同步"要好。
+     * <p>视频按 {@code file} 类型落库，而不是客户端的 {@code video} 类型：
+     * {@code video} 的 content 约定是"本地文件路径"，客户端要靠它生成封面，
+     * 而从微信来的视频在服务端只有字节、没有本地路径。用 {@code file}
+     * 能正常显示文件名与大小，不会渲染成坏掉的封面。
+     *
+     * <p>视频动辄几十 MB 且常超出附件上限，所以单独提示，
+     * 比让用户猜"为什么没同步"要好。
      */
     private void handleVideo(WechatChannelManager channel, WechatMessage message,
                              String fromUserId, MessageItem item) {

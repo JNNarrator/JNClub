@@ -258,11 +258,16 @@ public class ClipboardBridgeService {
     /**
      * 把微信发来的文件写入剪贴板。
      *
-     * <h2>为什么用 file_path 而不是 image</h2>
+     * <h2>为什么用 file 而不是 image</h2>
      * 客户端的同步引擎只对 {@code image} 类型做 blob 本地化（下载到本地文件、
      * 把 content 换成路径）。若把任意文件标成 image，桌面端会尝试按图片解码，
-     * 得到一堆乱码或直接失败。{@code file_path} 类型在两端的处理是"原样展示"，
-     * 语义上正好对应"这是一个文件"。
+     * 得到一堆乱码或直接失败。
+     *
+     * <p>类型名必须是客户端已识别的那个：桌面端的 repository 明确只接受
+     * {@code text | code | url | rich_text | image | file | video}。
+     * 早先这里写的是 {@code file_path}——后端一切正常、数据也进了库，
+     * 但客户端不认识这个类型，列表里什么都不显示。这种"全绿但看不见"的
+     * 故障最难查，所以类型名必须与客户端一致。
      *
      * <h2>正文里放什么</h2>
      * 文件名 + 提示语。真实字节上传到 dufs 并以 sha256 记账，
@@ -295,7 +300,7 @@ public class ClipboardBridgeService {
         String safeName = fileName == null || fileName.isBlank() ? "unnamed" : fileName;
         ClipboardRecordDto dto = new ClipboardRecordDto();
         dto.setSyncId(syncIdOf(clientId));
-        dto.setContentType("file_path");
+        dto.setContentType("file");
         dto.setContent(safeName);
         dto.setContentHash(hashOf(safeName + ":" + sha));
         dto.setPreview("[文件] " + safeName);
