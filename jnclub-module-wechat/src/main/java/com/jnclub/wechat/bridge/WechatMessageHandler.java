@@ -75,6 +75,9 @@ public class WechatMessageHandler {
                 case CLIP -> handleClip(channel, fromUserId, 1);
                 case CLIP_INDEX -> handleClip(channel, fromUserId, Integer.parseInt(command.arg()));
                 case SEARCH -> handleSearch(channel, fromUserId, command.arg());
+                case PIN -> handlePin(channel, fromUserId, Integer.parseInt(command.arg()), true);
+                case UNPIN -> handlePin(channel, fromUserId, Integer.parseInt(command.arg()), false);
+                case DELETE -> handleDelete(channel, fromUserId, Integer.parseInt(command.arg()));
                 case HELP -> safeSend(channel, fromUserId, WechatCommand.helpText(List.of()));
             }
         } catch (Exception e) {
@@ -168,7 +171,16 @@ public class WechatMessageHandler {
                 message.getClientId(),
                 text,
                 message.getCreateTimeMs());
-        if (ok) {
+        if (!ok) {
+            return;
+        }
+        // 超长文本在微信侧就已经被截断了，用户看到的长度与实际到达的可能不同。
+        // 明确提示一下，避免"我明明发了更多"的困惑。
+        if (text.length() >= TextChunker.DEFAULT_CHUNK_CHARS) {
+            safeSend(channel, fromUserId,
+                    "✅ 已同步到电脑剪贴板（" + text.length() + " 字）。"
+                            + "若原文更长，微信可能已截断，建议长内容用网页版。");
+        } else {
             safeSend(channel, fromUserId, "✅ 已同步到电脑剪贴板");
         }
     }
@@ -210,6 +222,48 @@ public class WechatMessageHandler {
             log.warn("[{}] 发送图片条目失败：{}", channel.userId(), e.getMessage());
             safeSend(channel, toUserId, "🖼️ 图片发送失败。");
         }
+    }
+
+    /**
+     * 置顶 / 取消置顶。
+     *
+     * <p>只置顶不动正文：置顶是排序上的标记，不应该改变条目内容。
+     */
+    private void handlePin(WechatChannelManager channel, String toUserId, int index, boolean pinned) {
+        List<ClipboardRecordDto> recent = recentRecords(channel.userId(), index);
+        if (recent.size() < index) {
+            safeSend(channel, toUserId, "剪贴板里只有 " + recent.size() + " 条记录。");
+            return;
+        }
+        ClipboardRecordDto target = recent.get(index - 1);
+        boolean ok = bridge.setPinned(channel.userId(), target, pinned);
+        if (!ok) {
+            safeSend(channel, toUserId, "❌ 操作失败，可能这条刚被其它设备改过，请先发 /clip " + index + " 看最新内容。");
+            return;
+        }
+        String verb = pinned ? "置顶" : "取消置顶";
+        safeSend(channel, toUserId, "📌 第 " + index + " 条已" + verb + "：" + truncate(target.getContent(), 60));
+    }
+
+    /**
+     * 删除一条记录。
+     *
+     * <p>删除是不可逆的（服务端用墓碑，不做回收站），所以先把要删的内容回显给用户，
+     * 让"我删的是不是这条"这件事在动手之后至少可核对。
+     */
+    private void handleDelete(WechatChannelManager channel, String toUserId, int index) {
+        List<ClipboardRecordDto> recent = recentRecords(channel.userId(), index);
+        if (recent.size() < index) {
+            safeSend(channel, toUserId, "剪贴板里只有 " + recent.size() + " 条记录。");
+            return;
+        }
+        ClipboardRecordDto target = recent.get(index - 1);
+        boolean ok = bridge.delete(channel.userId(), target);
+        if (!ok) {
+            safeSend(channel, toUserId, "❌ 删除失败，可能这条刚被其它设备改过，请重试。");
+            return;
+        }
+        safeSend(channel, toUserId, "🗑️ 已删除第 " + index + " 条：" + truncate(target.getContent(), 60));
     }
 
     /** 电脑 → 手机：按关键词搜索。 */

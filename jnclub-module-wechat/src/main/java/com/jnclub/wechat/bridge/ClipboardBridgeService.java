@@ -177,6 +177,84 @@ public class ClipboardBridgeService {
         return ref;
     }
 
+    /**
+     * 置顶 / 取消置顶一条已有记录。
+     *
+     * <p>走 push 而不是新开接口：服务端没有"改置顶"的专用端点，
+     * 但 push 的语义就是"以本设备身份提交一条变更"，带 rev 做乐观锁。
+     * 复用它可以自动获得冲突处理，不必在通道层重新实现。
+     *
+     * @param record 目标记录（pull 拿到的完整 DTO）
+     * @param pinned 是否置顶
+     */
+    public boolean setPinned(String userId, ClipboardRecordDto record, boolean pinned) {
+        ClipboardRecordDto dto = copyForUpdate(record);
+        dto.setIsPinned(pinned);
+        dto.setPinnedOrder(pinned ? (int) (System.currentTimeMillis() / 1000) : null);
+        return pushUpdate(userId, dto, pinned ? "置顶" : "取消置顶");
+    }
+
+    /**
+     * 删除一条记录。
+     *
+     * <p>用墓碑而不是物理删除：服务端靠 deletedAt 把"删除"同步给其它设备，
+     * 直接删行会让对端在下一次 pull 时把它当成"没变过"而保留旧副本。
+     * 这也是剪贴板模块既有的"删除赢过并发编辑"规则所依赖的形态。
+     */
+    public boolean delete(String userId, ClipboardRecordDto record) {
+        ClipboardRecordDto dto = copyForUpdate(record);
+        dto.setDeletedAt(System.currentTimeMillis());
+        return pushUpdate(userId, dto, "删除");
+    }
+
+    /**
+     * 复制一份用于更新的 DTO。
+     *
+     * <p>不直接改传进来的对象：它是 pull 结果的一部分，被别处引用着，
+     * 就地修改会让调用方看到一份"已经不是我拉下来的东西"的数据。
+     */
+    private static ClipboardRecordDto copyForUpdate(ClipboardRecordDto source) {
+        ClipboardRecordDto dto = new ClipboardRecordDto();
+        dto.setSyncId(source.getSyncId());
+        dto.setContentType(source.getContentType());
+        dto.setContent(source.getContent());
+        dto.setContentHash(source.getContentHash());
+        dto.setHtmlContent(source.getHtmlContent());
+        dto.setPreview(source.getPreview());
+        dto.setSourceApp(source.getSourceApp());
+        dto.setIsPinned(source.getIsPinned());
+        dto.setPinnedOrder(source.getPinnedOrder());
+        dto.setTags(source.getTags());
+        dto.setNote(source.getNote());
+        dto.setUseCount(source.getUseCount());
+        dto.setCreatedAt(source.getCreatedAt());
+        dto.setLastUsedAt(source.getLastUsedAt());
+        dto.setSortAt(source.getSortAt());
+        dto.setDeletedAt(source.getDeletedAt());
+        // rev 必须带上原值：服务端据此判断"我看到的是不是最新版本"，
+        // 不带或写错会变成无条件覆盖。
+        dto.setRev(source.getRev());
+        return dto;
+    }
+
+    private boolean pushUpdate(String userId, ClipboardRecordDto dto, String action) {
+        SyncPushRequest request = new SyncPushRequest();
+        request.setRecords(List.of(dto));
+        request.setSettings(List.of());
+        request.setBlobs(List.of());
+        try {
+            SyncPushResponse response = clipboardSyncService.push(userId, request);
+            boolean ok = !response.getAccepted().isEmpty();
+            if (!ok && !response.getConflicts().isEmpty()) {
+                log.info("[{}] {} 遇到版本冲突：syncId={}", userId, action, dto.getSyncId());
+            }
+            return ok;
+        } catch (Exception e) {
+            log.error("[{}] {} 失败：{}", userId, action, e.getMessage(), e);
+            return false;
+        }
+    }
+
     /** 插入幂等标记；已存在返回 false。 */
     private boolean markSeen(String userId, String clientId) {
         if (clientId == null || clientId.isBlank()) {

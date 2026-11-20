@@ -8,8 +8,8 @@ import java.util.List;
  * <p>设计原则：<b>普通文本零仪式感</b>。用户直接发一句话就是"写入电脑剪贴板"，
  * 这是"顺手传一下"的核心体验，不能强迫记语法。只有以 {@code /} 开头的才算指令。
  *
- * @param kind   指令类型
- * @param arg    参数（数字或关键词），可能为空
+ * @param kind 指令类型
+ * @param arg  参数（数字或关键词），可能为空
  */
 public record WechatCommand(Kind kind, String arg) {
 
@@ -22,6 +22,12 @@ public record WechatCommand(Kind kind, String arg) {
         CLIP_INDEX,
         /** /search 关键词 */
         SEARCH,
+        /** /pin N：置顶第 N 条 */
+        PIN,
+        /** /unpin N：取消置顶第 N 条 */
+        UNPIN,
+        /** /del N：删除第 N 条 */
+        DELETE,
         /** /help */
         HELP
     }
@@ -48,15 +54,28 @@ public record WechatCommand(Kind kind, String arg) {
                 }
                 // "/clip 3" 取第 3 条；非数字则当作搜索词
                 if (arg.matches("\\d+")) {
-                    int idx = Integer.parseInt(arg);
-                    yield new WechatCommand(Kind.CLIP_INDEX, String.valueOf(Math.max(1, Math.min(idx, MAX_LIST))));
+                    yield new WechatCommand(Kind.CLIP_INDEX, clampIndex(arg));
                 }
                 yield new WechatCommand(Kind.SEARCH, arg);
             }
             case "search", "s" -> new WechatCommand(Kind.SEARCH, arg);
+            // 置顶/删除都要指明第几条：省略序号时"操作最近一条"太危险，
+            // 用户很可能在数错的时候删掉不想删的东西。
+            case "pin" -> new WechatCommand(Kind.PIN, clampIndex(arg));
+            case "unpin" -> new WechatCommand(Kind.UNPIN, clampIndex(arg));
+            case "del", "delete" -> new WechatCommand(Kind.DELETE, clampIndex(arg));
             case "help", "?" -> new WechatCommand(Kind.HELP, null);
             default -> new WechatCommand(Kind.WRITE, text);
         };
+    }
+
+    /** 序号夹到 1..MAX_LIST；非法输入按 1 处理。 */
+    private static String clampIndex(String arg) {
+        if (arg == null || !arg.matches("\\d+")) {
+            return "1";
+        }
+        int idx = Integer.parseInt(arg);
+        return String.valueOf(Math.max(1, Math.min(idx, MAX_LIST)));
     }
 
     public static String helpText(List<String> lines) {
@@ -65,6 +84,9 @@ public record WechatCommand(Kind kind, String arg) {
         sb.append("/clip → 取回最近一条\n");
         sb.append("/clip 3 → 取回第 3 条\n");
         sb.append("/search 关键词 → 搜索历史\n");
+        sb.append("/pin 2 → 置顶第 2 条\n");
+        sb.append("/unpin 2 → 取消置顶\n");
+        sb.append("/del 2 → 删除第 2 条\n");
         sb.append("/help → 本说明");
         for (String line : lines) {
             sb.append("\n").append(line);

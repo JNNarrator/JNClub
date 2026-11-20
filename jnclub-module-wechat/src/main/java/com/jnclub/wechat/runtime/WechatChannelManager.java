@@ -187,12 +187,47 @@ public class WechatChannelManager {
         log.info("[{}] 微信通道已连接", userId);
     }
 
+    /**
+     * 发送文本，超长时自动分片。
+     *
+     * <p>放在这一层而不是 iLink 发送层，是因为分片是"产品决策"
+     * （长文该怎么呈现），而不是协议细节；SDK 保持一次调用一条消息的语义。
+     *
+     * <p>超长到连分片都装不下时，只发前 {@code MAX_CHUNKS} 片并明确告知剩余量，
+     * 而不是静默丢弃——用户至少知道东西被截断了，可以去网页版看全文。
+     */
     public boolean sendText(String toUserId, String content) throws Exception {
         WechatBotSdk current = this.sdk;
         if (current == null || !current.isAuthenticated()) {
             throw new IllegalStateException("微信通道未连接");
         }
-        return current.sendTextMessage(toUserId, content);
+
+        java.util.List<String> chunks = com.jnclub.wechat.bridge.TextChunker.split(content);
+        boolean anySent = false;
+        int sent = 0;
+        for (String chunk : chunks) {
+            if (sent >= com.jnclub.wechat.bridge.TextChunker.MAX_CHUNKS) {
+                break;
+            }
+            // 多片时加序号，否则用户看到几条独立消息会以为是重复
+            String payload = chunks.size() > 1
+                    ? "(" + (sent + 1) + "/" + chunks.size() + ")\n" + chunk
+                    : chunk;
+            anySent |= current.sendTextMessage(toUserId, payload);
+            sent++;
+        }
+
+        if (sent < chunks.size()) {
+            log.warn("[{}] 文本过长，仅发送前 {} 片（共 {} 片）-> {}", userId, sent, chunks.size(), toUserId);
+            // 截断必须让用户知道，否则会以为全文都在
+            try {
+                current.sendTextMessage(toUserId,
+                        "…内容较长，已发送前 " + sent + " 段。完整内容请到网页版查看。");
+            } catch (Exception ignored) {
+                // 提示发不出去不影响主流程
+            }
+        }
+        return anySent;
     }
 
     public boolean sendImage(String toUserId, byte[] bytes) throws Exception {
